@@ -1,26 +1,7 @@
-// $$ node %f
-const __dirname = 'bar'
-const localesDir = '../../locales/'
-
-import { parse } from "svelte/compiler";
+import { parse } from "svelte/compiler"
 import {writeFileSync, readFileSync} from 'node:fs'
 import MagicString from "magic-string"
 import compileTranslations from "./compile.js"
-
-const translations = {}
-const locales = ['en', 'am']
-// const localesDir = './locales/'
-const localeFile = loc => `${localesDir}${loc}.json`
-for (const loc of locales) {
-    try {
-        const contents = readFileSync(localeFile(loc))
-        translations[loc] = JSON.parse(contents.toString() || '{}')
-    } catch (err) {
-        if (err.code === 'ENOENT') {
-            translations[loc] = {}
-        }
-    }
-}
 
 function walkExpression(node) {
     const txts = []
@@ -168,8 +149,13 @@ function walkHTML(node, amongText = false) {
 
 const escapeQuote = txt => txt.replace("'", "\\'")
 const getArgs = (content, node) => node.args.map(([start, end]) => content.slice(start, end))
+const localeFile = loc => `${localesDir}/${loc}.json`
 
-function preprocess({ content, attributes, markup, filename }) {
+let locales = []
+let localesDir = ''
+let translations = {}
+
+function preprocess({ content, filename }) {
     if (filename.startsWith(__dirname)) {
         return {}
     }
@@ -289,7 +275,7 @@ function preprocess({ content, attributes, markup, filename }) {
     if (added) {
         for (const loc of locales) {
             writeFileSync(localeFile(loc), JSON.stringify(translations[loc], null, 2))
-            writeFileSync(`${localesDir}${loc}.c.json`, JSON.stringify(compileTranslations(translations[loc]), null, 2))
+            writeFileSync(`${localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(translations[loc]), null, 2))
         }
     }
     if (needImport) {
@@ -305,9 +291,23 @@ function preprocess({ content, attributes, markup, filename }) {
     }
 }
 
-export default {
-    markup: preprocess,
+export default function setupPreprocess(options = {locales, localesDir}) {
+    locales = options.locales
+    localesDir = options.localesDir
+    translations = {}
+    for (const loc of locales) {
+        try {
+            const contents = readFileSync(localeFile(loc))
+            translations[loc] = JSON.parse(contents.toString() || '{}')
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                translations[loc] = {}
+            } else {
+                throw err
+            }
+        }
+    }
+    return {
+        markup: preprocess,
+    }
 }
-
-const content = readFileSync('../../rnd/foo.svelte').toString()
-console.log(preprocess({content, filename: 'foo'}).code)

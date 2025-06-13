@@ -1,0 +1,390 @@
+{
+  "24": "24",
+  "404": "404",
+  "Not found": "Not found",
+  "Bar": "Bar",
+  "You <0>might</0> have mistyped the address {0}.": [
+    "You ",
+    [
+      0,
+      "might"
+    ],
+    " have mistyped the address ",
+    0,
+    "."
+  ],
+  " Go back ": " Go back ",
+  " Go home ": " Go home ",
+  " If you came here through a link in the app, please report this to the developer. ": " If you came here through a link in the app, please report this to the developer. ",
+  "@{0} ({1})": [
+    "@",
+    0,
+    " (",
+    1,
+    ")"
+  ],
+  "Your profile": "Your profile",
+  "Your preferences": "Your preferences",
+  "Logout": "Logout",
+  "About": "About",
+  "{0} 2025 K1DV5 ": [
+    0,
+    " 2025 K1DV5"
+  ],
+  "You <0>might</0> have mistyped the address {1}.": [
+    "You ",
+    [
+      0,
+      "might"
+    ],
+    " have mistyped the address ",
+    1,
+    "."
+  ],
+  "You  have mistyped the address {0}.": [
+    "You  have mistyped the address ",
+    0,
+    "."
+  ],
+  "<0><0>{0}</0></0>": [
+    [
+      0,
+      [
+        0,
+        0
+      ]
+    ]
+  ],
+  "<0><0><0>{0}</0><1>{0}</1></0></0>": [
+    [
+      0,
+      [
+        0,
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    ]
+  ],
+  "<0><0><0>404</0><1>Not found</1><2>You  have mistyped the address {0}.</2><3><0> Go back </0><1> Go home </1></3><4> If you came here through a link in the app, please report this to the developer. </4></0></0>": [
+    [
+      0,
+      [
+        0,
+        [
+          0,
+          "404"
+        ],
+        [
+          1,
+          "Not found"
+        ],
+        [
+          2,
+          "You  have mistyped the address ",
+          0,
+          "."
+        ],
+        [
+          3,
+          [
+            0,
+            " Go back "
+          ],
+          [
+            1,
+            " Go home "
+          ]
+        ],
+        [
+          4,
+          " If you came here through a link in the app, please report this to the developer. "
+        ]
+      ]
+    ]
+  ],
+  "<0><0>{0}</0><1><0><0>{0}</0></0></1></0>": [
+    [
+      0,
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        [
+          0,
+          [
+            0,
+            0
+          ]
+        ]
+      ]
+    ]
+  ],
+  "<0><0><0>About</0></0><1>{0} 2025 K1DV5 </1></0>": [
+    [
+      0,
+      [
+        0,
+        [
+          0,
+          "About"
+        ]
+      ],
+      [
+        1,
+        0,
+        " 2025 K1DV5 "
+      ]
+    ]
+  ],
+  "<0><0>404</0><1>Not found</1><2>You  have mistyped the address {0}.</2><3><0> Go back </0><1> Go home </1></3><4> If you came here through a link in the app, please report this to the developer. </4></0>": [
+    [
+      0,
+      [
+        0,
+        "404"
+      ],
+      [
+        1,
+        "Not found"
+      ],
+      [
+        2,
+        "You  have mistyped the address ",
+        0,
+        "."
+      ],
+      [
+        3,
+        [
+          0,
+          " Go back "
+        ],
+        [
+          1,
+          " Go home "
+        ]
+      ],
+      [
+        4,
+        " If you came here through a link in the app, please report this to the developer. "
+      ]
+    ]
+  ],
+  "+Foo {0} bar {1} ee": [
+    "+Foo ",
+    0,
+    " bar ",
+    1,
+    " ee"
+  ],
+  "Foo {0} bar {1} ee": [
+    "Foo ",
+    0,
+    " bar ",
+    1,
+    " ee"
+  ],
+  "{0} Kebede": [
+    0,
+    " Kebede"
+  ],
+  "Kebede {0}": [
+    "Kebede ",
+    0
+  ],
+  "I <0>might</0> be crazy.": [
+    "I ",
+    [
+      0,
+      "might"
+    ],
+    " be crazy."
+  ],
+  "{0} Kebebew": [
+    0,
+    " Kebebew"
+  ],
+  "Abebe {0} bela": [
+    "Abebe ",
+    0,
+    " bela"
+  ],
+  "Feres {0}": [
+    "Feres ",
+    0
+  ],
+  "+Abebe": "+Abebe",
+  "+Beso": "+Beso",
+  "+Feres": "+Feres",
+  "+Galebe": "+Galebe",
+  "Abebe": "Abebe",
+  "Keza {0} t/bet hede": [
+    "Keza ",
+    0,
+    " t/bet hede"
+  ],
+  "Beso": "Beso",
+  "#": "#",
+  "title-content": "title-content",
+  "I <0>color: redmight</0> be crazy.": [
+    "I ",
+    [
+      0,
+      "color: redmight"
+    ],
+    " be crazy."
+  ],
+  "avatar": "avatar",
+  "#about": "#about",
+  "info": "info",
+  "<0>/img/icon.svgcompany logo</0>{1} 2025 K1DV5 ": [
+    [
+      0,
+      "/img/icon.svgcompany logo"
+    ],
+    1,
+    " 2025 K1DV5"
+  ],
+  "Abebe <0>{0}</0> bela": [
+    "Abebe ",
+    [
+      0,
+      0
+    ],
+    " bela"
+  ],
+  "I <0>might <0>really</0></0> be crazy.": [
+    "I ",
+    [
+      0,
+      "might ",
+      [
+        0,
+        "really"
+      ]
+    ],
+    " be crazy."
+  ],
+  "+Keza {0} t/bet hede": [
+    "+Keza ",
+    0,
+    " t/bet hede"
+  ],
+  "Kebede <0>Beso</0>": [
+    "Kebede ",
+    [
+      0,
+      "Beso"
+    ]
+  ],
+  "+Abebe kebede": "+Abebe kebede",
+  "goo": "goo",
+  "+Abebe ": "+Abebe ",
+  "Kebede <2>Beso</2>": [
+    "Kebede ",
+    [
+      2,
+      "Beso"
+    ]
+  ],
+  "Kebede <1>Beso</1>": [
+    "Kebede ",
+    [
+      1,
+      "Beso"
+    ]
+  ],
+  "Kebede {0}<1>Beso</1>{1}<2>Kebab</2>": [
+    "Kebede ",
+    0,
+    [
+      1,
+      "Beso"
+    ],
+    1,
+    [
+      2,
+      "Kebab"
+    ]
+  ],
+  "Kebede {0}<1>Beso</1>{1}<2>Kebab <1>is good</1></2>": [
+    "Kebede ",
+    0,
+    [
+      1,
+      "Beso"
+    ],
+    1,
+    [
+      2,
+      "Kebab ",
+      [
+        1,
+        "is good"
+      ]
+    ]
+  ],
+  "Kebede {0}<0>Beso</0>{1}<1>Kebab</1>": [
+    "Kebede ",
+    0,
+    [
+      0,
+      "Beso"
+    ],
+    1,
+    [
+      1,
+      "Kebab"
+    ]
+  ],
+  "Kebede {0}<0>Beso</0>{1}{2}<1>Kebab</1>": [
+    "Kebede ",
+    0,
+    [
+      0,
+      "Beso"
+    ],
+    1,
+    2,
+    [
+      1,
+      "Kebab"
+    ]
+  ],
+  "Kebede <0>Beso</0>{0} foo <1>good</1> aaa {1} and last": [
+    "Kebede ",
+    [
+      0,
+      "Beso"
+    ],
+    0,
+    " foo ",
+    [
+      1,
+      "good"
+    ],
+    " aaa ",
+    1,
+    " and last"
+  ],
+  "I <0>color: redmight <0>really</0></0> be crazy.": [
+    "I ",
+    [
+      0,
+      "color: redmight ",
+      [
+        0,
+        "really"
+      ]
+    ],
+    " be crazy."
+  ]
+}
