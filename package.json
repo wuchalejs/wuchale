@@ -1,0 +1,22 @@
+{
+  "name": "wuchale",
+  "version": "0.1.0",
+  "description": "i18n for svelte without turning your codebase upside down",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "svelte",
+    "js",
+    "i18n"
+  ],
+  "author": "K1DV5",
+  "license": "MIT",
+  "dependencies": {
+    "magic-string": "^0.30.17"
+  },
+  "devDependencies": {
+    "svelte": "^5.28.1"
+  }
+}
