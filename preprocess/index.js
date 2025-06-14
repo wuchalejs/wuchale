@@ -173,8 +173,7 @@ class Preprocess {
         let iArg = 0
         let iTag = 0
         const inCompoundText = this.checkInCompoundText(node)
-        let lastSnippetI = this.iSnippetInFile
-        for (const child of node.children) {
+        for (const [i, child] of node.children.entries()) {
             if (!inCompoundText) {
                 txts.push(...this.visit(child))
                 continue
@@ -182,7 +181,7 @@ class Preprocess {
             if (child.type === 'Text') {
                 txt += child.data
                 if (node.inCompoundText) {
-                    this.mstr.update(child.start, child.end, '{@render arg()}')
+                    this.mstr.update(child.start, child.end, `{ctx[${i + 1}]}`)
                 } else {
                     this.mstr.remove(child.start, child.end)
                 }
@@ -207,14 +206,13 @@ class Preprocess {
             let chTxt = this.visit(child).join()
             if (chTxt && child.children) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
-                iTag++
-                const snippetName = `${snipPrefix}${this.iSnippetInFile}`
-                const snippetBegin = `\n{#snippet ${snippetName}(arg)}`
-                const snippetEnd = '{/snippet}'
+                const snippetName = `${snipPrefix}${iTag}`
+                const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
+                const snippetEnd = '\n{/snippet}\n'
                 this.mstr.appendRight(child.start, snippetBegin)
                 this.mstr.prependLeft(child.end, snippetEnd)
-                this.mstr.move(child.start, child.end, this.markupStart)
-                this.iSnippetInFile++
+                this.mstr.move(child.start, child.end, node.start)
+                iTag++
             }
             txt += chTxt
         }
@@ -222,18 +220,12 @@ class Preprocess {
             return txts
         }
         txts.push(txt)
-        if (node.inCompoundText) {
-            return txts
-        }
         const firstChildStart = node.children[0].start
         const lastChildEnd = node.children.slice(-1)[0].end
-        if (this.iSnippetInFile === lastSnippetI) {
-            this.mstr.appendLeft(firstChildStart, `{t('${this.escapeQuote(txt)}', `)
-            this.mstr.appendRight(lastChildEnd, ')}')
-        } else {
+        if (iTag > 0) {
             const snippets = []
             // reference all new snippets added
-            for (let i = lastSnippetI; i < this.iSnippetInFile; i++) {
+            for (let i = 0; i < iTag; i++) {
                 snippets.push(`${snipPrefix}${i}`)
             }
             this.mstr.appendLeft(firstChildStart, `<T id={'${this.escapeQuote(txt)}'} tags={[${snippets.join(', ')}]} `)
@@ -242,7 +234,11 @@ class Preprocess {
                 this.mstr.appendRight(lastChildEnd, ']}')
             }
             this.mstr.appendRight(lastChildEnd, '/>')
+        } else if (!node.inCompoundText) {
+            this.mstr.appendLeft(firstChildStart, `{t('${this.escapeQuote(txt)}', `)
+            this.mstr.appendRight(lastChildEnd, ')}')
         }
+                console.log(txt, iTag)
         return txts
     }
 
@@ -311,7 +307,7 @@ class Preprocess {
                 writeFileSync(`${this.localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(this.translations[loc]), null, 2))
             }
         }
-        const importStmt = 'import T, {t} from "~/i18n/runtime.svelte"'
+        const importStmt = 'import T, {Tx, t} from "~/i18n/runtime.svelte"'
         if (ast.instance) {
             this.mstr.appendRight(ast.instance.content.start, importStmt)
         } else {
