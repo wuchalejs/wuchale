@@ -18,38 +18,48 @@ export function locale(newLocale = null) {
     }
 }
 
-function getTranslation(id, args = []) {
-    const translated = txts[id] || id
-    if (typeof translated === 'string') {
-        return [translated]
+function getCtx(id) {
+    const ctx = txts[id] || id
+    if (typeof ctx === 'string') {
+        return [ctx]
     }
-    const arranged = []
-    for (const fragment of translated) {
-        if (typeof fragment === 'string') {
-            arranged.push(fragment)
-        } else if (typeof fragment === 'number') { // index of non-text children
-            arranged.push(args[fragment])
-        } else { // fragments
-            // console.log(id, fragment, args)
-        }
-    }
-    return arranged
+    return ctx
 }
 
 export function t(id, ...args) {
-    return getTranslation(id, args).join('')
+    const ctx = getCtx(id)
+    let txt = ''
+    for (const fragment of ctx) {
+        if (typeof fragment === 'string') {
+            txt += fragment
+        } else if (typeof fragment === 'number') { // index of non-text children
+            txt += args[fragment]
+        } else {
+            // shouldn't happen
+            console.error('Unknown item in compiled catalog: ', id, fragment)
+        }
+    }
+    txt
 }
 
 </script>
 
 <script>
-    const {id, args} = $props()
+    let {id = null, ctx, tags, args} = $props()
+    if (id != null) {
+        ctx = getCtx(id)
+    }
 </script>
 
-{#each getTranslation(id, args) as fragment}
+{#each ctx as fragment}
     {#if typeof fragment === 'string'}
         {fragment}
-    {:else if fragment != null}
-        {@render fragment()}
+    {:else if typeof fragment === 'number'}
+        {#if id == null}
+            <!-- inside snippet -->
+            {args[fragment]}
+        {/if}
+    {:else}
+        {@render tags[fragment[0]](fragment)}
     {/if}
 {/each}

@@ -6,15 +6,15 @@ import compileTranslations from "./compile.js"
 
 const defaultMstr = new MagicString('')
 
-const avoidSurroundCalls = ['$derived', '$state', '$effect', '$props']
 const snipPrefix = 'wSnippet'
 
-const defaultOptions = {locales: [], localesDir: ''}
+const defaultOptions = {locales: [], localesDir: '', importFrom: '../runtime.svelte'}
 
 class Preprocess {
     constructor(options = defaultOptions) {
         this.locales = options.locales
         this.localesDir = options.localesDir
+        this.importFrom = options.importFrom
         this.translations = {}
         for (const loc of this.locales) {
             try {
@@ -30,8 +30,6 @@ class Preprocess {
         }
         this.content = ''
         this.mstr = defaultMstr
-        this.markupStart = 0
-        this.iSnippetInFile = 0
     }
 
     localeFile = loc => `${this.localesDir}/${loc}.json`
@@ -90,7 +88,7 @@ class Preprocess {
                 continue
             }
             txts.push(...decVisit)
-            if (dec.init.type === 'CallExpression' && dec.init.callee.type === 'Identifier' && avoidSurroundCalls.includes(dec.init.callee.name)) {
+            if (dec.init.type === 'CallExpression' && dec.init.callee.type === 'Identifier' && dec.init.callee.name.startsWith('$')) {
                 continue
             }
             this.mstr.prependLeft(dec.init.start, '$derived(')
@@ -137,13 +135,9 @@ class Preprocess {
         return [txt]
     }
 
-    visitMustacheTag = node => {
-        return this.visit(node.expression)
-    }
+    visitMustacheTag = node => this.visit(node.expression)
 
-    visitComment = node => {
-        return []
-    }
+    visitComment = node => []
 
     checkInCompoundText = node => {
         if (node.inCompoundText) {
@@ -168,19 +162,24 @@ class Preprocess {
         for (const attrib of node.attributes) {
             txts.push(...this.visitAttribute(attrib))
         }
+        if (node.children.length === 0) {
+            return txts
+        }
         let txt = ''
         let iArg = 0
         let iTag = 0
         const inCompoundText = this.checkInCompoundText(node)
-        for (const [i, child] of node.children.entries()) {
+        const lastChildEnd = node.children.slice(-1)[0].end
+        for (const child of node.children) {
             if (!inCompoundText) {
                 txts.push(...this.visit(child))
                 continue
             }
+            if (node.name == 'i')
             if (child.type === 'Text') {
-                // if (!child.data.trim()) {
-                //     continue
-                // }
+                if (!child.data.trim()) {
+                    continue
+                }
                 txt += child.data
                 if (node.inCompoundText && node.children.length === 1) {
                     this.mstr.update(child.start, child.end, `{ctx[1]}`)
@@ -192,14 +191,13 @@ class Preprocess {
             if (child.type === 'MustacheTag') {
                 txts.push(...this.visitMustacheTag(child))
                 txt += `{${iArg}}`
-                if (!node.inCompoundText) {
-                    if (iArg > 0) {
-                        this.mstr.update(child.start, child.start + 1, ', ')
-                    } else {
-                        this.mstr.remove(child.start, child.start + 1)
-                    }
-                    this.mstr.remove(child.end - 1, child.end)
+                this.mstr.move(child.start + 1, child.end - 1, lastChildEnd)
+                if (iArg > 0) {
+                    this.mstr.update(child.start, child.start + 1, ', ')
+                } else {
+                    this.mstr.remove(child.start, child.start + 1)
                 }
+                this.mstr.remove(child.end - 1, child.end)
                 iArg++
                 continue
             }
@@ -221,7 +219,6 @@ class Preprocess {
             return txts
         }
         txts.push(txt)
-        const lastChildEnd = node.children.slice(-1)[0].end
         if (iTag > 0) {
             const snippets = []
             // reference all new snippets added
@@ -230,22 +227,24 @@ class Preprocess {
             }
             let begin
             if (node.inCompoundText) {
-                begin = `<Tx ctx={ctx}`
+                begin = `ctx={ctx}`
             } else {
-                begin = `<T id={'${this.escapeQuote(txt)}'}`
+                begin = `id={'${this.escapeQuote(txt)}'}`
             }
-            this.mstr.appendLeft(lastChildEnd, `\n${begin} tags={[${snippets.join(', ')}]} `)
+            this.mstr.prependLeft(lastChildEnd, `\n<T ${begin} tags={[${snippets.join(', ')}]}`)
             if (iArg > 0) {
-                this.mstr.appendRight(lastChildEnd, 'args={[')
-                this.mstr.appendRight(lastChildEnd, ']}')
+                this.mstr.prependLeft(lastChildEnd, ' args={[')
+                this.mstr.prependRight(lastChildEnd, ']}')
             }
-            this.mstr.appendRight(lastChildEnd, '/>\n')
+            this.mstr.prependRight(lastChildEnd, ' />\n')
         } else if (!node.inCompoundText) {
             this.mstr.appendLeft(lastChildEnd, `{t('${this.escapeQuote(txt)}', `)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
         return txts
     }
+
+    visitInlineComponent = this.visitElement
 
     visitAttribute = node => {
         // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
@@ -272,6 +271,14 @@ class Preprocess {
         return txts
     }
 
+    visitSnippetBlock = node => {
+        const txt = []
+        for (const child of node.children) {
+            txt.push(...this.visit(child))
+        }
+        return txt
+    }
+
     visit = node => {
         const methodName = `visit${node.type}`
         if (methodName in this) {
@@ -289,7 +296,6 @@ class Preprocess {
         for (const node of ast.instance?.content?.body ?? []) {
             txts.push(...this.visit(node))
         }
-        this.markupStart = ast.html.children[0].start
         for (const node of ast.html.children) {
             txts.push(...this.visit(node))
         }
@@ -312,7 +318,7 @@ class Preprocess {
                 writeFileSync(`${this.localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(this.translations[loc]), null, 2))
             }
         }
-        const importStmt = 'import T, {Tx, t} from "~/i18n/runtime.svelte"'
+        const importStmt = `import T, {t} from "${this.importFrom}"`
         if (ast.instance) {
             this.mstr.appendRight(ast.instance.content.start, importStmt)
         } else {
