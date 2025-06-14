@@ -43,7 +43,6 @@ class Preprocess {
             return []
         }
         const txt = node.value.slice(1)
-        // this.extractTxt(txt)
         this.mstr.update(node.start, node.end, `t('${this.escapeQuote(txt)}')`)
         return [txt]
     }
@@ -179,9 +178,12 @@ class Preprocess {
                 continue
             }
             if (child.type === 'Text') {
+                // if (!child.data.trim()) {
+                //     continue
+                // }
                 txt += child.data
-                if (node.inCompoundText) {
-                    this.mstr.update(child.start, child.end, `{ctx[${i + 1}]}`)
+                if (node.inCompoundText && node.children.length === 1) {
+                    this.mstr.update(child.start, child.end, `{ctx[1]}`)
                 } else {
                     this.mstr.remove(child.start, child.end)
                 }
@@ -208,10 +210,9 @@ class Preprocess {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
                 const snippetName = `${snipPrefix}${iTag}`
                 const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
-                const snippetEnd = '\n{/snippet}\n'
+                const snippetEnd = '\n{/snippet}'
                 this.mstr.appendRight(child.start, snippetBegin)
                 this.mstr.prependLeft(child.end, snippetEnd)
-                this.mstr.move(child.start, child.end, node.start)
                 iTag++
             }
             txt += chTxt
@@ -220,7 +221,6 @@ class Preprocess {
             return txts
         }
         txts.push(txt)
-        const firstChildStart = node.children[0].start
         const lastChildEnd = node.children.slice(-1)[0].end
         if (iTag > 0) {
             const snippets = []
@@ -228,17 +228,22 @@ class Preprocess {
             for (let i = 0; i < iTag; i++) {
                 snippets.push(`${snipPrefix}${i}`)
             }
-            this.mstr.appendLeft(firstChildStart, `<T id={'${this.escapeQuote(txt)}'} tags={[${snippets.join(', ')}]} `)
+            let begin
+            if (node.inCompoundText) {
+                begin = `<Tx ctx={ctx}`
+            } else {
+                begin = `<T id={'${this.escapeQuote(txt)}'}`
+            }
+            this.mstr.appendLeft(lastChildEnd, `\n${begin} tags={[${snippets.join(', ')}]} `)
             if (iArg > 0) {
-                this.mstr.appendRight(firstChildStart, 'args={[')
+                this.mstr.appendRight(lastChildEnd, 'args={[')
                 this.mstr.appendRight(lastChildEnd, ']}')
             }
-            this.mstr.appendRight(lastChildEnd, '/>')
+            this.mstr.appendRight(lastChildEnd, '/>\n')
         } else if (!node.inCompoundText) {
-            this.mstr.appendLeft(firstChildStart, `{t('${this.escapeQuote(txt)}', `)
+            this.mstr.appendLeft(lastChildEnd, `{t('${this.escapeQuote(txt)}', `)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
-                console.log(txt, iTag)
         return txts
     }
 
