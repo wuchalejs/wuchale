@@ -1,313 +1,330 @@
+// $$ cd .. && node preprocess/index.test.js
 import { parse } from "svelte/compiler"
 import {writeFileSync, readFileSync} from 'node:fs'
 import MagicString from "magic-string"
 import compileTranslations from "./compile.js"
 
-function walkExpression(node) {
-    const txts = []
-    if (node.type === 'Literal') {
-        if (typeof node.value === 'string' && node.value.startsWith('+')) {
-            txts.push(node)
-        }
-    } else if (node.type === 'ArrayExpression') {
-        for (const elm of node.elements) {
-            txts.push(...walkExpression(elm))
-        }
-    } else if (node.type === 'ObjectExpression') {
-        for (const prop of node.properties) {
-            txts.push(...walkExpression(prop.key))
-            txts.push(...walkExpression(prop.value))
-        }
-    } else if (node.type === 'MemberExpression') {
-        txts.push(...walkExpression(node.object))
-        txts.push(...walkExpression(node.property))
-    } else if (node.type === 'TemplateLiteral' && node.quasis[0]?.value?.cooked?.startsWith('+')) {
-        for (const expr of node.expressions) {
-            txts.push(...walkExpression(expr))
-        }
-        node.data = ''
-        node.args = []
-        let iArg = 0
-        for (const quasi of node.quasis) {
-            node.data += quasi.value.cooked
-            if (quasi.tail) {
-                break
-            }
-            const {start, end} = node.expressions[iArg]
-            node.args.push([start, end])
-            node.data += `{${iArg}}`
-            iArg++
-        }
-        txts.push(node)
-    } else {
-        // console.log(node)
-    }
-    return txts
-}
+const defaultMstr = new MagicString('')
 
-function walkScript(node) {
-    const varInits = []
-    for (const part of node) {
-        if (part.type !== 'VariableDeclaration') {
-            continue
+const avoidSurroundCalls = ['$derived', '$state', '$effect', '$props']
+const snipPrefix = 'wSnippet'
+
+const defaultOptions = {locales: [], localesDir: ''}
+
+class Preprocess {
+    constructor(options = defaultOptions) {
+        this.locales = options.locales
+        this.localesDir = options.localesDir
+        this.translations = {}
+        for (const loc of this.locales) {
+            try {
+                const contents = readFileSync(this.localeFile(loc))
+                this.translations[loc] = JSON.parse(contents.toString() || '{}')
+            } catch (err) {
+                if (err.code === 'ENOENT') {
+                    this.translations[loc] = {}
+                } else {
+                    throw err
+                }
+            }
         }
-        for (const dec of part.declarations) {
+        this.content = ''
+        this.mstr = defaultMstr
+        this.markupStart = 0
+        this.iSnippetInFile = 0
+    }
+
+    localeFile = loc => `${this.localesDir}/${loc}.json`
+    escapeQuote = txt => txt.replace("'", "\\'")
+    getArgs = (content, node) => node.args.map(([start, end]) => content.slice(start, end))
+
+    visitLiteral = node => {
+        if (typeof node.value !== 'string' || !node.value.startsWith('+')) {
+            return []
+        }
+        const txt = node.value.slice(1)
+        // this.extractTxt(txt)
+        this.mstr.update(node.start, node.end, `t('${this.escapeQuote(txt)}')`)
+        return [txt]
+    }
+
+    visitArrayExpression = node => {
+        const txts = []
+        for (const elm of node.elements) {
+            txts.push(...this.visit(elm))
+        }
+        return txts
+    }
+
+    visitObjectExpression = node => {
+        const txts = []
+        for (const prop of node.properties) {
+            txts.push(...this.visit(prop.key))
+            txts.push(...this.visit(prop.value))
+        }
+        return txts
+    }
+
+    visitMemberExpression = node => {
+        return [
+            ...this.visit(node.object),
+            ...this.visit(node.property),
+        ]
+    }
+
+    visitCallExpression = node => {
+        const txts = [...this.visit(node.callee)]
+        for (const arg of node.arguments) {
+            txts.push(...this.visit(arg))
+        }
+        return txts
+    }
+
+    visitVariableDeclaration = node => {
+        const txts = []
+        for (const dec of node.declarations) {
             if (!dec.init) {
                 continue
             }
-            const txts = walkExpression(dec.init)
-            if (txts.length) {
-                varInits.push({start: dec.init.start, end: dec.init.end, txts})
+            const decVisit = this.visit(dec.init)
+            if (!decVisit.length) {
+                continue
             }
+            txts.push(...decVisit)
+            if (dec.init.type === 'CallExpression' && dec.init.callee.type === 'Identifier' && avoidSurroundCalls.includes(dec.init.callee.name)) {
+                continue
+            }
+            this.mstr.prependLeft(dec.init.start, '$derived(')
+            this.mstr.appendRight(dec.init.end, ')')
         }
+        return txts
     }
-    return varInits
-}
 
-function walkHTML(node, amongText = false) {
-    const txts = []
-    for (const attrib of node.attributes ?? []) {
-        // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
-        let value = attrib.values
-        if (attrib.value && attrib.value !== true) {
-            value = attrib.value[0]
-        }
-        if (value.type === 'Text' && value.data.trim().startsWith('+')) {
-            txts.push(attrib)
-        } else {
-            txts.push(...walkHTML(value, amongText))
-        }
-    }
-    if (node.children) {
-        if (!amongText) {
-            let nonText = false
-            for (const child of node.children) {
-                if (child.type === 'Text') {
-                    if (child.data.trim()) {
-                        amongText = true
-                    }
-                } else {
-                    nonText = true
-                }
+    visitTemplateLiteral = node => {
+        const txts = []
+        const quasi0 = node.quasis[0]
+        let txt = quasi0.value.cooked
+        for (const [i, expr] of node.expressions.entries()) {
+            txts.push(...this.visit(expr))
+            const quasi = node.quasis[i + 1]
+            txt += `{${i}}${quasi.value.cooked}`
+            this.mstr.remove(quasi.start - 1, quasi.end)
+            if (i + 1 === node.expressions.length) {
+                continue
             }
-            amongText &&= nonText // mixed content
+            this.mstr.update(quasi.end, quasi.end + 2, ', ')
         }
-        const newNode = {data: '', args: [], tags: [], start: node.children[0]?.start, end: null}
+        if (!quasi0.value.cooked.startsWith('+')) {
+            return txts
+        }
+        let repl = `t('${this.escapeQuote(txt)}'`
+        if (node.expressions.length) {
+            repl += ', '
+        }
+        this.mstr.update(quasi0.start - 1, quasi0.end + 2, repl)
+        this.mstr.update(node.end - 1, node.end, ')')
+        txts.push(txt)
+        return txts
+    }
+
+
+    visitText = node => {
+        let txt = node.data.replace(/\s+/g, ' ')
+        let ttxt = txt.trim()
+        if (!ttxt || ttxt.startsWith('-')) {
+            return []
+        }
+        this.mstr.update(node.start, node.end, `{t('${this.escapeQuote(txt)}')}`)
+        return [txt]
+    }
+
+    visitMustacheTag = node => {
+        return this.visit(node.expression)
+    }
+
+    visitComment = node => {
+        return []
+    }
+
+    checkInCompoundText = node => {
+        if (node.inCompoundText) {
+            return true
+        }
+        let text = false
+        let nonText = false
+        for (const child of node.children ?? []) {
+            if (child.type === 'Text') {
+                if (child.data.trim()) {
+                    text = true
+                }
+            } else {
+                nonText = true
+            }
+        }
+        return text && nonText // mixed content
+    }
+
+    visitElement = node => {
+        const txts = []
+        for (const attrib of node.attributes) {
+            txts.push(...this.visitAttribute(attrib))
+        }
+        let txt = ''
         let iArg = 0
         let iTag = 0
+        const inCompoundText = this.checkInCompoundText(node)
+        let lastSnippetI = this.iSnippetInFile
         for (const child of node.children) {
-            newNode.end = child.end
-            if (!amongText) {
-                txts.push(...walkHTML(child, amongText))
+            if (!inCompoundText) {
+                txts.push(...this.visit(child))
                 continue
             }
-            let childExtract = ''
+            if (child.type === 'Text') {
+                txt += child.data
+                if (node.inCompoundText) {
+                    this.mstr.update(child.start, child.end, '{@render arg()}')
+                } else {
+                    this.mstr.remove(child.start, child.end)
+                }
+                continue
+            }
             if (child.type === 'MustacheTag') {
-                txts.push(...walkExpression(child.expression))
-                childExtract += `{${iArg}}`
-                newNode.args.push([child.expression.start, child.expression.end])
-                iArg++
-            } else {
-                for (const extract of walkHTML(child, amongText)) {
-                    childExtract += extract.data
-                }
-                if (child.type !== 'Text') {
-                    newNode.tags.push([child.start, child.end])
-                }
-            }
-            if (childExtract && child.children) {
-                childExtract = `<${iTag}>${childExtract}</${iTag}>`
-                iTag++
-            }
-            newNode.data += childExtract
-        }
-        if (newNode.data) {
-            if (newNode.tags.length) {
-                newNode.type = 'CompoundText'
-            } else {
-                newNode.type = 'TemplateLiteral'
-            }
-            txts.push(newNode)
-        }
-    } else if (node.type === 'Text') {
-        let text = node.data.replace(/\s+/g, ' ')
-        let ttext = text.trim()
-        if (!amongText) {
-            text = ttext
-        }
-        if (ttext) {
-            txts.push({...node, data: text})
-        }
-    } else if (node.type === 'MustacheTag') {
-        txts.push(...walkExpression(node.expression))
-    } else if (node.type === 'Comment') {
-    } else {
-        // console.log(ast)
-    }
-    return txts
-}
-
-const escapeQuote = txt => txt.replace("'", "\\'")
-const getArgs = (content, node) => node.args.map(([start, end]) => content.slice(start, end))
-const localeFile = loc => `${localesDir}/${loc}.json`
-
-let locales = []
-let localesDir = ''
-let translations = {}
-
-function preprocess({ content, filename }) {
-    if (filename.startsWith(__dirname)) {
-        return {}
-    }
-    const mstr = new MagicString(content)
-    const ast = parse(content, {filename})
-    let needImport = false
-    let added = false
-    function handleScriptNode(node) {
-        let txt
-        let repl
-        if (node.type === 'TemplateLiteral') {
-            txt = node.data
-            const args = getArgs(content, node)
-            repl = `t('${escapeQuote(txt)}', ${args.join(',')})`
-        } else if (node.type === 'Literal') {
-            txt = node.value
-            repl = `t('${escapeQuote(txt)}')`
-        } else {
-            console.error('Unexpected script node', node)
-        }
-        if (!txt) {
-            return
-        }
-        needImport = true
-        mstr.update(node.start, node.end, repl)
-        for (const loc of locales) {
-            if (txt in translations[loc]) {
-                continue
-            }
-            added = true
-            translations[loc][txt] = ''
-        }
-        return txt != null // whether handled successfully
-    }
-    for (const {start, end, txts} of walkScript(ast.instance?.content?.body ?? [])) {
-        for (const node of txts) {
-            handleScriptNode(node)
-        }
-        mstr.prependLeft(start, '$derived(')
-        mstr.appendRight(end, ')')
-    }
-    let iSnippetInFile = 0
-    for (const node of walkHTML(ast.html)) {
-        let txt
-        let repl
-        if (node.type === 'Text') {
-            txt = node.data
-            repl = `{t('${escapeQuote(txt)}')}`
-            mstr.update(node.start, node.end, repl)
-        } else if (node.type === 'CompoundText') {
-            txt = node.data
-            const snippets = []
-            const nonTxtIs = []
-            for (const [start, end] of node.tags) {
-                nonTxtIs.push([start, end])
-                const snippetName = `wSnip${iSnippetInFile}`
-                const snippetBegin = `{#snippet ${snippetName}()}`
-                const snippetEnd = '{/snippet}\n'
-                mstr.appendRight(start, snippetBegin)
-                mstr.prependLeft(end, snippetEnd)
-                mstr.move(start, end, node.start)
-                snippets.push(snippetName)
-                iSnippetInFile++
-            }
-            for (const [start, end] of node.args) {
-                nonTxtIs.push([start, end])
-            }
-            nonTxtIs.sort(([start1], [start2]) => start1 < start2 ? -1 : 1)
-            let iNonTxt = 0
-            for (const [start] of nonTxtIs.slice(1)) {
-                mstr.remove(nonTxtIs[iNonTxt][1], start)
-                iNonTxt++
-            }
-            if (node.args.length) {
-                const firstArgStart = node.args[0][0]
-                mstr.appendLeft(firstArgStart, 'args={[')
-                for (const [start] of node.args) {
-                    if (start > firstArgStart) {
-                        mstr.prependLeft(start, ', ')
+                txts.push(...this.visitMustacheTag(child))
+                txt += `{${iArg}}`
+                if (!node.inCompoundText) {
+                    if (iArg > 0) {
+                        this.mstr.update(child.start, child.start + 1, ', ')
+                    } else {
+                        this.mstr.remove(child.start, child.start + 1)
                     }
+                    this.mstr.remove(child.end - 1, child.end)
                 }
-                const lastArgEnd = node.args.slice(-1)[0][1]
-                mstr.appendRight(lastArgEnd, ']} ')
-            }
-            mstr.update(node.start, nonTxtIs[0][0], `<T id={'${escapeQuote(txt)}'} tags={[${snippets.join(', ')}]} `)
-            const lastNonTxtEnd = nonTxtIs.slice(-1)[0][1]
-            if (lastNonTxtEnd === node.end) {
-                mstr.prependRight(lastNonTxtEnd, ' />')
-            } else {
-                mstr.update(lastNonTxtEnd, node.end, ' />')
-            }
-        } else if (node.type === 'Attribute') {
-            const value = node.value[0]
-            txt = value.data
-            repl = `{t('${escapeQuote(txt)}')}`
-            let {start, end} = value
-            if (`'"`.includes(content[start - 1])) {
-                start--
-                end++
-            }
-            mstr.update(start, end, repl)
-        } else if (!handleScriptNode(node)) {
-            console.error('Unexpected node in markup', node)
-        }
-        if (!txt) {
-            continue
-        }
-        needImport = true
-        for (const loc of locales) {
-            if (txt in translations[loc]) {
+                iArg++
                 continue
             }
-            added = true
-            translations[loc][txt] = ''
+            child.inCompoundText = true
+            // elements
+            let chTxt = this.visit(child).join()
+            if (chTxt && child.children) {
+                chTxt = `<${iTag}>${chTxt}</${iTag}>`
+                iTag++
+                const snippetName = `${snipPrefix}${this.iSnippetInFile}`
+                const snippetBegin = `\n{#snippet ${snippetName}(arg)}`
+                const snippetEnd = '{/snippet}'
+                this.mstr.appendRight(child.start, snippetBegin)
+                this.mstr.prependLeft(child.end, snippetEnd)
+                this.mstr.move(child.start, child.end, this.markupStart)
+                this.iSnippetInFile++
+            }
+            txt += chTxt
         }
-    }
-    if (added) {
-        for (const loc of locales) {
-            writeFileSync(localeFile(loc), JSON.stringify(translations[loc], null, 2))
-            writeFileSync(`${localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(translations[loc]), null, 2))
+        if (!txt.trim()) {
+            return txts
         }
+        txts.push(txt)
+        if (node.inCompoundText) {
+            return txts
+        }
+        const firstChildStart = node.children[0].start
+        const lastChildEnd = node.children.slice(-1)[0].end
+        if (this.iSnippetInFile === lastSnippetI) {
+            this.mstr.appendLeft(firstChildStart, `{t('${this.escapeQuote(txt)}', `)
+            this.mstr.appendRight(lastChildEnd, ')}')
+        } else {
+            const snippets = []
+            // reference all new snippets added
+            for (let i = lastSnippetI; i < this.iSnippetInFile; i++) {
+                snippets.push(`${snipPrefix}${i}`)
+            }
+            this.mstr.appendLeft(firstChildStart, `<T id={'${this.escapeQuote(txt)}'} tags={[${snippets.join(', ')}]} `)
+            if (iArg > 0) {
+                this.mstr.appendRight(firstChildStart, 'args={[')
+                this.mstr.appendRight(lastChildEnd, ']}')
+            }
+            this.mstr.appendRight(lastChildEnd, '/>')
+        }
+        return txts
     }
-    if (needImport) {
+
+    visitAttribute = node => {
+        // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
+        let value = node.value
+        if (node.value && node.value !== true) {
+            value = node.value[0]
+        }
+        if (value.type !== 'Text') {
+            return this.visit(value)
+        }
+        if (!value.data.trim().startsWith('+')) {
+            return []
+        }
+        const txts = this.visit(value)
+        if (!txts.length) {
+            return txts
+        }
+        let {start, end} = value
+        if (!`'"`.includes(this.content[start - 1])) {
+            return txts
+        }
+        this.mstr.remove(start - 1, start)
+        this.mstr.remove(end, end + 1)
+        return txts
+    }
+
+    visit = node => {
+        const methodName = `visit${node.type}`
+        if (methodName in this) {
+            return this[methodName](node)
+        }
+        // console.log(node)
+        return []
+    }
+
+    process = ({ content, filename }) => {
+        this.content = content
+        this.mstr = new MagicString(content)
+        const ast = parse(content, {filename})
+        const txts = []
+        for (const node of ast.instance?.content?.body ?? []) {
+            txts.push(...this.visit(node))
+        }
+        this.markupStart = ast.html.children[0].start
+        for (const node of ast.html.children) {
+            txts.push(...this.visit(node))
+        }
+        if (!txts.length) {
+            return {}
+        }
+        let added = false
+        for (const loc of this.locales) {
+            for (const txt of txts) {
+                if (txt in this.translations[loc]) {
+                    continue
+                }
+                this.translations[loc][txt] = ''
+                added = true
+            }
+        }
+        if (added) {
+            for (const loc of this.locales) {
+                writeFileSync(this.localeFile(loc), JSON.stringify(this.translations[loc], null, 2))
+                writeFileSync(`${this.localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(this.translations[loc]), null, 2))
+            }
+        }
         const importStmt = 'import T, {t} from "~/i18n/runtime.svelte"'
         if (ast.instance) {
-            mstr.appendRight(ast.instance.content.start, importStmt)
+            this.mstr.appendRight(ast.instance.content.start, importStmt)
         } else {
-            mstr.prepend(`<script>${importStmt}</script>\n`)
+            this.mstr.prepend(`<script>${importStmt}</script>\n`)
         }
-    }
-    return {
-        code: mstr.toString(),
+        return {
+            code: this.mstr.toString(),
+        }
     }
 }
 
-export default function setupPreprocess(options = {locales, localesDir}) {
-    locales = options.locales
-    localesDir = options.localesDir
-    translations = {}
-    for (const loc of locales) {
-        try {
-            const contents = readFileSync(localeFile(loc))
-            translations[loc] = JSON.parse(contents.toString() || '{}')
-        } catch (err) {
-            if (err.code === 'ENOENT') {
-                translations[loc] = {}
-            } else {
-                throw err
-            }
-        }
-    }
+export default function setupPreprocess(options = defaultOptions) {
     return {
-        markup: preprocess,
+        markup: new Preprocess(options).process,
     }
 }
