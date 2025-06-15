@@ -1,6 +1,6 @@
 // $$ cd .. && npm run test
 
-import Preprocess from "./prep.js"
+import Preprocess, { IndexTracker } from "./prep.js"
 import {writeFileSync, readFileSync} from 'node:fs'
 import compileTranslation from "./compile.js"
 
@@ -48,74 +48,90 @@ function mergeOptionsWithDefault(options = defaultOptions) {
     }
 }
 
+/**
+ * @param {string[]} needles
+ * @param {{ [k: string]: boolean; }} hayStackObj
+ */
+function checkIncluded(needles, hayStackObj) {
+    for (const needle of needles) {
+        if (needle in hayStackObj) {
+            continue
+        }
+        return false
+    }
+    return true
+}
+
 export default function setupPreprocess(options = defaultOptions) {
     mergeOptionsWithDefault(options)
+    const locales = [options.sourceLocale, ...options.otherLocales]
+    const translations = {}
+    const compiled = {}
+    const compiledFname = {}
+    const translationsFname = {}
+    for (const loc of locales) {
+        translationsFname[loc] = `${options.localesDir}/${loc}.json`
+        translations[loc] = readJSONNoFail(translationsFname[loc]) ?? {}
+        compiledFname[loc] = `${options.localesDir}/${loc}.c.json`
+    }
+
+    const sourceTranslations = translations[options.sourceLocale]
+
+    const indexTracker = new IndexTracker(sourceTranslations)
+
+    // startup compile
+    for (const loc of locales) {
+        compiled[loc] = readJSONNoFail(compiledFname[loc]) ?? []
+        for (const txt in translations[loc]) {
+            compiled[loc][indexTracker.get(txt)] = compileTranslation(translations[loc][txt])
+        }
+        writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+    }
+
     /**
      * @param {{ content: any; filename: any; }} toPreprocess
      */
     function preprocess(toPreprocess) {
-        const indicesFname = `${options.localesDir}/index.json`
-        const indicesText = readFileNoFail(indicesFname)
-        const indices = JSON.parse(indicesText ?? '[]')
-        const txtIndices = Object.fromEntries(indices.map((/** @type {string} */ txt, /** @type {number} */ i) => [txt, i]))
-        const prep = new Preprocess(txtIndices, indices.length, options.importFrom)
-        const txts = prep.process(toPreprocess)
+        const prep = new Preprocess(indexTracker, options.importFrom)
+        let txts = prep.process(toPreprocess)
         if (!txts.length) {
             return {}
         }
-        const txtsMap = Object.fromEntries(txts.map(txt => [txt, true]))
-        let sourceTranslations = {}
-        for (const loc of [options.sourceLocale, ...options.otherLocales]) {
-            const translationsFname =  `${options.localesDir}/${loc}.json`
-            const translations = readJSONNoFail(translationsFname) ?? {}
-            let deleted = false
-            for (const txt of Object.keys(translations)) {
-                if (txt in txtsMap) {
-                    continue
-                }
-                delete translations[txt]
-                deleted = true
-            }
-            if (loc === options.sourceLocale) {
-                sourceTranslations = translations
-            }
-            const compiledFname = `${options.localesDir}/${loc}.c.json`
-            const compiled = readJSONNoFail(compiledFname) ?? []
+        for (const loc of locales) {
             let added = false
             for (const txt of txts) {
-                let translated = translations[txt]
+                const translated = translations[loc][txt]
                 if (loc === options.sourceLocale) {
-                    if (translated === txt) {
-                        continue
+                    if (translated !== txt) {
+                        translations[loc][txt] = txt
+                        added = true
                     }
-                    translations[txt] = txt
-                    added = true
                 } else if (translated == null) {
-                    translations[txt] = sourceTranslations[txt] // fallback
+                    translations[loc][txt] = sourceTranslations[txt] // fallback
                     added = true
                 }
-                const index = txtIndices[txt]
-                compiled[index] = compileTranslation(translations[txt])
+                const index = indexTracker.get[txt]
+                compiled[loc][index] = compileTranslation(translations[loc][txt])
             }
-            if (!added && !deleted) {
-                continue
+            for (const [i, c] of compiled[loc].entries()) {
+                if (c == null) {
+                    compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
+                }
             }
-            writeFileSync(translationsFname, JSON.stringify(translations, null, 2))
-            writeFileSync(compiledFname, JSON.stringify(compiled))
+            // if (!added) {
+            //     continue
+            // }
+            writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
+            writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
         }
-        const newIndices = []
-        for (const [txt, i] of Object.entries(txtIndices)) {
-            newIndices[i] = txt
-        }
-        const indicesTextNew = JSON.stringify(newIndices)
-        if (indicesTextNew !== indicesText) {
-            writeFileSync(indicesFname, indicesTextNew)
-        }
+        console.log(locales.map(loc => translationsFname[loc]))
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
+            dependencies: locales.map(loc => translationsFname[loc]),
         }
     }
+
     return {
         markup: preprocess,
     }

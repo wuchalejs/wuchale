@@ -7,32 +7,50 @@ const snipPrefix = 'wuchaleSnippet'
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 
+export class IndexTracker {
+    /**
+     * @param {object} sourceTranslations
+     */
+    constructor(sourceTranslations) {
+        this.indices = {}
+        this.nextIndex = 0
+        for (const txt of Object.keys(sourceTranslations)) {
+            // guaranteed order for strings since ES2015
+            this.indices[txt] = this.nextIndex
+            this.nextIndex++
+        }
+    }
+
+    get = (/** @type {string} */ txt) => {
+        if (txt in this.indices) {
+            return this.indices[txt]
+        }
+        const index = this.nextIndex
+        this.indices[txt] = index
+        this.nextIndex++
+        return index
+    }
+}
+
 export default class Preprocess {
-    constructor(indices = {}, nextIndex = 0, importFrom = '../runtime.svelte') {
-        this.indices = indices
-        this.nextIndex = nextIndex
+    /**
+     * @param {IndexTracker} index
+     */
+    constructor(index, importFrom = '../runtime.svelte') {
+        this.index = index
         this.importFrom = importFrom
         this.content = ''
         /** @type {MagicString} */
         this.mstr = null
     }
 
-    getIndex = (/** @type {string} */ txt) => {
-        if (txt in this.indices) {
-            return this.indices[txt]
-        }
-        const index = this.nextIndex
-        this.indices[txt] = index
-        this.nextIndex += 1
-        return index
-    }
 
     visitLiteral = node => {
         if (typeof node.value !== 'string' || !node.value.startsWith('+')) {
             return []
         }
-        const txt = node.value.slice(1)
-        this.mstr.update(node.start, node.end, `${rtFunc}(${this.getIndex(txt)})`)
+        const txt = node.value
+        this.mstr.update(node.start, node.end, `${rtFunc}(${this.index.get(txt)})`)
         return [txt]
     }
 
@@ -105,7 +123,7 @@ export default class Preprocess {
         if (!quasi0.value.cooked.startsWith('+')) {
             return txts
         }
-        let repl = `${rtFunc}(${this.getIndex(txt)}`
+        let repl = `${rtFunc}(${this.index.get(txt)}`
         if (node.expressions.length) {
             repl += ', '
         }
@@ -122,7 +140,7 @@ export default class Preprocess {
         if (!ttxt || ttxt.startsWith('-')) {
             return []
         }
-        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.getIndex(txt)})}`)
+        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt)})}`)
         return [txt]
     }
 
@@ -131,9 +149,6 @@ export default class Preprocess {
     visitComment = node => []
 
     checkHasCompoundText = node => {
-        if (node.inCompoundText) {
-            return true
-        }
         let text = false
         let nonText = false
         for (const child of node.children ?? []) {
@@ -162,10 +177,6 @@ export default class Preprocess {
         const hasCompoundText = this.checkHasCompoundText(node)
         const lastChildEnd = node.children.slice(-1)[0].end
         for (const child of node.children) {
-            if (!hasCompoundText) {
-                txts.push(...this.visit(child))
-                continue
-            }
             if (child.type === 'Text') {
                 if (!child.data.trim()) {
                     continue
@@ -176,6 +187,10 @@ export default class Preprocess {
                 } else {
                     this.mstr.remove(child.start, child.end)
                 }
+                continue
+            }
+            if (!hasCompoundText) {
+                txts.push(...this.visit(child))
                 continue
             }
             if (child.type === 'MustacheTag') {
@@ -222,7 +237,7 @@ export default class Preprocess {
             if (node.inCompoundText) {
                 begin += `ctx={ctx}`
             } else {
-                begin += `id={${this.getIndex(txt)}}`
+                begin += `id={${this.index.get(txt)}}`
             }
             let end = ' />\n'
             if (iArg > 0) {
@@ -232,7 +247,7 @@ export default class Preprocess {
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
         } else if (!node.inCompoundText) {
-            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.getIndex(txt)}, `)
+            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(txt)}, `)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
         return txts
@@ -242,6 +257,9 @@ export default class Preprocess {
 
     visitAttribute = node => {
         // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
+        if (node.type === 'Spread') {
+            return this.visit(node.expression)
+        }
         let value = node.value
         if (node.value && node.value !== true) {
             value = node.value[0]
