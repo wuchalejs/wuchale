@@ -17,7 +17,7 @@ export default class Preprocess {
         this.mstr = null
     }
 
-    getIndex = txt => {
+    getIndex = (/** @type {string} */ txt) => {
         if (txt in this.indices) {
             return this.indices[txt]
         }

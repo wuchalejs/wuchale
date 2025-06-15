@@ -7,10 +7,13 @@ import compileTranslation from "./compile.js"
 export const defaultOptions = {
     otherLocales: ['am'],
     sourceLocale: 'en',
-    localesDir: '',
+    localesDir: './locales',
     importFrom: 'wuchale/runtime.svelte',
 }
 
+/**
+ * @param {string} filename
+ */
 function readFileNoFail(filename) {
     try {
         const contents = readFileSync(filename)
@@ -26,6 +29,9 @@ function readFileNoFail(filename) {
     }
 }
 
+/**
+ * @param {string} filename
+ */
 function readJSONNoFail(filename) {
     const content = readFileNoFail(filename)
     if (content) {
@@ -33,12 +39,25 @@ function readJSONNoFail(filename) {
     }
 }
 
+function mergeOptionsWithDefault(options = defaultOptions) {
+    for (const key of Object.keys(defaultOptions)) {
+        if (key in options) {
+            continue
+        }
+        options[key] = defaultOptions[key]
+    }
+}
+
 export default function setupPreprocess(options = defaultOptions) {
+    mergeOptionsWithDefault(options)
+    /**
+     * @param {{ content: any; filename: any; }} toPreprocess
+     */
     function preprocess(toPreprocess) {
         const indicesFname = `${options.localesDir}/index.json`
         const indicesText = readFileNoFail(indicesFname)
         const indices = JSON.parse(indicesText ?? '[]')
-        const txtIndices = Object.fromEntries(indices.map((txt, i) => [txt, i]))
+        const txtIndices = Object.fromEntries(indices.map((/** @type {string} */ txt, /** @type {number} */ i) => [txt, i]))
         const prep = new Preprocess(txtIndices, indices.length, options.importFrom)
         const txts = prep.process(toPreprocess)
         if (!txts.length) {
