@@ -8,22 +8,31 @@ const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 
 export default class Preprocess {
-    constructor(importFrom = '../runtime.svelte') {
+    constructor(indices = {}, nextIndex = 0, importFrom = '../runtime.svelte') {
+        this.indices = indices
+        this.nextIndex = nextIndex
         this.importFrom = importFrom
         this.content = ''
         /** @type {MagicString} */
         this.mstr = null
     }
 
-    escapeQuote = txt => txt.replace("'", "\\'")
-    getArgs = (content, node) => node.args.map(([start, end]) => content.slice(start, end))
+    getIndex = txt => {
+        if (txt in this.indices) {
+            return this.indices[txt]
+        }
+        const index = this.nextIndex
+        this.indices[txt] = index
+        this.nextIndex += 1
+        return index
+    }
 
     visitLiteral = node => {
         if (typeof node.value !== 'string' || !node.value.startsWith('+')) {
             return []
         }
         const txt = node.value.slice(1)
-        this.mstr.update(node.start, node.end, `${rtFunc}('${this.escapeQuote(txt)}')`)
+        this.mstr.update(node.start, node.end, `${rtFunc}(${this.getIndex(txt)})`)
         return [txt]
     }
 
@@ -96,7 +105,7 @@ export default class Preprocess {
         if (!quasi0.value.cooked.startsWith('+')) {
             return txts
         }
-        let repl = `${rtFunc}('${this.escapeQuote(txt)}'`
+        let repl = `${rtFunc}(${this.getIndex(txt)}`
         if (node.expressions.length) {
             repl += ', '
         }
@@ -113,7 +122,7 @@ export default class Preprocess {
         if (!ttxt || ttxt.startsWith('-')) {
             return []
         }
-        this.mstr.update(node.start, node.end, `{${rtFunc}('${this.escapeQuote(txt)}')}`)
+        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.getIndex(txt)})}`)
         return [txt]
     }
 
@@ -213,7 +222,7 @@ export default class Preprocess {
             if (node.inCompoundText) {
                 begin += `ctx={ctx}`
             } else {
-                begin += `id={'${this.escapeQuote(txt)}'}`
+                begin += `id={${this.getIndex(txt)}}`
             }
             let end = ' />\n'
             if (iArg > 0) {
@@ -223,7 +232,7 @@ export default class Preprocess {
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
         } else if (!node.inCompoundText) {
-            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}('${this.escapeQuote(txt)}', `)
+            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.getIndex(txt)}, `)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
         return txts

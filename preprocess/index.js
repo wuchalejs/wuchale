@@ -2,48 +2,95 @@
 
 import Preprocess from "./prep.js"
 import {writeFileSync, readFileSync} from 'node:fs'
-import compileTranslations from "./compile.js"
+import compileTranslation from "./compile.js"
 
-export const defaultOptions = {locales: [], localesDir: '', importFrom: '../runtime.svelte'}
+export const defaultOptions = {
+    otherLocales: ['am'],
+    sourceLocale: 'en',
+    localesDir: '',
+    importFrom: 'wuchale/runtime.svelte',
+}
+
+function readFileNoFail(filename) {
+    try {
+        const contents = readFileSync(filename)
+        const text = contents.toString().trim()
+        if (!text) {
+            return
+        }
+        return text
+    } catch (err) {
+        if (err.code !== 'ENOENT') {
+            throw err
+        }
+    }
+}
+
+function readJSONNoFail(filename) {
+    const content = readFileNoFail(filename)
+    if (content) {
+        return JSON.parse(content)
+    }
+}
 
 export default function setupPreprocess(options = defaultOptions) {
-
-    const localeFile = loc => `${options.localesDir}/${loc}.json`
-
     function preprocess(toPreprocess) {
-        const translations = {}
-        for (const loc of options.locales) {
-            try {
-                const contents = readFileSync(localeFile(loc))
-                translations[loc] = JSON.parse(contents.toString() || '{}')
-            } catch (err) {
-                if (err.code === 'ENOENT') {
-                    translations[loc] = {}
-                } else {
-                    throw err
-                }
-            }
-        }
-        const prep = new Preprocess(options.importFrom)
+        const indicesFname = `${options.localesDir}/index.json`
+        const indicesText = readFileNoFail(indicesFname)
+        const indices = JSON.parse(indicesText ?? '[]')
+        const txtIndices = Object.fromEntries(indices.map((txt, i) => [txt, i]))
+        const prep = new Preprocess(txtIndices, indices.length, options.importFrom)
         const txts = prep.process(toPreprocess)
         if (!txts.length) {
             return {}
         }
-        let added = false
-        for (const loc of options.locales) {
-            for (const txt of txts) {
-                if (txt in translations[loc]) {
+        const txtsMap = Object.fromEntries(txts.map(txt => [txt, true]))
+        let sourceTranslations = {}
+        for (const loc of [options.sourceLocale, ...options.otherLocales]) {
+            const translationsFname =  `${options.localesDir}/${loc}.json`
+            const translations = readJSONNoFail(translationsFname) ?? {}
+            let deleted = false
+            for (const txt of Object.keys(translations)) {
+                if (txt in txtsMap) {
                     continue
                 }
-                translations[loc][txt] = ''
-                added = true
+                delete translations[txt]
+                deleted = true
             }
+            if (loc === options.sourceLocale) {
+                sourceTranslations = translations
+            }
+            const compiledFname = `${options.localesDir}/${loc}.c.json`
+            const compiled = readJSONNoFail(compiledFname) ?? []
+            let added = false
+            for (const txt of txts) {
+                let translated = translations[txt]
+                if (loc === options.sourceLocale) {
+                    if (translated === txt) {
+                        continue
+                    }
+                    translations[txt] = txt
+                    added = true
+                } else if (translated == null) {
+                    translations[txt] = sourceTranslations[txt] // fallback
+                    added = true
+                }
+                const index = txtIndices[txt]
+                compiled[index] = compileTranslation(translations[txt])
+            }
+            if (!added && !deleted) {
+                continue
+            }
+            writeFileSync(translationsFname, JSON.stringify(translations, null, 2))
+            writeFileSync(compiledFname, JSON.stringify(compiled))
         }
-        if (added) {
-            for (const loc of options.locales) {
-                writeFileSync(localeFile(loc), JSON.stringify(translations[loc], null, 2))
-                writeFileSync(`${options.localesDir}/${loc}.c.json`, JSON.stringify(compileTranslations(translations[loc]), null, 2))
-            }
+        const newIndices = []
+        for (const [txt, i] of Object.entries(txtIndices)) {
+            newIndices[i] = txt
+        }
+        const indicesTextNew = JSON.stringify(newIndices)
+        if (indicesTextNew !== indicesText) {
+            writeFileSync(indicesFname, indicesTextNew)
         }
         return {
             code: prep.mstr.toString(),
