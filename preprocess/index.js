@@ -139,7 +139,7 @@ class Preprocess {
 
     visitComment = node => []
 
-    checkInCompoundText = node => {
+    checkHasCompoundText = node => {
         if (node.inCompoundText) {
             return true
         }
@@ -150,7 +150,7 @@ class Preprocess {
                 if (child.data.trim()) {
                     text = true
                 }
-            } else {
+            } else if (child.type !== 'Comment') {
                 nonText = true
             }
         }
@@ -168,14 +168,13 @@ class Preprocess {
         let txt = ''
         let iArg = 0
         let iTag = 0
-        const inCompoundText = this.checkInCompoundText(node)
+        const hasCompoundText = this.checkHasCompoundText(node)
         const lastChildEnd = node.children.slice(-1)[0].end
         for (const child of node.children) {
-            if (!inCompoundText) {
+            if (!hasCompoundText) {
                 txts.push(...this.visit(child))
                 continue
             }
-            if (node.name == 'i')
             if (child.type === 'Text') {
                 if (!child.data.trim()) {
                     continue
@@ -202,17 +201,20 @@ class Preprocess {
                 continue
             }
             child.inCompoundText = true
-            // elements
+            // elements and components
             let chTxt = this.visit(child).join()
-            if (chTxt && child.children) {
+            if (child.type === 'Element') {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
-                const snippetName = `${snipPrefix}${iTag}`
-                const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
-                const snippetEnd = '\n{/snippet}'
-                this.mstr.appendRight(child.start, snippetBegin)
-                this.mstr.prependLeft(child.end, snippetEnd)
-                iTag++
+            } else {
+                // InlineComponent
+                chTxt = `<${iTag}/>`
             }
+            const snippetName = `${snipPrefix}${iTag}`
+            const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
+            const snippetEnd = '\n{/snippet}'
+            this.mstr.appendRight(child.start, snippetBegin)
+            this.mstr.prependLeft(child.end, snippetEnd)
+            iTag++
             txt += chTxt
         }
         if (!txt.trim()) {
@@ -225,18 +227,19 @@ class Preprocess {
             for (let i = 0; i < iTag; i++) {
                 snippets.push(`${snipPrefix}${i}`)
             }
-            let begin
+            let begin = `\n<T tags={[${snippets.join(', ')}]} `
             if (node.inCompoundText) {
-                begin = `ctx={ctx}`
+                begin += `ctx={ctx}`
             } else {
-                begin = `id={'${this.escapeQuote(txt)}'}`
+                begin += `id={'${this.escapeQuote(txt)}'}`
             }
-            this.mstr.prependLeft(lastChildEnd, `\n<T ${begin} tags={[${snippets.join(', ')}]}`)
+            let end = ' />\n'
             if (iArg > 0) {
-                this.mstr.prependLeft(lastChildEnd, ' args={[')
-                this.mstr.prependRight(lastChildEnd, ']}')
+                begin += ' args={['
+                end = ']}' + end
             }
-            this.mstr.prependRight(lastChildEnd, ' />\n')
+            this.mstr.appendLeft(lastChildEnd, begin)
+            this.mstr.appendRight(lastChildEnd, end)
         } else if (!node.inCompoundText) {
             this.mstr.appendLeft(lastChildEnd, `{t('${this.escapeQuote(txt)}', `)
             this.mstr.appendRight(lastChildEnd, ')}')
