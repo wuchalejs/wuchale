@@ -1,4 +1,6 @@
-// $ node %f
+// $$ cd .. && npm run test
+// $$ node %f
+
 import { parse } from "svelte/compiler"
 
 function walkCompileNodes(ast) {

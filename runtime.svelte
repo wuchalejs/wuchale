@@ -26,7 +26,7 @@ function getCtx(id) {
     return ctx
 }
 
-export function t(id, ...args) {
+export function wuchaleTrans(id, ...args) {
     const ctx = getCtx(id)
     let txt = ''
     for (const fragment of ctx) {
