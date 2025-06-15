@@ -5,8 +5,8 @@ import {writeFileSync, readFileSync} from 'node:fs'
 import compileTranslation from "./compile.js"
 
 export const defaultOptions = {
-    otherLocales: ['am'],
     sourceLocale: 'en',
+    otherLocales: ['am'],
     localesDir: './locales',
     importFrom: 'wuchale/runtime.svelte',
 }
@@ -46,20 +46,6 @@ function mergeOptionsWithDefault(options = defaultOptions) {
         }
         options[key] = defaultOptions[key]
     }
-}
-
-/**
- * @param {string[]} needles
- * @param {{ [k: string]: boolean; }} hayStackObj
- */
-function checkIncluded(needles, hayStackObj) {
-    for (const needle of needles) {
-        if (needle in hayStackObj) {
-            continue
-        }
-        return false
-    }
-    return true
 }
 
 export default function setupPreprocess(options = defaultOptions) {
@@ -110,7 +96,7 @@ export default function setupPreprocess(options = defaultOptions) {
                     translations[loc][txt] = sourceTranslations[txt] // fallback
                     added = true
                 }
-                const index = indexTracker.get[txt]
+                const index = indexTracker.get(txt)
                 compiled[loc][index] = compileTranslation(translations[loc][txt])
             }
             for (const [i, c] of compiled[loc].entries()) {
@@ -118,13 +104,12 @@ export default function setupPreprocess(options = defaultOptions) {
                     compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
                 }
             }
-            // if (!added) {
-            //     continue
-            // }
+            if (!added) {
+                continue
+            }
             writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
             writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
         }
-        console.log(locales.map(loc => translationsFname[loc]))
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
