@@ -4,7 +4,7 @@
   "description": "i18n for svelte without turning your codebase upside down",
   "main": "index.js",
   "scripts": {
-    "test": "vitest"
+    "test": "node tests"
   },
   "keywords": [
     "svelte",
@@ -17,8 +17,7 @@
     "magic-string": "^0.30.17"
   },
   "devDependencies": {
-    "svelte": "^5.28.1",
-    "vitest": "^3.2.3"
+    "svelte": "^5.28.1"
   },
   "type": "module"
 }
