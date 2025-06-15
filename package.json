@@ -19,5 +19,6 @@
   "devDependencies": {
     "svelte": "^5.28.1",
     "vitest": "^3.2.3"
-  }
+  },
+  "type": "module"
 }
