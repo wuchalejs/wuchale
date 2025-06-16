@@ -8,25 +8,25 @@ import setupGemini from "./gemini.js"
 /**
  * @param {string} text
  * @param {string} scope
- * @returns {Array<*> & {0: boolean, 1: string}}
+ * @returns {{extract: boolean, replace: string}}
  */
-function heuristic(text, scope = 'markup') {
+export function defaultHeuristic(text, scope = 'markup') {
     if (scope === 'markup') {
         if (text.startsWith('-')) {
-            return [false, text.slice(1)]
+            return {extract: false, replace: text.slice(1)}
         }
-        return [true, text]
+        return {extract: true, replace: text}
     }
     // script and attribute
     if (text.startsWith('+')) {
-        return [true, text.slice(1)]
+        return {extract: true, replace: text.slice(1)}
     }
     const range = 'AZ'
     const startCode = text.charCodeAt(0)
     if (startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)) {
-        return [true, text]
+        return {extract: true, replace: text}
     }
-    return [false, text]
+    return {extract: false, replace: text}
 }
 
 export const defaultOptions = {
@@ -34,7 +34,8 @@ export const defaultOptions = {
     otherLocales: ['am'],
     localesDir: './locales',
     importFrom: 'wuchale/runtime.svelte',
-    heuristic,
+    heuristic: defaultHeuristic,
+    geminiAPIKey: 'env',
 }
 
 /**
@@ -126,7 +127,7 @@ export default function setupPreprocess(options = defaultOptions) {
                     }
                 }
                 if (loc !== options.sourceLocale && newTxts.length) {
-                    const geminiT = setupGemini(options.sourceLocale, loc)
+                    const geminiT = setupGemini(options.sourceLocale, loc, options.geminiAPIKey)
                     if (geminiT) {
                         const gTrans = await geminiT(newTxts)
                         for (const txt of newTxts) {

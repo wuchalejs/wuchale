@@ -1,6 +1,5 @@
 // $$ node %f
 
-const apiKeyEnv = process.env.GEMINI_API_KEY
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 
@@ -21,7 +20,7 @@ function prepareData(fragments, sourceLocale, targetLocale) {
             - <0>something</0>: means something enclosed in some tags, like HTML tags
             - <0/>: means a self closing tag, like in HTML
         In all of the examples, 0 is an example for any integer.
-`
+    `
     return {
         system_instruction: {
             parts: [{ text: instruction }]
@@ -32,10 +31,12 @@ function prepareData(fragments, sourceLocale, targetLocale) {
 
 /**
  * @param {string} targetLocale
- * @param {string | undefined} [apiKey]
+ * @param {string | undefined} apiKey
  */
 function setupGemini(sourceLocale = 'en', targetLocale, apiKey) {
-    apiKey ??= apiKeyEnv
+    if (apiKey === 'env') {
+        apiKey = process.env.GEMINI_API_KEY
+    }
     if (!apiKey) {
         return
     }

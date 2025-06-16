@@ -19,6 +19,7 @@ const rtFunc = 'wuchaleTrans'
  * @typedef {Node & {value: string}} NodeWithVal
  * @typedef {Node & {data: string}} NodeWithData
  * @typedef {Node & {inCompoundText: boolean | null}} Element
+ * @typedef {(text: string, scope?: string) => {extract: boolean; replace: string}} HeuristicFunc
  */
 
 class NestText extends String {
@@ -60,7 +61,7 @@ export class IndexTracker {
 export default class Preprocess {
     /**
      * @param {IndexTracker} index
-     * @param {(text: string, scope?: string) => Array<*> & {0: boolean;1: string;}} heuristic
+     * @param {HeuristicFunc} heuristic
      * @param {string} importFrom
      */
     constructor(index, heuristic, importFrom) {
@@ -80,12 +81,12 @@ export default class Preprocess {
      */
     modifyCheck = (node, text, scope) => {
         text = text.replace(/\s+/g, ' ').trim()
-        let [pass, modify] = this.heuristic(text, scope)
-        modify = modify.trim()
-        if (!pass && text !== modify) {
-            this.mstr.update(node.start, node.end, modify)
+        let {extract, replace} = this.heuristic(text, scope)
+        replace = replace.trim()
+        if (!extract && text !== replace) {
+            this.mstr.update(node.start, node.end, replace)
         }
-        return [pass, new NestText(modify, scope)]
+        return [extract, new NestText(replace, scope)]
     }
 
     /**
