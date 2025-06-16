@@ -27,7 +27,7 @@ function walkCompileNodes(ast) {
 }
 
 export default function compileTranslation(text) {
-    if (!text.includes('<') && !text.includes('{')) {
+    if (!text || !text.includes('<') && !text.includes('{')) {
         return text
     }
     // <0></0> to <X0></X0> to please svelte parser

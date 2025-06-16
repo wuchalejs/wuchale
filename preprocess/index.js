@@ -5,11 +5,36 @@ import {writeFileSync, readFileSync} from 'node:fs'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
 
+/**
+ * @param {string} text
+ * @param {string} scope
+ * @returns {Array<*> & {0: boolean, 1: string}}
+ */
+function heuristic(text, scope = 'markup') {
+    if (scope === 'markup') {
+        if (text.startsWith('-')) {
+            return [false, text.slice(1)]
+        }
+        return [true, text]
+    }
+    // script and attribute
+    if (text.startsWith('+')) {
+        return [true, text.slice(1)]
+    }
+    const range = 'AZ'
+    const startCode = text.charCodeAt(0)
+    if (startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)) {
+        return [true, text]
+    }
+    return [false, text]
+}
+
 export const defaultOptions = {
     sourceLocale: 'en',
     otherLocales: ['am'],
     localesDir: './locales',
     importFrom: 'wuchale/runtime.svelte',
+    heuristic,
 }
 
 /**
@@ -79,12 +104,12 @@ export default function setupPreprocess(options = defaultOptions) {
      * @param {{ content: any; filename: any; }} toPreprocess
      */
     function preprocess(toPreprocess) {
-        const prep = new Preprocess(indexTracker, options.importFrom)
+        const prep = new Preprocess(indexTracker, options.heuristic, options.importFrom)
         let txts = prep.process(toPreprocess)
         if (!txts.length) {
             return {}
         }
-        (async () => {
+        const promise = (async () => {
             for (const loc of locales) {
                 const newTxts = []
                 for (const txt of txts) {
@@ -128,6 +153,7 @@ export default function setupPreprocess(options = defaultOptions) {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
             dependencies: locales.map(loc => translationsFname[loc]),
+            promise,
         }
     }
 
