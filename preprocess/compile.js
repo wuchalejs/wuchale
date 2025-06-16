@@ -26,11 +26,17 @@ function walkCompileNodes(ast) {
     return parts
 }
 
-export default function compileTranslation(text) {
+export default function compileTranslation(text, fallback) {
     if (!text || !text.includes('<') && !text.includes('{')) {
         return text
     }
     // <0></0> to <X0></X0> to please svelte parser
-    const ast = parse(text.replace(/(<|(<\/))(\d+)/g, '$1X$3')).html
-    return walkCompileNodes(ast)
+    text = text.replace(/(<|(<\/))(\d+)/g, '$1X$3')
+    try {
+        const ast = parse(text).html
+        return walkCompileNodes(ast)
+    } catch(err) {
+        console.error(err)
+        return fallback
+    }
 }

@@ -135,7 +135,7 @@ export default function setupPreprocess(options = defaultOptions) {
                 }
                 for (const txt of txts) {
                     const index = indexTracker.get(txt)
-                    compiled[loc][index] = compileTranslation(translations[loc][txt])
+                    compiled[loc][index] = compileTranslation(translations[loc][txt], compiled[options.sourceLocale][index])
                 }
                 for (const [i, c] of compiled[loc].entries()) {
                     if (c == null) {

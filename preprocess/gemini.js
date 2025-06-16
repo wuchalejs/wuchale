@@ -10,7 +10,13 @@ function prepareData(fragments, sourceLocale, targetLocale) {
         Then translate each of the fragments from the source to the target.
         The source language is: ${sourceLocale}.
         The target language is: ${targetLocale}.
-        preserve any placeholders and provide the translations line by line in the target language only.`
+        Preserve any placeholders and provide the translations line by line in the target language only.
+        The placeholder format is like the following examples:
+            - {0}: means arbitrary values.
+            - <0>something</0>: means something enclosed in some tags, like HTML tags
+            - <0/>: means a self closing tag, like in HTML
+        In all of the examples, 0 is an example for any integer.
+`
     return {
         system_instruction: {
             parts: [{ text: instruction }]
