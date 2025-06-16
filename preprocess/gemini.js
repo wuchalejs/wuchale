@@ -4,6 +4,11 @@ const apiKeyEnv = process.env.GEMINI_API_KEY
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 
+/**
+ * @param {string[]} fragments
+ * @param {string} sourceLocale
+ * @param {string} targetLocale
+ */
 function prepareData(fragments, sourceLocale, targetLocale) {
     const instruction = `You will be given text fragments for a web app.
         You have to find out the languages using their ISO 639-1 codes.
@@ -25,13 +30,17 @@ function prepareData(fragments, sourceLocale, targetLocale) {
     }
 }
 
+/**
+ * @param {string} targetLocale
+ * @param {string | undefined} [apiKey]
+ */
 function setupGemini(sourceLocale = 'en', targetLocale, apiKey) {
     apiKey ??= apiKeyEnv
     if (!apiKey) {
         return
     }
     const url = `${baseURL}${apiKey}`
-    return async fragments => {
+    return async (/** @type {string[]} */ fragments) => {
         const data = prepareData(fragments, sourceLocale, targetLocale)
         const res = await fetch(url, {method: 'POST', headers: h, body: JSON.stringify(data)})
         const json = await res.json()

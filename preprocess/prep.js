@@ -7,6 +7,20 @@ const snipPrefix = 'wuchaleSnippet'
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 
+/**
+ * @typedef {object} Node
+ * @property {string} type
+ * @property {number} start
+ * @property {number} end
+ */
+
+/**
+ * @typedef {Node & {expression: Node, value: boolean | Node & {data: string}}} Attribute
+ * @typedef {Node & {value: string}} NodeWithVal
+ * @typedef {Node & {data: string}} NodeWithData
+ * @typedef {Node & {inCompoundText: boolean | null}} Element
+ */
+
 class NestText extends String {
     /**
      * @param {string} txt
@@ -74,6 +88,10 @@ export default class Preprocess {
         return [pass, new NestText(modify, scope)]
     }
 
+    /**
+     * @param {NodeWithVal} node
+     * @returns {NestText[]}
+     */
     visitLiteral = node => {
         if (typeof node.value !== 'string') {
             return []
@@ -86,6 +104,10 @@ export default class Preprocess {
         return [txt]
     }
 
+    /**
+     * @param {Node & { elements: Node[] }} node
+     * @returns {NestText[]}
+     */
     visitArrayExpression = node => {
         const txts = []
         for (const elm of node.elements) {
@@ -94,6 +116,12 @@ export default class Preprocess {
         return txts
     }
 
+    /**
+     * @param {Node & {
+     *  properties: Node & { key: Node, value: Node }[]
+     * }} node
+     * @returns {NestText[]}
+     */
     visitObjectExpression = node => {
         const txts = []
         for (const prop of node.properties) {
@@ -103,6 +131,10 @@ export default class Preprocess {
         return txts
     }
 
+    /**
+     * @param {Node & { object: Node, property: Node }} node
+     * @returns {NestText[]}
+     */
     visitMemberExpression = node => {
         return [
             ...this.visit(node.object),
@@ -110,6 +142,10 @@ export default class Preprocess {
         ]
     }
 
+    /**
+     * @param {Node & { callee: Node, arguments: Node[] }} node
+     * @returns {NestText[]}
+     */
     visitCallExpression = node => {
         const txts = [...this.visit(node.callee)]
         for (const arg of node.arguments) {
@@ -118,6 +154,16 @@ export default class Preprocess {
         return txts
     }
 
+    /**
+     * @param {Node & {
+     *  declarations: Node & {
+     *   init: Node & {
+     *    callee: Node & { name: string },
+     *   },
+     *  }[]
+     * }} node
+     * @returns {NestText[]}
+     */
     visitVariableDeclaration = node => {
         const txts = []
         for (const dec of node.declarations) {
@@ -138,6 +184,15 @@ export default class Preprocess {
         return txts
     }
 
+    /**
+     * @param {Node & {
+     *  quasis: (Node & {
+     *   value: {cooked: string}
+     *  })[],
+     *  expressions: Node[]
+     * }} node
+     * @returns {NestText[]}
+     */
     visitTemplateLiteral = node => {
         const txts = []
         const quasi0 = node.quasis[0]
@@ -167,10 +222,18 @@ export default class Preprocess {
     }
 
 
+    /**
+     * @param {Node & {expression: Node}} node
+     * @returns {NestText[]}
+     */
     visitMustacheTag = node => this.visit(node.expression)
 
-    visitComment = node => []
+    visitComment = () => []
 
+    /**
+     * @param {Node & {children: NodeWithData[]}} node
+     * @returns {boolean}
+     */
     checkHasCompoundText = node => {
         let text = false
         let nonText = false
@@ -186,6 +249,13 @@ export default class Preprocess {
         return text && nonText // mixed content
     }
 
+    /**
+     * @param {Element & {
+     *  attributes: Attribute[],
+     *  children: (Element & NodeWithData & { expression: Node })[]
+     * }} node
+     * @returns {NestText[]}
+     */
     visitElement = node => {
         const txts = []
         for (const attrib of node.attributes) {
@@ -297,6 +367,10 @@ export default class Preprocess {
 
     visitInlineComponent = this.visitElement
 
+    /**
+     * @param {Attribute} node
+     * @returns {NestText[]}
+     */
     visitAttribute = node => {
         // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
         if (node.type === 'Spread') {
@@ -305,6 +379,9 @@ export default class Preprocess {
         let value = node.value
         if (node.value && node.value !== true) {
             value = node.value[0]
+        }
+        if (typeof value === 'boolean') {
+            return []
         }
         if (value.type !== 'Text') {
             return this.visit(value)
@@ -324,6 +401,10 @@ export default class Preprocess {
         return txts
     }
 
+    /**
+     * @param {Node & {children: Node[]}} node
+     * @returns {NestText[]}
+     */
     visitSnippetBlock = node => {
         const txt = []
         for (const child of node.children) {
@@ -332,6 +413,10 @@ export default class Preprocess {
         return txt
     }
 
+    /**
+     * @param {Node} node
+     * @returns {NestText[]}
+     */
     visit = node => {
         const methodName = `visit${node.type}`
         if (methodName in this) {

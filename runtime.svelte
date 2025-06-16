@@ -58,6 +58,11 @@ export function wuchaleTrans(id, ...args) {
             {args[fragment]}
         {/if}
     {:else}
-        {@render tags[fragment[0]](fragment)}
+        {@const tag = tags[fragment[0]]}
+        {#if tag == null}
+            [i18n-404:tag]
+        {:else}
+            {@render tag(fragment)}
+        {/if}
     {/if}
 {/each}

@@ -112,7 +112,8 @@ export default function setupPreprocess(options = defaultOptions) {
         const promise = (async () => {
             for (const loc of locales) {
                 const newTxts = []
-                for (const txt of txts) {
+                for (const nTxt of txts) {
+                    const txt = nTxt.toString()
                     const translated = translations[loc][txt]
                     if (loc === options.sourceLocale) {
                         if (translated !== txt) {
@@ -133,7 +134,8 @@ export default function setupPreprocess(options = defaultOptions) {
                         }
                     }
                 }
-                for (const txt of txts) {
+                for (const nTxt of txts) {
+                    const txt = nTxt.toString()
                     const index = indexTracker.get(txt)
                     compiled[loc][index] = compileTranslation(translations[loc][txt], compiled[options.sourceLocale][index])
                 }
