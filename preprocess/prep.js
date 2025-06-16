@@ -15,7 +15,7 @@ const rtFunc = 'wuchaleTrans'
  */
 
 /**
- * @typedef {Node & {expression: Node, value: boolean | Node & {data: string}}} Attribute
+ * @typedef {Node & {expression: Node, value: boolean | (Node & {data: string})[]}} Attribute
  * @typedef {Node & {value: string}} NodeWithVal
  * @typedef {Node & {data: string}} NodeWithData
  * @typedef {Node & {inCompoundText: boolean | null}} Element
@@ -171,19 +171,24 @@ export default class Preprocess {
             if (!dec.init) {
                 continue
             }
+            // visit only contents inside $derived
+            if (dec.init.type !== 'CallExpression' || dec.init.callee.type !== 'Identifier' || dec.init.callee.name !== '$derived') {
+                continue
+            }
             const decVisit = this.visit(dec.init)
             if (!decVisit.length) {
                 continue
             }
             txts.push(...decVisit)
-            if (dec.init.type === 'CallExpression' && dec.init.callee.type === 'Identifier' && dec.init.callee.name.startsWith('$')) {
-                continue
-            }
-            this.mstr.prependLeft(dec.init.start, '$derived(')
-            this.mstr.appendRight(dec.init.end, ')')
         }
         return txts
     }
+
+    /**
+     * @param {Node & { declaration: Node }} node
+     * @returns {NestText[]}
+     */
+    visitExportDefaultDeclaration = node => this.visit(node.declaration)
 
     /**
      * @param {Node & {
@@ -373,32 +378,31 @@ export default class Preprocess {
      * @returns {NestText[]}
      */
     visitAttribute = node => {
-        // no idea why value is an array, take the first one to decide the type of enclosure ("" vs {})
         if (node.type === 'Spread') {
             return this.visit(node.expression)
         }
-        let value = node.value
-        if (node.value && node.value !== true) {
-            value = node.value[0]
-        }
-        if (typeof value === 'boolean') {
+        if (typeof node.value === 'boolean') {
             return []
         }
-        if (value.type !== 'Text') {
-            return this.visit(value)
+        const txts = []
+        for (const value of node.value) {
+            if (value.type !== 'Text') {
+                txts.push(...this.visit(value))
+                continue
+            }
+            const [pass, txt] = this.modifyCheck(value, value.data, 'attribute')
+            if (!pass) {
+                continue
+            }
+            txts.push(txt)
+            this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
+            let {start, end} = value
+            if (!`'"`.includes(this.content[start - 1])) {
+                continue
+            }
+            this.mstr.remove(start - 1, start)
+            this.mstr.remove(end, end + 1)
         }
-        const [pass, txt] = this.modifyCheck(value, value.data, 'attribute')
-        if (!pass) {
-            return []
-        }
-        const txts = [txt]
-        this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
-        let {start, end} = value
-        if (!`'"`.includes(this.content[start - 1])) {
-            return txts
-        }
-        this.mstr.remove(start - 1, start)
-        this.mstr.remove(end, end + 1)
         return txts
     }
 
@@ -427,23 +431,47 @@ export default class Preprocess {
         return []
     }
 
-    process = ({ content, filename }) => {
+    /**
+     * @param {string} content
+     * @returns {NestText[]}
+     */
+    processComponent = content => {
         this.content = content
         this.mstr = new MagicString(content)
-        const ast = parse(content, {filename})
+        const ast = parse(content)
         const txts = []
-        for (const node of ast.instance?.content?.body ?? []) {
-            txts.push(...this.visit(node))
+        if (ast.instance) {
+            for (const node of ast.instance.content.body) {
+                txts.push(...this.visit(node))
+            }
         }
         for (const node of ast.html.children) {
             txts.push(...this.visit(node))
         }
-        const importStmt = `import ${rtComponent}, {${rtFunc}} from "${this.importFrom}"`
+        const importStmt = `import ${rtComponent}, {${rtFunc}} from "${this.importFrom}"\n`
         if (ast.instance) {
             this.mstr.appendRight(ast.instance.content.start, importStmt)
         } else {
             this.mstr.prepend(`<script>${importStmt}</script>\n`)
         }
+        return txts
+    }
+
+    /**
+     * @param {string} content
+     * @param {Function} parseModule
+     * @returns {NestText[]}
+     */
+    processModule = (content, parseModule) => {
+        this.content = content
+        this.mstr = new MagicString(content)
+        const ast = parseModule(content)
+        const txts = []
+        for (const content of ast.body) {
+            txts.push(...this.visit(content))
+        }
+        const importStmt = `import {${rtFunc}} from "${this.importFrom}"\n`
+        this.mstr.appendRight(ast.start, importStmt)
         return txts
     }
 }

@@ -75,7 +75,7 @@ function mergeOptionsWithDefault(options = defaultOptions) {
     }
 }
 
-export default function setupPreprocess(options = defaultOptions) {
+export default function wuchale(options = defaultOptions) {
     mergeOptionsWithDefault(options)
     const locales = [options.sourceLocale, ...options.otherLocales]
     const translations = {}
@@ -102,65 +102,81 @@ export default function setupPreprocess(options = defaultOptions) {
     }
 
     /**
-     * @param {{ content: any; filename: any; }} toPreprocess
+     * @param {string} content
+     * @param {Function} [parseModule]
      */
-    function preprocess(toPreprocess) {
+    async function preprocess(content, parseModule) {
         const prep = new Preprocess(indexTracker, options.heuristic, options.importFrom)
-        let txts = prep.process(toPreprocess)
+        let txts
+        if (parseModule) {
+            txts = prep.processModule(content, parseModule)
+        } else {
+            txts = prep.processComponent(content)
+        }
         if (!txts.length) {
             return {}
         }
-        const promise = (async () => {
-            for (const loc of locales) {
-                const newTxts = []
-                for (const nTxt of txts) {
-                    const txt = nTxt.toString()
-                    const translated = translations[loc][txt]
-                    if (loc === options.sourceLocale) {
-                        if (translated !== txt) {
-                            translations[loc][txt] = txt
-                            newTxts.push(txt)
-                        }
-                    } else if (translated == null) {
-                        translations[loc][txt] = sourceTranslations[txt] // fallback
+        for (const loc of locales) {
+            const newTxts = []
+            for (const nTxt of txts) {
+                const txt = nTxt.toString()
+                const translated = translations[loc][txt]
+                if (loc === options.sourceLocale) {
+                    if (translated !== txt) {
+                        translations[loc][txt] = txt
                         newTxts.push(txt)
                     }
+                } else if (translated == null) {
+                    translations[loc][txt] = sourceTranslations[txt] // fallback
+                    newTxts.push(txt)
                 }
-                if (loc !== options.sourceLocale && newTxts.length) {
-                    const geminiT = setupGemini(options.sourceLocale, loc, options.geminiAPIKey)
-                    if (geminiT) {
-                        const gTrans = await geminiT(newTxts)
-                        for (const txt of newTxts) {
-                            translations[loc][txt] = gTrans[txt]
-                        }
-                    }
-                }
-                for (const nTxt of txts) {
-                    const txt = nTxt.toString()
-                    const index = indexTracker.get(txt)
-                    compiled[loc][index] = compileTranslation(translations[loc][txt], compiled[options.sourceLocale][index])
-                }
-                for (const [i, c] of compiled[loc].entries()) {
-                    if (c == null) {
-                        compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
-                    }
-                }
-                if (!newTxts.length) {
-                    continue
-                }
-                writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
-                writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
             }
-        })()
+            if (loc !== options.sourceLocale && newTxts.length) {
+                const geminiT = setupGemini(options.sourceLocale, loc, options.geminiAPIKey)
+                if (geminiT) {
+                    const gTrans = await geminiT(newTxts)
+                    for (const txt of newTxts) {
+                        translations[loc][txt] = gTrans[txt]
+                    }
+                }
+            }
+            for (const nTxt of txts) {
+                const txt = nTxt.toString()
+                const index = indexTracker.get(txt)
+                compiled[loc][index] = compileTranslation(translations[loc][txt], compiled[options.sourceLocale][index])
+            }
+            for (const [i, c] of compiled[loc].entries()) {
+                if (c == null) {
+                    compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
+                }
+            }
+            if (!newTxts.length) {
+                continue
+            }
+            writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
+            writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
+        }
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
-            dependencies: locales.map(loc => translationsFname[loc]),
-            promise,
         }
     }
 
     return {
-        markup: preprocess,
+        name: 'wuchale',
+        transform: {
+            order: 'pre',
+            /**
+             * @param {string} code
+             * @param {string} id
+            */
+            handler: function(code, id) {
+                const isModule = id.endsWith('.svelte.js')
+                if (!id.endsWith('.svelte') && !isModule) {
+                    return
+                }
+                return preprocess(code, isModule && this.parse)
+            }
+        },
     }
 }
