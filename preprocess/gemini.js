@@ -9,12 +9,14 @@ const h = {'Content-Type': 'application/json'}
  * @param {string} targetLocale
  */
 function prepareData(fragments, sourceLocale, targetLocale) {
-    const instruction = `You will be given text fragments for a web app.
+    const instruction = `
+        You will be given text fragments for a web app separated by new line characters.
+        Translate each of the fragments from the source to the target language.
         You have to find out the languages using their ISO 639-1 codes.
-        Then translate each of the fragments from the source to the target.
         The source language is: ${sourceLocale}.
         The target language is: ${targetLocale}.
-        Preserve any placeholders and provide the translations line by line in the target language only.
+        Preserve any placeholders and provide the translations in the target language only,
+        separated by new line characters in the same order.
         The placeholder format is like the following examples:
             - {0}: means arbitrary values.
             - <0>something</0>: means something enclosed in some tags, like HTML tags
