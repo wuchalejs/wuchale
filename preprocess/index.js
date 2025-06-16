@@ -1,9 +1,10 @@
 // $$ cd .. && npm run test
 
 import Preprocess, { IndexTracker } from "./prep.js"
-import {writeFileSync, readFileSync} from 'node:fs'
+import {writeFileSync} from 'node:fs'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
+import PO from "pofile"
 
 /**
  * @param {string} text
@@ -41,29 +42,40 @@ export const defaultOptions = {
 /**
  * @param {string} filename
  */
-function readFileNoFail(filename) {
-    try {
-        const contents = readFileSync(filename)
-        const text = contents.toString().trim()
-        if (!text) {
-            return
-        }
-        return text
-    } catch (err) {
-        if (err.code !== 'ENOENT') {
-            throw err
-        }
-    }
+async function loadPONoFail(filename) {
+    return new Promise((res) => {
+        PO.load(filename, (err, po) => {
+            if (err) {
+                res({})
+                return
+            }
+            const translations = {}
+            for (const item of po.items) {
+                translations[item.msgid] = item
+            }
+            res(translations)
+        })
+    })
 }
 
 /**
+ * @param {{ [s: string]: any; } | ArrayLike<any>} translations
  * @param {string} filename
  */
-function readJSONNoFail(filename) {
-    const content = readFileNoFail(filename)
-    if (content) {
-        return JSON.parse(content)
+async function savePO(translations, filename) {
+    const po = new PO()
+    for (const item of Object.values(translations)) {
+        po.items.push(item)
     }
+    return new Promise((res, rej) => {
+        po.save(filename, err => {
+            if (err) {
+                rej(err)
+            } else {
+                res()
+            }
+        })
+    })
 }
 
 function mergeOptionsWithDefault(options = defaultOptions) {
@@ -75,7 +87,7 @@ function mergeOptionsWithDefault(options = defaultOptions) {
     }
 }
 
-export default function wuchale(options = defaultOptions) {
+export default async function wuchale(options = defaultOptions) {
     mergeOptionsWithDefault(options)
     const locales = [options.sourceLocale, ...options.otherLocales]
     const translations = {}
@@ -83,9 +95,9 @@ export default function wuchale(options = defaultOptions) {
     const compiledFname = {}
     const translationsFname = {}
     for (const loc of locales) {
-        translationsFname[loc] = `${options.localesDir}/${loc}.json`
-        translations[loc] = readJSONNoFail(translationsFname[loc]) ?? {}
-        compiledFname[loc] = `${options.localesDir}/${loc}.c.json`
+        translationsFname[loc] = `${options.localesDir}/${loc}.po`
+        translations[loc] = await loadPONoFail(translationsFname[loc])
+        compiledFname[loc] = `${options.localesDir}/${loc}.json`
     }
 
     const sourceTranslations = translations[options.sourceLocale]
@@ -94,9 +106,9 @@ export default function wuchale(options = defaultOptions) {
 
     // startup compile
     for (const loc of locales) {
-        compiled[loc] = readJSONNoFail(compiledFname[loc]) ?? []
+        compiled[loc] = []
         for (const txt in translations[loc]) {
-            compiled[loc][indexTracker.get(txt)] = compileTranslation(translations[loc][txt])
+            compiled[loc][indexTracker.get(txt)] = compileTranslation(translations[loc][txt].msgstr[0])
         }
         writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
     }
@@ -120,14 +132,19 @@ export default function wuchale(options = defaultOptions) {
             const newTxts = []
             for (const nTxt of txts) {
                 const txt = nTxt.toString()
-                const translated = translations[loc][txt]
+                let translated = translations[loc][txt]
+                if (translated == null) {
+                    translated = new PO.Item()
+                    translated.msgid = txt
+                    translations[loc][txt] = translated
+                }
                 if (loc === options.sourceLocale) {
-                    if (translated !== txt) {
-                        translations[loc][txt] = txt
+                    if (translated.msgstr[0] !== txt) {
+                        translated.msgstr = [txt]
                         newTxts.push(txt)
                     }
-                } else if (translated == null) {
-                    translations[loc][txt] = sourceTranslations[txt] // fallback
+                } else if (!translated.msgstr.length) {
+                    translated.msgstr = [sourceTranslations[txt].msgstr[0]] // fallback
                     newTxts.push(txt)
                 }
             }
@@ -136,14 +153,14 @@ export default function wuchale(options = defaultOptions) {
                 if (geminiT) {
                     const gTrans = await geminiT(newTxts)
                     for (const txt of newTxts) {
-                        translations[loc][txt] = gTrans[txt]
+                        translations[loc][txt].msgstr = [gTrans[txt]]
                     }
                 }
             }
             for (const nTxt of txts) {
                 const txt = nTxt.toString()
                 const index = indexTracker.get(txt)
-                compiled[loc][index] = compileTranslation(translations[loc][txt], compiled[options.sourceLocale][index])
+                compiled[loc][index] = compileTranslation(translations[loc][txt].msgstr[0], compiled[options.sourceLocale][index])
             }
             for (const [i, c] of compiled[loc].entries()) {
                 if (c == null) {
@@ -153,7 +170,7 @@ export default function wuchale(options = defaultOptions) {
             if (!newTxts.length) {
                 continue
             }
-            writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
+            await savePO(translations[loc], translationsFname[loc])
             writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
         }
         return {

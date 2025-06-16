@@ -14,7 +14,8 @@
   "author": "K1DV5",
   "license": "MIT",
   "dependencies": {
-    "magic-string": "^0.30.17"
+    "magic-string": "^0.30.17",
+    "pofile": "^1.1.4"
   },
   "devDependencies": {
     "svelte": "^5.28.1"
