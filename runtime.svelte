@@ -18,9 +18,6 @@ function getCtx(id) {
         return [ctx]
     }
     if (ctx == null || typeof ctx === 'number') {
-        if (performance.now() > 30 * 1000) { // to make sure not at startup
-            console.error(`Text index ${id} not found in`, $state.snapshot(translations))
-        }
         return [`[i18n-404:${id}(${ctx})]`]
     }
     return ctx

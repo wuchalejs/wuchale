@@ -3,6 +3,7 @@
 import Preprocess, { IndexTracker } from "./prep.js"
 import {writeFileSync, readFileSync} from 'node:fs'
 import compileTranslation from "./compile.js"
+import setupGemini from "./gemini.js"
 
 export const defaultOptions = {
     sourceLocale: 'en',
@@ -83,33 +84,46 @@ export default function setupPreprocess(options = defaultOptions) {
         if (!txts.length) {
             return {}
         }
-        for (const loc of locales) {
-            let added = false
-            for (const txt of txts) {
-                const translated = translations[loc][txt]
-                if (loc === options.sourceLocale) {
-                    if (translated !== txt) {
-                        translations[loc][txt] = txt
-                        added = true
+        (async () => {
+            for (const loc of locales) {
+                const newTxts = []
+                for (const txt of txts) {
+                    const translated = translations[loc][txt]
+                    if (loc === options.sourceLocale) {
+                        if (translated !== txt) {
+                            translations[loc][txt] = txt
+                            newTxts.push(txt)
+                        }
+                    } else if (translated == null) {
+                        translations[loc][txt] = sourceTranslations[txt] // fallback
+                        newTxts.push(txt)
                     }
-                } else if (translated == null) {
-                    translations[loc][txt] = sourceTranslations[txt] // fallback
-                    added = true
                 }
-                const index = indexTracker.get(txt)
-                compiled[loc][index] = compileTranslation(translations[loc][txt])
-            }
-            for (const [i, c] of compiled[loc].entries()) {
-                if (c == null) {
-                    compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
+                if (loc !== options.sourceLocale && newTxts.length) {
+                    const geminiT = setupGemini(options.sourceLocale, loc)
+                    if (geminiT) {
+                        const gTrans = await geminiT(newTxts)
+                        for (const txt of newTxts) {
+                            translations[loc][txt] = gTrans[txt]
+                        }
+                    }
                 }
+                for (const txt of txts) {
+                    const index = indexTracker.get(txt)
+                    compiled[loc][index] = compileTranslation(translations[loc][txt])
+                }
+                for (const [i, c] of compiled[loc].entries()) {
+                    if (c == null) {
+                        compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
+                    }
+                }
+                if (!newTxts.length) {
+                    continue
+                }
+                writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
+                writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
             }
-            if (!added) {
-                continue
-            }
-            writeFileSync(translationsFname[loc], JSON.stringify(translations[loc], null, 2))
-            writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
-        }
+        })()
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
