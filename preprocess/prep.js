@@ -7,6 +7,17 @@ const snipPrefix = 'wuchaleSnippet'
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 
+class NestText extends String {
+    /**
+     * @param {string} txt
+     * @param {string} scope
+     */
+    constructor(txt, scope) {
+        super(txt)
+        this.scope = scope
+    }
+}
+
 export class IndexTracker {
     /**
      * @param {object} sourceTranslations
@@ -35,9 +46,10 @@ export class IndexTracker {
 export default class Preprocess {
     /**
      * @param {IndexTracker} index
-     * @param {(text: string, scope?: string) => Array<*> & {0: boolean, 1: string}} heuristic
+     * @param {(text: string, scope?: string) => Array<*> & {0: boolean;1: string;}} heuristic
+     * @param {string} importFrom
      */
-    constructor(index, heuristic, importFrom = 'wuchale') {
+    constructor(index, heuristic, importFrom) {
         this.index = index
         this.importFrom = importFrom
         this.heuristic = heuristic
@@ -50,7 +62,7 @@ export default class Preprocess {
      * @param {{ start: number; end: number; }} node
      * @param {string} text
      * @param {string} scope
-     * @returns {Array<*> & {0: boolean, 1: string}}
+     * @returns {Array<*> & {0: boolean, 1: NestText}}
      */
     modifyCheck = (node, text, scope) => {
         text = text.replace(/\s+/g, ' ').trim()
@@ -59,7 +71,7 @@ export default class Preprocess {
         if (!pass && text !== modify) {
             this.mstr.update(node.start, node.end, modify)
         }
-        return [pass, modify]
+        return [pass, new NestText(modify, scope)]
     }
 
     visitLiteral = node => {
@@ -70,7 +82,7 @@ export default class Preprocess {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start, node.end, `${rtFunc}(${this.index.get(txt)})`)
+        this.mstr.update(node.start, node.end, `${rtFunc}(${this.index.get(txt.toString())})`)
         return [txt]
     }
 
@@ -129,27 +141,28 @@ export default class Preprocess {
     visitTemplateLiteral = node => {
         const txts = []
         const quasi0 = node.quasis[0]
-        let [pass, txt] = this.modifyCheck(quasi0, quasi0.value.cooked, 'script')
+        const [pass, txt] = this.modifyCheck(quasi0, quasi0.value.cooked, 'script')
         if (!pass) {
             return txts
         }
+        let nTxt = txt.toString()
         for (const [i, expr] of node.expressions.entries()) {
             txts.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
-            txt += `{${i}}${quasi.value.cooked}`
+            nTxt += `{${i}}${quasi.value.cooked}`
             this.mstr.remove(quasi.start - 1, quasi.end)
             if (i + 1 === node.expressions.length) {
                 continue
             }
             this.mstr.update(quasi.end, quasi.end + 2, ', ')
         }
-        let repl = `${rtFunc}(${this.index.get(txt)}`
+        let repl = `${rtFunc}(${this.index.get(txt.toString())}`
         if (node.expressions.length) {
             repl += ', '
         }
         this.mstr.update(quasi0.start - 1, quasi0.end + 2, repl)
         this.mstr.update(node.end - 1, node.end, ')')
-        txts.push(txt)
+        txts.push(new NestText(nTxt, 'script'))
         return txts
     }
 
@@ -223,9 +236,16 @@ export default class Preprocess {
                 iArg++
                 continue
             }
-            child.inCompoundText = true
             // elements and components
-            let chTxt = this.visit(child).join()
+            child.inCompoundText = true
+            let chTxt = ''
+            for (const txt of this.visit(child)) {
+                if (txt.scope === 'markup') {
+                    chTxt += txt.toString()
+                } else {
+                    txts.push(txt)
+                }
+            }
             if (child.type === 'Element') {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
@@ -247,7 +267,8 @@ export default class Preprocess {
         if (!txt) {
             return txts
         }
-        txts.push(txt)
+        const nTxt = new NestText(txt, 'markup')
+        txts.push(nTxt)
         if (iTag > 0) {
             const snippets = []
             // reference all new snippets added
@@ -293,7 +314,7 @@ export default class Preprocess {
             return []
         }
         const txts = [txt]
-        this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt)})}`)
+        this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
         let {start, end} = value
         if (!`'"`.includes(this.content[start - 1])) {
             return txts
