@@ -3,6 +3,9 @@
 
 import { parse } from "svelte/compiler"
 
+/**
+ * @param {{ type: string; data: any; name: string | any[]; children: any; expression: { value: any; }; }} ast
+ */
 function walkCompileNodes(ast) {
     const parts = []
     if (ast.type === 'Text') {
@@ -26,8 +29,15 @@ function walkCompileNodes(ast) {
     return parts
 }
 
+/**
+ * @param {string} text
+ * @param {any} fallback
+ */
 export default function compileTranslation(text, fallback) {
-    if (!text || !text.includes('<') && !text.includes('{')) {
+    if (!text) {
+        return fallback
+    }
+    if (!text.includes('<') && !text.includes('{')) {
         return text
     }
     // <0></0> to <X0></X0> to please svelte parser

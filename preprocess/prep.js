@@ -17,7 +17,11 @@ const rtFunc = 'wuchaleTrans'
  * @typedef {Node & {expression: Node, value: boolean | (Node & {data: string})[]}} Attribute
  * @typedef {Node & {value: string}} NodeWithVal
  * @typedef {Node & {data: string}} NodeWithData
- * @typedef {Node & {inCompoundText: boolean | null}} Element
+ * @typedef {Node & {
+     * attributes: Attribute[],
+     * children: (Element & NodeWithData & { expression: Node })[]
+     * inCompoundText: boolean | null,
+ * }} Element
  * @typedef {(text: string, scope?: string) => {extract: boolean; replace: string}} HeuristicFunc
  * @typedef {Node & {
      *  properties: Node & { key: Node, value: Node }[]
@@ -262,10 +266,7 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Element & {
-     *  attributes: Attribute[],
-     *  children: (Element & NodeWithData & { expression: Node })[]
-     * }} node
+     * @param {Element} node
      * @returns {NestText[]}
      */
     visitElement = node => {

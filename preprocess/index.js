@@ -50,13 +50,21 @@ async function loadPONoFail(filename) {
                 return
             }
             const translations = {}
+            let total = 0
+            let obsolete = 0
+            let untranslated = 0
             for (const item of po.items) {
+                total++
                 if (item.obsolete) {
+                    obsolete++
                     continue
+                }
+                if (!item.msgstr[0]) {
+                    untranslated++
                 }
                 translations[item.msgid] = item
             }
-            res(translations)
+            res({translations, total, obsolete, untranslated})
         })
     })
 }
@@ -111,7 +119,9 @@ export default async function wuchale(options = defaultOptions) {
 
     async function loadFilesAndSetup() {
         for (const loc of locales) {
-            translations[loc] = await loadPONoFail(translationsFname[loc])
+            const {translations: trans, total, obsolete, untranslated} = await loadPONoFail(translationsFname[loc])
+            translations[loc] = trans
+            console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
         }
         sourceTranslations = translations[options.sourceLocale]
         indexTracker = new IndexTracker(sourceTranslations)
@@ -123,7 +133,8 @@ export default async function wuchale(options = defaultOptions) {
                 if (forProduction) {
                     poItem.references = []
                 }
-                compiled[loc][indexTracker.get(txt)] = compileTranslation(poItem.msgstr[0])
+                const index = indexTracker.get(txt)
+                compiled[loc][index] = compileTranslation(poItem.msgstr[0], compiled[options.sourceLocale][index])
             }
             await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
         }
@@ -158,8 +169,7 @@ export default async function wuchale(options = defaultOptions) {
                         translated.msgstr = [txt]
                         newTxts.push(txt)
                     }
-                } else if (!translated.msgstr.length) {
-                    translated.msgstr = [sourceTranslations[txt].msgstr[0]] // fallback
+                } else if (!translated.msgstr[0]) {
                     newTxts.push(txt)
                 }
             }
