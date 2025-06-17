@@ -6,6 +6,7 @@ import {writeFile} from 'node:fs/promises'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
 import PO from "pofile"
+import { relative } from "node:path"
 
 /**
  * @param {string} text
@@ -52,6 +53,9 @@ async function loadPONoFail(filename) {
             }
             const translations = {}
             for (const item of po.items) {
+                if (item.obsolete) {
+                    continue
+                }
                 translations[item.msgid] = item
             }
             res(translations)
@@ -102,22 +106,32 @@ export default async function wuchale(options = defaultOptions) {
 
     const sourceTranslations = translations[options.sourceLocale]
     const indexTracker = new IndexTracker(sourceTranslations)
-
-    // startup compile
     const compiled = {}
-    for (const loc of locales) {
-        compiled[loc] = []
-        for (const txt in translations[loc]) {
-            compiled[loc][indexTracker.get(txt)] = compileTranslation(translations[loc][txt].msgstr[0])
+
+    let forProduction = false
+    let projectRoot = ''
+
+    async function startupCompile() {
+        // startup compile
+        for (const loc of locales) {
+            compiled[loc] = []
+            for (const txt in translations[loc]) {
+                const poItem = translations[loc][txt]
+                if (forProduction) {
+                    poItem.references = []
+                }
+                compiled[loc][indexTracker.get(txt)] = compileTranslation(poItem.msgstr[0])
+            }
+            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
         }
-        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
     }
 
     /**
      * @param {string} content
      * @param {import("./prep.js").Node} ast
+     * @param {string} filename
      */
-    async function preprocess(content, ast) {
+    async function preprocess(content, ast, filename) {
         const prep = new Preprocess(indexTracker, options.heuristic, options.importFrom)
         const txts = prep.process(content, ast)
         if (!txts.length) {
@@ -132,6 +146,9 @@ export default async function wuchale(options = defaultOptions) {
                     translated = new PO.Item()
                     translated.msgid = txt
                     translations[loc][txt] = translated
+                }
+                if (!translated.references.includes(filename)) {
+                    translated.references.push(relative(projectRoot, filename))
                 }
                 if (loc === options.sourceLocale) {
                     if (translated.msgstr[0] !== txt) {
@@ -176,6 +193,14 @@ export default async function wuchale(options = defaultOptions) {
 
     return {
         name: 'wuchale',
+        /**
+         * @param {{ env: { PROD: boolean; }, root: string; }} config
+         */
+        async configResolved(config) {
+            forProduction = config.env.PROD
+            projectRoot = config.root
+            await startupCompile()
+        },
         transform: {
             order: 'pre',
             /**
@@ -194,8 +219,20 @@ export default async function wuchale(options = defaultOptions) {
                     ast = parse(code)
                     ast.type = 'SvelteComponent'
                 }
-                const res = await preprocess(code, ast)
-                return {...res, ast}
+                return await preprocess(code, ast, id)
+            }
+        },
+        async buildEnd() {
+            if (!forProduction) {
+                // just being pragmatic
+                return
+            }
+            for (const loc of locales) {
+                for (const txt in translations[loc]) {
+                    const poItem = translations[loc][txt]
+                    poItem.obsolete = poItem.references.length === 0
+                }
+                await savePO(translations[loc], translationsFname[loc])
             }
         },
     }
