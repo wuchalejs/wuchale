@@ -7,10 +7,12 @@ const options = {otherLocales: ['am'], importFrom: '../runtime.svelte'}
 // @ts-ignore
 const preprocess = setupPreprocess(options)
 
-const content = readFileSync('tests/test.svelte').toString()
+const fname = 'tests/test.svelte'
+// const fname = 'tests/test.svelte.js'
+const content = readFileSync(fname).toString()
 // const content = readFileSync('tests/test.svelte.js').toString()
 
-const prep = await (await preprocess).transform.handler(content, 'foo.svelte.js')
+const prep = await (await preprocess).transform.handler(content, fname)
 console.log(prep.code)
 
 test(function(t) {

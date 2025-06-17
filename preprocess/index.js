@@ -1,7 +1,8 @@
 // $$ cd .. && npm run test
 
 import Preprocess, { IndexTracker } from "./prep.js"
-import {writeFileSync} from 'node:fs'
+import { parse } from "svelte/compiler"
+import {writeFile} from 'node:fs/promises'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
 import PO from "pofile"
@@ -91,7 +92,6 @@ export default async function wuchale(options = defaultOptions) {
     mergeOptionsWithDefault(options)
     const locales = [options.sourceLocale, ...options.otherLocales]
     const translations = {}
-    const compiled = {}
     const compiledFname = {}
     const translationsFname = {}
     for (const loc of locales) {
@@ -101,30 +101,25 @@ export default async function wuchale(options = defaultOptions) {
     }
 
     const sourceTranslations = translations[options.sourceLocale]
-
     const indexTracker = new IndexTracker(sourceTranslations)
 
     // startup compile
+    const compiled = {}
     for (const loc of locales) {
         compiled[loc] = []
         for (const txt in translations[loc]) {
             compiled[loc][indexTracker.get(txt)] = compileTranslation(translations[loc][txt].msgstr[0])
         }
-        writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
     }
 
     /**
      * @param {string} content
-     * @param {Function} [parseModule]
+     * @param {import("./prep.js").Node} ast
      */
-    async function preprocess(content, parseModule) {
+    async function preprocess(content, ast) {
         const prep = new Preprocess(indexTracker, options.heuristic, options.importFrom)
-        let txts
-        if (parseModule) {
-            txts = prep.processModule(content, parseModule)
-        } else {
-            txts = prep.processComponent(content)
-        }
+        const txts = prep.process(content, ast)
         if (!txts.length) {
             return {}
         }
@@ -171,7 +166,7 @@ export default async function wuchale(options = defaultOptions) {
                 continue
             }
             await savePO(translations[loc], translationsFname[loc])
-            writeFileSync(compiledFname[loc], JSON.stringify(compiled[loc]))
+            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc]))
         }
         return {
             code: prep.mstr.toString(),
@@ -187,12 +182,20 @@ export default async function wuchale(options = defaultOptions) {
              * @param {string} code
              * @param {string} id
             */
-            handler: function(code, id) {
+            handler: async function(code, id) {
                 const isModule = id.endsWith('.svelte.js')
                 if (!id.endsWith('.svelte') && !isModule) {
                     return
                 }
-                return preprocess(code, isModule && this.parse)
+                let ast
+                if (isModule) {
+                    ast = this.parse(code)
+                } else {
+                    ast = parse(code)
+                    ast.type = 'SvelteComponent'
+                }
+                const res = await preprocess(code, ast)
+                return {...res, ast}
             }
         },
     }

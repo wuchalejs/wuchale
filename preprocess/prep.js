@@ -1,6 +1,5 @@
 // $$ cd .. && npm run test
 
-import { parse } from "svelte/compiler"
 import MagicString from "magic-string"
 
 const snipPrefix = 'wuchaleSnippet'
@@ -95,6 +94,10 @@ export default class Preprocess {
         }
         return [extract, new NestText(replace, scope)]
     }
+
+    // visitComment = () => []
+    // visitIdentifier = () => []
+    // visitImportDeclaration = () => []
 
     /**
      * @param {NodeWithVal} node
@@ -239,8 +242,6 @@ export default class Preprocess {
      */
     visitMustacheTag = node => this.visit(node.expression)
 
-    visitComment = () => []
-
     /**
      * @param {Node & {children: NodeWithData[]}} node
      * @returns {boolean}
@@ -276,8 +277,8 @@ export default class Preprocess {
             return txts
         }
         if (node.children[0].type === 'Text') {
-            const [pass] = this.modifyCheck(node.children[0], node.children[0].data, 'markup')
-            if (!pass) {
+            const [pass, modTxt] = this.modifyCheck(node.children[0], node.children[0].data, 'markup')
+            if (!pass && modTxt != null) {
                 return txts
             }
         }
@@ -402,7 +403,7 @@ export default class Preprocess {
         if (node.type === 'Spread') {
             return this.visit(node.expression)
         }
-        if (typeof node.value === 'boolean') {
+        if (node.type !== 'Attribute' || typeof node.value === 'boolean') {
             return []
         }
         const txts = []
@@ -431,13 +432,15 @@ export default class Preprocess {
      * @param {Node & {children: Node[]}} node
      * @returns {NestText[]}
      */
-    visitSnippetBlock = node => {
+    visitFragment = node => {
         const txts = []
         for (const child of node.children) {
             txts.push(...this.visit(child))
         }
         return txts
     }
+
+    visitSnippetBlock = this.visitFragment
 
     /**
      * @param {Node & {children: Node[], expression: Node}} node
@@ -453,7 +456,7 @@ export default class Preprocess {
 
     visitEachBlock = this.visitIfBlock
 
-    visitKeyBlock = this.visitSnippetBlock
+    visitKeyBlock = this.visitFragment
 
     /**
      * @typedef {Node & {children: Node[]}} Block
@@ -470,10 +473,57 @@ export default class Preprocess {
         const txts = this.visit(node.expression)
         txts.push(
             ...this.visitObjectExpression(node.value),
-            ...this.visitSnippetBlock(node.pending),
-            ...this.visitSnippetBlock(node.then),
-            ...this.visitSnippetBlock(node.catch),
+            ...this.visitFragment(node.pending),
+            ...this.visitFragment(node.then),
+            ...this.visitFragment(node.catch),
         )
+        return txts
+    }
+
+    /**
+     * @typedef {Node & {body: Node[]}} Program
+     * @param {Program} node
+     * @returns {NestText[]}
+     */
+    visitProgram = (node, needImport = true) => {
+        const txts = []
+        for (const child of node.body) {
+            txts.push(...this.visit(child))
+        }
+        if (needImport) {
+            const importStmt = `import {${rtFunc}} from "${this.importFrom}"\n`
+            this.mstr.appendRight(node.start, importStmt)
+        }
+        return txts
+    }
+
+    /**
+     * @param {Node & {
+     *  html: Node & {children: Node[]}
+     *  instance: Node & {content: Program}}
+     * } node
+     * @returns {NestText[]}
+     */
+    visitSvelteComponent = node => {
+        const txts = this.visitFragment(node.html)
+        if (node.instance) {
+            txts.push(...this.visitProgram(node.instance.content, false))
+        }
+        // @ts-ignore: module is a reserved keyword, not sure how to specify the type
+        if (node.module) {
+            // @ts-ignore
+            txts.push(...this.visitProgram(node.module.content, false))
+        }
+        const importStmt = `import ${rtComponent}, {${rtFunc}} from "${this.importFrom}"\n`
+        if (node.instance) {
+            this.mstr.appendRight(node.instance.content.start, importStmt)
+        // @ts-ignore
+        } else if (node.module) {
+            // @ts-ignore
+            this.mstr.appendRight(node.module.content.start, importStmt)
+        } else {
+            this.mstr.prepend(`<script>${importStmt}</script>\n`)
+        }
         return txts
     }
 
@@ -492,45 +542,12 @@ export default class Preprocess {
 
     /**
      * @param {string} content
+     * @param {Node} ast
      * @returns {NestText[]}
      */
-    processComponent = content => {
+    process = (content, ast) => {
         this.content = content
         this.mstr = new MagicString(content)
-        const ast = parse(content)
-        const txts = []
-        if (ast.instance) {
-            for (const node of ast.instance.content.body) {
-                txts.push(...this.visit(node))
-            }
-        }
-        for (const node of ast.html.children) {
-            txts.push(...this.visit(node))
-        }
-        const importStmt = `import ${rtComponent}, {${rtFunc}} from "${this.importFrom}"\n`
-        if (ast.instance) {
-            this.mstr.appendRight(ast.instance.content.start, importStmt)
-        } else {
-            this.mstr.prepend(`<script>${importStmt}</script>\n`)
-        }
-        return txts
-    }
-
-    /**
-     * @param {string} content
-     * @param {Function} parseModule
-     * @returns {NestText[]}
-     */
-    processModule = (content, parseModule) => {
-        this.content = content
-        this.mstr = new MagicString(content)
-        const ast = parseModule(content)
-        const txts = []
-        for (const content of ast.body) {
-            txts.push(...this.visit(content))
-        }
-        const importStmt = `import {${rtFunc}} from "${this.importFrom}"\n`
-        this.mstr.appendRight(ast.start, importStmt)
-        return txts
+        return this.visit(ast)
     }
 }
