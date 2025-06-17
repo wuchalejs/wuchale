@@ -1,5 +1,3 @@
-// $$ cd .. && npm run test
-
 import Preprocess, { IndexTracker } from "./prep.js"
 import { parse } from "svelte/compiler"
 import {writeFile} from 'node:fs/promises'
@@ -16,13 +14,13 @@ import { relative } from "node:path"
 export function defaultHeuristic(text, scope = 'markup') {
     if (scope === 'markup') {
         if (text.startsWith('-')) {
-            return {extract: false, replace: text.slice(1)}
+            return {extract: false, replace: text.slice(1).trim()}
         }
         return {extract: true, replace: text}
     }
     // script and attribute
     if (text.startsWith('+')) {
-        return {extract: true, replace: text.slice(1)}
+        return {extract: true, replace: text.slice(1).trim()}
     }
     const range = 'AZ'
     const startCode = text.charCodeAt(0)
@@ -99,19 +97,24 @@ export default async function wuchale(options = defaultOptions) {
     const compiledFname = {}
     const translationsFname = {}
     for (const loc of locales) {
-        translationsFname[loc] = `${options.localesDir}/${loc}.po`
-        translations[loc] = await loadPONoFail(translationsFname[loc])
         compiledFname[loc] = `${options.localesDir}/${loc}.json`
+        translationsFname[loc] = `${options.localesDir}/${loc}.po`
     }
-
-    const sourceTranslations = translations[options.sourceLocale]
-    const indexTracker = new IndexTracker(sourceTranslations)
-    const compiled = {}
 
     let forProduction = false
     let projectRoot = ''
 
-    async function startupCompile() {
+    let sourceTranslations = {}
+    let indexTracker = new IndexTracker({})
+
+    const compiled = {}
+
+    async function loadFilesAndSetup() {
+        for (const loc of locales) {
+            translations[loc] = await loadPONoFail(translationsFname[loc])
+        }
+        sourceTranslations = translations[options.sourceLocale]
+        indexTracker = new IndexTracker(sourceTranslations)
         // startup compile
         for (const loc of locales) {
             compiled[loc] = []
@@ -148,7 +151,7 @@ export default async function wuchale(options = defaultOptions) {
                     translations[loc][txt] = translated
                 }
                 if (!translated.references.includes(filename)) {
-                    translated.references.push(relative(projectRoot, filename))
+                    translated.references.push(filename)
                 }
                 if (loc === options.sourceLocale) {
                     if (translated.msgstr[0] !== txt) {
@@ -182,8 +185,6 @@ export default async function wuchale(options = defaultOptions) {
             if (!newTxts.length) {
                 continue
             }
-            await savePO(translations[loc], translationsFname[loc])
-            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc]))
         }
         return {
             code: prep.mstr.toString(),
@@ -199,7 +200,7 @@ export default async function wuchale(options = defaultOptions) {
         async configResolved(config) {
             forProduction = config.env.PROD
             projectRoot = config.root
-            await startupCompile()
+            await loadFilesAndSetup()
         },
         transform: {
             order: 'pre',
@@ -219,7 +220,15 @@ export default async function wuchale(options = defaultOptions) {
                     ast = parse(code)
                     ast.type = 'SvelteComponent'
                 }
-                return await preprocess(code, ast, id)
+                const filename = relative(projectRoot, id)
+                const processed = await preprocess(code, ast, filename)
+                if (processed.code) {
+                    for (const loc of locales) {
+                        await savePO(translations[loc], translationsFname[loc])
+                        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc]))
+                    }
+                }
+                return processed
             }
         },
         async buildEnd() {
@@ -235,5 +244,17 @@ export default async function wuchale(options = defaultOptions) {
                 await savePO(translations[loc], translationsFname[loc])
             }
         },
+        setupTesting() {
+            for (const loc of locales) {
+                translations[loc] = {}
+                compiled[loc] = []
+            }
+            sourceTranslations = translations[options.sourceLocale]
+            return {
+                translations,
+                compiled,
+                preprocess,
+            }
+        }
     }
 }
