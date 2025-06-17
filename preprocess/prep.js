@@ -276,24 +276,35 @@ export default class Preprocess {
         if (node.children.length === 0) {
             return txts
         }
-        if (node.children[0].type === 'Text') {
-            const [pass, modTxt] = this.modifyCheck(node.children[0], node.children[0].data, 'markup')
-            if (!pass && modTxt != null) {
-                return txts
+        let hasTextChild = false
+        let hasNonTextChild = false
+        const textNodesToModify = {}
+        for (const [i, child] of node.children.entries()) {
+            if (child.type === 'Text') {
+                const [pass, modify] = this.modifyCheck(child, child.data, 'markup')
+                if (pass) {
+                    hasTextChild = true
+                    textNodesToModify[i] = modify
+                } else if (i === 0 && modify != null) { // non whitespace
+                    return txts // explicitly to ignore
+                }
+            } else if (child.type !== 'Comment') {
+                hasNonTextChild = true
             }
+            // no break because of textNodesToModify, already started, finish it
         }
+        let hasCompoundText = hasTextChild && hasNonTextChild
         let txt = ''
         let iArg = 0
         let iTag = 0
-        const hasCompoundText = this.checkHasCompoundText(node)
         const lastChildEnd = node.children.slice(-1)[0].end
-        for (const child of node.children) {
+        for (const [i, child] of node.children.entries()) {
             if (child.type === 'Comment') {
                 continue
             }
             if (child.type === 'Text') {
-                const [pass, modify] = this.modifyCheck(child, child.data, 'markup')
-                if (!pass) {
+                const modify = textNodesToModify[i]
+                if (modify == null) { // whitespace
                     continue
                 }
                 txt += ' ' + modify
@@ -472,7 +483,7 @@ export default class Preprocess {
     visitAwaitBlock = node => {
         const txts = this.visit(node.expression)
         txts.push(
-            ...this.visitObjectExpression(node.value),
+            ...this.visit(node.value),
             ...this.visitFragment(node.pending),
             ...this.visitFragment(node.then),
             ...this.visitFragment(node.catch),
