@@ -11,6 +11,13 @@
     "js",
     "i18n"
   ],
+  "files": [
+      "index.js",
+      "preprocess/",
+      "runtime.svelte"
+  ],
+  "homepage": "https://github.com/K1DV5/wuchale",
+  "bugs": "https://github.com/K1DV5/wuchale/issues",
   "author": "K1DV5",
   "license": "MIT",
   "dependencies": {
