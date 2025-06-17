@@ -20,6 +20,9 @@ const rtFunc = 'wuchaleTrans'
  * @typedef {Node & {data: string}} NodeWithData
  * @typedef {Node & {inCompoundText: boolean | null}} Element
  * @typedef {(text: string, scope?: string) => {extract: boolean; replace: string}} HeuristicFunc
+ * @typedef {Node & {
+     *  properties: Node & { key: Node, value: Node }[]
+     * }} ObjExpr
  */
 
 class NestText extends String {
@@ -81,6 +84,10 @@ export default class Preprocess {
      */
     modifyCheck = (node, text, scope) => {
         text = text.replace(/\s+/g, ' ').trim()
+        if (text === '') {
+            // nothing to ask
+            return [false, null]
+        }
         let {extract, replace} = this.heuristic(text, scope)
         replace = replace.trim()
         if (!extract && text !== replace) {
@@ -118,9 +125,7 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node & {
-     *  properties: Node & { key: Node, value: Node }[]
-     * }} node
+     * @param {ObjExpr} node
      * @returns {NestText[]}
      */
     visitObjectExpression = node => {
@@ -282,6 +287,9 @@ export default class Preprocess {
         const hasCompoundText = this.checkHasCompoundText(node)
         const lastChildEnd = node.children.slice(-1)[0].end
         for (const child of node.children) {
+            if (child.type === 'Comment') {
+                continue
+            }
             if (child.type === 'Text') {
                 const [pass, modify] = this.modifyCheck(child, child.data, 'markup')
                 if (!pass) {
@@ -316,9 +324,9 @@ export default class Preprocess {
             child.inCompoundText = true
             let chTxt = ''
             for (const txt of this.visit(child)) {
-                if (txt.scope === 'markup') {
+                if (child.type === 'Element' && txt.scope === 'markup') {
                     chTxt += txt.toString()
-                } else {
+                } else { // attributes, blocks
                     txts.push(txt)
                 }
             }
@@ -374,6 +382,19 @@ export default class Preprocess {
     visitInlineComponent = this.visitElement
 
     /**
+     * @param {NodeWithData} node
+     * @returns {NestText[]}
+     */
+    visitText = node => {
+        const [pass, txt] = this.modifyCheck(node, node.data, 'markup')
+        if (!pass) {
+            return []
+        }
+        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
+        return [txt]
+    }
+
+    /**
      * @param {Attribute} node
      * @returns {NestText[]}
      */
@@ -411,11 +432,49 @@ export default class Preprocess {
      * @returns {NestText[]}
      */
     visitSnippetBlock = node => {
-        const txt = []
+        const txts = []
         for (const child of node.children) {
-            txt.push(...this.visit(child))
+            txts.push(...this.visit(child))
         }
-        return txt
+        return txts
+    }
+
+    /**
+     * @param {Node & {children: Node[], expression: Node}} node
+     * @returns {NestText[]}
+     */
+    visitIfBlock = node => {
+        const txts = this.visit(node.expression)
+        for (const child of node.children) {
+            txts.push(...this.visit(child))
+        }
+        return txts
+    }
+
+    visitEachBlock = this.visitIfBlock
+
+    visitKeyBlock = this.visitSnippetBlock
+
+    /**
+     * @typedef {Node & {children: Node[]}} Block
+     * @param {Node & {
+     *  expression: Node
+     *  value: ObjExpr
+     *  pending: Block
+     *  then: Block
+     *  catch: Block
+     * }} node
+     * @returns {NestText[]}
+     */
+    visitAwaitBlock = node => {
+        const txts = this.visit(node.expression)
+        txts.push(
+            ...this.visitObjectExpression(node.value),
+            ...this.visitSnippetBlock(node.pending),
+            ...this.visitSnippetBlock(node.then),
+            ...this.visitSnippetBlock(node.catch),
+        )
+        return txts
     }
 
     /**
