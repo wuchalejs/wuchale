@@ -4,6 +4,7 @@
 import { test } from 'node:test'
 import setupPreprocess from '../preprocess/index.js'
 import { parse } from 'svelte/compiler'
+import { readFile } from 'fs/promises'
 
 const options = { otherLocales: [], geminiAPIKey: null }
 
@@ -67,113 +68,39 @@ test('Multiple in one file', async function(t) {
     await testContent(t, svelte`
         <h1>Title</h1>
         <p>{'Welcome to the app'}</p>
-        <button>{'Logout'}</button>
+        <p>Hello <b>{userName}</b></p>
     `, svelte`
          <script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
          </script>
          <h1>{wuchaleTrans(0, )}</h1>
          <p>{wuchaleTrans(1)}</p>
-         <button>{wuchaleTrans(2)}</button>
+         <p>
+             {#snippet wuchaleSnippet0(ctx)}
+                 <b>userName</b>
+             {/snippet}
+             <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
+         </p>
     `, {
-        Title: 'Title',
-        ['Welcome to the app']: 'Welcome to the app',
-        Logout: 'Logout',
-    }, ['Title', 'Welcome to the app', 'Logout'])
+        'Hello <0>{0}</0>': 'Hello <0>{0}</0>',
+        'Welcome to the app': 'Welcome to the app',
+        Title: 'Title'
+    }, [
+        'Title',
+        'Welcome to the app',
+        [
+            'Hello ',
+            [
+                0,
+                0
+            ]
+        ]
+    ])
 })
 
 test('Complicated', async function(t) {
-    await testContent(t, svelte`
-        <p>
-            This is a very {obj.property['non-extracted text']['Extracted text']}
-            Complicated <i class="not-extracted" title="Extracted">and even <b><u>depply</u> nested {\`with \$\{someJSEven\}\` + 'foo'}</b> content</i>
-            With
-            {#if someFunction('Extracted Text', normalParam, ['+etracted anyway'])}
-                Conditionals,
-                {#each collection.members as member}
-                    Loops and {member}
-                    {#await fetch('https://jsonplaceholder.typicode.com/todos/1') then res}
-                        {#await res.json() then json}
-                            <b>{json.title} other blocks</b>
-                        {/await}
-                    {/await}
-                    Supported
-                {/each}
-            {/if}
-        </p>
-        - But ignore me
-    `, svelte`
-      <script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
-      </script>
-      <p>
-          {#snippet wuchaleSnippet0(ctx)}
-              <i class="not-extracted" title={wuchaleTrans(1)}>
-                  {#snippet wuchaleSnippet0(ctx)}
-                      <b>
-                          {#snippet wuchaleSnippet0(ctx)}
-                              <u>{ctx[1]}</u>
-                          {/snippet}
-                          <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} args={[\`with \$\{someJSEven\}\` + 'foo']} />
-                      </b>
-                  {/snippet}
-                  <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} />
-              </i>
-          {/snippet}
-          {#snippet wuchaleSnippet1(ctx)}
-              {#if someFunction(wuchaleTrans(2), normalParam, [wuchaleTrans(3)])}{wuchaleTrans(4)}{#each collection.members as member}{wuchaleTrans(5)}{member}
-                  {#await fetch('https://jsonplaceholder.typicode.com/todos/1') then res}
-                      {#await res.json() then json}
-                          <b>{wuchaleTrans(6, json.title)}</b>
-                      {/await}
-                  {/await}{wuchaleTrans(7)}{/each}
-              {/if}
-          {/snippet}
-          <WuchaleTrans tags={[wuchaleSnippet0, wuchaleSnippet1]} id={8} args={[obj.property['non-extracted text'][wuchaleTrans(0)]]} />
-      </p>But ignore me
-    `, {
-        'Conditionals,': 'Conditionals,',
-        'Extracted Text': 'Extracted Text',
-        'Extracted text': 'Extracted text',
-        'Loops and': 'Loops and',
-        'This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>': 'This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>',
-        'etracted anyway': 'etracted anyway',
-        '{0} other blocks': '{0} other blocks',
-        Extracted: 'Extracted',
-        Supported: 'Supported',
-    }, [
-        'Extracted text',
-        'Extracted',
-        'Extracted Text',
-        'etracted anyway',
-        'Conditionals,',
-        'Loops and',
-        [
-            0,
-            ' other blocks'
-        ],
-        'Supported',
-        [
-            'This is a very ',
-            0,
-            ' Complicated ',
-            [
-                0,
-                'and even ',
-                [
-                    0,
-                    [
-                        0,
-                        'depply'
-                    ],
-                    ' nested ',
-                    0
-                ],
-                ' content'
-            ],
-            ' With ',
-            [
-                1
-            ]
-        ]
-    ]
-    )
+    const content = (await readFile('tests/complicated/app.svelte')).toString()
+    const contentOut = (await readFile('tests/complicated/app.out.svelte')).toString()
+    const poContents = JSON.parse((await readFile('tests/complicated/po.json')).toString())
+    const compiledContents = JSON.parse((await readFile('tests/complicated/en.json')).toString())
+    await testContent(t, content, contentOut, poContents, compiledContents)
 })
