@@ -7,31 +7,36 @@ const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 
 /**
- * @typedef {object} Node
- * @property {string} type
- * @property {number} start
- * @property {number} end
+ * @typedef {"script" | "markup" | "attribute"} TxtScope
+ * @typedef {(text: string, scope: TxtScope) => {extract: boolean; replace: string}} HeuristicFunc
  */
 
 /**
- * @typedef {Node & {expression: Node, value: boolean | (Node & {data: string})[]}} Attribute
- * @typedef {Node & {value: string}} NodeWithVal
- * @typedef {Node & {data: string}} NodeWithData
- * @typedef {Node & {
-     * attributes: Attribute[],
-     * children: (Element & NodeWithData & { expression: Node })[]
-     * inCompoundText: boolean | null,
- * }} Element
- * @typedef {(text: string, scope?: string) => {extract: boolean; replace: string}} HeuristicFunc
- * @typedef {Node & {
-     *  properties: Node & { key: Node, value: Node }[]
-     * }} ObjExpr
+ * @type {HeuristicFunc}
  */
+export function defaultHeuristic(text, scope = 'markup') {
+    if (scope === 'markup') {
+        if (text.startsWith('-')) {
+            return {extract: false, replace: text.slice(1).trim()}
+        }
+        return {extract: true, replace: text}
+    }
+    // script and attribute
+    if (text.startsWith('+')) {
+        return {extract: true, replace: text.slice(1).trim()}
+    }
+    const range = 'AZ'
+    const startCode = text.charCodeAt(0)
+    if (startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)) {
+        return {extract: true, replace: text}
+    }
+    return {extract: false, replace: text}
+}
 
 class NestText extends String {
     /**
      * @param {string} txt
-     * @param {string} scope
+     * @param {TxtScope} scope
      */
     constructor(txt, scope) {
         super(txt)
@@ -80,12 +85,13 @@ export default class Preprocess {
     }
 
     /**
-     * @param {{ start: number; end: number; }} node
+     * @param {number} start
+     * @param {number} end
      * @param {string} text
-     * @param {string} scope
+     * @param {TxtScope} scope
      * @returns {Array<*> & {0: boolean, 1: NestText}}
      */
-    modifyCheck = (node, text, scope) => {
+    modifyCheck = (start, end, text, scope) => {
         text = text.replace(/\s+/g, ' ').trim()
         if (text === '') {
             // nothing to ask
@@ -94,7 +100,7 @@ export default class Preprocess {
         let {extract, replace} = this.heuristic(text, scope)
         replace = replace.trim()
         if (!extract && text !== replace) {
-            this.mstr.update(node.start, node.end, replace)
+            this.mstr.update(start, end, replace)
         }
         return [extract, new NestText(replace, scope)]
     }
@@ -104,23 +110,24 @@ export default class Preprocess {
     // visitImportDeclaration = () => []
 
     /**
-     * @param {NodeWithVal} node
+     * @param {import('estree').Literal & {start: number, end: number}} node
      * @returns {NestText[]}
      */
     visitLiteral = node => {
         if (typeof node.value !== 'string') {
             return []
         }
-        const [pass, txt] = this.modifyCheck(node, node.value, 'script')
+        const { start, end } = node
+        const [pass, txt] = this.modifyCheck(start, end, node.value, 'script')
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start, node.end, `${rtFunc}(${this.index.get(txt.toString())})`)
+        this.mstr.update(start, end, `${rtFunc}(${this.index.get(txt.toString())})`)
         return [txt]
     }
 
     /**
-     * @param {Node & { elements: Node[] }} node
+     * @param {import('estree').ArrayExpression} node
      * @returns {NestText[]}
      */
     visitArrayExpression = node => {
@@ -132,20 +139,22 @@ export default class Preprocess {
     }
 
     /**
-     * @param {ObjExpr} node
+     * @param {import('estree').ObjectExpression} node
      * @returns {NestText[]}
      */
     visitObjectExpression = node => {
         const txts = []
         for (const prop of node.properties) {
+            // @ts-ignore
             txts.push(...this.visit(prop.key))
+            // @ts-ignore
             txts.push(...this.visit(prop.value))
         }
         return txts
     }
 
     /**
-     * @param {Node & { object: Node, property: Node }} node
+     * @param {import('estree').MemberExpression} node
      * @returns {NestText[]}
      */
     visitMemberExpression = node => {
@@ -156,7 +165,7 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node & { callee: Node, arguments: Node[] }} node
+     * @param {import('estree').CallExpression} node
      * @returns {NestText[]}
      */
     visitCallExpression = node => {
@@ -168,13 +177,7 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node & {
-     *  declarations: Node & {
-     *   init: Node & {
-     *    callee: Node & { name: string },
-     *   },
-     *  }[]
-     * }} node
+     * @param {import('estree').VariableDeclaration} node
      * @returns {NestText[]}
      */
     visitVariableDeclaration = node => {
@@ -197,24 +200,21 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node & { declaration: Node }} node
+     * @param {import('estree').ExportDefaultDeclaration} node
      * @returns {NestText[]}
      */
     visitExportDefaultDeclaration = node => this.visit(node.declaration)
 
     /**
-     * @param {Node & {
-     *  quasis: (Node & {
-     *   value: {cooked: string}
-     *  })[],
-     *  expressions: Node[]
-     * }} node
+     * @param {import('estree').TemplateLiteral} node
      * @returns {NestText[]}
      */
     visitTemplateLiteral = node => {
         const txts = []
         const quasi0 = node.quasis[0]
-        const [pass, txt] = this.modifyCheck(quasi0, quasi0.value.cooked, 'script')
+        // @ts-ignore
+        const {start: start0, end: end0} = quasi0
+        const [pass, txt] = this.modifyCheck(start0, end0, quasi0.value.cooked, 'script')
         if (!pass) {
             return txts
         }
@@ -223,17 +223,20 @@ export default class Preprocess {
             txts.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
             nTxt += `{${i}}${quasi.value.cooked}`
-            this.mstr.remove(quasi.start - 1, quasi.end)
+            // @ts-ignore
+            const {start, end} = quasi
+            this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
                 continue
             }
-            this.mstr.update(quasi.end, quasi.end + 2, ', ')
+            this.mstr.update(end, end + 2, ', ')
         }
         let repl = `${rtFunc}(${this.index.get(txt.toString())}`
         if (node.expressions.length) {
             repl += ', '
         }
-        this.mstr.update(quasi0.start - 1, quasi0.end + 2, repl)
+        this.mstr.update(start0 - 1, end0 + 2, repl)
+        // @ts-ignore
         this.mstr.update(node.end - 1, node.end, ')')
         txts.push(new NestText(nTxt, 'script'))
         return txts
@@ -241,19 +244,19 @@ export default class Preprocess {
 
 
     /**
-     * @param {Node & {expression: Node}} node
+     * @param {import("svelte/compiler").AST.ExpressionTag} node
      * @returns {NestText[]}
      */
-    visitMustacheTag = node => this.visit(node.expression)
+    visitExpressionTag = node => this.visit(node.expression)
 
     /**
-     * @param {Node & {children: NodeWithData[]}} node
+     * @param {import("svelte/compiler").AST.ElementLike} node
      * @returns {boolean}
      */
     checkHasCompoundText = node => {
         let text = false
         let nonText = false
-        for (const child of node.children ?? []) {
+        for (const child of node.fragment.nodes ?? []) {
             if (child.type === 'Text') {
                 if (child.data.trim()) {
                     text = true
@@ -266,23 +269,29 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Element} node
+     * @typedef {import("svelte/compiler").AST.ElementLike & {inCompoundText: boolean}} ElementNode
+     * @param {ElementNode & {
+     *  fragment: import("svelte/compiler").AST.Fragment & {
+     *   nodes: ElementNode[]
+     *  },
+     * }} node
      * @returns {NestText[]}
      */
-    visitElement = node => {
+    visitRegularElement = node => {
         const txts = []
         for (const attrib of node.attributes) {
-            txts.push(...this.visitAttribute(attrib))
+            txts.push(...this.visit(attrib))
         }
-        if (node.children.length === 0) {
+        if (node.fragment.nodes.length === 0) {
             return txts
         }
         let hasTextChild = false
         let hasNonTextChild = false
         const textNodesToModify = {}
-        for (const [i, child] of node.children.entries()) {
+        for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const [pass, modify] = this.modifyCheck(child, child.data, 'markup')
+                const { start, end } = child
+                const [pass, modify] = this.modifyCheck(start, end, child.data, 'markup')
                 if (pass) {
                     hasTextChild = true
                     textNodesToModify[i] = modify
@@ -298,8 +307,8 @@ export default class Preprocess {
         let txt = ''
         let iArg = 0
         let iTag = 0
-        const lastChildEnd = node.children.slice(-1)[0].end
-        for (const [i, child] of node.children.entries()) {
+        const lastChildEnd = node.fragment.nodes.slice(-1)[0].end
+        for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Comment') {
                 continue
             }
@@ -309,7 +318,7 @@ export default class Preprocess {
                     continue
                 }
                 txt += ' ' + modify
-                if (node.inCompoundText && node.children.length === 1) {
+                if (node.inCompoundText && node.fragment.nodes.length === 1) {
                     this.mstr.update(child.start, child.end, `{ctx[1]}`)
                 } else {
                     this.mstr.remove(child.start, child.end)
@@ -320,8 +329,8 @@ export default class Preprocess {
                 txts.push(...this.visit(child))
                 continue
             }
-            if (child.type === 'MustacheTag') {
-                txts.push(...this.visitMustacheTag(child))
+            if (child.type === 'ExpressionTag') {
+                txts.push(...this.visitExpressionTag(child))
                 txt += ` {${iArg}}`
                 this.mstr.move(child.start + 1, child.end - 1, lastChildEnd)
                 if (iArg > 0) {
@@ -334,16 +343,17 @@ export default class Preprocess {
                 continue
             }
             // elements and components
+            // @ts-ignore
             child.inCompoundText = true
             let chTxt = ''
             for (const txt of this.visit(child)) {
-                if (child.type === 'Element' && txt.scope === 'markup') {
+                if (['RegularElement', 'Component'].includes(child.type) && txt.scope === 'markup') {
                     chTxt += txt.toString()
                 } else { // attributes, blocks
                     txts.push(txt)
                 }
             }
-            if (child.type === 'Element') {
+            if (['RegularElement', 'Component'].includes(child.type)) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
                 // InlineComponent
@@ -392,14 +402,15 @@ export default class Preprocess {
         return txts
     }
 
-    visitInlineComponent = this.visitElement
+    visitComponent = this.visitRegularElement
 
     /**
-     * @param {NodeWithData} node
+     * @param {import("svelte/compiler").AST.Text} node
      * @returns {NestText[]}
      */
     visitText = node => {
-        const [pass, txt] = this.modifyCheck(node, node.data, 'markup')
+        const { start, end } = node
+        const [pass, txt] = this.modifyCheck(start, end, node.data, 'markup')
         if (!pass) {
             return []
         }
@@ -408,29 +419,41 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Attribute} node
+     * @param {import("svelte/compiler").AST.SpreadAttribute} node
+     * @returns {NestText[]}
+     */
+    visitSpreadAttribute = node => {
+        return this.visit(node.expression)
+    }
+
+    /**
+     * @param {import("svelte/compiler").AST.Attribute} node
      * @returns {NestText[]}
      */
     visitAttribute = node => {
-        if (node.type === 'Spread') {
-            return this.visit(node.expression)
-        }
-        if (node.type !== 'Attribute' || typeof node.value === 'boolean') {
+        if (node.value === true) {
             return []
         }
         const txts = []
-        for (const value of node.value) {
-            if (value.type !== 'Text') {
+        let values
+        if (Array.isArray(node.value)) {
+            values = node.value
+        } else {
+            values = [node.value]
+        }
+        for (const value of values) {
+            if (value.type !== 'Text') { // ExpressionTag
                 txts.push(...this.visit(value))
                 continue
             }
-            const [pass, txt] = this.modifyCheck(value, value.data, 'attribute')
+            // Text
+            const {start, end} = value
+            const [pass, txt] = this.modifyCheck(start, end, value.data, 'attribute')
             if (!pass) {
                 continue
             }
             txts.push(txt)
             this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
-            let {start, end} = value
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
@@ -441,60 +464,85 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node & {children: Node[]}} node
+     * @param {import("svelte/compiler").AST.Fragment} node
      * @returns {NestText[]}
      */
     visitFragment = node => {
         const txts = []
-        for (const child of node.children) {
+        for (const child of node.nodes) {
             txts.push(...this.visit(child))
         }
         return txts
     }
 
-    visitSnippetBlock = this.visitFragment
+    /**
+     * @param {import("svelte/compiler").AST.SnippetBlock} node
+     * @returns {NestText[]}
+     */
+    visitSnippetBlock = node => this.visitFragment(node.body)
 
     /**
-     * @param {Node & {children: Node[], expression: Node}} node
+     * @param {import("svelte/compiler").AST.IfBlock} node
      * @returns {NestText[]}
      */
     visitIfBlock = node => {
-        const txts = this.visit(node.expression)
-        for (const child of node.children) {
-            txts.push(...this.visit(child))
+        const txts = this.visit(node.test)
+        txts.push(...this.visit(node.consequent))
+        if (node.alternate) {
+            txts.push(...this.visit(node.alternate))
         }
         return txts
     }
 
-    visitEachBlock = this.visitIfBlock
-
-    visitKeyBlock = this.visitFragment
-
     /**
-     * @typedef {Node & {children: Node[]}} Block
-     * @param {Node & {
-     *  expression: Node
-     *  value: ObjExpr
-     *  pending: Block
-     *  then: Block
-     *  catch: Block
-     * }} node
+     * @param {import("svelte/compiler").AST.EachBlock} node
      * @returns {NestText[]}
      */
-    visitAwaitBlock = node => {
-        const txts = this.visit(node.expression)
-        txts.push(
-            ...this.visit(node.value),
-            ...this.visitFragment(node.pending),
-            ...this.visitFragment(node.then),
-            ...this.visitFragment(node.catch),
-        )
+    visitEachBlock = node => {
+        const txts = [
+            ...this.visit(node.expression),
+            ...this.visit(node.body),
+        ]
+        if (node.fallback) {
+            txts.push(...this.visit(node.fallback),)
+        }
+        if (node.key) {
+            txts.push(...this.visit(node.key),)
+        }
         return txts
     }
 
     /**
-     * @typedef {Node & {body: Node[]}} Program
-     * @param {Program} node
+     * @param {import("svelte/compiler").AST.KeyBlock} node
+     * @returns {NestText[]}
+     */
+    visitKeyBlock = node => {
+        return [
+            ...this.visit(node.expression),
+            ...this.visit(node.fragment),
+        ]
+    }
+
+    /**
+     * @param {import("svelte/compiler").AST.AwaitBlock} node
+     * @returns {NestText[]}
+     */
+    visitAwaitBlock = node => {
+        const txts = [
+            ...this.visit(node.expression),
+            ...this.visitFragment(node.then),
+        ]
+        if (node.pending) {
+            txts.push(...this.visitFragment(node.pending),)
+        }
+        if (node.catch) {
+            txts.push(...this.visitFragment(node.catch),)
+        }
+        return txts
+    }
+
+    /**
+     * @param {import('estree').Program} node
      * @returns {NestText[]}
      */
     visitProgram = (node, needImport = true) => {
@@ -504,20 +552,18 @@ export default class Preprocess {
         }
         if (needImport) {
             const importStmt = `import {${rtFunc}} from "${this.importFrom}"\n`
+            // @ts-ignore
             this.mstr.appendRight(node.start, importStmt)
         }
         return txts
     }
 
     /**
-     * @param {Node & {
-     *  html: Node & {children: Node[]}
-     *  instance: Node & {content: Program}}
-     * } node
+     * @param {import("svelte/compiler").AST.Root} node
      * @returns {NestText[]}
      */
-    visitSvelteComponent = node => {
-        const txts = this.visitFragment(node.html)
+    visitRoot = node => {
+        const txts = this.visitFragment(node.fragment)
         if (node.instance) {
             txts.push(...this.visitProgram(node.instance.content, false))
         }
@@ -528,8 +574,8 @@ export default class Preprocess {
         }
         const importStmt = `import ${rtComponent}, {${rtFunc}} from "${this.importFrom}"\n`
         if (node.instance) {
+            // @ts-ignore
             this.mstr.appendRight(node.instance.content.start, importStmt)
-        // @ts-ignore
         } else if (node.module) {
             // @ts-ignore
             this.mstr.appendRight(node.module.content.start, importStmt)
@@ -540,7 +586,7 @@ export default class Preprocess {
     }
 
     /**
-     * @param {Node} node
+     * @param {import("svelte/compiler").AST.SvelteNode} node
      * @returns {NestText[]}
      */
     visit = node => {
@@ -554,7 +600,7 @@ export default class Preprocess {
 
     /**
      * @param {string} content
-     * @param {Node} ast
+     * @param {import('estree').Program | import("svelte/compiler").AST.Root} ast
      * @returns {NestText[]}
      */
     process = (content, ast) => {

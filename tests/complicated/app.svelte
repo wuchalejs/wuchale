@@ -1,15 +1,15 @@
 <script>
-    const obj = {
-        property: {
-            ["non-extracted text"]: { ["Extracted text"]: 42 },
-        },
-    };
     const normalParam = 44;
     function someFunction(a, b, c) {
         return true;
     }
     const collection = { members: [1] };
     const someJSEven = 34;
+    const obj = $derived({
+        property: {
+            ["non-extracted text"]: { ["Extracted text"]: 42 },
+        },
+    });
 </script>
 
 <p>

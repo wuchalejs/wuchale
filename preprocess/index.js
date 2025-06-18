@@ -1,34 +1,10 @@
-import Preprocess, { IndexTracker } from "./prep.js"
+import Preprocess, { defaultHeuristic, IndexTracker } from "./prep.js"
 import { parse } from "svelte/compiler"
 import {writeFile} from 'node:fs/promises'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
 import PO from "pofile"
 import { relative } from "node:path"
-
-/**
- * @param {string} text
- * @param {string} scope
- * @returns {{extract: boolean, replace: string}}
- */
-export function defaultHeuristic(text, scope = 'markup') {
-    if (scope === 'markup') {
-        if (text.startsWith('-')) {
-            return {extract: false, replace: text.slice(1).trim()}
-        }
-        return {extract: true, replace: text}
-    }
-    // script and attribute
-    if (text.startsWith('+')) {
-        return {extract: true, replace: text.slice(1).trim()}
-    }
-    const range = 'AZ'
-    const startCode = text.charCodeAt(0)
-    if (startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)) {
-        return {extract: true, replace: text}
-    }
-    return {extract: false, replace: text}
-}
 
 export const defaultOptions = {
     sourceLocale: 'en',
@@ -45,24 +21,22 @@ export const defaultOptions = {
 async function loadPONoFail(filename) {
     return new Promise((res) => {
         PO.load(filename, (err, po) => {
-            if (err) {
-                res({})
-                return
-            }
             const translations = {}
             let total = 0
             let obsolete = 0
             let untranslated = 0
-            for (const item of po.items) {
-                total++
-                if (item.obsolete) {
-                    obsolete++
-                    continue
+            if (!err) {
+                for (const item of po.items) {
+                    total++
+                    if (item.obsolete) {
+                        obsolete++
+                        continue
+                    }
+                    if (!item.msgstr[0]) {
+                        untranslated++
+                    }
+                    translations[item.msgid] = item
                 }
-                if (!item.msgstr[0]) {
-                    untranslated++
-                }
-                translations[item.msgid] = item
             }
             res({translations, total, obsolete, untranslated})
         })
@@ -142,7 +116,7 @@ export default async function wuchale(options = defaultOptions) {
 
     /**
      * @param {string} content
-     * @param {import("./prep.js").Node} ast
+     * @param {import('estree').Program | import("svelte/compiler").AST.Root} ast
      * @param {string} filename
      */
     async function preprocess(content, ast, filename) {
@@ -219,6 +193,9 @@ export default async function wuchale(options = defaultOptions) {
              * @param {string} id
             */
             handler: async function(code, id) {
+                if (!id.startsWith(projectRoot)) {
+                    return
+                }
                 const isModule = id.endsWith('.svelte.js')
                 if (!id.endsWith('.svelte') && !isModule) {
                     return
@@ -227,8 +204,7 @@ export default async function wuchale(options = defaultOptions) {
                 if (isModule) {
                     ast = this.parse(code)
                 } else {
-                    ast = parse(code)
-                    ast.type = 'SvelteComponent'
+                    ast = parse(code, {modern: true})
                 }
                 const filename = relative(projectRoot, id)
                 const processed = await preprocess(code, ast, filename)

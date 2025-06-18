@@ -27,8 +27,7 @@ function trimLines(str) {
 async function getOutput(content) {
     const plugin = await setupPreprocess(options)
     const { preprocess, translations, compiled } = plugin.setupTesting()
-    const ast = parse(content)
-    ast.type = 'SvelteComponent'
+    const ast = parse(content, {modern: true})
     const processed = await preprocess(content, ast, 'test.svelte')
     return { processed, translations, compiled }
 }
@@ -60,7 +59,7 @@ test('Simple element', async function(t) {
     `, { Hello: 'Hello' }, ['Hello'])
 })
 
-test('Lower case string in mustache', async function(t) { // small letter beginning inside string
+test('Lower case string in expression tag', async function(t) { // small letter beginning inside string
     await testContent(t, `<p>{'hello there'}</p>`, undefined, {}, [])
 })
 
