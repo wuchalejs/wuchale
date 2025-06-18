@@ -97,15 +97,17 @@ Create `/locales/` if it doesn't exist, and then set it up in your main
 component. Assuming `/src/App.svelte`:
 
 ```svelte
-import {setTranslations} from 'wuchale/runtime.svelte'
+<script>
+    import {setTranslations} from 'wuchale/runtime.svelte'
 
-let locale = $state('en')
+    let locale = $state('en')
 
-$effect.pre(() => {
-    import(`../locales/${locale}.json`).then(mod => {
-        setTranslations(mod.default)
+    $effect.pre(() => {
+        import(`../locales/${locale}.json`).then(mod => {
+            setTranslations(mod.default)
+        })
     })
-})
+</script>
 ```
 
 Note that you manage the state of which locale is active and how to download
@@ -221,7 +223,7 @@ Which is then automatically compiled to:
 [
     "¡Hola!",
     [
-        'Hola ',
+        "Hola ",
         [
             0,
             0
@@ -272,6 +274,35 @@ necessary to have a separate plurals support because you can do something like:
 
 And they will be extracted separately. You can also make a reusable function
 yourself.
+
+## Configuration
+
+To configure `wuchale`, you pass an object that looks like the following (the
+default) to `wuchale()` in your `vite.config.js` `vite.config.ts`:
+
+```javascript
+export const defaultOptions = {
+    sourceLocale: 'en',
+    otherLocales: ['am'],
+    localesDir: './locales',
+    importFrom: 'wuchale/runtime.svelte',
+    heuristic: defaultHeuristic,
+    geminiAPIKey: 'env',
+}
+```
+
+While the others are self explanatory, the `heuristic` is a function that
+decides what text to extract and what not to. The `defaultHeuristic` is the
+implementation of the above rules, but you can roll your own and provide it
+here. The function should receive the following arguments:
+
+- `text`: The candidate text
+- `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
+
+And it should return an object with two properties:
+
+- `extract` (boolean): Whether to extract it or not
+- `replace` (`string`): The string to replace it with. This is how you specify how to remove parts such as the prefixes above (`+` and `-`).
 
 ## 🧹 Cleaning
 
