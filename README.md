@@ -35,7 +35,10 @@ minimal and constant-time.
 ### 🧩 Full Nesting Support
 
 Handles deeply nested markup and interpolations — mixed conditionals, loops,
-and awaits — by compiling them into nested Svelte snippets.
+and awaits — by compiling them into nested Svelte snippets. That means you can
+go as crazy as
+[this test](https://github.com/K1DV5/wuchale/blob/main/tests/complicated/app.svelte)
+and it will still extract the correct texts.
 
 ### 📦 No String Parsing at Runtime
 
@@ -56,8 +59,9 @@ optional integration with external tools.
 
 ### 🚀 Tiny Footprint
 
-Adds just 2 packages (your own) to `node_modules`, and only a few kilobytes to
-the bundle. No 90MB dependency trees like some existing solutions.
+Adds just 2 packages (itself and `pofile`) to `node_modules`, as the other
+dependency is Svelte itself. No 200 packages and 90MB dependency trees like
+some existing solutions.
 
 ### ✨ Ready for Svelte 5
 
@@ -79,11 +83,37 @@ Add to your Vite config:
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { wuchale } from 'wuchale'
 
-export default { plugins: [ wuchale(), svelte(), ] }
+export default {
+    plugins: [
+        wuchale(),
+        svelte(),
+    ]
+    // ...your other config
+}
 
 ```
 
-Use in your Svelte files:
+Create `/locales/` if it doesn't exist, and then set it up in your main
+component. Assuming `/src/App.svelte`:
+
+```svelte
+import {setTranslations} from 'wuchale/runtime.svelte'
+
+let locale = $state('en')
+
+$effect.pre(() => {
+    import(`../locales/${locale}.json`).then(mod => {
+        setTranslations(mod.default)
+    })
+})
+```
+
+Note that you manage the state of which locale is active and how to download
+the compiled `.json`. This is to allow maximum flexibility, meaning you can use
+lazy loading (like this example) or you can import it directly and it will be
+bundled by Vite. After that, you notify `wuchale` to set it as the current one.
+
+Then finally you write your Svelte files naturally:
 
 ```svelte
 
@@ -97,6 +127,8 @@ import WuchaleTrans, { wuchaleTrans } from 'wuchale/runtime.svelte'
 </script>
 <h1>{wuchaleTrans(0)}</h1> <!-- Extracted "Hello" as index 0 -->
 ```
+
+Full example below.
 
 ## 📦 How It Works
 
@@ -135,6 +167,8 @@ Input:
 
 ```svelte
 
+<p>Hi there!</p>
+
 <p>Hello <b>{userName}</b></p>
 
 ```
@@ -142,18 +176,61 @@ Input:
 Output:
 
 ```svelte
+<script>
+import WuchaleTrans, { wuchaleTrans } from 'wuchale/runtime.svelte'
+</script>
 
-<p>{wuchaleTrans(0, <b>{userName}</b>)}</p>
+<p>{wuchaleTrans(0)}</p>
+
+<p>
+  {#snippet wuchaleSnippet0(ctx)}
+      <b>{ctx[1]}</b>
+  {/snippet}
+  <WuchaleTrans tags={[wuchaleSnippet0]} id={1} args={[userName]} />
+</p>
 
 ```
 
-Catalog (PO):
+Extracted catalog (PO) for `en`:
 
 ```nginx
 
-msgid "Hello {0}" msgstr "Bonjour {0}"
+msgid "Hi there!"
+msgstr "Hi there!"
+
+msgid "Hello {0}"
+msgstr "Hello {0}"
 
 ```
+
+Extracted catalog (PO) for `es`, initially empty `msgstr`, but after a translator or Gemini translates it:
+
+```nginx
+
+msgid "Hi there!"
+msgstr "¡Hola!"
+
+msgid "Hello {0}"
+msgstr "Hola {0}"
+
+```
+
+Which is then automatically compiled to:
+
+```json
+[
+    "¡Hola!",
+    [
+        'Hola ',
+        [
+            0,
+            0
+        ]
+    ]
+]
+```
+
+This is what you import when you set it up above in `App.svelte`.
 
 ## Supported syntax
 
