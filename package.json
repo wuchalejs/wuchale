@@ -1,6 +1,6 @@
 {
   "name": "wuchale",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "i18n for svelte without turning your codebase upside down",
   "main": "index.js",
   "scripts": {
