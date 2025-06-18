@@ -26,6 +26,10 @@ simplicity in mind.
 No extra imports or annotations. `wuchale` extracts and compiles everything
 automatically. In the spirit of Svelte itself.
 
+> They say "i18n is too costly to add later"
+
+✨ **Not anymore**. wuchale brings i18n to existing Svelte projects — the UX-first way.
+
 ### 🧠 Compiler-Powered
 
 Built on the Svelte compiler and powered by AST
