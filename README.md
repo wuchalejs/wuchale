@@ -131,7 +131,7 @@ Then finally you write your Svelte files naturally:
 <script>
 import WuchaleTrans, { wuchaleTrans } from 'wuchale/runtime.svelte'
 </script>
-<h1>{wuchaleTrans(0)}</h1> <!-- Extracted "Hello" as index 0 -->
+<p>{wuchaleTrans(0)}</p> <!-- Extracted "Hello" as index 0 -->
 ```
 
 Full example below.
@@ -262,7 +262,7 @@ rules can be configured, the default is:
 
 ## Where does it look?
 
-All files that can contain reactive logic. This means `*.svelte` and
+All files that can contain reactive logic. This means `*.svelte`, `*.svelte.ts` and
 `*.svelte.js` files specifically.
 
 ## Plurals?

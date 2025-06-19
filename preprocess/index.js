@@ -4,7 +4,7 @@ import {writeFile} from 'node:fs/promises'
 import compileTranslation from "./compile.js"
 import setupGemini from "./gemini.js"
 import PO from "pofile"
-import { relative } from "node:path"
+import { normalize, relative } from "node:path"
 
 export const defaultOptions = {
     sourceLocale: 'en',
@@ -193,10 +193,10 @@ export default async function wuchale(options = defaultOptions) {
              * @param {string} id
             */
             handler: async function(code, id) {
-                if (!id.startsWith(projectRoot)) {
+                if (!id.startsWith(projectRoot) || id.startsWith(normalize(projectRoot + '/node_modules'))) {
                     return
                 }
-                const isModule = id.endsWith('.svelte.js')
+                const isModule = id.endsWith('.svelte.js') || id.endsWith('.svelte.ts')
                 if (!id.endsWith('.svelte') && !isModule) {
                     return
                 }
