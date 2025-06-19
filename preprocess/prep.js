@@ -72,7 +72,7 @@ export default class Preprocess {
      * @param {HeuristicFunc} heuristic
      * @param {string} importFrom
      */
-    constructor(index, heuristic = defaultHeuristic, importFrom) {
+    constructor(index, heuristic = defaultHeuristic, importFrom = 'wuchale/runtime.svelte') {
         this.index = index
         this.importFrom = importFrom
         this.heuristic = heuristic

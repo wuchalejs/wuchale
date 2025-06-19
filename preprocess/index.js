@@ -9,8 +9,7 @@ import { normalize, relative } from "node:path"
 export const defaultOptions = {
     sourceLocale: 'en',
     otherLocales: ['am'],
-    localesDir: './locales',
-    importFrom: 'wuchale/runtime.svelte',
+    localesDir: './src/locales',
     heuristic: defaultHeuristic,
     geminiAPIKey: 'env',
 }
@@ -121,7 +120,7 @@ export default async function wuchale(options = defaultOptions) {
      * @param {string} filename
      */
     async function preprocess(content, ast, filename) {
-        const prep = new Preprocess(indexTracker, options.heuristic, options.importFrom)
+        const prep = new Preprocess(indexTracker, options.heuristic)
         const txts = prep.process(content, ast)
         if (!txts.length) {
             return {}

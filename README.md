@@ -97,8 +97,8 @@ export default {
 
 ```
 
-Create `/locales/` if it doesn't exist, and then set it up in your main
-component. Assuming `/src/App.svelte`:
+Create `/src/locales/` (relative to the projects root) if it doesn't exist, and
+then set it up in your main component. Assuming `/src/App.svelte`:
 
 ```svelte
 <script>
@@ -107,9 +107,14 @@ component. Assuming `/src/App.svelte`:
     let locale = $state('en')
 
     $effect.pre(() => {
-        import(`../locales/${locale}.json`).then(mod => {
+        // IMPORTANT! The path should be relative to the current file (vite restriction).
+        // for the default sveltekit template for example, it's `../locales/${locale}.json`
+        // because the default main component is located at /src/routes/+page.svelte
+        import(`./locales/${locale}.json`).then(mod => {
             setTranslations(mod.default)
         })
+        // but this only applies if you want to do lazy loading.
+        // Otherwise you can do an absolute import
     })
 </script>
 ```
@@ -348,7 +353,6 @@ export const defaultOptions = {
     sourceLocale: 'en',
     otherLocales: ['am'],
     localesDir: './locales',
-    importFrom: 'wuchale/runtime.svelte',
     heuristic: defaultHeuristic,
     geminiAPIKey: 'env',
 }
