@@ -279,9 +279,10 @@ script rule below.
 ### Script
 
 This includes all JS/TS code that is:
-    - Inside `<script>` tags
-    - Inside dynamic expressions inside the markup or attributes, anything in curly braces like `{call('this guy')}`
-    - In `*.svelte.[js|ts]` files.
+
+- Inside `<script>` tags
+- Inside dynamic expressions inside the markup or attributes, anything in curly braces like `{call('this guy')}`
+- In `*.svelte.[js|ts]` files.
 
 The rule for this is that all strings and template strings that start with
 capital letters are extracted. Additionally, if they are used inside the
@@ -362,6 +363,27 @@ it here. The function should receive the following arguments:
 - `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
 
 And it should return boolean to indicate whether to extract it.
+
+## Files management
+
+`wuchale` generates two files for each locale.
+
+### `.po` file
+
+This is a `gettext` file that is used to exchange the text fragments with translators. The workflow is:
+
+- You give them the file with empty places for the translated fragments
+- They fill it with the translation, preserving the placeholders, but they can change the orders as the language requires.
+- You get the file back and make it part of your codebase.
+
+**Note**: You should commit these files, they are where the translated
+fragments are stored and are the source of truth for the translations.
+
+### Compiled `.json` file
+
+This is the compiled version of the `.po` file. It is generated at the startup
+of the dev server and at build time. As it has to be generated every time, you
+should consider it as a temp file and therefore you should **not** commit it.
 
 ## 🧹 Cleaning
 
