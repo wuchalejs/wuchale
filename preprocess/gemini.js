@@ -1,33 +1,40 @@
+// $$ cd .. && npm run test
 // $$ node %f
+
+import PO from 'pofile'
 
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 
 /**
- * @param {string[]} fragments
+ * @param {import('pofile').Item[]} fragments
  * @param {string} sourceLocale
  * @param {string} targetLocale
  */
 function prepareData(fragments, sourceLocale, targetLocale) {
     const instruction = `
-        You will be given text fragments for a web app separated by new line characters.
-        Translate each of the fragments from the source to the target language.
+        You will be given the contents of a gettext .po file for a web app.
+        Translate each of the items from the source to the target language.
         You have to find out the languages using their ISO 639-1 codes.
         The source language is: ${sourceLocale}.
         The target language is: ${targetLocale}.
-        Preserve any placeholders and provide the translations in the target language only,
-        separated by new line characters in the same order.
+        You can read all of the information for the items including contexts,
+        comments and references to get the appropriate context about each item.
+        Provide the translated fragments in the in the same order, preserving
+        all placeholders.
         The placeholder format is like the following examples:
             - {0}: means arbitrary values.
             - <0>something</0>: means something enclosed in some tags, like HTML tags
             - <0/>: means a self closing tag, like in HTML
         In all of the examples, 0 is an example for any integer.
     `
+    const po = new PO()
+    po.items = fragments
     return {
         system_instruction: {
             parts: [{ text: instruction }]
         },
-        contents: [{parts: [{text: fragments.join('\n')}]}]
+        contents: [{parts: [{text: po.toString()}]}]
     }
 }
 
@@ -43,18 +50,16 @@ function setupGemini(sourceLocale = 'en', targetLocale, apiKey) {
         return
     }
     const url = `${baseURL}${apiKey}`
-    return async (/** @type {string[]} */ fragments) => {
+    return async (/** @type {import('pofile').Item[]} */ fragments) => {
         const data = prepareData(fragments, sourceLocale, targetLocale)
         const res = await fetch(url, {method: 'POST', headers: h, body: JSON.stringify(data)})
         const json = await res.json()
         const resText = json.candidates[0].content.parts[0].text
-        const trans = {}
-        for (const [i, text] of resText.split('\n').entries()) {
-            if (text.trim()) {
-                trans[fragments[i]] = text
+        for (const [i, item] of PO.parse(resText).items.entries()) {
+            if (item.msgstr[0]) {
+                fragments[i].msgstr = item.msgstr
             }
         }
-        return trans
     }
 }
 

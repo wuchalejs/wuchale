@@ -1,4 +1,4 @@
-import Preprocess, { defaultHeuristic, IndexTracker } from "./prep.js"
+import Preprocess, { defaultHeuristic, IndexTracker, NestText } from "./prep.js"
 import { parse } from "svelte/compiler"
 import {writeFile} from 'node:fs/promises'
 import compileTranslation from "./compile.js"
@@ -35,7 +35,8 @@ async function loadPONoFail(filename) {
                     if (!item.msgstr[0]) {
                         untranslated++
                     }
-                    translations[item.msgid] = item
+                    const nTxt = new NestText(item.msgid, null, item.msgctxt)
+                    translations[nTxt.toKey()] = item
                 }
             }
             res({translations, total, obsolete, untranslated})
@@ -102,12 +103,12 @@ export default async function wuchale(options = defaultOptions) {
         // startup compile
         for (const loc of locales) {
             compiled[loc] = []
-            for (const txt in translations[loc]) {
-                const poItem = translations[loc][txt]
+            for (const key in translations[loc]) {
+                const poItem = translations[loc][key]
                 if (forProduction) {
                     poItem.references = []
                 }
-                const index = indexTracker.get(txt)
+                const index = indexTracker.get(key)
                 compiled[loc][index] = compileTranslation(poItem.msgstr[0], compiled[options.sourceLocale][index])
             }
             await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
@@ -128,38 +129,40 @@ export default async function wuchale(options = defaultOptions) {
         for (const loc of locales) {
             const newTxts = []
             for (const nTxt of txts) {
-                const txt = nTxt.toString()
-                let translated = translations[loc][txt]
+                let key = nTxt.toKey()
+                let translated = translations[loc][key]
                 if (translated == null) {
                     translated = new PO.Item()
-                    translated.msgid = txt
-                    translations[loc][txt] = translated
+                    translated.msgid = nTxt.toString()
+                    translations[loc][key] = translated
+                }
+                if (nTxt.context) {
+                    translated.msgctxt = nTxt.context
                 }
                 if (!translated.references.includes(filename)) {
                     translated.references.push(filename)
                 }
                 if (loc === options.sourceLocale) {
+                    const txt = nTxt.toString()
                     if (translated.msgstr[0] !== txt) {
                         translated.msgstr = [txt]
-                        newTxts.push(txt)
+                        newTxts.push(translated)
                     }
                 } else if (!translated.msgstr[0]) {
-                    newTxts.push(txt)
+                    newTxts.push(translated)
                 }
             }
             if (loc !== options.sourceLocale && newTxts.length) {
                 const geminiT = setupGemini(options.sourceLocale, loc, options.geminiAPIKey)
                 if (geminiT) {
-                    const gTrans = await geminiT(newTxts)
-                    for (const txt of newTxts) {
-                        translations[loc][txt].msgstr = [gTrans[txt]]
-                    }
+                    console.info('Gemini translate', newTxts.length, 'items...')
+                    await geminiT(newTxts) // will update because it's by reference
                 }
             }
             for (const nTxt of txts) {
-                const txt = nTxt.toString()
-                const index = indexTracker.get(txt)
-                compiled[loc][index] = compileTranslation(translations[loc][txt].msgstr[0], compiled[options.sourceLocale][index])
+                const key = nTxt.toKey()
+                const index = indexTracker.get(key)
+                compiled[loc][index] = compileTranslation(translations[loc][key].msgstr[0], compiled[options.sourceLocale][index])
             }
             for (const [i, c] of compiled[loc].entries()) {
                 if (c == null) {
@@ -223,8 +226,8 @@ export default async function wuchale(options = defaultOptions) {
                 return
             }
             for (const loc of locales) {
-                for (const txt in translations[loc]) {
-                    const poItem = translations[loc][txt]
+                for (const key in translations[loc]) {
+                    const poItem = translations[loc][key]
                     poItem.obsolete = poItem.references.length === 0
                 }
                 await savePO(translations[loc], translationsFname[loc])

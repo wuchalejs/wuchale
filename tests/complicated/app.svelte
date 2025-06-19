@@ -19,10 +19,12 @@
         >and even <b><u>depply</u> nested {`with ${someJSEven}` + "foo"}</b> content</i
     >
     With
-    {#if someFunction("Extracted Text", normalParam, ["+extracted anyway"])}
+    <!-- foo bar -->
+    {#if someFunction("Extracted Text", normalParam, [/* @wc-include */ "extracted anyway"])}
         Conditionals,
         {#each collection.members as member}
             Loops and {member}
+            <!-- What not -->
             {#await fetch("https://jsonplaceholder.typicode.com/todos/1") then res}
                 {#await res.json() then json}
                     <b>{json.title} other blocks</b>
@@ -32,4 +34,5 @@
         {/each}
     {/if}
 </p>
-- But ignore me
+<!-- @wc-ignore -->
+But ignore me

@@ -240,30 +240,88 @@ This is what you import when you set it up above in `App.svelte`.
 
 ## Supported syntax
 
-Text can be in three places: markup, script and attributes. Script means not
-just the part inside the `<script>` tags, but also inside interpolations inside
-the markup, such as `<p>{'This string'}</p>` and also in other places such as
-`{#if 'this string' == ''}`. And each can have their own rules. While these
-rules can be configured, the default is:
+Text can be in three places and the probability of the text inside them being
+intended is different for each of them. Therefore, a global heuristic function
+is applied to check whether the text should be extracted depending on each
+case, discussed below. And for specific granular control, comments can be used,
+like for typescript: `@wc-ignore` and `@wc-include`.
 
-- Markup:
-    - All text should be extracted unless prefixed with `-`. Example: `<p>-
-    This will be ignored.</p>`
-- Attributes:
-    - All attributes starting with upper case letters are extracted unless
-    prefixed with `-` like `label="-Ignore"`.
-    - All attributes starting with lower case letters are ignored, unless
-    prefixed with `+` like `alt="+extract"`.
-- Script:
-    - Strings: same rules as attributes above, but:
-    - If they are used inside the `<script>` tags, there is the additional
-      restriction that they must be inside a `$derived` variable declaration.
-      This is to make the behavior less magic and being more explicit.
+### Markup
 
-## Where does it look?
+Markup means text that we write inside tags like in paragraphs. This is almost
+always intended to be shown to the user. Therefore, the default global rule is
+to extract all text inside the markup, with the ability to force ignore with a
+comment:
 
-All files that can contain reactive logic. This means `*.svelte`, `*.svelte.ts` and
-`*.svelte.js` files specifically.
+```svelte
+<p>This is extracted</p>
+<!-- @wc-ignore -->
+<p>This is ignored</p>
+```
+
+### Attributes
+
+Attributes are the text that are literally written like `class="this"`. Dynamic
+attributes are not considered for this rule, instead they follow the script
+rule below, because they are JS expressions. For text attributes, the default
+rule is that all text starting with a capital letter is extracted.
+Example:
+
+```svelte
+<p class="not-extracted" title="Extracted">
+    This is extracted
+</p>
+```
+
+For ignoring or force-including, convert them to expressions and follow the
+script rule below.
+
+### Script
+
+This includes all JS/TS code that is:
+    - Inside `<script>` tags
+    - Inside dynamic expressions inside the markup or attributes, anything in curly braces like `{call('this guy')}`
+    - In `*.svelte.[js|ts]` files.
+
+The rule for this is that all strings and template strings that start with
+capital letters are extracted. Additionally, if they are used inside the
+`<script>` tags and in their own files (third case above), there is the
+additional restriction that they must be inside a `$derived` variable
+declaration. This is to make the behavior less magic and being more explicit.
+Example:
+
+```svelte
+<script>
+    const a = 'Not extracted'
+    const b = $derived('not extracted either')
+    const c = $derived('This one is extracted')
+    const d = $derived(`This one as well ${a} - ${b}`)
+    const d = $derived(/* @wc-include */ `${a} - ${b} this is force extracted`)
+</script>
+
+<p class={/* @wc-ignore */ `Ignore${3}`} title={'Included'} >Normal text</p>
+
+```
+
+## Context?
+
+Sometimes we need to have different translations that are the same text in the
+source language. For that, the comment directive `@wc-context:` is provided and
+they will be separate.
+
+```svelte
+<b>
+    <!-- @wc-context: machine -->
+    Maintenance
+</b>
+<i>Is different from</i>
+<b>
+    <!-- @wc-context: beauty -->
+    Maintenance
+</b>
+```
+
+Excuse my poor example choice.
 
 ## Plurals?
 
@@ -296,17 +354,14 @@ export const defaultOptions = {
 ```
 
 While the others are self explanatory, the `heuristic` is a function that
-decides what text to extract and what not to. The `defaultHeuristic` is the
-implementation of the above rules, but you can roll your own and provide it
-here. The function should receive the following arguments:
+globally decides what text to extract and what not to. The `defaultHeuristic`
+is the implementation of the above rules, but you can roll your own and provide
+it here. The function should receive the following arguments:
 
 - `text`: The candidate text
 - `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
 
-And it should return an object with two properties:
-
-- `extract` (boolean): Whether to extract it or not
-- `replace` (`string`): The string to replace it with. This is how you specify how to remove parts such as the prefixes above (`+` and `-`).
+And it should return boolean to indicate whether to extract it.
 
 ## 🧹 Cleaning
 

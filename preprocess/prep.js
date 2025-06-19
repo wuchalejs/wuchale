@@ -8,7 +8,7 @@ const rtFunc = 'wuchaleTrans'
 
 /**
  * @typedef {"script" | "markup" | "attribute"} TxtScope
- * @typedef {(text: string, scope: TxtScope) => {extract: boolean; replace: string}} HeuristicFunc
+ * @typedef {(text: string, scope: TxtScope) => boolean} HeuristicFunc
  */
 
 /**
@@ -16,32 +16,29 @@ const rtFunc = 'wuchaleTrans'
  */
 export function defaultHeuristic(text, scope = 'markup') {
     if (scope === 'markup') {
-        if (text.startsWith('-')) {
-            return {extract: false, replace: text.slice(1).trim()}
-        }
-        return {extract: true, replace: text}
+        return true
     }
     // script and attribute
-    if (text.startsWith('+')) {
-        return {extract: true, replace: text.slice(1).trim()}
-    }
     const range = 'AZ'
     const startCode = text.charCodeAt(0)
-    if (startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)) {
-        return {extract: true, replace: text}
-    }
-    return {extract: false, replace: text}
+    return startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)
 }
 
-class NestText extends String {
+export class NestText extends String {
     /**
      * @param {string} txt
      * @param {TxtScope} scope
+     * @param {string | null} [context]
      */
-    constructor(txt, scope) {
+    constructor(txt, scope, context) {
         super(txt)
         this.scope = scope
+        /** @type {string} */
+        this.context = context ?? null
     }
+
+    toKey = () => `${this.toString()}\n${this.context ?? ''}`.trim()
+
 }
 
 export class IndexTracker {
@@ -75,34 +72,32 @@ export default class Preprocess {
      * @param {HeuristicFunc} heuristic
      * @param {string} importFrom
      */
-    constructor(index, heuristic, importFrom) {
+    constructor(index, heuristic = defaultHeuristic, importFrom) {
         this.index = index
         this.importFrom = importFrom
         this.heuristic = heuristic
         this.content = ''
         /** @type {MagicString} */
         this.mstr = null
+        /** @type {boolean | null} */
+        this.forceInclude = null
+        /** @type {string} */
+        this.context = null
     }
 
     /**
-     * @param {number} start
-     * @param {number} end
      * @param {string} text
      * @param {TxtScope} scope
      * @returns {Array<*> & {0: boolean, 1: NestText}}
      */
-    modifyCheck = (start, end, text, scope) => {
+    checkHeuristic = (text, scope) => {
         text = text.replace(/\s+/g, ' ').trim()
         if (text === '') {
             // nothing to ask
             return [false, null]
         }
-        let {extract, replace} = this.heuristic(text, scope)
-        replace = replace.trim()
-        if (!extract && text !== replace) {
-            this.mstr.update(start, end, replace)
-        }
-        return [extract, new NestText(replace, scope)]
+        const extract = this.forceInclude || this.heuristic(text, scope)
+        return [extract, new NestText(text, scope)]
     }
 
     // visitComment = () => []
@@ -118,11 +113,12 @@ export default class Preprocess {
             return []
         }
         const { start, end } = node
-        const [pass, txt] = this.modifyCheck(start, end, node.value, 'script')
+        const [pass, txt] = this.checkHeuristic(node.value, 'script')
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${rtFunc}(${this.index.get(txt.toString())})`)
+        txt.context = this.context
+        this.mstr.update(start, end, `${rtFunc}(${this.index.get(txt.toKey())})`)
         return [txt]
     }
 
@@ -177,6 +173,17 @@ export default class Preprocess {
     }
 
     /**
+     * @param {import('estree').BinaryExpression} node
+     * @returns {NestText[]}
+     */
+    visitBinaryExpression = node => {
+        return [
+            ...this.visit(node.left),
+            ...this.visit(node.right),
+        ]
+    }
+
+    /**
      * @param {import('estree').VariableDeclaration} node
      * @returns {NestText[]}
      */
@@ -214,15 +221,15 @@ export default class Preprocess {
         const quasi0 = node.quasis[0]
         // @ts-ignore
         const {start: start0, end: end0} = quasi0
-        const [pass, txt] = this.modifyCheck(start0, end0, quasi0.value.cooked, 'script')
+        const [pass, txt0] = this.checkHeuristic(quasi0.value.cooked, 'script')
         if (!pass) {
             return txts
         }
-        let nTxt = txt.toString()
+        let txt = txt0.toString()
         for (const [i, expr] of node.expressions.entries()) {
             txts.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
-            nTxt += `{${i}}${quasi.value.cooked}`
+            txt += `{${i}}${quasi.value.cooked}`
             // @ts-ignore
             const {start, end} = quasi
             this.mstr.remove(start - 1, end)
@@ -231,14 +238,15 @@ export default class Preprocess {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        let repl = `${rtFunc}(${this.index.get(txt.toString())}`
+        const nTxt = new NestText(txt, txt0.scope, this.context)
+        let repl = `${rtFunc}(${this.index.get(nTxt.toKey())}`
         if (node.expressions.length) {
             repl += ', '
         }
         this.mstr.update(start0 - 1, end0 + 2, repl)
         // @ts-ignore
         this.mstr.update(node.end - 1, node.end, ')')
-        txts.push(new NestText(nTxt, 'script'))
+        txts.push(nTxt)
         return txts
     }
 
@@ -290,8 +298,7 @@ export default class Preprocess {
         const textNodesToModify = {}
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const { start, end } = child
-                const [pass, modify] = this.modifyCheck(start, end, child.data, 'markup')
+                const [pass, modify] = this.checkHeuristic(child.data, 'markup')
                 if (pass) {
                     hasTextChild = true
                     textNodesToModify[i] = modify
@@ -374,7 +381,7 @@ export default class Preprocess {
         if (!txt) {
             return txts
         }
-        const nTxt = new NestText(txt, 'markup')
+        const nTxt = new NestText(txt, 'markup', this.context)
         txts.push(nTxt)
         if (iTag > 0) {
             const snippets = []
@@ -386,7 +393,7 @@ export default class Preprocess {
             if (node.inCompoundText) {
                 begin += `ctx={ctx}`
             } else {
-                begin += `id={${this.index.get(txt)}}`
+                begin += `id={${this.index.get(nTxt.toKey())}}`
             }
             let end = ' />\n'
             if (iArg > 0) {
@@ -396,7 +403,7 @@ export default class Preprocess {
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
         } else if (!node.inCompoundText) {
-            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(txt)}, `)
+            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(nTxt.toKey())}, `)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
         return txts
@@ -409,12 +416,12 @@ export default class Preprocess {
      * @returns {NestText[]}
      */
     visitText = node => {
-        const { start, end } = node
-        const [pass, txt] = this.modifyCheck(start, end, node.data, 'markup')
+        const [pass, txt] = this.checkHeuristic(node.data, 'markup')
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
+        txt.context = this.context
+        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
 
@@ -448,12 +455,13 @@ export default class Preprocess {
             }
             // Text
             const {start, end} = value
-            const [pass, txt] = this.modifyCheck(start, end, value.data, 'attribute')
+            const [pass, txt] = this.checkHeuristic(value.data, 'attribute')
             if (!pass) {
                 continue
             }
+            txt.context = this.context
             txts.push(txt)
-            this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toString())})}`)
+            this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
@@ -586,16 +594,49 @@ export default class Preprocess {
     }
 
     /**
-     * @param {import("svelte/compiler").AST.SvelteNode} node
+     * @param {string} data
+     */
+    processCommentDirectives = data => {
+        if (data === '@wc-ignore') {
+            this.forceInclude = false
+        }
+        if (data === '@wc-include') {
+            this.forceInclude = true
+        }
+        const ctxStart = '@wc-context:'
+        if (data.startsWith(ctxStart)) {
+            this.context = data.slice(ctxStart.length).trim()
+        }
+    }
+
+    /**
+     * @param {import("svelte/compiler").AST.SvelteNode & import('estree').BaseNode} node
      * @returns {NestText[]}
      */
     visit = node => {
-        const methodName = `visit${node.type}`
-        if (methodName in this) {
-            return this[methodName](node)
+        if (node.type === 'Comment') {
+            this.processCommentDirectives(node.data.trim())
+            return []
         }
-        // console.log(node)
-        return []
+        // for estree
+        for (const comment of node.leadingComments ?? []) {
+            this.processCommentDirectives(comment.value.trim())
+        }
+        let txts = []
+        if (this.forceInclude !== false) {
+            const methodName = `visit${node.type}`
+            if (methodName in this) {
+                txts = this[methodName](node)
+            }
+        }
+        this.forceInclude = null
+        if (this.context != null) {
+            for (const txt of txts) {
+                txt.context = this.context
+            }
+        }
+        this.context = null
+        return txts
     }
 
     /**
