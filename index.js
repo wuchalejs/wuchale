@@ -1,3 +1,3 @@
-import wuchale from "./preprocess/index.js"
+import plugin from "./preprocess/index.js"
 
-export default wuchale
+export const wuchale = plugin
