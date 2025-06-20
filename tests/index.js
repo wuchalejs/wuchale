@@ -1,4 +1,4 @@
-// $$ cd .. && npm run build && npm run test
+// $$ cd .. && npm run test
 // @ts-nocheck
 
 import { test } from 'node:test'
@@ -6,6 +6,7 @@ import setupPreprocess from '../dist/preprocess/index.js'
 import { parse } from 'svelte/compiler'
 import { readFile } from 'fs/promises'
 import compileTranslation from '../dist/preprocess/compile.js'
+import PO from 'pofile'
 
 const options = { otherLocales: [], geminiAPIKey: null }
 
@@ -36,11 +37,11 @@ async function getOutput(content) {
 async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
     const { processed, translations, compiled } = await getOutput(content)
     t.assert.strictEqual(trimLines(processed.code), trimLines(expectedContent))
-    const tObj = {}
+    const po = new PO()
     for (const key in translations.en) {
-        tObj[key] = translations.en[key].msgstr[0]
+        po.items.push(translations.en[key])
     }
-    t.assert.deepEqual(tObj, expectedTranslations)
+    t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
     t.assert.deepEqual(compiled.en, expectedCompiled)
 }
 
@@ -53,25 +54,42 @@ test('Compile nested', function(t) {
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
-              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
+            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+            import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         {wuchaleTrans(0)}
-    `, { Hello: 'Hello' }, ['Hello'])
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test.svelte
+    msgid "Hello"
+    msgstr "Hello"
+    `, ['Hello'])
 })
 
 test('Simple element', async function(t) {
     await testContent(t, '<p>Hello</p>', svelte`
         <script>
-              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
-              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
+            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+            import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         <p>{wuchaleTrans(0, )}</p>
-    `, { Hello: 'Hello' }, ['Hello'])
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test.svelte
+    msgid "Hello"
+    msgstr "Hello"
+    `, ['Hello'])
 })
 
 test('Lower case string in expression tag', async function(t) { // small letter beginning inside string
-    await testContent(t, `<p>{'hello there'}</p>`, undefined, {}, [])
+    await testContent(t, `<p>{'hello there'}</p>`, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
 })
 
 test('Multiple in one file', async function(t) {
@@ -81,8 +99,8 @@ test('Multiple in one file', async function(t) {
         <p>Hello <b>{userName}</b></p>
     `, svelte`
          <script>
-              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
-              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
+            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+            import WuchaleTrans from "wuchale/runtime.svelte"
          </script>
          <h1>{wuchaleTrans(0, )}</h1>
          <p>{wuchaleTrans(1)}</p>
@@ -92,11 +110,22 @@ test('Multiple in one file', async function(t) {
              {/snippet}
              <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
          </p>
-    `, {
-        'Hello <0>{0}</0>': 'Hello <0>{0}</0>',
-        'Welcome to the app': 'Welcome to the app',
-        Title: 'Title'
-    }, [
+    `, `
+        msgid ""
+        msgstr ""
+
+        #: test.svelte
+        msgid "Title"
+        msgstr "Title"
+
+        #: test.svelte
+        msgid "Welcome to the app"
+        msgstr "Welcome to the app"
+
+        #: test.svelte
+        msgid "Hello <0>{0}</0>"
+        msgstr "Hello <0>{0}</0>"`,
+    [
         'Title',
         'Welcome to the app',
         [
@@ -112,7 +141,7 @@ test('Multiple in one file', async function(t) {
 test('Complicated', async function(t) {
     const content = (await readFile('tests/complicated/app.svelte')).toString()
     const contentOut = (await readFile('tests/complicated/app.out.svelte')).toString()
-    const poContents = JSON.parse((await readFile('tests/complicated/po.json')).toString())
+    const poContents = (await readFile('tests/complicated/en.po')).toString()
     const compiledContents = JSON.parse((await readFile('tests/complicated/en.json')).toString())
     await testContent(t, content, contentOut, poContents, compiledContents)
 })

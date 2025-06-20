@@ -10,6 +10,27 @@
             ["non-extracted text"]: { ["Extracted text"]: 42 },
         },
     });
+    const derived = $derived.by(() => {
+        const f = 'Extract this'
+        let e = ''
+        if (f == 'something else') {
+            let d = 'Variable'
+            d = d + 'Add to Variable'
+            return d
+        } else if (f == 'Check extracted') {
+            return f
+        } else {
+            for (const q of [1,2,3]) {
+                e += q + 'That'
+            }
+            e = [f, 'And this', e]
+        }
+        return {
+            ['And this']: f,
+            butNotThis: 'Okay?',
+            e
+        }
+    })
 </script>
 
 <p>

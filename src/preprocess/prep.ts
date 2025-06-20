@@ -1,3 +1,5 @@
+// $$ cd .. && npm run build && npm run test
+
 import MagicString from "magic-string"
 import type { ItemType } from "./gemini.js"
 import type { AST } from "svelte/compiler"
@@ -7,7 +9,7 @@ export type HeuristicFunc = (text: string, scope: TxtScope) => boolean
 
 type TxtScope = "script" | "markup" | "attribute"
 
-type ElementNode = AST.ElementLike & { inCompoundText: boolean} 
+type ElementNode = AST.ElementLike & { inCompoundText: boolean }
 
 const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
@@ -47,7 +49,7 @@ export interface Translations {
 
 export class IndexTracker {
 
-    indices: {[key: string]: number}
+    indices: { [key: string]: number }
     nextIndex: number
 
     constructor(sourceTranslations: Translations) {
@@ -80,6 +82,7 @@ export default class Preprocess {
     mstr: MagicString
     forceInclude: boolean | null
     context: string
+    insideDerived: boolean = false
 
     constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, importFrom: string = '') {
         this.index = index
@@ -156,15 +159,58 @@ export default class Preprocess {
         ]
     }
 
+    visitAssignmentExpression = this.visitBinaryExpression
+
+    visitExpressionStatement = (node: Estree.ExpressionStatement): NestText[] => this.visit(node.expression)
+
+    visitForOfStatement = (node: Estree.ForOfStatement): NestText[] => {
+        return [
+            ...this.visit(node.left),
+            ...this.visit(node.right),
+            ...this.visit(node.body),
+        ]
+    }
+
+    visitForInStatement = (node: Estree.ForInStatement): NestText[] => {
+        return [
+            ...this.visit(node.left),
+            ...this.visit(node.right),
+            ...this.visit(node.body),
+        ]
+    }
+
+    visitStatement = (node: Estree.ForStatement): NestText[] => {
+        return [
+            ...this.visit(node.init),
+            ...this.visit(node.test),
+            ...this.visit(node.update),
+            ...this.visit(node.body),
+        ]
+    }
+
     visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
         const txts = []
+        let atTopLevel = !this.insideDerived
         for (const dec of node.declarations) {
             if (!dec.init) {
                 continue
             }
             // visit only contents inside $derived
-            if (dec.init.type !== 'CallExpression' || dec.init.callee.type !== 'Identifier' || dec.init.callee.name !== '$derived') {
-                continue
+            if (atTopLevel) {
+                if (dec.init.type !== 'CallExpression') {
+                    continue
+                }
+                const callee = dec.init.callee
+                const isDerived = callee.type === 'Identifier' && callee.name === '$derived'
+                const isDerivedBy = callee.type === 'MemberExpression'
+                    && callee.object.type === 'Identifier'
+                    && callee.object.name === '$derived'
+                    && callee.property.type === 'Identifier'
+                    && callee.property.name === 'by'
+                if (!isDerived && !isDerivedBy) {
+                    continue
+                }
+                this.insideDerived = true
             }
             const decVisit = this.visit(dec.init)
             if (!decVisit.length) {
@@ -172,16 +218,40 @@ export default class Preprocess {
             }
             txts.push(...decVisit)
         }
+        if (atTopLevel) {
+            this.insideDerived = false
+        }
         return txts
     }
 
     visitExportDefaultDeclaration = (node: Estree.ExportDefaultDeclaration): NestText[] => this.visit(node.declaration)
 
+    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): NestText[] => this.visit(node.body)
+
+    visitBlockStatement = (node: Estree.BlockStatement): NestText[] => {
+        const txts = []
+        for (const statement of node.body) {
+            txts.push(...this.visit(statement))
+        }
+        return txts
+    }
+
+    visitReturnStatement = (node: Estree.ReturnStatement): NestText[] => this.visit(node.argument)
+
+    visitIfStatement = (node: Estree.IfStatement): NestText[] => {
+        const txts = this.visit(node.test)
+        txts.push(...this.visit(node.consequent))
+        if (node.alternate) {
+            txts.push(...this.visit(node.alternate))
+        }
+        return txts
+    }
+
     visitTemplateLiteral = (node: Estree.TemplateLiteral): NestText[] => {
         const txts = []
         const quasi0 = node.quasis[0]
         // @ts-ignore
-        const {start: start0, end: end0} = quasi0
+        const { start: start0, end: end0 } = quasi0
         const [pass, txt0] = this.checkHeuristic(quasi0.value.cooked, 'script')
         if (!pass) {
             return txts
@@ -192,7 +262,7 @@ export default class Preprocess {
             const quasi = node.quasis[i + 1]
             txt += `{${i}}${quasi.value.cooked}`
             // @ts-ignore
-            const {start, end} = quasi
+            const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
                 continue
@@ -230,10 +300,10 @@ export default class Preprocess {
     }
 
     visitRegularElement = (node: ElementNode & {
-            fragment: AST.Fragment & {
-                nodes: ElementNode[]
-            }
-        }): NestText[] => {
+        fragment: AST.Fragment & {
+            nodes: ElementNode[]
+        }
+    }): NestText[] => {
         const txts = []
         for (const attrib of node.attributes) {
             txts.push(...this.visit(attrib))
@@ -390,7 +460,7 @@ export default class Preprocess {
                 continue
             }
             // Text
-            const {start, end} = value
+            const { start, end } = value
             const [pass, txt] = this.checkHeuristic(value.data, 'attribute')
             if (!pass) {
                 continue
@@ -523,6 +593,8 @@ export default class Preprocess {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 txts = this[methodName](node)
+            // } else {
+            //     console.log(node)
             }
         }
         this.forceInclude = null

@@ -1,36 +1,43 @@
 [
-    "Extracted text",
-    "Extracted",
-    "Extracted Text",
-    "extracted anyway",
-    "Conditionals,",
-    "Loops and",
+  "Extracted text",
+  "Extracted",
+  "Extracted Text",
+  "extracted anyway",
+  "Conditionals,",
+  "Loops and",
+  [
+    0,
+    " other blocks"
+  ],
+  "Supported",
+  [
+    "This is a very ",
+    0,
+    " Complicated ",
     [
+      0,
+      "and even ",
+      [
         0,
-        " other blocks"
-    ],
-    "Supported",
-    [
-        "This is a very ",
-        0,
-        " Complicated ",
         [
-            0,
-            "and even ",
-            [
-                0,
-                [
-                    0,
-                    "depply"
-                ],
-                " nested ",
-                0
-            ],
-            " content"
+          0,
+          "depply"
         ],
-        " With ",
-        [
-            1
-        ]
+        " nested ",
+        0
+      ],
+      " content"
+    ],
+    " With ",
+    [
+      1
     ]
+  ],
+  "Extract this",
+  "Variable",
+  "Add to Variable",
+  "Check extracted",
+  "That",
+  "And this",
+  "Okay?"
 ]

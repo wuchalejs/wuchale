@@ -1,0 +1,66 @@
+msgid ""
+msgstr ""
+
+#: test.svelte
+msgid "Extracted text"
+msgstr "Extracted text"
+
+#: test.svelte
+msgid "Extracted"
+msgstr "Extracted"
+
+#: test.svelte
+msgid "Extracted Text"
+msgstr "Extracted Text"
+
+#: test.svelte
+msgid "extracted anyway"
+msgstr "extracted anyway"
+
+#: test.svelte
+msgid "Conditionals,"
+msgstr "Conditionals,"
+
+#: test.svelte
+msgid "Loops and"
+msgstr "Loops and"
+
+#: test.svelte
+msgid "{0} other blocks"
+msgstr "{0} other blocks"
+
+#: test.svelte
+msgid "Supported"
+msgstr "Supported"
+
+#: test.svelte
+msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
+msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
+
+#: test.svelte
+msgid "Extract this"
+msgstr "Extract this"
+
+#: test.svelte
+msgid "Variable"
+msgstr "Variable"
+
+#: test.svelte
+msgid "Add to Variable"
+msgstr "Add to Variable"
+
+#: test.svelte
+msgid "Check extracted"
+msgstr "Check extracted"
+
+#: test.svelte
+msgid "That"
+msgstr "That"
+
+#: test.svelte
+msgid "And this"
+msgstr "And this"
+
+#: test.svelte
+msgid "Okay?"
+msgstr "Okay?"
