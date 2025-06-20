@@ -102,7 +102,7 @@ then set it up in your main component. Assuming `/src/App.svelte`:
 
 ```svelte
 <script>
-    import {setTranslations} from 'wuchale/runtime.svelte'
+    import {setTranslations} from 'wuchale/runtime.svelte.js'
 
     let locale = $state('en')
 
@@ -292,9 +292,9 @@ This includes all JS/TS code that is:
 The rule for this is that all strings and template strings that start with
 capital letters are extracted. Additionally, if they are used inside the
 `<script>` tags and in their own files (third case above), there is the
-additional restriction that they must be inside a `$derived` variable
-declaration. This is to make the behavior less magic and being more explicit.
-Example:
+additional restriction that they must be inside a `$derived` or `$derived.by`
+variable declaration. This is to make the behavior less magic and being more
+explicit. Example:
 
 ```svelte
 <script>
