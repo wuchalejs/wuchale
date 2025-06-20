@@ -1,4 +1,4 @@
-import Preprocess, { defaultHeuristic, IndexTracker, NestText, type Translations } from "./prep.js"
+import Preprocess, { defaultHeuristic, IndexTracker, NestText, type HeuristicFunc, type Translations } from "./prep.js"
 import { parse, type AST } from "svelte/compiler"
 import { writeFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
@@ -7,12 +7,29 @@ import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program } from 'estree'
 
-export const defaultOptions = {
+export interface Options {
+    sourceLocale?: string
+    otherLocales?: string[]
+    localesDir?: string
+    heuristic?: HeuristicFunc
+    geminiAPIKey?: string
+}
+
+export const defaultOptions: Options = {
     sourceLocale: 'en',
-    otherLocales: ['am'],
+    otherLocales: [],
     localesDir: './src/locales',
     heuristic: defaultHeuristic,
     geminiAPIKey: 'env',
+}
+
+function mergeOptionsWithDefault(options = defaultOptions) {
+    for (const key of Object.keys(defaultOptions)) {
+        if (key in options) {
+            continue
+        }
+        options[key] = defaultOptions[key]
+    }
 }
 
 interface LoadedPO {
@@ -62,15 +79,6 @@ async function savePO(translations: ItemType[], filename: string) {
             }
         })
     })
-}
-
-function mergeOptionsWithDefault(options = defaultOptions) {
-    for (const key of Object.keys(defaultOptions)) {
-        if (key in options) {
-            continue
-        }
-        options[key] = defaultOptions[key]
-    }
 }
 
 export default async function wuchale(options = defaultOptions) {
@@ -174,15 +182,16 @@ export default async function wuchale(options = defaultOptions) {
         }
     }
 
+    const order: 'pre' = 'pre'
     return {
         name: 'wuchale',
-        async configResolved(config: { env: { PROD: boolean; }, root: string; }) {
+        async configResolved(config: { env: { PROD?: boolean; }, root: string; }) {
             forProduction = config.env.PROD
             projectRoot = config.root
             await loadFilesAndSetup()
         },
         transform: {
-            order: 'pre',
+            order,
             handler: async function(code: string, id: string) {
                 if (!id.startsWith(projectRoot) || id.startsWith(normalize(projectRoot + '/node_modules'))) {
                     return

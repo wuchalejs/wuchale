@@ -349,10 +349,10 @@ To configure `wuchale`, you pass an object that looks like the following (the
 default) to `wuchale()` in your `vite.config.js` `vite.config.ts`:
 
 ```javascript
-export const defaultOptions = {
+export const defaultOptions: Options = {
     sourceLocale: 'en',
-    otherLocales: ['am'],
-    localesDir: './locales',
+    otherLocales: [],
+    localesDir: './src/locales',
     heuristic: defaultHeuristic,
     geminiAPIKey: 'env',
 }
