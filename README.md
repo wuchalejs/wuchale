@@ -98,7 +98,10 @@ export default {
 ```
 
 Create `/src/locales/` (relative to the projects root) if it doesn't exist, and
-then set it up in your main component. Assuming `/src/App.svelte`:
+then set it up in your main component:
+
+- SvelteKit: `src/routes/+page.svelte`
+- Svelte: `src/App.svelte`
 
 ```svelte
 <script>
@@ -108,9 +111,7 @@ then set it up in your main component. Assuming `/src/App.svelte`:
 
     $effect.pre(() => {
         // IMPORTANT! The path should be relative to the current file (vite restriction).
-        // for the default sveltekit template for example, it's `../locales/${locale}.json`
-        // because the default main component is located at /src/routes/+page.svelte
-        import(`./locales/${locale}.json`).then(mod => {
+        import(`../locales/${locale}.json`).then(mod => { // ./locales/${locale}.json for svelte
             setTranslations(mod.default)
         })
         // but this only applies if you want to do lazy loading.
