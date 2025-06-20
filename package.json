@@ -1,9 +1,9 @@
 {
   "name": "wuchale",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "i18n for svelte without turning your codebase upside down",
-  "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "test": "node tests"
   },
   "keywords": [
@@ -12,20 +12,32 @@
     "i18n"
   ],
   "files": [
-      "index.js",
-      "preprocess/",
-      "runtime.svelte"
+    "dist",
+    "runtime.svelte"
   ],
+  "exports": {
+      ".": {
+          "import": "./dist/index.js",
+          "types": "./dist/index.d.ts"
+      },
+      "./runtime.svelte.js": {
+          "import": "./dist/runtime.svelte.js",
+          "types": "./dist/runtime.svelte.d.ts"
+      },
+      "./runtime.svelte": "./runtime.svelte"
+  },
   "homepage": "https://github.com/K1DV5/wuchale",
   "bugs": "https://github.com/K1DV5/wuchale/issues",
   "author": "K1DV5",
   "license": "MIT",
   "dependencies": {
+    "svelte": "^5.28.1",
     "magic-string": "^0.30.17",
     "pofile": "^1.1.4"
   },
   "devDependencies": {
-    "svelte": "^5.28.1"
+    "@types/node": "^24.0.3",
+    "typescript": "^5.8.3"
   },
   "type": "module"
 }

@@ -1,4 +1,6 @@
-<script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
+<script>
+    import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
+    import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
     const normalParam = 44;
     function someFunction(a, b, c) {
         return true;

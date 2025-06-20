@@ -6,19 +6,13 @@ import PO from 'pofile'
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 
-/**
- * @param {string} locale
- */
-function codeStandard(locale) {
+function codeStandard(locale: string) {
     return `ISO 639-${locale.length === 2 ? 1 : 3}`
 }
 
-/**
- * @param {import('pofile').Item[]} fragments
- * @param {string} sourceLocale
- * @param {string} targetLocale
- */
-function prepareData(fragments, sourceLocale, targetLocale) {
+export type ItemType = InstanceType<typeof PO.Item>
+
+function prepareData(fragments: ItemType[], sourceLocale: string, targetLocale: string) {
     const instruction = `
         You will be given the contents of a gettext .po file for a web app.
         Translate each of the items from the source to the target language.
@@ -44,11 +38,15 @@ function prepareData(fragments, sourceLocale, targetLocale) {
     }
 }
 
-/**
- * @param {string} targetLocale
- * @param {string | undefined} apiKey
- */
-function setupGemini(sourceLocale = 'en', targetLocale, apiKey) {
+interface GeminiRes {
+    candidates?: {
+        content: {
+            parts: { text: string }[]
+        }
+    }[]
+}
+
+function setupGemini(sourceLocale: string, targetLocale: string, apiKey: string | null) {
     if (apiKey === 'env') {
         apiKey = process.env.GEMINI_API_KEY
     }
@@ -56,11 +54,11 @@ function setupGemini(sourceLocale = 'en', targetLocale, apiKey) {
         return
     }
     const url = `${baseURL}${apiKey}`
-    return async (/** @type {import('pofile').Item[]} */ fragments) => {
+    return async (fragments: ItemType[]) => {
         const data = prepareData(fragments, sourceLocale, targetLocale)
         const res = await fetch(url, {method: 'POST', headers: h, body: JSON.stringify(data)})
-        const json = await res.json()
-        const resText = json.candidates[0].content.parts[0].text
+        const json: GeminiRes = await res.json()
+        const resText = json.candidates[0]?.content.parts[0].text
         for (const [i, item] of PO.parse(resText).items.entries()) {
             if (item.msgstr[0]) {
                 fragments[i].msgstr = item.msgstr

@@ -1,10 +1,11 @@
-// $$ cd .. && npm run test
+// $$ cd .. && npm run build && npm run test
 // @ts-nocheck
 
 import { test } from 'node:test'
-import setupPreprocess from '../preprocess/index.js'
+import setupPreprocess from '../dist/preprocess/index.js'
 import { parse } from 'svelte/compiler'
 import { readFile } from 'fs/promises'
+import compileTranslation from '../dist/preprocess/compile.js'
 
 const options = { otherLocales: [], geminiAPIKey: null }
 
@@ -43,9 +44,17 @@ async function testContent(t, content, expectedContent, expectedTranslations, ex
     t.assert.deepEqual(compiled.en, expectedCompiled)
 }
 
+test('Compile nested', function(t) {
+    t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', 'foo'), ['Foo ', [0, 'bar ', 0]])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', 'foo'), ['Foo ', [0, 'bar ', 0, [0]]])
+})
+
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
-        <script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
+        <script>
+              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
+              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
         </script>
         {wuchaleTrans(0)}
     `, { Hello: 'Hello' }, ['Hello'])
@@ -53,7 +62,9 @@ test('Simple text', async function(t) {
 
 test('Simple element', async function(t) {
     await testContent(t, '<p>Hello</p>', svelte`
-        <script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
+        <script>
+              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
+              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
         </script>
         <p>{wuchaleTrans(0, )}</p>
     `, { Hello: 'Hello' }, ['Hello'])
@@ -69,7 +80,9 @@ test('Multiple in one file', async function(t) {
         <p>{'Welcome to the app'}</p>
         <p>Hello <b>{userName}</b></p>
     `, svelte`
-         <script>import WuchaleTrans, {wuchaleTrans} from "wuchale/runtime.svelte"
+         <script>
+              import {wuchaleTrans} from "wuchale/dist/runtime.svelte"
+              import WuchaleTrans from "wuchale/WuchaleTrans.svelte"
          </script>
          <h1>{wuchaleTrans(0, )}</h1>
          <p>{wuchaleTrans(1)}</p>

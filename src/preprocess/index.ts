@@ -1,10 +1,11 @@
-import Preprocess, { defaultHeuristic, IndexTracker, NestText } from "./prep.js"
-import { parse } from "svelte/compiler"
-import {writeFile} from 'node:fs/promises'
-import compileTranslation from "./compile.js"
-import setupGemini from "./gemini.js"
+import Preprocess, { defaultHeuristic, IndexTracker, NestText, type Translations } from "./prep.js"
+import { parse, type AST } from "svelte/compiler"
+import { writeFile } from 'node:fs/promises'
+import compileTranslation, { type CompiledFragment } from "./compile.js"
+import setupGemini, { type ItemType } from "./gemini.js"
 import PO from "pofile"
 import { normalize, relative } from "node:path"
+import type { Program } from 'estree'
 
 export const defaultOptions = {
     sourceLocale: 'en',
@@ -14,13 +15,17 @@ export const defaultOptions = {
     geminiAPIKey: 'env',
 }
 
-/**
- * @param {string} filename
- */
-async function loadPONoFail(filename) {
+interface LoadedPO {
+    translations: Translations,
+    total: number,
+    obsolete: number,
+    untranslated: number,
+}
+
+async function loadPONoFail(filename: string): Promise<LoadedPO> {
     return new Promise((res) => {
         PO.load(filename, (err, po) => {
-            const translations = {}
+            const translations: Translations = {}
             let total = 0
             let obsolete = 0
             let untranslated = 0
@@ -38,16 +43,12 @@ async function loadPONoFail(filename) {
                     translations[nTxt.toKey()] = item
                 }
             }
-            res({translations, total, obsolete, untranslated})
+            res({ translations, total, obsolete, untranslated })
         })
     })
 }
 
-/**
- * @param {{ [s: string]: any; } | ArrayLike<any>} translations
- * @param {string} filename
- */
-async function savePO(translations, filename) {
+async function savePO(translations: ItemType[], filename: string) {
     const po = new PO()
     for (const item of Object.values(translations)) {
         po.items.push(item)
@@ -57,7 +58,7 @@ async function savePO(translations, filename) {
             if (err) {
                 rej(err)
             } else {
-                res()
+                res(null)
             }
         })
     })
@@ -89,11 +90,11 @@ export default async function wuchale(options = defaultOptions) {
     let sourceTranslations = {}
     let indexTracker = new IndexTracker({})
 
-    const compiled = {}
+    const compiled: { [locale: string]: CompiledFragment[] } = {}
 
     async function loadFilesAndSetup() {
         for (const loc of locales) {
-            const {translations: trans, total, obsolete, untranslated} = await loadPONoFail(translationsFname[loc])
+            const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(translationsFname[loc])
             translations[loc] = trans
             console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
         }
@@ -114,12 +115,7 @@ export default async function wuchale(options = defaultOptions) {
         }
     }
 
-    /**
-     * @param {string} content
-     * @param {import('estree').Program | import("svelte/compiler").AST.Root} ast
-     * @param {string} filename
-     */
-    async function preprocess(content, ast, filename) {
+    async function preprocess(content: string, ast: AST.Root | Program, filename: string) {
         const prep = new Preprocess(indexTracker, options.heuristic)
         const txts = prep.process(content, ast)
         if (!txts.length) {
@@ -180,21 +176,14 @@ export default async function wuchale(options = defaultOptions) {
 
     return {
         name: 'wuchale',
-        /**
-         * @param {{ env: { PROD: boolean; }, root: string; }} config
-         */
-        async configResolved(config) {
+        async configResolved(config: { env: { PROD: boolean; }, root: string; }) {
             forProduction = config.env.PROD
             projectRoot = config.root
             await loadFilesAndSetup()
         },
         transform: {
             order: 'pre',
-            /**
-             * @param {string} code
-             * @param {string} id
-            */
-            handler: async function(code, id) {
+            handler: async function(code: string, id: string) {
                 if (!id.startsWith(projectRoot) || id.startsWith(normalize(projectRoot + '/node_modules'))) {
                     return
                 }
@@ -202,11 +191,11 @@ export default async function wuchale(options = defaultOptions) {
                 if (!id.endsWith('.svelte') && !isModule) {
                     return
                 }
-                let ast
+                let ast: AST.Root | Program
                 if (isModule) {
                     ast = this.parse(code)
                 } else {
-                    ast = parse(code, {modern: true})
+                    ast = parse(code, { modern: true })
                 }
                 const filename = relative(projectRoot, id)
                 const processed = await preprocess(code, ast, filename)

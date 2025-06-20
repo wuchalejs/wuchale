@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
-    "moduleResolution": "bundler",
-    "target": "ESNext",
-    "module": "ESNext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "module": "nodenext",
+    "lib": ["es2022"],
+    "outDir": "./dist",
+    "declaration": true,
     /**
      * svelte-preprocess cannot figure out whether you have
      * a value or a type, so tell TypeScript to enforce using
@@ -32,5 +35,5 @@
    * Use global.d.ts instead of compilerOptions.types
    * to avoid limiting type declarations.
    */
-  "include": ["**/*.d.ts", "**/*.js", "**/*.svelte"]
+  "include": ["./src/**/*"]
 }
