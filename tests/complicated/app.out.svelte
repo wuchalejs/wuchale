@@ -13,9 +13,13 @@
             ["non-extracted text"]: { [wuchaleTrans(0)]: 42 },
         },
     });
+    const p = {
+        id: 23,
+        name: 'foo',
+    }
     const derived = $derived.by(() => {
         const f = wuchaleTrans(9)
-        let e = ''
+        let e = {}
         if (f == 'something else') {
             let d = wuchaleTrans(10)
             d = d + wuchaleTrans(11)
@@ -24,9 +28,9 @@
             return f
         } else {
             for (const q of [1,2,3]) {
-                e += q + wuchaleTrans(13)
+                e[`${q}/${collection.members[0]}`] = {...p, name: wuchaleTrans(13)}
             }
-            e = [f, wuchaleTrans(14), e]
+            e.default = [f, wuchaleTrans(14), e]
         }
         return {
             [wuchaleTrans(14)]: f,

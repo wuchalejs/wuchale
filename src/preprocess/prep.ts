@@ -129,13 +129,17 @@ export default class Preprocess {
     visitObjectExpression = (node: Estree.ObjectExpression): NestText[] => {
         const txts = []
         for (const prop of node.properties) {
-            // @ts-ignore
-            txts.push(...this.visit(prop.key))
-            // @ts-ignore
-            txts.push(...this.visit(prop.value))
+            txts.push(...this.visit(prop))
         }
         return txts
     }
+
+    visitProperty = (node: Estree.Property): NestText[] => [
+        ...this.visit(node.key),
+        ...this.visit(node.value),
+    ]
+
+    visitSpreadElement = (node: Estree.SpreadElement): NestText[] => this.visit(node.argument)
 
     visitMemberExpression = (node: Estree.MemberExpression): NestText[] => {
         return [
