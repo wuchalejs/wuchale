@@ -182,13 +182,20 @@ export default async function wuchale(options = defaultOptions) {
         }
     }
 
+    let transFnames: {[key: string]: true} = {}
     const order: 'pre' = 'pre'
     return {
         name: 'wuchale',
         async configResolved(config: { env: { PROD?: boolean; }, root: string; }) {
             forProduction = config.env.PROD
             projectRoot = config.root
+            transFnames = Object.fromEntries(Object.values(translationsFname).map(fname => [normalize(projectRoot + '/' + fname), true]))
             await loadFilesAndSetup()
+        },
+        async handleHotUpdate(ctx: {file: string}) {
+            if (ctx.file in transFnames) {
+                await loadFilesAndSetup()
+            }
         },
         transform: {
             order,
