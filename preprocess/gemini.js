@@ -7,6 +7,13 @@ const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-
 const h = {'Content-Type': 'application/json'}
 
 /**
+ * @param {string} locale
+ */
+function codeStandard(locale) {
+    return `ISO 639-${locale.length === 2 ? 1 : 3}`
+}
+
+/**
  * @param {import('pofile').Item[]} fragments
  * @param {string} sourceLocale
  * @param {string} targetLocale
@@ -15,9 +22,8 @@ function prepareData(fragments, sourceLocale, targetLocale) {
     const instruction = `
         You will be given the contents of a gettext .po file for a web app.
         Translate each of the items from the source to the target language.
-        You have to find out the languages using their ISO 639-1 codes.
-        The source language is: ${sourceLocale}.
-        The target language is: ${targetLocale}.
+        The source language ${codeStandard(sourceLocale)} code is: ${sourceLocale}.
+        The target language ${codeStandard(targetLocale)} code is: ${targetLocale}.
         You can read all of the information for the items including contexts,
         comments and references to get the appropriate context about each item.
         Provide the translated fragments in the in the same order, preserving
