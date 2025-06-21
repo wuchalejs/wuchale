@@ -288,21 +288,6 @@ export default class Preprocess {
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
-    checkHasCompoundText = (node: AST.ElementLike): boolean => {
-        let text = false
-        let nonText = false
-        for (const child of node.fragment.nodes ?? []) {
-            if (child.type === 'Text') {
-                if (child.data.trim()) {
-                    text = true
-                }
-            } else if (child.type !== 'Comment') {
-                nonText = true
-            }
-        }
-        return text && nonText // mixed content
-    }
-
     visitRegularElement = (node: ElementNode & {
         fragment: AST.Fragment & {
             nodes: ElementNode[]
@@ -382,7 +367,7 @@ export default class Preprocess {
                     txts.push(txt)
                 }
             }
-            if (nodesWithChildren.includes(child.type)) {
+            if (nodesWithChildren.includes(child.type) && chTxt) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
                 // InlineComponent
