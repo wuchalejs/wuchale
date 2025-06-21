@@ -1,3 +1,3 @@
-import plugin from "./preprocess/index.js"
+import plugin from "./plugin/index.js"
 
 export const wuchale = plugin

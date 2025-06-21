@@ -2,10 +2,10 @@
 // @ts-nocheck
 
 import { test } from 'node:test'
-import setupPreprocess from '../dist/preprocess/index.js'
+import plugin from '../dist/plugin/index.js'
 import { parse } from 'svelte/compiler'
 import { readFile } from 'fs/promises'
-import compileTranslation from '../dist/preprocess/compile.js'
+import compileTranslation from '../dist/plugin/compile.js'
 import PO from 'pofile'
 
 const options = { otherLocales: [], geminiAPIKey: null }
@@ -27,7 +27,7 @@ function trimLines(str) {
 }
 
 async function getOutput(content) {
-    const plugin = await setupPreprocess(options)
+    const plugin = await plugin(options)
     const { preprocess, translations, compiled } = plugin.setupTesting()
     const ast = parse(content, {modern: true})
     const processed = await preprocess(content, ast, 'test.svelte')
