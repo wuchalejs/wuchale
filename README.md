@@ -74,7 +74,7 @@ integrated
 
 ## 🚀 Getting Started
 
-Install:
+### Installation
 
 ```bash
 npm install wuchale
@@ -97,11 +97,79 @@ export default {
 
 ```
 
-Create `/src/locales/` (relative to the projects root) if it doesn't exist, and
-then set it up in your main component:
+### Configuration
 
-- SvelteKit: `src/routes/+page.svelte`
-- Svelte: `src/App.svelte`
+To configure `wuchale`, you pass an object that looks like the following (the
+default) to `wuchale()` in your `vite.config.js` `vite.config.ts`:
+
+```javascript
+export const defaultOptions: Options = {
+    sourceLocale: 'en',
+    otherLocales: [],
+    localesDir: './src/locales',
+    heuristic: defaultHeuristic,
+    geminiAPIKey: 'env',
+}
+```
+
+Note that you have to provide `otherLocales`, otherwise it doesn't have any
+effect.
+
+While the others are self explanatory, the `heuristic` is a function that
+globally decides what text to extract and what not to. The `defaultHeuristic`
+is the implementation of the default rules explained below, but you can roll
+your own and provide it here. The function should receive the following
+arguments:
+
+- `text`: The candidate text
+- `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
+
+And it should return boolean to indicate whether to extract it.
+
+### Setup
+
+Create `/src/locales/` (or the directory you set up in the configuration,
+relative to the projects root) if it doesn't exist, and then set it up in your
+main component. How you set it up depends on whether you use SvelteKit or not.
+
+#### SvelteKit
+
+If you use SvelteKit you likely use SSR/SSG too. And this is how you make
+`wuchale` work with SSR/SSG. If you instead want to use normal client side
+state for the locale, feel free to adapt the method explained below for Svelte.
+
+You have to put the following in yout top load function. Taking
+the default template as an example, the main load function would be inside
+`src/routes/+page.js`. Have the following content in it (TypeScript):
+
+```typescript
+import { setTranslations } from 'wuchale/runtime.svelte.js'
+
+interface Params {
+    url: URL,
+}
+
+export async function load({ url }: Params): Promise<{}> {
+    const locale = url.searchParams.get('locale') ?? 'es'
+    // IMPORTANT! The path should be relative to the current file
+    const mod = await import(`../locales/${locale}.json`)
+    setTranslations(mod.default)
+    return {}
+}
+```
+
+What it does is it makes the locale dependent on the URL search param `locale`
+and loads the appropriate language json based on it. You can now adapt it to
+any state such as the `[locale]` slug in the URL path based on your own needs.
+
+Now you can start the dev server and see it in action. You can change the URL
+search params like `?locale=es` (if you set up `es` in `otherLocales`)
+
+#### Svelte
+
+For Svelte you can set up lazy loading and code splitting (recommended). Taking
+the default template as an example, the main component is located in
+`src/App.svelte`.
 
 ```svelte
 <script>
@@ -111,7 +179,7 @@ then set it up in your main component:
 
     $effect.pre(() => {
         // IMPORTANT! The path should be relative to the current file (vite restriction).
-        import(`../locales/${locale}.json`).then(mod => { // ./locales/${locale}.json for svelte
+        import(`../locales/${locale}.json`).then(mod => {
             setTranslations(mod.default)
         })
         // but this only applies if you want to do lazy loading.
@@ -125,53 +193,7 @@ the compiled `.json`. This is to allow maximum flexibility, meaning you can use
 lazy loading (like this example) or you can import it directly and it will be
 bundled by Vite. After that, you notify `wuchale` to set it as the current one.
 
-Then finally you write your Svelte files naturally:
-
-```svelte
-
-<!-- you write -->
-<p>Hello</p>
-
-<!-- it becomes -->
-
-<script>
-import WuchaleTrans, { wuchaleTrans } from 'wuchale/runtime.svelte'
-</script>
-<p>{wuchaleTrans(0)}</p> <!-- Extracted "Hello" as index 0 -->
-```
-
-Full example below.
-
-## 📦 How It Works
-
-### Process
-
-![Diagram](https://raw.githubusercontent.com/K1DV5/wuchale/main/images/diagram.svg)
-
-1. All text nodes are extracted using AST traversal.
-1. Replaced with index-based lookups `wuchaleTrans(n)`, which is minifiable for production builds.
-1. Catalog is updated
-1. If Gemini integration is enabled, it fetches translations automatically.
-1. Messages are compiled and written
-1. In dev mode: Vite picks the write and does HMR during dev
-1. In production mode: unused messages are marked obsolete
-1. On next run, obsolete ones are purged unless reused.
-1. Final build contains only minified catalogs and the runtime.
-
-### Catalogs:
-
-- Stored as PO files (.po).
-- Compatible with tools like Poedit or translation.io.
-- Includes source references and obsolete flags for cleaning.
-
-## 🌐 Gemini Integration (optional)
-
-To enable the Gemini live translation, set the environment variable
-`GEMINI_API_KEY` to your API key beforehand. The integration is:
-
-- Rate-limit friendly (bundles messages to be translated into one request)
-- Only translates new/changed messages
-- Keeps original source intact
+Then finally you write your Svelte files naturally.
 
 ## 🧪 Example
 
@@ -189,7 +211,8 @@ Output:
 
 ```svelte
 <script>
-import WuchaleTrans, { wuchaleTrans } from 'wuchale/runtime.svelte'
+    import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+    import WuchaleTrans from "wuchale/runtime.svelte"
 </script>
 
 <p>{wuchaleTrans(0)}</p>
@@ -242,7 +265,38 @@ Which is then automatically compiled to:
 ]
 ```
 
-This is what you import when you set it up above in `App.svelte`.
+This is what you import when you set it up above in `+page.ts` or `App.svelte`.
+
+## 📦 How It Works
+
+### Process
+
+![Diagram](https://raw.githubusercontent.com/K1DV5/wuchale/main/images/diagram.svg)
+
+1. All text nodes are extracted using AST traversal.
+1. Replaced with index-based lookups `wuchaleTrans(n)`, which is minifiable for production builds.
+1. Catalog is updated
+1. If Gemini integration is enabled, it fetches translations automatically.
+1. Messages are compiled and written
+1. In dev mode: Vite picks the write and does HMR during dev
+1. In production mode: unused messages are marked obsolete
+1. On next run, obsolete ones are purged unless reused.
+1. Final build contains only minified catalogs and the runtime.
+
+### Catalogs:
+
+- Stored as PO files (.po).
+- Compatible with tools like Poedit or translation.io.
+- Includes source references and obsolete flags for cleaning.
+
+## 🌐 Gemini Integration (optional)
+
+To enable the Gemini live translation, set the environment variable
+`GEMINI_API_KEY` to your API key beforehand. The integration is:
+
+- Rate-limit friendly (bundles messages to be translated into one request)
+- Only translates new/changed messages
+- Keeps original source intact
 
 ## Supported syntax
 
@@ -343,31 +397,6 @@ necessary to have a separate plurals support because you can do something like:
 
 And they will be extracted separately. You can also make a reusable function
 yourself.
-
-## Configuration
-
-To configure `wuchale`, you pass an object that looks like the following (the
-default) to `wuchale()` in your `vite.config.js` `vite.config.ts`:
-
-```javascript
-export const defaultOptions: Options = {
-    sourceLocale: 'en',
-    otherLocales: [],
-    localesDir: './src/locales',
-    heuristic: defaultHeuristic,
-    geminiAPIKey: 'env',
-}
-```
-
-While the others are self explanatory, the `heuristic` is a function that
-globally decides what text to extract and what not to. The `defaultHeuristic`
-is the implementation of the above rules, but you can roll your own and provide
-it here. The function should receive the following arguments:
-
-- `text`: The candidate text
-- `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
-
-And it should return boolean to indicate whether to extract it.
 
 ## Files management
 
