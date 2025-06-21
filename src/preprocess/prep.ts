@@ -5,11 +5,11 @@ import type { ItemType } from "./gemini.js"
 import type { AST } from "svelte/compiler"
 import type Estree from 'estree'
 
-export type HeuristicFunc = (text: string, scope: TxtScope) => boolean
-
 type TxtScope = "script" | "markup" | "attribute"
 
 type ElementNode = AST.ElementLike & { inCompoundText: boolean }
+
+export type HeuristicFunc = (text: string, scope: TxtScope) => boolean
 
 const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
@@ -18,7 +18,7 @@ const rtFunc = 'wuchaleTrans'
 const importModule = `import {${rtFunc}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
-export function defaultHeuristic(text: string, scope = 'markup') {
+export function defaultHeuristic(text: string, scope: TxtScope) {
     if (scope === 'markup') {
         return true
     }
@@ -49,12 +49,10 @@ export interface Translations {
 
 export class IndexTracker {
 
-    indices: { [key: string]: number }
-    nextIndex: number
+    indices: { [key: string]: number } = {}
+    nextIndex: number = 0
 
     constructor(sourceTranslations: Translations) {
-        this.indices = {}
-        this.nextIndex = 0
         for (const txt of Object.keys(sourceTranslations)) {
             // guaranteed order for strings since ES2015
             this.indices[txt] = this.nextIndex
@@ -76,22 +74,16 @@ export class IndexTracker {
 export default class Preprocess {
 
     index: IndexTracker
-    importFrom: string
     heuristic: HeuristicFunc
-    content: string
+    content: string = ''
     mstr: MagicString
-    forceInclude: boolean | null
-    context: string
+    forceInclude: boolean | null = null
+    context: string | null = null
     insideDerived: boolean = false
 
-    constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, importFrom: string = '') {
+    constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic) {
         this.index = index
-        this.importFrom = importFrom
         this.heuristic = heuristic
-        this.content = ''
-        this.mstr = null
-        this.forceInclude = null
-        this.content = null
     }
 
     checkHeuristic = (text: string, scope: TxtScope): [boolean, NestText] => {
@@ -227,8 +219,6 @@ export default class Preprocess {
         }
         return txts
     }
-
-    visitExportDefaultDeclaration = (node: Estree.ExportDefaultDeclaration): NestText[] => this.visit(node.declaration)
 
     visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): NestText[] => this.visit(node.body)
 
@@ -370,7 +360,7 @@ export default class Preprocess {
             if (nodesWithChildren.includes(child.type) && chTxt) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
-                // InlineComponent
+                // childless elements and anything else
                 chTxt = `<${iTag}/>`
             }
             const snippetName = `${snipPrefix}${iTag}`
@@ -409,8 +399,9 @@ export default class Preprocess {
             }
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
-        } else if (!node.inCompoundText) {
-            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(nTxt.toKey())}, `)
+        } else if (!node.inCompoundText) { // no need for component use
+            const comma = iArg > 0 ? ', ' : '' // before first arg
+            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(nTxt.toKey())}${comma}`)
             this.mstr.appendRight(lastChildEnd, ')}')
         }
         return txts

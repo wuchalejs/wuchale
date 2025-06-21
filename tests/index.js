@@ -74,7 +74,7 @@ test('Simple element', async function(t) {
             import {wuchaleTrans} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
-        <p>{wuchaleTrans(0, )}</p>
+        <p>{wuchaleTrans(0)}</p>
     `, `
     msgid ""
     msgstr ""
@@ -102,7 +102,7 @@ test('Multiple in one file', async function(t) {
             import {wuchaleTrans} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
          </script>
-         <h1>{wuchaleTrans(0, )}</h1>
+         <h1>{wuchaleTrans(0)}</h1>
          <p>{wuchaleTrans(1)}</p>
          <p>
              {#snippet wuchaleSnippet0(ctx)}
