@@ -4,6 +4,7 @@ import MagicString from "magic-string"
 import type { ItemType } from "./gemini.js"
 import type { AST } from "svelte/compiler"
 import type Estree from 'estree'
+import type { Program, AnyNode } from "acorn"
 
 type TxtScope = "script" | "markup" | "attribute"
 
@@ -559,14 +560,16 @@ export default class Preprocess {
         }
     }
 
-    visit = (node: AST.SvelteNode & Estree.BaseNode): NestText[] => {
+    visit = (node: AST.SvelteNode | AnyNode): NestText[] => {
         if (node.type === 'Comment') {
             this.processCommentDirectives(node.data.trim())
             return []
         }
-        // for estree
-        for (const comment of node.leadingComments ?? []) {
-            this.processCommentDirectives(comment.value.trim())
+        if ('leadingComments' in node) {
+            // for estree
+            for (const comment of node.leadingComments) {
+                this.processCommentDirectives(comment.value.trim())
+            }
         }
         let txts = []
         if (this.forceInclude !== false) {
@@ -587,7 +590,7 @@ export default class Preprocess {
         return txts
     }
 
-    process = (content: string, ast: Estree.Program | AST.Root): NestText[] => {
+    process = (content: string, ast: Program | AST.Root): NestText[] => {
         this.content = content
         this.mstr = new MagicString(content)
         return this.visit(ast)

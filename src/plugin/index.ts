@@ -1,11 +1,13 @@
 import Preprocess, { defaultHeuristic, IndexTracker, NestText, type HeuristicFunc, type Translations } from "./prep.js"
+import {Parser} from 'acorn'
+import {tsPlugin} from '@sveltejs/acorn-typescript'
 import { parse, type AST } from "svelte/compiler"
 import { writeFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import setupGemini, { type ItemType } from "./gemini.js"
 import PO from "pofile"
 import { normalize, relative } from "node:path"
-import type { Program } from 'estree'
+import type { Program, Options as ParserOptions } from "acorn"
 
 export interface Options {
     sourceLocale?: string
@@ -37,6 +39,14 @@ interface LoadedPO {
     total: number,
     obsolete: number,
     untranslated: number,
+}
+
+const ScriptParser = Parser.extend(tsPlugin())
+
+const scriptParseOptions: ParserOptions = {
+    sourceType: 'module',
+    ecmaVersion: 'latest',
+    locations: true
 }
 
 async function loadPONoFail(filename: string): Promise<LoadedPO> {
@@ -92,7 +102,7 @@ export default async function wuchale(options = defaultOptions) {
         translationsFname[loc] = `${options.localesDir}/${loc}.po`
     }
 
-    let forProduction = false
+    let currentPurpose: "dev" | "prod" | "test" = "dev"
     let projectRoot = ''
 
     let sourceTranslations = {}
@@ -110,7 +120,7 @@ export default async function wuchale(options = defaultOptions) {
         compiled[loc] = []
         for (const key in translations[loc]) {
             const poItem = translations[loc][key]
-            if (forProduction) {
+            if (currentPurpose === 'prod') {
                 poItem.references = []
             }
             const index = indexTracker.get(key)
@@ -121,7 +131,9 @@ export default async function wuchale(options = defaultOptions) {
                 compiled[loc][i] = 0 // reduce json size
             }
         }
-        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+        if (currentPurpose !== 'test') {
+            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+        }
     }
 
     async function loadFilesAndSetup() {
@@ -191,7 +203,16 @@ export default async function wuchale(options = defaultOptions) {
     return {
         name: 'wuchale',
         async configResolved(config: { env: { PROD?: boolean; }, root: string; }) {
-            forProduction = config.env.PROD
+            if (config.env.PROD == null) {
+                currentPurpose = "test"
+                for (const loc of locales) {
+                    translations[loc] = {}
+                    compiled[loc] = []
+                }
+                sourceTranslations = translations[options.sourceLocale]
+            } else if (config.env.PROD) {
+                currentPurpose = "prod"
+            } // else, already dev
             projectRoot = config.root
             transFnamesToLocales = Object.fromEntries(
                 Object.entries(translationsFname)
@@ -218,16 +239,18 @@ export default async function wuchale(options = defaultOptions) {
                 }
                 let ast: AST.Root | Program
                 if (isModule) {
-                    ast = this.parse(code)
+                    ast = ScriptParser.parse(code, scriptParseOptions)
                 } else {
                     ast = parse(code, { modern: true })
                 }
                 const filename = relative(projectRoot, id)
                 const {added, ...processed} = await preprocess(code, ast, filename)
                 // we don't need to write on every transformation when building
-                if (added && !forProduction) {
+                if (added && currentPurpose !== 'prod') {
                     for (const loc of locales) {
-                        await savePO(translations[loc], translationsFname[loc])
+                        if (currentPurpose === 'dev') {
+                            await savePO(translations[loc], translationsFname[loc])
+                        }
                         await compileAndWrite(loc)
                     }
                 }
@@ -235,7 +258,7 @@ export default async function wuchale(options = defaultOptions) {
             }
         },
         async buildEnd() {
-            if (!forProduction) {
+            if (currentPurpose == 'dev') {
                 // just being pragmatic
                 return
             }
@@ -249,15 +272,9 @@ export default async function wuchale(options = defaultOptions) {
             }
         },
         setupTesting() {
-            for (const loc of locales) {
-                translations[loc] = {}
-                compiled[loc] = []
-            }
-            sourceTranslations = translations[options.sourceLocale]
             return {
                 translations,
                 compiled,
-                preprocess,
             }
         }
     }
