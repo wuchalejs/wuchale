@@ -98,28 +98,40 @@ export default async function wuchale(options = defaultOptions) {
     let sourceTranslations = {}
     let indexTracker = new IndexTracker({})
 
-    const compiled: { [locale: string]: CompiledFragment[] } = {}
+    const compiled: { [locale: string]: CompiledFragment[] | number } = {}
+
+    async function loadTranslations(loc: string) {
+        const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(translationsFname[loc])
+        translations[loc] = trans
+        console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
+    }
+
+    async function compileAndWrite(loc: string) {
+        compiled[loc] = []
+        for (const key in translations[loc]) {
+            const poItem = translations[loc][key]
+            if (forProduction) {
+                poItem.references = []
+            }
+            const index = indexTracker.get(key)
+            compiled[loc][index] = compileTranslation(poItem.msgstr[0], compiled[options.sourceLocale][index])
+        }
+        for (const [i, item] of compiled[loc].entries()) {
+            if (item == null) {
+                compiled[loc][i] = 0 // reduce json size
+            }
+        }
+        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+    }
 
     async function loadFilesAndSetup() {
         for (const loc of locales) {
-            const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(translationsFname[loc])
-            translations[loc] = trans
-            console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
+            await loadTranslations(loc)
         }
         sourceTranslations = translations[options.sourceLocale]
         indexTracker = new IndexTracker(sourceTranslations)
-        // startup compile
         for (const loc of locales) {
-            compiled[loc] = []
-            for (const key in translations[loc]) {
-                const poItem = translations[loc][key]
-                if (forProduction) {
-                    poItem.references = []
-                }
-                const index = indexTracker.get(key)
-                compiled[loc][index] = compileTranslation(poItem.msgstr[0], compiled[options.sourceLocale][index])
-            }
-            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
+            await compileAndWrite(loc)
         }
     }
 
@@ -129,6 +141,7 @@ export default async function wuchale(options = defaultOptions) {
         if (!txts.length) {
             return {}
         }
+        let added = false
         for (const loc of locales) {
             const newTxts = []
             for (const nTxt of txts) {
@@ -162,39 +175,35 @@ export default async function wuchale(options = defaultOptions) {
                     await geminiT(newTxts) // will update because it's by reference
                 }
             }
-            for (const nTxt of txts) {
-                const key = nTxt.toKey()
-                const index = indexTracker.get(key)
-                compiled[loc][index] = compileTranslation(translations[loc][key].msgstr[0], compiled[options.sourceLocale][index])
-            }
-            for (const [i, c] of compiled[loc].entries()) {
-                if (c == null) {
-                    compiled[loc][i] = 0 // reduce json size for jumped indices, instead of null
-                }
-            }
-            if (!newTxts.length) {
-                continue
+            if (newTxts.length) {
+                added = true
             }
         }
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
+            added,
         }
     }
 
-    let transFnames: {[key: string]: true} = {}
+    let transFnamesToLocales: {[key: string]: string} = {}
     const order: 'pre' = 'pre'
     return {
         name: 'wuchale',
         async configResolved(config: { env: { PROD?: boolean; }, root: string; }) {
             forProduction = config.env.PROD
             projectRoot = config.root
-            transFnames = Object.fromEntries(Object.values(translationsFname).map(fname => [normalize(projectRoot + '/' + fname), true]))
+            transFnamesToLocales = Object.fromEntries(
+                Object.entries(translationsFname)
+                    .map(([loc, fname]) => [normalize(projectRoot + '/' + fname), loc]),
+            )
             await loadFilesAndSetup()
         },
         async handleHotUpdate(ctx: {file: string}) {
-            if (ctx.file in transFnames) {
-                await loadFilesAndSetup()
+            if (ctx.file in transFnamesToLocales) {
+                const loc = transFnamesToLocales[ctx.file]
+                await loadTranslations(loc)
+                await compileAndWrite(loc)
             }
         },
         transform: {
@@ -214,11 +223,12 @@ export default async function wuchale(options = defaultOptions) {
                     ast = parse(code, { modern: true })
                 }
                 const filename = relative(projectRoot, id)
-                const processed = await preprocess(code, ast, filename)
-                if (processed.code) {
+                const {added, ...processed} = await preprocess(code, ast, filename)
+                // we don't need to write on every transformation when building
+                if (added && !forProduction) {
                     for (const loc of locales) {
                         await savePO(translations[loc], translationsFname[loc])
-                        await writeFile(compiledFname[loc], JSON.stringify(compiled[loc]))
+                        await compileAndWrite(loc)
                     }
                 }
                 return processed
@@ -235,6 +245,7 @@ export default async function wuchale(options = defaultOptions) {
                     poItem.obsolete = poItem.references.length === 0
                 }
                 await savePO(translations[loc], translationsFname[loc])
+                await compileAndWrite(loc) // we need to write it finally
             }
         },
         setupTesting() {
