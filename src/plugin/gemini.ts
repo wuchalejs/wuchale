@@ -53,8 +53,9 @@ export default class GeminiQueue {
             The target language ${codeStandard(this.targetLocale)} code is: ${this.targetLocale}.
             You can read all of the information for the items including contexts,
             comments and references to get the appropriate context about each item.
-            Fill the translated fragments in the msgstr and return the translations
-            in the same format and order, preserving all placeholders.
+            Provide the same content with the only difference being that the
+            empty msgstr quotes should be filled with the appropriate translations,
+            preserving all placeholders.
             The placeholder format is like the following examples:
                 - {0}: means arbitrary values.
                 - <0>something</0>: means something enclosed in some tags, like HTML tags
@@ -76,9 +77,6 @@ export default class GeminiQueue {
     }
 
     async translate(fragments: ItemType[]) {
-        if (this.sourceLocale === this.targetLocale) {
-            return
-        }
         const data = this.prepareData(fragments)
         const res = await fetch(this.url, {method: 'POST', headers: h, body: JSON.stringify(data)})
         const json: GeminiRes = await res.json()
@@ -108,14 +106,21 @@ export default class GeminiQueue {
         this.running = null
     }
 
-    add(items: ItemType[]) {
+    add(items: ItemType[]): boolean {
         if (!this.url) {
             return
         }
-        this.batches.push(items)
+        let newRequest = false
+        if (this.batches.length > 0) {
+            this.batches[0].push(...items)
+        } else {
+            this.batches.push(items)
+            newRequest = true
+        }
         if (!this.running) {
             this.running = this.run()
         }
+        return newRequest
     }
 
 }

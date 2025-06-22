@@ -29,9 +29,8 @@ function trimLines(str) {
 async function getOutput(content) {
     const plug = await plugin(options)
     await plug.configResolved({env: {PROD: null}, root: ''})
-    const { translations, compiled } = plug.setupTesting()
-    const processed = await plug.transform.handler(content, 'test.svelte')
-    plug.buildEnd()
+    const { translations, compiled } = plug
+    const processed = await plug.transformHandler(content, 'test.svelte')
     return { processed, translations, compiled }
 }
 

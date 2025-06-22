@@ -1,6 +1,6 @@
-import Preprocess, { defaultHeuristic, IndexTracker, NestText, type HeuristicFunc, type Translations } from "./prep.js"
-import {Parser} from 'acorn'
-import {tsPlugin} from '@sveltejs/acorn-typescript'
+import Preprocess, { IndexTracker, NestText, type Translations } from "./prep.js"
+import { Parser } from 'acorn'
+import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { parse, type AST } from "svelte/compiler"
 import { writeFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
@@ -8,31 +8,11 @@ import GeminiQueue, { type ItemType } from "./gemini.js"
 import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program, Options as ParserOptions } from "acorn"
+import { getOptions, type Options } from "../options.js"
 
-export interface Options {
-    sourceLocale?: string
-    otherLocales?: string[]
-    localesDir?: string
-    heuristic?: HeuristicFunc
-    geminiAPIKey?: string
-}
-
-export const defaultOptions: Options = {
-    sourceLocale: 'en',
-    otherLocales: [],
-    localesDir: './src/locales',
-    heuristic: defaultHeuristic,
-    geminiAPIKey: 'env',
-}
-
-function mergeOptionsWithDefault(options = defaultOptions) {
-    for (const key of Object.keys(defaultOptions)) {
-        if (key in options) {
-            continue
-        }
-        options[key] = defaultOptions[key]
-    }
-}
+const pluginName = 'wuchale'
+const virtualPrefix = `virtual:${pluginName}/`
+const virtualResolvedPrefix = '\0'
 
 interface LoadedPO {
     translations: Translations,
@@ -91,95 +71,117 @@ async function savePO(translations: ItemType[], filename: string): Promise<void>
     })
 }
 
-export default async function wuchale(options = defaultOptions) {
-    mergeOptionsWithDefault(options)
-    const locales = [options.sourceLocale, ...options.otherLocales]
-    const translations = {}
-    const compiledFname = {}
-    const translationsFname = {}
-    for (const loc of locales) {
-        compiledFname[loc] = `${options.localesDir}/${loc}.json`
-        translationsFname[loc] = `${options.localesDir}/${loc}.po`
+class Plugin {
+
+    name = pluginName
+
+    #options: Options
+    #locales: string[]
+
+    // exposed for testing
+    translations: { [loc: string]: { [key: string]: ItemType } } = {}
+    compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
+
+    #sourceTranslations: { [key: string]: ItemType }
+
+    #compiledFname: { [loc: string]: string } = {}
+    #translationsFname: { [loc: string]: string } = {}
+
+    #currentPurpose: 'dev' | 'prod' | 'test' = 'dev'
+    #projectRoot: string = ''
+    #indexTracker: IndexTracker
+
+    #geminiQueue: { [loc: string]: GeminiQueue } = {}
+
+    #transFnamesToLocales: { [key: string]: string } = {}
+
+    transform: { order: 'pre', handler: Function }
+
+    constructor() {
+        this.#indexTracker = new IndexTracker({})
     }
 
-    let currentPurpose: "dev" | "prod" | "test" = "dev"
-    let projectRoot = ''
+    init = async (optionsRaw: Options) => {
+        this.#options = await getOptions(optionsRaw)
+        this.#locales = [this.#options.sourceLocale, ...this.#options.otherLocales]
+        for (const loc of this.#locales) {
+            this.#compiledFname[loc] = `${this.#options.localesDir}/${loc}.js`
+            this.#translationsFname[loc] = `${this.#options.localesDir}/${loc}.po`
+        }
+        for (const loc of this.#options.otherLocales) {
+            if (loc === this.#options.sourceLocale) {
+                throw Error('Source locale cannot included in other locales.')
+            }
+            this.#geminiQueue[loc] = new GeminiQueue(this.#options.sourceLocale, loc, this.#options.geminiAPIKey, async () => await this.#afterExtract(loc))
+        }
+        if (this.#options.hmr) {
+            this.transform = {
+                order: 'pre',
+                handler: this.transformHandler,
+            }
+        }
+    }
 
-    let sourceTranslations = {}
-    let indexTracker = new IndexTracker({})
-
-    const compiled: { [locale: string]: CompiledFragment[] | number } = {}
-
-    async function loadTranslations(loc: string) {
-        const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(translationsFname[loc])
-        translations[loc] = trans
+    #loadTranslations = async (loc: string) => {
+        const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(this.#translationsFname[loc])
+        this.translations[loc] = trans
         console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
     }
 
-    async function compileAndWrite(loc: string) {
-        compiled[loc] = []
-        for (const key in translations[loc]) {
-            const poItem = translations[loc][key]
-            if (currentPurpose === 'prod') {
+    #compile = (loc: string) => {
+        this.compiled[loc] = []
+        for (const key in this.translations[loc]) {
+            const poItem = this.translations[loc][key]
+            if (this.#currentPurpose === 'prod') {
                 poItem.references = []
             }
-            const index = indexTracker.get(key)
-            compiled[loc][index] = compileTranslation(poItem.msgstr[0], compiled[options.sourceLocale][index])
+            const index = this.#indexTracker.get(key)
+            this.compiled[loc][index] = compileTranslation(poItem.msgstr[0], this.compiled[this.#options.sourceLocale][index])
         }
-        for (const [i, item] of compiled[loc].entries()) {
+        for (const [i, item] of this.compiled[loc].entries()) {
             if (item == null) {
-                compiled[loc][i] = 0 // reduce json size
+                this.compiled[loc][i] = 0 // reduce json size
             }
-        }
-        if (currentPurpose !== 'test') {
-            await writeFile(compiledFname[loc], JSON.stringify(compiled[loc], null, 2))
         }
     }
 
-    async function loadFilesAndSetup() {
-        for (const loc of locales) {
-            await loadTranslations(loc)
+    #loadFilesAndSetup = async () => {
+        for (const loc of this.#locales) {
+            await this.#loadTranslations(loc)
         }
-        sourceTranslations = translations[options.sourceLocale]
-        indexTracker = new IndexTracker(sourceTranslations)
-        for (const loc of locales) {
-            await compileAndWrite(loc)
+        this.#sourceTranslations = this.translations[this.#options.sourceLocale]
+        this.#indexTracker = new IndexTracker(this.#sourceTranslations)
+        if (this.#currentPurpose === 'test') {
+            return
+        }
+        for (const loc of this.#locales) {
+            this.#compile(loc)
+            await writeFile(this.#compiledFname[loc], `export {default} from '${virtualPrefix}${loc}'`)
         }
     }
 
-    // gemini
-    const geminiQueue: {[loc: string]: GeminiQueue} = {}
-    for (const loc of locales) {
-        // no need to separate source locale, it will be inert but will call the same onComplete
-        geminiQueue[loc] = new GeminiQueue(options.sourceLocale, loc, options.geminiAPIKey, async () => {
-            // we don't need to write on every transformation when building
-            if (currentPurpose === 'prod') {
-                return
-            }
-            for (const loc of locales) {
-                if (currentPurpose === 'dev') {
-                    await savePO(translations[loc], translationsFname[loc])
-                }
-                await compileAndWrite(loc)
-            }
-        })
+    #afterExtract = async (loc: string) => {
+        if (this.#currentPurpose === 'dev') {
+            await savePO(Object.values(this.translations[loc]), this.#translationsFname[loc])
+        }
+        this.#compile(loc)
     }
 
-    function preprocess(content: string, ast: AST.Root | Program, filename: string) {
-        const prep = new Preprocess(indexTracker, options.heuristic)
+    #preprocess = async (content: string, ast: AST.Root | Program, filename: string) => {
+        const prep = new Preprocess(this.#indexTracker, this.#options.heuristic)
         const txts = prep.process(content, ast)
         if (!txts.length) {
             return {}
         }
-        for (const loc of locales) {
+        for (const loc of this.#locales) {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
-                let translated = translations[loc][key]
-                if (translated == null) {
+                let translated = this.translations[loc][key]
+                if (!translated) {
                     translated = new PO.Item()
                     translated.msgid = nTxt.toString()
-                    translations[loc][key] = translated
+                    this.translations[loc][key] = translated
                 }
                 if (nTxt.context) {
                     translated.msgctxt = nTxt.context
@@ -187,7 +189,7 @@ export default async function wuchale(options = defaultOptions) {
                 if (!translated.references.includes(filename)) {
                     translated.references.push(filename)
                 }
-                if (loc === options.sourceLocale) {
+                if (loc === this.#options.sourceLocale) {
                     const txt = nTxt.toString()
                     if (translated.msgstr[0] !== txt) {
                         translated.msgstr = [txt]
@@ -197,13 +199,17 @@ export default async function wuchale(options = defaultOptions) {
                     newTxts.push(translated)
                 }
             }
-            if (loc !== options.sourceLocale && newTxts.length) {
-                if (geminiQueue[loc].url) {
-                    console.info('Gemini translate', newTxts.length, 'items to', loc)
-                }
-                // we still need to call onComplete, so always
-                geminiQueue[loc].add(newTxts)
+            if (newTxts.length == 0) {
+                continue
             }
+            if (loc === this.#options.sourceLocale || !this.#geminiQueue[loc].url) {
+                await this.#afterExtract(loc)
+                continue
+            }
+            const newRequest = this.#geminiQueue[loc].add(newTxts)
+            const opType = `(${newRequest ? 'new request' : 'add to request'})`
+            console.info('Gemini translate', newTxts.length, 'items to', loc, opType)
+            await this.#geminiQueue[loc].running
         }
         return {
             code: prep.mstr.toString(),
@@ -211,81 +217,83 @@ export default async function wuchale(options = defaultOptions) {
         }
     }
 
-    let transFnamesToLocales: {[key: string]: string} = {}
-    const order: 'pre' = 'pre'
-    return {
-        name: 'wuchale',
-        async configResolved(config: { env: { PROD?: boolean; }, root: string; }) {
-            if (config.env.PROD == null) {
-                currentPurpose = "test"
-                for (const loc of locales) {
-                    translations[loc] = {}
-                    compiled[loc] = []
-                }
-                sourceTranslations = translations[options.sourceLocale]
-            } else if (config.env.PROD) {
-                currentPurpose = "prod"
-            } // else, already dev
-            projectRoot = config.root
-            transFnamesToLocales = Object.fromEntries(
-                Object.entries(translationsFname)
-                    .map(([loc, fname]) => [normalize(projectRoot + '/' + fname), loc]),
-            )
-            await loadFilesAndSetup()
-        },
-        async handleHotUpdate(ctx: {file: string}) {
-            if (ctx.file in transFnamesToLocales) {
-                const loc = transFnamesToLocales[ctx.file]
-                await loadTranslations(loc)
-                await compileAndWrite(loc)
+    configResolved = async (config: { env: { PROD?: boolean; }, root: string; }) => {
+        if (config.env.PROD == null) {
+            this.#currentPurpose = "test"
+            for (const loc of this.#locales) {
+                this.translations[loc] = {}
+                this.compiled[loc] = []
             }
-        },
-        transform: {
-            order,
-            handler: function(code: string, id: string) {
-                if (!id.startsWith(projectRoot) || id.startsWith(normalize(projectRoot + '/node_modules'))) {
-                    return
-                }
-                const isModule = id.endsWith('.svelte.js') || id.endsWith('.svelte.ts')
-                if (!id.endsWith('.svelte') && !isModule) {
-                    return
-                }
-                let ast: AST.Root | Program
-                if (isModule) {
-                    ast = ScriptParser.parse(code, scriptParseOptions)
-                } else {
-                    ast = parse(code, { modern: true })
-                }
-                const filename = relative(projectRoot, id)
-                return preprocess(code, ast, filename)
-            }
-        },
-        async buildEnd() {
-            if (currentPurpose == 'dev') {
-                // just being pragmatic
-                return
-            }
-            for (const loc of locales) {
-                const geminiRunning = geminiQueue[loc].running
-                if (geminiRunning) {
-                    console.info(`Waiting for Gemini (${loc})...`)
-                    await geminiRunning
-                }
-                for (const key in translations[loc]) {
-                    const poItem = translations[loc][key]
-                    poItem.obsolete = poItem.references.length === 0
-                }
-                if (currentPurpose == 'prod') {
-                    await savePO(translations[loc], translationsFname[loc])
-                }
-                await compileAndWrite(loc) // we need to write it finally
-            }
-        },
-        setupTesting() {
-            return {
-                translations,
-                compiled,
+            this.#sourceTranslations = this.translations[this.#options.sourceLocale]
+        } else if (config.env.PROD) {
+            this.#currentPurpose = "prod"
+        } // else, already dev
+        this.#projectRoot = config.root
+        // for handleHotUpdate below
+        this.#transFnamesToLocales = Object.fromEntries(
+            Object.entries(this.#translationsFname)
+                .map(([loc, fname]) => [normalize(this.#projectRoot + '/' + fname), loc]),
+        )
+        await this.#loadFilesAndSetup()
+    }
+
+    handleHotUpdate = async (ctx: { file: string, server: { moduleGraph: { getModuleById: Function, invalidateModule: Function } }, timestamp: number }) => {
+        // PO file edit -> JS HMR
+        if (ctx.file in this.#transFnamesToLocales) {
+            const loc = this.#transFnamesToLocales[ctx.file]
+            await this.#loadTranslations(loc)
+            this.#compile(loc)
+            const moduleId = virtualResolvedPrefix + virtualPrefix + loc
+            const module = ctx.server.moduleGraph.getModuleById(moduleId)
+            if (module) {
+                ctx.server.moduleGraph.invalidateModule(
+                    module,
+                    [],
+                    ctx.timestamp,
+                    true
+                )
+                return [module]
             }
         }
     }
+
+    resolveId = (source: string) => {
+        if (source.startsWith(virtualPrefix)) {
+            return virtualResolvedPrefix + source
+        }
+        return null
+    }
+
+    load = (id: string) => {
+        const prefix = virtualResolvedPrefix + virtualPrefix
+        if (!id.startsWith(prefix)) {
+            return null
+        }
+        const locale = id.slice(prefix.length)
+        return `export default ${JSON.stringify(this.compiled[locale])}`
+    }
+
+    transformHandler = async (code: string, id: string) => {
+        if (!id.startsWith(this.#projectRoot) || id.startsWith(normalize(this.#projectRoot + '/node_modules'))) {
+            return
+        }
+        const isModule = id.endsWith('.svelte.js') || id.endsWith('.svelte.ts')
+        if (!id.endsWith('.svelte') && !isModule) {
+            return
+        }
+        let ast: AST.Root | Program
+        if (isModule) {
+            ast = ScriptParser.parse(code, scriptParseOptions)
+        } else {
+            ast = parse(code, { modern: true })
+        }
+        const filename = relative(this.#projectRoot, id)
+        return await this.#preprocess(code, ast, filename)
+    }
+}
+
+export default async function wuchale(options: Options = {}) {
+    const plugin = new Plugin()
+    await plugin.init(options)
+    return plugin
 }
