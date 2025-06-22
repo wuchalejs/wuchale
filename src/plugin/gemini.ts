@@ -12,33 +12,11 @@ function codeStandard(locale: string) {
 
 export type ItemType = InstanceType<typeof PO.Item>
 
-function prepareData(fragments: ItemType[], sourceLocale: string, targetLocale: string) {
-    const instruction = `
-        You will be given the contents of a gettext .po file for a web app.
-        Translate each of the items from the source to the target language.
-        The source language ${codeStandard(sourceLocale)} code is: ${sourceLocale}.
-        The target language ${codeStandard(targetLocale)} code is: ${targetLocale}.
-        You can read all of the information for the items including contexts,
-        comments and references to get the appropriate context about each item.
-        Provide the translated fragments in the in the same order, preserving
-        all placeholders.
-        The placeholder format is like the following examples:
-            - {0}: means arbitrary values.
-            - <0>something</0>: means something enclosed in some tags, like HTML tags
-            - <0/>: means a self closing tag, like in HTML
-        In all of the examples, 0 is an example for any integer.
-    `
-    const po = new PO()
-    po.items = fragments
-    return {
-        system_instruction: {
-            parts: [{ text: instruction }]
-        },
-        contents: [{parts: [{text: po.toString()}]}]
-    }
-}
-
 interface GeminiRes {
+    error?: {
+        code: number,
+        message: string,
+    },
     candidates?: {
         content: {
             parts: { text: string }[]
@@ -46,18 +24,68 @@ interface GeminiRes {
     }[]
 }
 
-function setupGemini(sourceLocale: string, targetLocale: string, apiKey: string | null) {
-    if (apiKey === 'env') {
-        apiKey = process.env.GEMINI_API_KEY
+// implements a queue for a sequential translation useful for vite's transform during dev
+// as vite can do async transform
+export default class GeminiQueue {
+
+    batches: ItemType[][] = []
+    running: Promise<void> | null = null
+    sourceLocale: string
+    targetLocale: string
+    url: string
+    instruction: string
+    onComplete: () => Promise<void>
+
+    constructor(sourceLocale: string, targetLocale: string, apiKey: string | null, onComplete: () => Promise<void>) {
+        if (apiKey === 'env') {
+            apiKey = process.env.GEMINI_API_KEY
+        }
+        if (!apiKey) {
+            return
+        }
+        this.sourceLocale = sourceLocale
+        this.targetLocale = targetLocale
+        this.url = `${baseURL}${apiKey}`
+        this.instruction = `
+            You will be given the contents of a gettext .po file for a web app.
+            Translate each of the items from the source to the target language.
+            The source language ${codeStandard(this.sourceLocale)} code is: ${this.sourceLocale}.
+            The target language ${codeStandard(this.targetLocale)} code is: ${this.targetLocale}.
+            You can read all of the information for the items including contexts,
+            comments and references to get the appropriate context about each item.
+            Fill the translated fragments in the msgstr and return the translations
+            in the same format and order, preserving all placeholders.
+            The placeholder format is like the following examples:
+                - {0}: means arbitrary values.
+                - <0>something</0>: means something enclosed in some tags, like HTML tags
+                - <0/>: means a self closing tag, like in HTML
+            In all of the examples, 0 is an example for any integer.
+        `
+        this.onComplete = onComplete
     }
-    if (!apiKey) {
-        return
+
+    prepareData(fragments: ItemType[]) {
+        const po = new PO()
+        po.items = fragments
+        return {
+            system_instruction: {
+                parts: [{ text: this.instruction }]
+            },
+            contents: [{parts: [{text: po.toString()}]}]
+        }
     }
-    const url = `${baseURL}${apiKey}`
-    return async (fragments: ItemType[]) => {
-        const data = prepareData(fragments, sourceLocale, targetLocale)
-        const res = await fetch(url, {method: 'POST', headers: h, body: JSON.stringify(data)})
+
+    async translate(fragments: ItemType[]) {
+        if (this.sourceLocale === this.targetLocale) {
+            return
+        }
+        const data = this.prepareData(fragments)
+        const res = await fetch(this.url, {method: 'POST', headers: h, body: JSON.stringify(data)})
         const json: GeminiRes = await res.json()
+        if (json.error) {
+            console.error('Gemini error', json.error.code, json.error.message)
+            return
+        }
         const resText = json.candidates[0]?.content.parts[0].text
         for (const [i, item] of PO.parse(resText).items.entries()) {
             if (item.msgstr[0]) {
@@ -65,6 +93,29 @@ function setupGemini(sourceLocale: string, targetLocale: string, apiKey: string 
             }
         }
     }
-}
 
-export default setupGemini
+    * getBatches(): Generator<ItemType[], void, unknown> {
+        while (this.batches.length > 0) {
+            yield this.batches.pop() // order doesn't matter, because they are given by ref
+        }
+    }
+
+    async run() {
+        for (const batch of this.getBatches()) {
+            await this.translate(batch)
+        }
+        await this.onComplete()
+        this.running = null
+    }
+
+    add(items: ItemType[]) {
+        if (!this.url) {
+            return
+        }
+        this.batches.push(items)
+        if (!this.running) {
+            this.running = this.run()
+        }
+    }
+
+}

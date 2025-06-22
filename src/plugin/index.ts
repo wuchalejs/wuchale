@@ -4,7 +4,7 @@ import {tsPlugin} from '@sveltejs/acorn-typescript'
 import { parse, type AST } from "svelte/compiler"
 import { writeFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
-import setupGemini, { type ItemType } from "./gemini.js"
+import GeminiQueue, { type ItemType } from "./gemini.js"
 import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program, Options as ParserOptions } from "acorn"
@@ -75,7 +75,7 @@ async function loadPONoFail(filename: string): Promise<LoadedPO> {
     })
 }
 
-async function savePO(translations: ItemType[], filename: string) {
+async function savePO(translations: ItemType[], filename: string): Promise<void> {
     const po = new PO()
     for (const item of Object.values(translations)) {
         po.items.push(item)
@@ -147,15 +147,32 @@ export default async function wuchale(options = defaultOptions) {
         }
     }
 
-    async function preprocess(content: string, ast: AST.Root | Program, filename: string) {
+    // gemini
+    const geminiQueue: {[loc: string]: GeminiQueue} = {}
+    for (const loc of locales) {
+        // no need to separate source locale, it will be inert but will call the same onComplete
+        geminiQueue[loc] = new GeminiQueue(options.sourceLocale, loc, options.geminiAPIKey, async () => {
+            // we don't need to write on every transformation when building
+            if (currentPurpose === 'prod') {
+                return
+            }
+            for (const loc of locales) {
+                if (currentPurpose === 'dev') {
+                    await savePO(translations[loc], translationsFname[loc])
+                }
+                await compileAndWrite(loc)
+            }
+        })
+    }
+
+    function preprocess(content: string, ast: AST.Root | Program, filename: string) {
         const prep = new Preprocess(indexTracker, options.heuristic)
         const txts = prep.process(content, ast)
         if (!txts.length) {
             return {}
         }
-        let added = false
         for (const loc of locales) {
-            const newTxts = []
+            const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
                 let translated = translations[loc][key]
@@ -181,20 +198,16 @@ export default async function wuchale(options = defaultOptions) {
                 }
             }
             if (loc !== options.sourceLocale && newTxts.length) {
-                const geminiT = setupGemini(options.sourceLocale, loc, options.geminiAPIKey)
-                if (geminiT) {
-                    console.info('Gemini translate', newTxts.length, 'items...')
-                    await geminiT(newTxts) // will update because it's by reference
+                if (geminiQueue[loc].url) {
+                    console.info('Gemini translate', newTxts.length, 'items to', loc)
                 }
-            }
-            if (newTxts.length) {
-                added = true
+                // we still need to call onComplete, so always
+                geminiQueue[loc].add(newTxts)
             }
         }
         return {
             code: prep.mstr.toString(),
             map: prep.mstr.generateMap(),
-            added,
         }
     }
 
@@ -229,7 +242,7 @@ export default async function wuchale(options = defaultOptions) {
         },
         transform: {
             order,
-            handler: async function(code: string, id: string) {
+            handler: function(code: string, id: string) {
                 if (!id.startsWith(projectRoot) || id.startsWith(normalize(projectRoot + '/node_modules'))) {
                     return
                 }
@@ -244,17 +257,7 @@ export default async function wuchale(options = defaultOptions) {
                     ast = parse(code, { modern: true })
                 }
                 const filename = relative(projectRoot, id)
-                const {added, ...processed} = await preprocess(code, ast, filename)
-                // we don't need to write on every transformation when building
-                if (added && currentPurpose !== 'prod') {
-                    for (const loc of locales) {
-                        if (currentPurpose === 'dev') {
-                            await savePO(translations[loc], translationsFname[loc])
-                        }
-                        await compileAndWrite(loc)
-                    }
-                }
-                return processed
+                return preprocess(code, ast, filename)
             }
         },
         async buildEnd() {
@@ -263,6 +266,11 @@ export default async function wuchale(options = defaultOptions) {
                 return
             }
             for (const loc of locales) {
+                const geminiRunning = geminiQueue[loc].running
+                if (geminiRunning) {
+                    console.info(`Waiting for Gemini (${loc})...`)
+                    await geminiRunning
+                }
                 for (const key in translations[loc]) {
                     const poItem = translations[loc][key]
                     poItem.obsolete = poItem.references.length === 0
