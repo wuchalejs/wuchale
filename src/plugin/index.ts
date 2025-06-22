@@ -275,7 +275,9 @@ export default async function wuchale(options = defaultOptions) {
                     const poItem = translations[loc][key]
                     poItem.obsolete = poItem.references.length === 0
                 }
-                await savePO(translations[loc], translationsFname[loc])
+                if (currentPurpose == 'prod') {
+                    await savePO(translations[loc], translationsFname[loc])
+                }
                 await compileAndWrite(loc) // we need to write it finally
             }
         },

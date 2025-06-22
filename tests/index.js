@@ -31,6 +31,7 @@ async function getOutput(content) {
     await plug.configResolved({env: {PROD: null}, root: ''})
     const { translations, compiled } = plug.setupTesting()
     const processed = await plug.transform.handler(content, 'test.svelte')
+    plug.buildEnd()
     return { processed, translations, compiled }
 }
 
