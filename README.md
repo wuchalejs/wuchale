@@ -50,9 +50,9 @@ Messages are compiled into arrays with index-based lookups. Runtime only
 concatenates and renders — no regex, replace, or complex logic. And the
 compiled bundles are as small as possible, they don't even have keys.
 
-### 🔁 HMR & Dev Translations Live updates during development.
+### 🔁 Optional HMR & Dev Translations Live updates during development.
 
-Translation files and source changes trigger updates instantly — including
+Translation files and source changes can trigger updates instantly — including
 optional Gemini-based auto-translation. This means you can write the code in
 English and have it shown in another language in the browser while in dev mode.
 
@@ -69,8 +69,8 @@ some existing solutions.
 
 ### ✨ Ready for Svelte 5
 
-Works with Svelte 5's new architecture and snippets. Future-proof and tightly
-integrated
+Works with Svelte 5's new architecture with runes and snippets. Future-proof
+and tightly integrated
 
 ## 🚀 Getting Started
 
@@ -99,15 +99,23 @@ export default {
 
 ### Configuration
 
-To configure `wuchale`, you pass an object that looks like the following (the
-default) to `wuchale()` in your `vite.config.js` `vite.config.ts`:
+To configure `wuchale`, you can do one of:
+
+- Pass an object `wuchale()` in your `vite.config.js` `vite.config.ts`
+- Create a `wuchale.config.js` file that exports the config object as `default` in your project root directory.
+
+But the latter is recommended as it is also read when using the CLI command to extract items.
+
+The config object should look like the following (the default):
 
 ```javascript
-export const defaultOptions: Options = {
+export const defaultOptions: Config = {
     sourceLocale: 'en',
     otherLocales: [],
     localesDir: './src/locales',
+    srcDirs: ['src'],
     heuristic: defaultHeuristic,
+    hmr: true,
     geminiAPIKey: 'env',
 }
 ```
@@ -125,6 +133,14 @@ arguments:
 - `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
 
 And it should return boolean to indicate whether to extract it.
+
+The `hmr` can be used to turn off the live updates during dev. It will disable
+all text extraction from source files and modification of the `.po` files as
+you modify the source files. This may be desired because the language files are
+imported by the top components and frequent modification of the language files
+can trigger big updates of the DOM, which may cause states not depending on the
+URL to be lost. If you choose to disable the `hmr` extraction, you can still
+extract (and translate with Gemini) using the CLI command.
 
 ### Setup
 
@@ -152,14 +168,14 @@ interface Params {
 export async function load({ url }: Params): Promise<{}> {
     const locale = url.searchParams.get('locale') ?? 'es'
     // IMPORTANT! The path should be relative to the current file
-    const mod = await import(`../locales/${locale}.json`)
+    const mod = await import(`../locales/${locale}.js`)
     setTranslations(mod.default)
     return {}
 }
 ```
 
 What it does is it makes the locale dependent on the URL search param `locale`
-and loads the appropriate language json based on it. You can now adapt it to
+and loads the appropriate language js based on it. You can now adapt it to
 any state such as the `[locale]` slug in the URL path based on your own needs.
 
 Now you can start the dev server and see it in action. You can change the URL
@@ -179,7 +195,7 @@ the default template as an example, the main component is located in
 
     $effect.pre(() => {
         // IMPORTANT! The path should be relative to the current file (vite restriction).
-        import(`../locales/${locale}.json`).then(mod => {
+        import(`../locales/${locale}.js`).then(mod => {
             setTranslations(mod.default)
         })
         // but this only applies if you want to do lazy loading.
@@ -189,7 +205,7 @@ the default template as an example, the main component is located in
 ```
 
 Note that you manage the state of which locale is active and how to download
-the compiled `.json`. This is to allow maximum flexibility, meaning you can use
+the compiled `.js`. This is to allow maximum flexibility, meaning you can use
 lazy loading (like this example) or you can import it directly and it will be
 bundled by Vite. After that, you notify `wuchale` to set it as the current one.
 
@@ -252,8 +268,8 @@ msgstr "Hola {0}"
 
 Which is then automatically compiled to:
 
-```json
-[
+```javascript
+export default [
     "¡Hola!",
     [
         "Hola ",
@@ -265,7 +281,7 @@ Which is then automatically compiled to:
 ]
 ```
 
-This is what you import when you set it up above in `+page.ts` or `App.svelte`.
+This is what is included in the imported module above in `+page.ts` or `App.svelte`.
 
 ## 📦 How It Works
 
@@ -277,10 +293,8 @@ This is what you import when you set it up above in `+page.ts` or `App.svelte`.
 1. Replaced with index-based lookups `wuchaleTrans(n)`, which is minifiable for production builds.
 1. Catalog is updated
 1. If Gemini integration is enabled, it fetches translations automatically.
-1. Messages are compiled and written
+1. Messages are compiled
 1. In dev mode: Vite picks the write and does HMR during dev
-1. In production mode: unused messages are marked obsolete
-1. On next run, obsolete ones are purged unless reused.
 1. Final build contains only minified catalogs and the runtime.
 
 ### Catalogs:
@@ -398,6 +412,14 @@ necessary to have a separate plurals support because you can do something like:
 And they will be extracted separately. You can also make a reusable function
 yourself.
 
+## CLI
+
+A simple command line interface is also provided, just `wuchale` with an optional `--clean` argument.
+
+By default, it looks inside all svelte sources and extracts new texts into the
+`.po` files. If the `--clean` argument is provided, it additionally removes
+unused texts from the `.po` files.
+
 ## Files management
 
 `wuchale` generates two files for each locale.
@@ -413,17 +435,12 @@ This is a `gettext` file that is used to exchange the text fragments with transl
 **Note**: You should commit these files, they are where the translated
 fragments are stored and are the source of truth for the translations.
 
-### Compiled `.json` file
+### Compiled data in `.js` file
 
-This is the compiled version of the `.po` file. It is generated at the startup
-of the dev server and at build time. As it has to be generated every time, you
-should consider it as a temp file and therefore you should **not** commit it.
-
-## 🧹 Cleaning
-
-Unused keys are marked as obsolete during a production build. Obsoletes are
-purged on the next run (build or dev). Essentially this means cleaning needs
-two passes. This is because of how vite/rollup works.
+This is the module that imports the compiled version of the `.po` file. It is
+generated at the startup of the dev server and at build time. As can be
+generated every time, you should consider it as a temp file and therefore you
+should not commit it.
 
 ## 🧪 Tests
 
