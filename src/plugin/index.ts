@@ -169,7 +169,6 @@ class Plugin {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            this._translations[loc] = {}
             if (this.#currentPurpose === 'dev') {
                 await this.directExtract()
             }
@@ -191,6 +190,9 @@ class Plugin {
     }
 
     #loadFilesAndSetup = async () => {
+        for (const loc of this.locales) {
+            this._translations[loc] = {}
+        } // all before #loadTranslations because we will loop over them in transformHandler at startup
         for (const loc of this.locales) {
             await this.#loadTranslations(loc)
         }
