@@ -4,6 +4,7 @@ export interface Options {
     sourceLocale?: string
     otherLocales?: string[]
     localesDir?: string
+    srcDirs?: string[]
     heuristic?: HeuristicFunc
     hmr?: boolean
     geminiAPIKey?: string,
@@ -13,6 +14,7 @@ export const defaultOptions: Options = {
     sourceLocale: 'en',
     otherLocales: [],
     localesDir: './src/locales',
+    srcDirs: ['src'],
     heuristic: defaultHeuristic,
     hmr: true,
     geminiAPIKey: 'env',

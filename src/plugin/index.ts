@@ -97,6 +97,8 @@ class Plugin {
 
     transform: { order: 'pre', handler: Function }
 
+    #allowDirs: string[] = []
+
     constructor() {
         this.#indexTracker = new IndexTracker({})
     }
@@ -229,6 +231,10 @@ class Plugin {
             this.#currentPurpose = "prod"
         } // else, already dev
         this.#projectRoot = config.root
+        // for transform
+        for (const dir of this.#options.srcDirs) {
+            this.#allowDirs.push(normalize(this.#projectRoot + '/' + dir))
+        }
         // for handleHotUpdate below
         this.#transFnamesToLocales = Object.fromEntries(
             Object.entries(this.#translationsFname)
@@ -274,7 +280,7 @@ class Plugin {
     }
 
     transformHandler = async (code: string, id: string) => {
-        if (!id.startsWith(this.#projectRoot) || id.startsWith(normalize(this.#projectRoot + '/node_modules'))) {
+        if (!this.#allowDirs.find(dir => id.startsWith(dir))) {
             return
         }
         const isModule = id.endsWith('.svelte.js') || id.endsWith('.svelte.ts')
