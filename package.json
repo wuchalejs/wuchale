@@ -1,6 +1,6 @@
 {
   "name": "wuchale",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "i18n for svelte without turning your codebase upside down",
   "scripts": {
     "build": "tsc",
@@ -32,6 +32,10 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "wuchale": "./dist/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/K1DV5/wuchale.git"
   },
   "homepage": "https://github.com/K1DV5/wuchale",
   "bugs": "https://github.com/K1DV5/wuchale/issues",
