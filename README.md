@@ -142,6 +142,25 @@ can trigger big updates of the DOM, which may cause states not depending on the
 URL to be lost. If you choose to disable the `hmr` extraction, you can still
 extract (and translate with Gemini) using the CLI command.
 
+### Register CLI
+
+You must add entries to run the CLI from `npm`.
+
+```javascript
+// package.json
+{
+  // ...
+  "scripts": {
+    // ...
+    "extract": "wuchale",
+    "clean": "wuchale --clean"
+  },
+  // ...
+}
+```
+
+You can read more about the CLI below
+
 ### Setup
 
 Create `/src/locales/` (or the directory you set up in the configuration,
