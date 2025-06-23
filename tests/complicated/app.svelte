@@ -16,6 +16,7 @@
     }
     const derived = $derived.by(() => {
         const f = 'Extract this'
+        if (!f) return
         let e = {}
         if (f == 'something else') {
             let d = 'Variable'

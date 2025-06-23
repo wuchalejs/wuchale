@@ -231,7 +231,12 @@ export default class Preprocess {
         return txts
     }
 
-    visitReturnStatement = (node: Estree.ReturnStatement): NestText[] => this.visit(node.argument)
+    visitReturnStatement = (node: Estree.ReturnStatement): NestText[] => {
+        if (node.argument) {
+            return this.visit(node.argument)
+        }
+        return []
+    }
 
     visitIfStatement = (node: Estree.IfStatement): NestText[] => {
         const txts = this.visit(node.test)

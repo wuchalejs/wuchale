@@ -19,6 +19,7 @@
     }
     const derived = $derived.by(() => {
         const f = wuchaleTrans(9)
+        if (!f) return
         let e = {}
         if (f == 'something else') {
             let d = wuchaleTrans(10)
