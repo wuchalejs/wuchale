@@ -1,6 +1,6 @@
 import { defaultHeuristic, type HeuristicFunc } from "./plugin/prep.js"
 
-export interface Options {
+export interface Config {
     sourceLocale?: string
     otherLocales?: string[]
     localesDir?: string
@@ -10,7 +10,7 @@ export interface Options {
     geminiAPIKey?: string,
 }
 
-export const defaultOptions: Options = {
+export const defaultOptions: Config = {
     sourceLocale: 'en',
     otherLocales: [],
     localesDir: './src/locales',
@@ -20,14 +20,14 @@ export const defaultOptions: Options = {
     geminiAPIKey: 'env',
 }
 
-function mergeOptions(fromOpt: Options, toOpt: Options) {
+function mergeOptions(fromOpt: Config, toOpt: Config) {
     for (const key of Object.keys(fromOpt)) {
         toOpt[key] = fromOpt[key]
     }
 }
 
-export async function getOptions(codeOptions: Options = {}) {
-    const options: Options = defaultOptions
+export async function getOptions(codeOptions: Config = {}) {
+    const options: Config = defaultOptions
     try {
         const module = await import(process.cwd() + '/wuchale.config.js')
         mergeOptions(module.default, options)

@@ -8,7 +8,7 @@ import { readFile } from 'fs/promises'
 import compileTranslation from '../dist/plugin/compile.js'
 import PO from 'pofile'
 
-const options = { otherLocales: [], geminiAPIKey: null }
+const config = { otherLocales: [], geminiAPIKey: null }
 
 // only for syntax highlighting
 const svelte = foo => foo[0]
@@ -27,10 +27,10 @@ function trimLines(str) {
 }
 
 async function getOutput(content) {
-    const plug = await plugin(options)
-    await plug.configResolved({env: {PROD: null}, root: ''})
-    const { translations, compiled } = plug
-    const processed = await plug.transformHandler(content, 'test.svelte')
+    const plug = await plugin(config)
+    await plug.configResolved({env: {PROD: null}, root: process.cwd()})
+    const { _translations: translations, _compiled: compiled } = plug
+    const processed = await plug.transformHandler(content, process.cwd() + '/src/test.svelte')
     return { processed, translations, compiled }
 }
 
@@ -62,7 +62,7 @@ test('Simple text', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test.svelte
+    #: src/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -79,7 +79,7 @@ test('Simple element', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test.svelte
+    #: src/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -114,15 +114,15 @@ test('Multiple in one file', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test.svelte
+        #: src/test.svelte
         msgid "Title"
         msgstr "Title"
 
-        #: test.svelte
+        #: src/test.svelte
         msgid "Welcome to the app"
         msgstr "Welcome to the app"
 
-        #: test.svelte
+        #: src/test.svelte
         msgid "Hello <0>{0}</0>"
         msgstr "Hello <0>{0}</0>"`,
     [

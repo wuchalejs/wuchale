@@ -2,17 +2,21 @@ import Preprocess, { IndexTracker, NestText, type Translations } from "./prep.js
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { parse, type AST } from "svelte/compiler"
-import { writeFile } from 'node:fs/promises'
+import { writeFile, readFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
+import { glob } from "tinyglobby"
 import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program, Options as ParserOptions } from "acorn"
-import { getOptions, type Options } from "../options.js"
+import { getOptions, type Config as Config } from "../config.js"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
+const modulePatterns = ['.svelte.js', '.svelte.ts']
+const markupPatterns = ['.svelte']
+const patterns = [...modulePatterns, ...markupPatterns]
 
 interface LoadedPO {
     translations: Translations,
@@ -29,26 +33,39 @@ const scriptParseOptions: ParserOptions = {
     locations: true
 }
 
-async function loadPONoFail(filename: string): Promise<LoadedPO> {
-    return new Promise((res) => {
+type ViteHotUpdateCTX = {
+    file: string,
+    server: {
+        moduleGraph: {
+            getModuleById: Function,
+            invalidateModule: Function,
+        },
+    },
+    timestamp: number,
+}
+
+async function loadPOFile(filename: string): Promise<LoadedPO> {
+    return new Promise((res, rej) => {
         PO.load(filename, (err, po) => {
             const translations: Translations = {}
             let total = 0
             let obsolete = 0
             let untranslated = 0
-            if (!err) {
-                for (const item of po.items) {
-                    total++
-                    if (item.obsolete) {
-                        obsolete++
-                        continue
-                    }
-                    if (!item.msgstr[0]) {
-                        untranslated++
-                    }
-                    const nTxt = new NestText(item.msgid, null, item.msgctxt)
-                    translations[nTxt.toKey()] = item
+            if (err) {
+                rej(err)
+                return
+            }
+            for (const item of po.items) {
+                total++
+                if (item.obsolete) {
+                    obsolete++
+                    continue
                 }
+                if (!item.msgstr[0]) {
+                    untranslated++
+                }
+                const nTxt = new NestText(item.msgid, null, item.msgctxt)
+                translations[nTxt.toKey()] = item
             }
             res({ translations, total, obsolete, untranslated })
         })
@@ -75,19 +92,20 @@ class Plugin {
 
     name = pluginName
 
-    #options: Options
-    #locales: string[]
+    #config: Config
+
+    locales: string[]
 
     // exposed for testing
-    translations: { [loc: string]: { [key: string]: ItemType } } = {}
-    compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
+    _translations: { [loc: string]: { [key: string]: ItemType } } = {}
+    _compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
 
     #sourceTranslations: { [key: string]: ItemType }
 
     #compiledFname: { [loc: string]: string } = {}
     #translationsFname: { [loc: string]: string } = {}
 
-    #currentPurpose: 'dev' | 'prod' | 'test' = 'dev'
+    #currentPurpose: 'dev' | 'extract' | 'test' = 'dev'
     #projectRoot: string = ''
     #indexTracker: IndexTracker
 
@@ -95,7 +113,7 @@ class Plugin {
 
     #transFnamesToLocales: { [key: string]: string } = {}
 
-    transform: { order: 'pre', handler: Function }
+    transform: { order: 'pre', handler: any }
 
     #allowDirs: string[] = []
 
@@ -103,20 +121,25 @@ class Plugin {
         this.#indexTracker = new IndexTracker({})
     }
 
-    init = async (optionsRaw: Options) => {
-        this.#options = await getOptions(optionsRaw)
-        this.#locales = [this.#options.sourceLocale, ...this.#options.otherLocales]
-        for (const loc of this.#locales) {
-            this.#compiledFname[loc] = `${this.#options.localesDir}/${loc}.js`
-            this.#translationsFname[loc] = `${this.#options.localesDir}/${loc}.po`
+    init = async (configRaw: Config) => {
+        this.#config = await getOptions(configRaw)
+        this.locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
+        for (const loc of this.locales) {
+            this.#compiledFname[loc] = `${this.#config.localesDir}/${loc}.js`
+            this.#translationsFname[loc] = `${this.#config.localesDir}/${loc}.po`
         }
-        for (const loc of this.#options.otherLocales) {
-            if (loc === this.#options.sourceLocale) {
+        for (const loc of this.#config.otherLocales) {
+            if (loc === this.#config.sourceLocale) {
                 throw Error('Source locale cannot included in other locales.')
             }
-            this.#geminiQueue[loc] = new GeminiQueue(this.#options.sourceLocale, loc, this.#options.geminiAPIKey, async () => await this.#afterExtract(loc))
+            this.#geminiQueue[loc] = new GeminiQueue(
+                this.#config.sourceLocale,
+                loc,
+                this.#config.geminiAPIKey,
+                async () => await this.afterExtract(loc),
+            )
         }
-        if (this.#options.hmr) {
+        if (this.#config.hmr) {
             this.transform = {
                 order: 'pre',
                 handler: this.transformHandler,
@@ -124,66 +147,88 @@ class Plugin {
         }
     }
 
+    directExtract = async () => {
+        const all = []
+        for (const dir of this.#config.srcDirs) {
+            for (const patternEnd of patterns) {
+                for (const file of await glob(`${dir}/**/*${patternEnd}`)) {
+                    const contents = await readFile(file)
+                    all.push(this.transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
+                }
+            }
+        }
+        await Promise.all(all)
+    }
+
     #loadTranslations = async (loc: string) => {
-        const { translations: trans, total, obsolete, untranslated } = await loadPONoFail(this.#translationsFname[loc])
-        this.translations[loc] = trans
-        console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
+        try {
+            const { translations: trans, total, obsolete, untranslated } = await loadPOFile(this.#translationsFname[loc])
+            this._translations[loc] = trans
+            console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+            this._translations[loc] = {}
+            if (this.#currentPurpose === 'dev') {
+                await this.directExtract()
+            }
+        }
     }
 
     #compile = (loc: string) => {
-        this.compiled[loc] = []
-        for (const key in this.translations[loc]) {
-            const poItem = this.translations[loc][key]
-            if (this.#currentPurpose === 'prod') {
-                poItem.references = []
-            }
+        this._compiled[loc] = []
+        for (const key in this._translations[loc]) {
+            const poItem = this._translations[loc][key]
             const index = this.#indexTracker.get(key)
-            this.compiled[loc][index] = compileTranslation(poItem.msgstr[0], this.compiled[this.#options.sourceLocale][index])
+            this._compiled[loc][index] = compileTranslation(poItem.msgstr[0], this._compiled[this.#config.sourceLocale][index])
         }
-        for (const [i, item] of this.compiled[loc].entries()) {
+        for (const [i, item] of this._compiled[loc].entries()) {
             if (item == null) {
-                this.compiled[loc][i] = 0 // reduce json size
+                this._compiled[loc][i] = 0 // reduce json size
             }
         }
     }
 
     #loadFilesAndSetup = async () => {
-        for (const loc of this.#locales) {
+        for (const loc of this.locales) {
             await this.#loadTranslations(loc)
         }
-        this.#sourceTranslations = this.translations[this.#options.sourceLocale]
+        this.#sourceTranslations = this._translations[this.#config.sourceLocale]
         this.#indexTracker = new IndexTracker(this.#sourceTranslations)
         if (this.#currentPurpose === 'test') {
             return
         }
-        for (const loc of this.#locales) {
+        for (const loc of this.locales) {
             this.#compile(loc)
             await writeFile(this.#compiledFname[loc], `export {default} from '${virtualPrefix}${loc}'`)
         }
     }
 
-    #afterExtract = async (loc: string) => {
-        if (this.#currentPurpose === 'dev') {
-            await savePO(Object.values(this.translations[loc]), this.#translationsFname[loc])
+    afterExtract = async (loc: string) => {
+        if (this.#currentPurpose !== 'test') {
+            await savePO(Object.values(this._translations[loc]), this.#translationsFname[loc])
         }
-        this.#compile(loc)
+        if (this.#currentPurpose !== 'extract') {
+            this.#compile(loc)
+        }
     }
 
     #preprocess = async (content: string, ast: AST.Root | Program, filename: string) => {
-        const prep = new Preprocess(this.#indexTracker, this.#options.heuristic)
+        const prep = new Preprocess(this.#indexTracker, this.#config.heuristic)
         const txts = prep.process(content, ast)
         if (!txts.length) {
             return {}
         }
-        for (const loc of this.#locales) {
+        for (const loc of this.locales) {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
-                let translated = this.translations[loc][key]
+                let translated = this._translations[loc][key]
                 if (!translated) {
                     translated = new PO.Item()
                     translated.msgid = nTxt.toString()
-                    this.translations[loc][key] = translated
+                    this._translations[loc][key] = translated
                 }
                 if (nTxt.context) {
                     translated.msgctxt = nTxt.context
@@ -191,7 +236,7 @@ class Plugin {
                 if (!translated.references.includes(filename)) {
                     translated.references.push(filename)
                 }
-                if (loc === this.#options.sourceLocale) {
+                if (loc === this.#config.sourceLocale) {
                     const txt = nTxt.toString()
                     if (translated.msgstr[0] !== txt) {
                         translated.msgstr = [txt]
@@ -204,8 +249,8 @@ class Plugin {
             if (newTxts.length == 0) {
                 continue
             }
-            if (loc === this.#options.sourceLocale || !this.#geminiQueue[loc].url) {
-                await this.#afterExtract(loc)
+            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc].url) {
+                await this.afterExtract(loc)
                 continue
             }
             const newRequest = this.#geminiQueue[loc].add(newTxts)
@@ -219,20 +264,20 @@ class Plugin {
         }
     }
 
-    configResolved = async (config: { env: { PROD?: boolean; }, root: string; }) => {
-        if (config.env.PROD == null) {
+    configResolved = async (config: { env: { PROD?: boolean, EXTRACT?: boolean; }, root: string; }) => {
+        if (config.env.EXTRACT) {
+            this.#currentPurpose = 'extract'
+        } else if (config.env.PROD == null) {
             this.#currentPurpose = "test"
-            for (const loc of this.#locales) {
-                this.translations[loc] = {}
-                this.compiled[loc] = []
+            for (const loc of this.locales) {
+                this._translations[loc] = {}
+                this._compiled[loc] = []
             }
-            this.#sourceTranslations = this.translations[this.#options.sourceLocale]
-        } else if (config.env.PROD) {
-            this.#currentPurpose = "prod"
+            this.#sourceTranslations = this._translations[this.#config.sourceLocale]
         } // else, already dev
         this.#projectRoot = config.root
         // for transform
-        for (const dir of this.#options.srcDirs) {
+        for (const dir of this.#config.srcDirs) {
             this.#allowDirs.push(normalize(this.#projectRoot + '/' + dir))
         }
         // for handleHotUpdate below
@@ -243,7 +288,7 @@ class Plugin {
         await this.#loadFilesAndSetup()
     }
 
-    handleHotUpdate = async (ctx: { file: string, server: { moduleGraph: { getModuleById: Function, invalidateModule: Function } }, timestamp: number }) => {
+    handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
         // PO file edit -> JS HMR
         if (ctx.file in this.#transFnamesToLocales) {
             const loc = this.#transFnamesToLocales[ctx.file]
@@ -276,15 +321,15 @@ class Plugin {
             return null
         }
         const locale = id.slice(prefix.length)
-        return `export default ${JSON.stringify(this.compiled[locale])}`
+        return `export default ${JSON.stringify(this._compiled[locale])}`
     }
 
     transformHandler = async (code: string, id: string) => {
         if (!this.#allowDirs.find(dir => id.startsWith(dir))) {
             return
         }
-        const isModule = id.endsWith('.svelte.js') || id.endsWith('.svelte.ts')
-        if (!id.endsWith('.svelte') && !isModule) {
+        const isModule = modulePatterns.find(p => id.endsWith(p))
+        if (!markupPatterns.find(p => id.endsWith(p)) && !isModule) {
             return
         }
         let ast: AST.Root | Program
@@ -298,8 +343,8 @@ class Plugin {
     }
 }
 
-export default async function wuchale(options: Options = {}) {
+export default async function wuchale(config: Config = {}) {
     const plugin = new Plugin()
-    await plugin.init(options)
+    await plugin.init(config)
     return plugin
 }
