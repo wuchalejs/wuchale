@@ -1,4 +1,4 @@
-// $$ cd .. && npm run build && npm run test
+// $$ cd .. && npm run test
 
 import MagicString from "magic-string"
 import type { ItemType } from "./gemini.js"
@@ -134,12 +134,10 @@ export default class Preprocess {
 
     visitSpreadElement = (node: Estree.SpreadElement): NestText[] => this.visit(node.argument)
 
-    visitMemberExpression = (node: Estree.MemberExpression): NestText[] => {
-        return [
-            ...this.visit(node.object),
-            ...this.visit(node.property),
-        ]
-    }
+    visitMemberExpression = (node: Estree.MemberExpression): NestText[] => [
+        ...this.visit(node.object),
+        ...this.visit(node.property),
+    ]
 
     visitCallExpression = (node: Estree.CallExpression): NestText[] => {
         const txts = [...this.visit(node.callee)]
@@ -149,41 +147,33 @@ export default class Preprocess {
         return txts
     }
 
-    visitBinaryExpression = (node: Estree.BinaryExpression): NestText[] => {
-        return [
-            ...this.visit(node.left),
-            ...this.visit(node.right),
-        ]
-    }
+    visitBinaryExpression = (node: Estree.BinaryExpression): NestText[] => [
+        ...this.visit(node.left),
+        ...this.visit(node.right),
+    ]
 
     visitAssignmentExpression = this.visitBinaryExpression
 
     visitExpressionStatement = (node: Estree.ExpressionStatement): NestText[] => this.visit(node.expression)
 
-    visitForOfStatement = (node: Estree.ForOfStatement): NestText[] => {
-        return [
-            ...this.visit(node.left),
-            ...this.visit(node.right),
-            ...this.visit(node.body),
-        ]
-    }
+    visitForOfStatement = (node: Estree.ForOfStatement): NestText[] => [
+        ...this.visit(node.left),
+        ...this.visit(node.right),
+        ...this.visit(node.body),
+    ]
 
-    visitForInStatement = (node: Estree.ForInStatement): NestText[] => {
-        return [
-            ...this.visit(node.left),
-            ...this.visit(node.right),
-            ...this.visit(node.body),
-        ]
-    }
+    visitForInStatement = (node: Estree.ForInStatement): NestText[] => [
+        ...this.visit(node.left),
+        ...this.visit(node.right),
+        ...this.visit(node.body),
+    ]
 
-    visitStatement = (node: Estree.ForStatement): NestText[] => {
-        return [
-            ...this.visit(node.init),
-            ...this.visit(node.test),
-            ...this.visit(node.update),
-            ...this.visit(node.body),
-        ]
-    }
+    visitForStatement = (node: Estree.ForStatement): NestText[] => [
+        ...this.visit(node.init),
+        ...this.visit(node.test),
+        ...this.visit(node.update),
+        ...this.visit(node.body),
+    ]
 
     visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
         const txts = []
