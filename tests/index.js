@@ -54,7 +54,7 @@ test('Compile nested', function(t) {
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         {wuchaleTrans(0)}
@@ -71,7 +71,7 @@ test('Simple text', async function(t) {
 test('Simple element', async function(t) {
     await testContent(t, '<p>Hello</p>', svelte`
         <script>
-            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         <p>{wuchaleTrans(0)}</p>
@@ -96,20 +96,34 @@ test('Multiple in one file', async function(t) {
     await testContent(t, svelte`
         <h1>Title</h1>
         <p>{'Welcome to the app'}</p>
-        <p>Hello <b>{userName}</b></p>
+        <p>Nested <b>non-mixed</b></p>
+        <p>Nested <b>mixed with {text}</b></p>
+        <p>Nested <b>{expressionOnly}</b></p>
     `, svelte`
-         <script>
-            import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+        <script>
+            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
-         </script>
-         <h1>{wuchaleTrans(0)}</h1>
-         <p>{wuchaleTrans(1)}</p>
-         <p>
-             {#snippet wuchaleSnippet0(ctx)}
-                 <b>userName</b>
-             {/snippet}
-             <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
-         </p>
+        </script>
+        <h1>{wuchaleTrans(0)}</h1>
+        <p>{wuchaleTrans(1)}</p>
+        <p>
+            {#snippet wuchaleSnippet0(ctx)}
+                <b>{wuchaleTransCtx(ctx)}</b>
+            {/snippet}
+            <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
+        </p>
+        <p>
+            {#snippet wuchaleSnippet0(ctx)}
+                <b>{wuchaleTransCtx(ctx, [text])}</b>
+            {/snippet}
+            <WuchaleTrans tags={[wuchaleSnippet0]} id={3} />
+        </p>
+        <p>
+            {#snippet wuchaleSnippet0(ctx)}
+                <b>{expressionOnly}</b>
+            {/snippet}
+            <WuchaleTrans tags={[wuchaleSnippet0]} id={4} />
+        </p>
     `, `
         msgid ""
         msgstr ""
@@ -123,18 +137,40 @@ test('Multiple in one file', async function(t) {
         msgstr "Welcome to the app"
 
         #: src/test.svelte
-        msgid "Hello <0>{0}</0>"
-        msgstr "Hello <0>{0}</0>"`,
-    [
-        'Title',
-        'Welcome to the app',
-        [
-            'Hello ',
+        msgid "Nested <0>non-mixed</0>"
+        msgstr "Nested <0>non-mixed</0>"
+
+        #: src/test.svelte
+        msgid "Nested <0>mixed with {0}</0>"
+        msgstr "Nested <0>mixed with {0}</0>"
+
+        #: src/test.svelte
+        msgid "Nested <0/>"
+        msgstr "Nested <0/>"
+    `, [
+          'Title',
+          'Welcome to the app',
+          [
+            'Nested ',
             [
-                0,
-                0
+              0,
+              'non-mixed'
             ]
-        ]
+          ],
+          [
+            'Nested ',
+            [
+              0,
+              'mixed with ',
+              0
+            ]
+          ],
+          [
+            'Nested ',
+            [
+              0
+            ]
+          ]
     ])
 })
 

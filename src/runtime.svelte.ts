@@ -17,18 +17,22 @@ export function getCtx(id: number) {
     return ctx
 }
 
-export function wuchaleTrans(id: number, ...args: string[]) {
-    const ctx = getCtx(id)
+export function wuchaleTransCtx(ctx: Composite, args: any[] = [], start = 1) {
     let txt = ''
-    for (const fragment of ctx) {
+    for (let i = start; i < ctx.length; i++) {
+        const fragment = ctx[i]
         if (typeof fragment === 'string') {
             txt += fragment
         } else if (typeof fragment === 'number') { // index of non-text children
             txt += args[fragment]
         } else {
             // shouldn't happen
-            console.error('Unknown item in compiled catalog: ', id, fragment)
+            console.error('Unknown item in compiled catalog: ', fragment)
         }
     }
     return txt
+}
+
+export function wuchaleTrans(id: number, args: any[] = []) {
+    return wuchaleTransCtx(getCtx(id), args, 0)
 }

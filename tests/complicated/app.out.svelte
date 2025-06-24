@@ -1,5 +1,5 @@
 <script>
-    import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+    import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
     import WuchaleTrans from "wuchale/runtime.svelte"
 
     const normalParam = 44;
@@ -42,34 +42,34 @@
 </script>
 
 <p>
-{#snippet wuchaleSnippet0(ctx)}
-<i class="not-extracted" title={wuchaleTrans(1)}
-        >
-{#snippet wuchaleSnippet0(ctx)}
-<b>
-{#snippet wuchaleSnippet0(ctx)}
-<u>{ctx[1]}</u>
-{/snippet}
-<WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} args={[`with ${someJSEven}` + "foo"]} />
-</b>
-{/snippet}
-<WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} />
-</i
-    >
-{/snippet}<!-- foo bar -->
-    
-{#snippet wuchaleSnippet1(ctx)}
-{#if someFunction(wuchaleTrans(2), normalParam, [/* @wc-include */ wuchaleTrans(3)])}{wuchaleTrans(4)}{#each collection.members as member}{wuchaleTrans(5)}{member}
+    {#snippet wuchaleSnippet0(ctx)}
+        <i class="not-extracted" title={wuchaleTrans(1)}
+                >
+        {#snippet wuchaleSnippet0(ctx)}
+            <b>
+                {#snippet wuchaleSnippet0(ctx)}
+                    <u>{wuchaleTransCtx(ctx)}</u>
+                {/snippet}
+                <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} args={[`with ${someJSEven}` + "foo"]} />
+            </b>
+        {/snippet}
+        <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} />
+        </i
+            >
+    {/snippet}<!-- foo bar -->
+        
+    {#snippet wuchaleSnippet1(ctx)}
+        {#if someFunction(wuchaleTrans(2), normalParam, [/* @wc-include */ wuchaleTrans(3)])}{wuchaleTrans(4)}{#each collection.members as member}{wuchaleTrans(5)}{member}
             <!-- What not -->
             {#await fetch("https://jsonplaceholder.typicode.com/todos/1") then res}
                 {#await res.json() then json}
-                    <b>{wuchaleTrans(6, json.title)}</b>
+                    <b>{wuchaleTrans(6, [json.title])}</b>
                 {/await}
             {/await}{wuchaleTrans(7)}{/each}
-    {/if}
-{/snippet}
+        {/if}
+    {/snippet}
 
-<WuchaleTrans tags={[wuchaleSnippet0, wuchaleSnippet1]} id={8} args={[obj.property["non-extracted text"][wuchaleTrans(0)]]} />
+    <WuchaleTrans tags={[wuchaleSnippet0, wuchaleSnippet1]} id={8} args={[obj.property["non-extracted text"][wuchaleTrans(0)]]} />
 </p>
 <!-- @wc-ignore -->
 But ignore me

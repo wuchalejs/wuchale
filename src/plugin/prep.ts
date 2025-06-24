@@ -16,7 +16,8 @@ const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
-const importModule = `import {${rtFunc}} from "wuchale/runtime.svelte.js"`
+const rtFuncCtx = 'wuchaleTransCtx'
+const importModule = `import {${rtFunc}, ${rtFuncCtx}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
 export function defaultHeuristic(text: string, scope: TxtScope) {
@@ -260,13 +261,15 @@ export default class Preprocess {
             this.mstr.update(end, end + 2, ', ')
         }
         const nTxt = new NestText(txt, txt0.scope, this.context)
-        let repl = `${rtFunc}(${this.index.get(nTxt.toKey())}`
+        let begin = `${rtFunc}(${this.index.get(nTxt.toKey())}`
+        let end = ')'
         if (node.expressions.length) {
-            repl += ', '
+            begin += ', ['
+            end = ']' + end
         }
-        this.mstr.update(start0 - 1, end0 + 2, repl)
+        this.mstr.update(start0 - 1, end0 + 2, begin)
         // @ts-ignore
-        this.mstr.update(node.end - 1, node.end, ')')
+        this.mstr.update(node.end - 1, node.end, end)
         txts.push(nTxt)
         return txts
     }
@@ -279,7 +282,7 @@ export default class Preprocess {
             nodes: ElementNode[]
         }
     }): NestText[] => {
-        const txts = []
+        const txts: NestText[] = []
         for (const attrib of node.attributes) {
             txts.push(...this.visit(attrib))
         }
@@ -308,6 +311,8 @@ export default class Preprocess {
         let iArg = 0
         let iTag = 0
         const lastChildEnd = node.fragment.nodes.slice(-1)[0].end
+        const childrenForSnippets: [number, number, number][] = []
+        let hasTextDescendants = false
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Comment') {
                 continue
@@ -318,11 +323,7 @@ export default class Preprocess {
                     continue
                 }
                 txt += ' ' + modify
-                if (node.inCompoundText && node.fragment.nodes.length === 1) {
-                    this.mstr.update(child.start, child.end, `{ctx[1]}`)
-                } else {
-                    this.mstr.remove(child.start, child.end)
-                }
+                this.mstr.remove(child.start, child.end)
                 continue
             }
             if (!node.inCompoundText && !hasCompoundText) {
@@ -331,6 +332,9 @@ export default class Preprocess {
             }
             if (child.type === 'ExpressionTag') {
                 txts.push(...this.visitExpressionTag(child))
+                if (!hasCompoundText) {
+                    continue
+                }
                 txt += ` {${iArg}}`
                 this.mstr.move(child.start + 1, child.end - 1, lastChildEnd)
                 if (iArg > 0) {
@@ -349,6 +353,7 @@ export default class Preprocess {
             for (const txt of this.visit(child)) {
                 if (nodesWithChildren.includes(child.type) && txt.scope === 'markup') {
                     chTxt += txt.toString()
+                    hasTextDescendants = true
                 } else { // attributes, blocks
                     txts.push(txt)
                 }
@@ -356,16 +361,12 @@ export default class Preprocess {
             if (nodesWithChildren.includes(child.type) && chTxt) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
-                // childless elements and anything else
+                // childless elements and everything else
                 chTxt = `<${iTag}/>`
             }
-            const snippetName = `${snipPrefix}${iTag}`
-            const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
-            const snippetEnd = '\n{/snippet}'
-            this.mstr.appendRight(child.start, snippetBegin)
-            this.mstr.prependLeft(child.end, snippetEnd)
+            childrenForSnippets.push([iTag, child.start, child.end])
             iTag++
-            if (!txt.endsWith(' ')) {
+            if (chTxt && !txt.endsWith(' ')) {
                 txt += ' '
             }
             txt += chTxt
@@ -375,12 +376,19 @@ export default class Preprocess {
             return txts
         }
         const nTxt = new NestText(txt, 'markup', this.context)
-        txts.push(nTxt)
-        if (iTag > 0) {
+        if (hasTextChild || hasTextDescendants) {
+            txts.push(nTxt)
+        }
+        if (childrenForSnippets.length) {
             const snippets = []
-            // reference all new snippets added
-            for (let i = 0; i < iTag; i++) {
-                snippets.push(`${snipPrefix}${i}`)
+            // create and reference snippets
+            for (const [iTag, childStart, childEnd] of childrenForSnippets) {
+                const snippetName = `${snipPrefix}${iTag}`
+                const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
+                const snippetEnd = '\n{/snippet}'
+                this.mstr.appendRight(childStart, snippetBegin)
+                this.mstr.prependLeft(childEnd, snippetEnd)
+                snippets.push(`${snipPrefix}${iTag}`)
             }
             let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} `
             if (node.inCompoundText) {
@@ -395,10 +403,21 @@ export default class Preprocess {
             }
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
-        } else if (!node.inCompoundText) { // no need for component use
-            const comma = iArg > 0 ? ', ' : '' // before first arg
-            this.mstr.appendLeft(lastChildEnd, `{${rtFunc}(${this.index.get(nTxt.toKey())}${comma}`)
-            this.mstr.appendRight(lastChildEnd, ')}')
+        } else if (hasTextChild) {
+            // no need for component use
+            let begin = '{'
+            let end = ')}'
+            if (node.inCompoundText) {
+                begin += `${rtFuncCtx}(ctx`
+            } else {
+                begin += `${rtFunc}(${this.index.get(nTxt.toKey())}`
+            }
+            if (iArg) {
+                begin += ', ['
+                end = ']' + end
+            }
+            this.mstr.appendLeft(lastChildEnd, begin)
+            this.mstr.appendRight(lastChildEnd, end)
         }
         return txts
     }
