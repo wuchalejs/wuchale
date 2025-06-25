@@ -406,6 +406,81 @@ explicit. Example:
 
 ```
 
+## Extracted text syntax
+
+The extracted text is designed to give translators as much freedom as possible
+while striving to be correct for rendering. This is more important especially
+for nested and formatted content. It is obvious that simple texts are extracted
+as-is: `<p>Hello</p>` and `'Hello'` are extracted as `Hello`. But the
+extraction of mixed content uses placeholders to enable translators to change
+their position and order as the language dictates. The placeholder syntax is
+explained below.
+
+### Template literals and text with expressions
+
+Template literals like
+```javascript
+`The price for the product ${product} is $${price}.`
+```
+
+And text with expressions like
+```svelte
+<p>The price for the product {product} is ${price}.</p>
+```
+
+Are both extracted into:
+```
+The price for the product {0} is ${1}.
+```
+
+The placeholders use 0 based indices to refer to the expressions in between.
+
+### Formatted content
+
+Formatted content is any text that has a text mixed with other elements like
+
+```svelte
+<p>This is a <i>little</i> <b>complicated</b></p>
+```
+
+In this case, we would not want to extract `This is a `, `little`, and `
+complicated` separately because they lose context when they're apart. For this
+reason, all of the content inside the top level element, `p`, is extracted
+together without losing the formatting rules like
+
+```
+This is a <0>little</0> <1>complicated</1>
+```
+
+Translators don't have to care what the tags are, only that some of the text is
+inside some tags. And this supports indefinite nesting and not just simple
+elements, any element, component, if/await/each block.
+
+Moreover, to not overwhelm translators with deeply nested texts, if there is no
+extractable text in the deeper markup, the whole markup is extracted as a
+simple placeholder. For example,
+
+```svelte
+<p>
+    Some text
+    <SomeComponent prop="some-class">
+        <Nested>
+            <b>{someObject.prop}</b>
+        </Nested>
+        <OtherNested />
+    </SomeComponent>
+</p>
+```
+
+Because of the existence of `Some text` inside `p`, all of the text inside `p`
+has to be extracted together, but the nested components don't mean anything to
+the translators. They just have to know that there is something there.
+Therefore, in this case, it is simply extracted as:
+
+```
+Some text <0/>
+```
+
 ## Context?
 
 Sometimes we need to have different translations that are the same text in the
@@ -442,7 +517,8 @@ yourself.
 
 ## CLI
 
-A simple command line interface is also provided, just `wuchale` with an optional `--clean` argument.
+A simple command line interface is also provided, just `wuchale` with an
+optional `--clean` argument.
 
 By default, it looks inside all svelte sources and extracts new texts into the
 `.po` files. If the `--clean` argument is provided, it additionally removes
@@ -454,7 +530,8 @@ unused texts from the `.po` files.
 
 ### `.po` file
 
-This is a `gettext` file that is used to exchange the text fragments with translators. The workflow is:
+This is a `gettext` file that is used to exchange the text fragments with
+translators. The workflow is:
 
 - You give them the file with empty places for the translated fragments
 - They fill it with the translation, preserving the placeholders, but they can change the orders as the language requires.
