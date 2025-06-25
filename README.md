@@ -255,17 +255,15 @@ Output:
 
 ```svelte
 <script>
-    import {wuchaleTrans} from "wuchale/runtime.svelte.js"
+    import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
     import WuchaleTrans from "wuchale/runtime.svelte"
 </script>
-
 <p>{wuchaleTrans(0)}</p>
-
 <p>
-  {#snippet wuchaleSnippet0(ctx)}
-      <b>{ctx[1]}</b>
-  {/snippet}
-  <WuchaleTrans tags={[wuchaleSnippet0]} id={1} args={[userName]} />
+    {#snippet wuchaleSnippet0(ctx)}
+        <b>{userName}</b>
+    {/snippet}
+    <WuchaleTrans tags={[wuchaleSnippet0]} id={1} />
 </p>
 
 ```
@@ -277,8 +275,8 @@ Extracted catalog (PO) for `en`:
 msgid "Hi there!"
 msgstr "Hi there!"
 
-msgid "Hello {0}"
-msgstr "Hello {0}"
+msgid "Hello <0/>"
+msgstr "Hello <0/>"
 
 ```
 
@@ -289,8 +287,8 @@ Extracted catalog (PO) for `es`, initially empty `msgstr`, but after a translato
 msgid "Hi there!"
 msgstr "¡Hola!"
 
-msgid "Hello {0}"
-msgstr "Hola {0}"
+msgid "Hello <0/>"
+msgstr "Hola <0/>"
 
 ```
 
@@ -298,14 +296,13 @@ Which is then automatically compiled to:
 
 ```javascript
 export default [
-    "¡Hola!",
+  "¡Hola!",
+  [
+    "Hola ",
     [
-        "Hola ",
-        [
-            0,
-            0
-        ]
+      0
     ]
+  ]
 ]
 ```
 
