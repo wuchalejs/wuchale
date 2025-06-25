@@ -79,122 +79,14 @@ test('Lower case string in expression tag', async function(t) { // small letter 
     `, [])
 })
 
-test('Multiple in one file', async function(t) {
-    await testContent(t, svelte`
-        <h1>Title</h1>
-        <p>{'Welcome to the app'}</p>
-        <p>Nested <b>non-mixed</b></p>
-        <p>Nested <b>mixed with {text}</b></p>
-        <p>Nested <b>{expressionOnly}</b></p>
-        <p>
-            Nested deep nontext
-            <b>
-                <i>
-                    <Icon />
-                    <OtherComponent prop={prop} />
-                </i>
-            </b>
-        </p>
-    `, svelte`
-        <script>
-            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
-            import WuchaleTrans from "wuchale/runtime.svelte"
-        </script>
-        <h1>{wuchaleTrans(0)}</h1>
-        <p>{wuchaleTrans(1)}</p>
-        <p>
-            {#snippet wuchaleSnippet0(ctx)}
-                <b>{wuchaleTransCtx(ctx)}</b>
-            {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
-        </p>
-        <p>
-            {#snippet wuchaleSnippet0(ctx)}
-                <b>{wuchaleTransCtx(ctx, [text])}</b>
-            {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet0]} id={3} />
-        </p>
-        <p>
-            {#snippet wuchaleSnippet0(ctx)}
-                <b>{expressionOnly}</b>
-            {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet0]} id={4} />
-        </p>
-        <p>
-            {#snippet wuchaleSnippet0(ctx)}
-                <b>
-                    <i>
-                        <Icon />
-                        <OtherComponent prop={prop} />
-                    </i>
-                </b>
-            {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet0]} id={5} />
-        </p>
-    `, `
-        msgid ""
-        msgstr ""
-
-        #: src/test.svelte
-        msgid "Title"
-        msgstr "Title"
-
-        #: src/test.svelte
-        msgid "Welcome to the app"
-        msgstr "Welcome to the app"
-
-        #: src/test.svelte
-        msgid "Nested <0>non-mixed</0>"
-        msgstr "Nested <0>non-mixed</0>"
-
-        #: src/test.svelte
-        msgid "Nested <0>mixed with {0}</0>"
-        msgstr "Nested <0>mixed with {0}</0>"
-
-        #: src/test.svelte
-        msgid "Nested <0/>"
-        msgstr "Nested <0/>"
-
-        #: src/test.svelte
-        msgid "Nested deep nontext <0/>"
-        msgstr "Nested deep nontext <0/>"
-    `, [
-          'Title',
-          'Welcome to the app',
-          [
-            'Nested ',
-            [
-              0,
-              'non-mixed'
-            ]
-          ],
-          [
-            'Nested ',
-            [
-              0,
-              'mixed with ',
-              0
-            ]
-          ],
-          [
-            'Nested ',
-            [
-              0
-            ]
-          ],
-          [
-            'Nested deep nontext ',
-            [
-              0
-            ]
-          ]
-    ])
-})
-
-test('Complicated', async function(t) {
-    const content = (await readFile('tests/complicated/app.svelte')).toString()
-    const contentOut = (await readFile('tests/complicated/app.out.svelte')).toString()
-    const poContents = (await readFile('tests/complicated/en.po')).toString()
-    const compiledContents = JSON.parse((await readFile('tests/complicated/en.json')).toString())
+async function testDir(t, dir) {
+    const content = (await readFile(`tests/${dir}/app.svelte`)).toString()
+    const contentOut = (await readFile(`tests/${dir}/app.out.svelte`)).toString()
+    const poContents = (await readFile(`tests/${dir}/en.po`)).toString()
+    const compiledContents = JSON.parse((await readFile(`tests/${dir}/en.json`)).toString())
     await testContent(t, content, contentOut, poContents, compiledContents)
-})
+}
+
+test('Multiple in one file', async t => await testDir(t, 'multiple'))
+
+test('Complicated', async t => await testDir(t, 'complicated'))

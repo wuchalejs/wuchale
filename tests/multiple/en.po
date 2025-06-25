@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+
+#: src/test.svelte
+msgid "Title"
+msgstr "Title"
+
+#: src/test.svelte
+msgid "Welcome to the app"
+msgstr "Welcome to the app"
+
+#: src/test.svelte
+msgid "Nested <0>non-mixed</0>"
+msgstr "Nested <0>non-mixed</0>"
+
+#: src/test.svelte
+msgid "Nested <0>mixed with {0}</0>"
+msgstr "Nested <0>mixed with {0}</0>"
+
+#: src/test.svelte
+msgid "Nested <0/>"
+msgstr "Nested <0/>"
+
+#: src/test.svelte
+msgid "Nested deep nontext <0/>"
+msgstr "Nested deep nontext <0/>"
