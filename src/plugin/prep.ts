@@ -474,7 +474,7 @@ export default class Preprocess {
 
     visitFragment = (node: AST.Fragment): NestText[] => {
         const txts = []
-        for (const child of node.nodes) {
+        for (const child of node?.nodes ?? []) {
             txts.push(...this.visit(child))
         }
         return txts
