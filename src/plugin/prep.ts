@@ -378,6 +378,8 @@ export default class Preprocess {
         const nTxt = new NestText(txt, 'markup', this.context)
         if (hasTextChild || hasTextDescendants) {
             txts.push(nTxt)
+        } else {
+            return txts
         }
         if (childrenForSnippets.length) {
             const snippets = []

@@ -2,16 +2,11 @@
 // @ts-nocheck
 
 import { test } from 'node:test'
-import plugin from '../dist/plugin/index.js'
 import { parse } from 'svelte/compiler'
 import { readFile } from 'fs/promises'
 import compileTranslation from '../dist/plugin/compile.js'
 import PO from 'pofile'
-
-const config = { otherLocales: [], geminiAPIKey: null }
-
-// only for syntax highlighting
-const svelte = foo => foo[0]
+import { getOutput, svelte } from './check.js'
 
 function trimLines(str) {
     if (!str) {
@@ -24,14 +19,6 @@ function trimLines(str) {
         }
     }
     return result.join('\n')
-}
-
-async function getOutput(content) {
-    const plug = await plugin(config)
-    await plug.configResolved({env: {PROD: null}, root: process.cwd()})
-    const { _translations: translations, _compiled: compiled } = plug
-    const processed = await plug.transformHandler(content, process.cwd() + '/src/test.svelte')
-    return { processed, translations, compiled }
 }
 
 async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
@@ -99,6 +86,15 @@ test('Multiple in one file', async function(t) {
         <p>Nested <b>non-mixed</b></p>
         <p>Nested <b>mixed with {text}</b></p>
         <p>Nested <b>{expressionOnly}</b></p>
+        <p>
+            Nested deep nontext
+            <b>
+                <i>
+                    <Icon />
+                    <OtherComponent prop={prop} />
+                </i>
+            </b>
+        </p>
     `, svelte`
         <script>
             import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
@@ -124,6 +120,17 @@ test('Multiple in one file', async function(t) {
             {/snippet}
             <WuchaleTrans tags={[wuchaleSnippet0]} id={4} />
         </p>
+        <p>
+            {#snippet wuchaleSnippet0(ctx)}
+                <b>
+                    <i>
+                        <Icon />
+                        <OtherComponent prop={prop} />
+                    </i>
+                </b>
+            {/snippet}
+            <WuchaleTrans tags={[wuchaleSnippet0]} id={5} />
+        </p>
     `, `
         msgid ""
         msgstr ""
@@ -147,6 +154,10 @@ test('Multiple in one file', async function(t) {
         #: src/test.svelte
         msgid "Nested <0/>"
         msgstr "Nested <0/>"
+
+        #: src/test.svelte
+        msgid "Nested deep nontext <0/>"
+        msgstr "Nested deep nontext <0/>"
     `, [
           'Title',
           'Welcome to the app',
@@ -167,6 +178,12 @@ test('Multiple in one file', async function(t) {
           ],
           [
             'Nested ',
+            [
+              0
+            ]
+          ],
+          [
+            'Nested deep nontext ',
             [
               0
             ]
