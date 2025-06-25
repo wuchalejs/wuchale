@@ -14,6 +14,7 @@ export type HeuristicFunc = (text: string, scope: TxtScope) => boolean
 
 const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
+const ignoreElements = ['svg']
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 const rtFuncCtx = 'wuchaleTransCtx'
@@ -282,6 +283,9 @@ export default class Preprocess {
             nodes: ElementNode[]
         }
     }): NestText[] => {
+        if (ignoreElements.includes(node.name)) {
+            return []
+        }
         const txts: NestText[] = []
         for (const attrib of node.attributes) {
             txts.push(...this.visit(attrib))
@@ -294,11 +298,11 @@ export default class Preprocess {
         const textNodesToModify = {}
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const [pass, modify] = this.checkHeuristic(child.data, 'markup')
+                const [pass, nTxt] = this.checkHeuristic(child.data, 'markup')
                 if (pass) {
                     hasTextChild = true
-                    textNodesToModify[i] = modify
-                } else if (i === 0 && modify != null) { // non whitespace
+                    textNodesToModify[i] = nTxt
+                } else if (i === 0 && nTxt != null) { // non whitespace
                     return txts // explicitly to ignore
                 }
             } else if (child.type !== 'Comment') {

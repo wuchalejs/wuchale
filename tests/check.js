@@ -22,4 +22,4 @@ export const svelte = foo => foo[0]
 //
 // `)
 // console.log(p.processed.code)
-// console.log(Object.keys(p.translations.en)[0])
+// console.log(Object.keys(p.translations.en))
