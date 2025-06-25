@@ -1,57 +1,77 @@
 {
-  "name": "wuchale",
-  "version": "0.5.4",
-  "description": "i18n for svelte without turning your codebase upside down",
-  "scripts": {
-    "build": "tsc",
-    "test": "node tests"
-  },
-  "keywords": [
-    "svelte",
-    "js",
-    "i18n"
-  ],
-  "files": [
-    "dist",
-    "runtime.svelte"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.js"
+    "name": "wuchale",
+    "version": "0.5.4",
+    "description": "i18n for svelte without turning your codebase upside down",
+    "scripts": {
+        "build": "tsc",
+        "test": "node tests"
     },
-    "./config.js": {
-      "import": "./dist/config.js",
-      "types": "./dist/config.d.ts"
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "svelte",
+        "sveltekit",
+        "vite",
+        "po",
+        "svelte-i18n",
+        "vite-plugin",
+        "compile-time",
+        "runtime-free",
+        "zero-runtime",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight",
+        "svelte-plugin"
+    ],
+    "files": [
+        "dist",
+        "runtime.svelte"
+    ],
+    "exports": {
+        ".": {
+            "import": "./dist/index.js"
+        },
+        "./config.js": {
+            "import": "./dist/config.js",
+            "types": "./dist/config.d.ts"
+        },
+        "./runtime.svelte.js": {
+            "import": "./dist/runtime.svelte.js",
+            "types": "./dist/runtime.svelte.d.ts"
+        },
+        "./runtime.svelte": "./runtime.svelte"
     },
-    "./runtime.svelte.js": {
-      "import": "./dist/runtime.svelte.js",
-      "types": "./dist/runtime.svelte.d.ts"
+    "types": "./dist/index.d.ts",
+    "bin": {
+        "wuchale": "./dist/cli.js"
     },
-    "./runtime.svelte": "./runtime.svelte"
-  },
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "wuchale": "./dist/cli.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/K1DV5/wuchale.git"
-  },
-  "homepage": "https://github.com/K1DV5/wuchale",
-  "bugs": "https://github.com/K1DV5/wuchale/issues",
-  "author": "K1DV5",
-  "license": "MIT",
-  "dependencies": {
-    "@sveltejs/acorn-typescript": "^1.0.5",
-    "acorn": "^8.15.0",
-    "magic-string": "^0.30.17",
-    "pofile": "^1.1.4",
-    "svelte": "^5.28.1",
-    "tinyglobby": "^0.2.14"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.3",
-    "typescript": "^5.8.3"
-  },
-  "type": "module"
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/K1DV5/wuchale.git"
+    },
+    "homepage": "https://github.com/K1DV5/wuchale",
+    "bugs": "https://github.com/K1DV5/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "dependencies": {
+        "@sveltejs/acorn-typescript": "^1.0.5",
+        "acorn": "^8.15.0",
+        "magic-string": "^0.30.17",
+        "pofile": "^1.1.4",
+        "svelte": "^5.28.1",
+        "tinyglobby": "^0.2.14"
+    },
+    "devDependencies": {
+        "@types/node": "^24.0.3",
+        "typescript": "^5.8.3"
+    },
+    "type": "module"
 }
