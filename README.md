@@ -48,7 +48,7 @@ and it will still extract the correct texts.
 
 Messages are compiled into arrays with index-based lookups. Runtime only
 concatenates and renders — no regex, replace, or complex logic. And the
-compiled bundles are as small as possible, they don't even have keys.
+compiled bundles are as small as possible -- they don't even have keys.
 
 ### 🔁 Optional HMR & Dev Translations Live updates during development.
 
@@ -204,23 +204,32 @@ search params like `?locale=es` (if you set up `es` in `otherLocales`)
 
 For Svelte you can set up lazy loading and code splitting (recommended). Taking
 the default template as an example, the main component is located in
-`src/App.svelte`.
+`src/App.svelte`. We can take advantage of Svelte's await blocks.
 
 ```svelte
-<script>
+<script lang="ts">
     import {setTranslations} from 'wuchale/runtime.svelte.js'
+
+    async function loadTranslations(locale: string) {
+        // IMPORTANT! The path should be relative to the current file (vite restriction).
+        // but this only applies if you want to do lazy loading.
+        // Otherwise you can do an absolute import at the top
+        const mod = await import(`./locales/${locale}.js`)
+        setTranslations(mod.default)
+    }
 
     let locale = $state('en')
 
-    $effect.pre(() => {
-        // IMPORTANT! The path should be relative to the current file (vite restriction).
-        import(`../locales/${locale}.js`).then(mod => {
-            setTranslations(mod.default)
-        })
-        // but this only applies if you want to do lazy loading.
-        // Otherwise you can do an absolute import
-    })
 </script>
+
+{#await loadTranslations(locale)}
+    <!-- Ignore because it will be rendered before the language data loads -->
+    <!-- @wc-ignore -->
+    Loading translations...
+{:then}
+    <!-- The rest of your content -->
+{/await}
+
 ```
 
 Note that you manage the state of which locale is active and how to download
