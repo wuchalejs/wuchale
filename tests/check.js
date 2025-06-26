@@ -14,12 +14,11 @@ export async function getOutput(content) {
 }
 
 // only for syntax highlighting
-export const svelte = foo => foo[0]
+export const svelte = foo => foo.join('')
 
 // const p = await getOutput(svelte`
-//
-// <p>Hello <b><i><Icon /></i></b></p>
-//
+// <p>
+// </p>
 // `)
 // console.log(p.processed.code)
 // console.log(Object.keys(p.translations.en))

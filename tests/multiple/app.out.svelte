@@ -11,19 +11,19 @@
     <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
 </p>
 <p>
-    {#snippet wuchaleSnippet0(ctx)}
+    {#snippet wuchaleSnippet1(ctx)}
         <b>{wuchaleTransCtx(ctx, [text])}</b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet0]} id={3} />
+    <WuchaleTrans tags={[wuchaleSnippet1]} id={3} />
 </p>
 <p>
-    {#snippet wuchaleSnippet0(ctx)}
+    {#snippet wuchaleSnippet2()}
         <b>{expressionOnly}</b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet0]} id={4} />
+    <WuchaleTrans tags={[wuchaleSnippet2]} id={4} />
 </p>
 <p>
-    {#snippet wuchaleSnippet0(ctx)}
+    {#snippet wuchaleSnippet3()}
         <b>
             <i>
                 <Icon />
@@ -31,5 +31,5 @@
             </i>
         </b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet0]} id={5} />
+    <WuchaleTrans tags={[wuchaleSnippet3]} id={5} />
 </p>

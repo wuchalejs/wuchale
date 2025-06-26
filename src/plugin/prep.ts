@@ -83,6 +83,7 @@ export default class Preprocess {
     forceInclude: boolean | null = null
     context: string | null = null
     insideDerived: boolean = false
+    currentSnippet: number = 0
 
     constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic) {
         this.index = index
@@ -315,7 +316,7 @@ export default class Preprocess {
         let iArg = 0
         let iTag = 0
         const lastChildEnd = node.fragment.nodes.slice(-1)[0].end
-        const childrenForSnippets: [number, number, number][] = []
+        const childrenForSnippets: [number, number, boolean][] = []
         let hasTextDescendants = false
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Comment') {
@@ -353,22 +354,24 @@ export default class Preprocess {
             // elements and components
             // @ts-ignore
             child.inCompoundText = true
+            let snippNeedsCtx = false
             let chTxt = ''
             for (const txt of this.visit(child)) {
                 if (nodesWithChildren.includes(child.type) && txt.scope === 'markup') {
                     chTxt += txt.toString()
                     hasTextDescendants = true
+                    snippNeedsCtx = true
                 } else { // attributes, blocks
                     txts.push(txt)
                 }
             }
+            childrenForSnippets.push([child.start, child.end, snippNeedsCtx])
             if (nodesWithChildren.includes(child.type) && chTxt) {
                 chTxt = `<${iTag}>${chTxt}</${iTag}>`
             } else {
                 // childless elements and everything else
                 chTxt = `<${iTag}/>`
             }
-            childrenForSnippets.push([iTag, child.start, child.end])
             iTag++
             if (chTxt && !txt.endsWith(' ')) {
                 txt += ' '
@@ -388,13 +391,13 @@ export default class Preprocess {
         if (childrenForSnippets.length) {
             const snippets = []
             // create and reference snippets
-            for (const [iTag, childStart, childEnd] of childrenForSnippets) {
-                const snippetName = `${snipPrefix}${iTag}`
-                const snippetBegin = `\n{#snippet ${snippetName}(ctx)}\n`
-                const snippetEnd = '\n{/snippet}'
+            for (const [childStart, childEnd, haveCtx] of childrenForSnippets) {
+                const snippetName = `${snipPrefix}${this.currentSnippet}`
+                snippets.push(snippetName)
+                this.currentSnippet++
+                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? 'ctx' : ''})}\n`
                 this.mstr.appendRight(childStart, snippetBegin)
-                this.mstr.prependLeft(childEnd, snippetEnd)
-                snippets.push(`${snipPrefix}${iTag}`)
+                this.mstr.prependLeft(childEnd, '\n{/snippet}')
             }
             let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} `
             if (node.inCompoundText) {
@@ -613,6 +616,7 @@ export default class Preprocess {
     process = (content: string, ast: Program | AST.Root): NestText[] => {
         this.content = content
         this.mstr = new MagicString(content)
-        return this.visit(ast)
+        const p = this.visit(ast)
+        return p
     }
 }
