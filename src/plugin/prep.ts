@@ -18,7 +18,9 @@ const ignoreElements = ['svg']
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 const rtFuncCtx = 'wuchaleTransCtx'
-const importModule = `import {${rtFunc}, ${rtFuncCtx}} from "wuchale/runtime.svelte.js"`
+const rtFuncPlural = 'wuchaleTransPlural'
+const rtPluralsRule = 'wuchalePluralsRule'
+const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
 export function defaultHeuristic(text: string, scope: TxtScope) {
@@ -31,18 +33,24 @@ export function defaultHeuristic(text: string, scope: TxtScope) {
     return startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)
 }
 
-export class NestText extends String {
+export class NestText {
 
+    text: string[] // array for plurals
+    plural: boolean = false
     scope: TxtScope
     context: string
 
-    constructor(txt: string, scope: TxtScope, context: string | null = null) {
-        super(txt)
+    constructor(txt: string | string[], scope: TxtScope, context: string | null = null) {
+        if (typeof txt === 'string') {
+            this.text = [txt]
+        } else {
+            this.text = txt
+        }
         this.scope = scope
         this.context = context ?? null
     }
 
-    toKey = () => `${this.toString()}\n${this.context ?? ''}`.trim()
+    toKey = () => `${this.text.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
 
 }
 
@@ -84,10 +92,12 @@ export default class Preprocess {
     context: string | null = null
     insideDerived: boolean = false
     currentSnippet: number = 0
+    pluralFunc: string
 
-    constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic) {
+    constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, pluralsFunc: string = 'plural') {
         this.index = index
         this.heuristic = heuristic
+        this.pluralFunc = pluralsFunc
     }
 
     checkHeuristic = (text: string, scope: TxtScope): [boolean, NestText] => {
@@ -142,12 +152,36 @@ export default class Preprocess {
         ...this.visit(node.property),
     ]
 
-    visitCallExpression = (node: Estree.CallExpression): NestText[] => {
+    defaultVisitCallExpression = (node: Estree.CallExpression): NestText[] => {
         const txts = [...this.visit(node.callee)]
         for (const arg of node.arguments) {
             txts.push(...this.visit(arg))
         }
         return txts
+    }
+
+    visitCallExpression = (node: Estree.CallExpression): NestText[] => {
+        if (node.callee.type !== 'Identifier' || node.callee.name !== this.pluralFunc) {
+            return this.defaultVisitCallExpression(node)
+        }
+        // plural(num, ['Form one', 'Form two'])
+        const secondArg = node.arguments[1]
+        if (secondArg === null || secondArg.type !== 'ArrayExpression') {
+            return this.defaultVisitCallExpression(node)
+        }
+        const candidates = []
+        for (const elm of secondArg.elements) {
+            if (elm.type !== 'Literal' || typeof elm.value !== 'string') {
+                return this.defaultVisitCallExpression(node)
+            }
+            candidates.push(elm.value)
+        }
+        const nTxt = new NestText(candidates, 'script')
+        nTxt.plural = true
+        const index = this.index.get(nTxt.toKey())
+        // @ts-ignore
+        this.mstr.update(secondArg.start, node.end - 1, `${rtFuncPlural}(${index}), ${rtPluralsRule}()`)
+        return [nTxt]
     }
 
     visitBinaryExpression = (node: Estree.BinaryExpression): NestText[] => [
@@ -249,7 +283,7 @@ export default class Preprocess {
         if (!pass) {
             return txts
         }
-        let txt = txt0.toString()
+        let txt = txt0.text[0]
         for (const [i, expr] of node.expressions.entries()) {
             txts.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
@@ -296,7 +330,7 @@ export default class Preprocess {
         }
         let hasTextChild = false
         let hasNonTextChild = false
-        const textNodesToModify = {}
+        const textNodesToModify: NestText[] = []
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
                 const [pass, nTxt] = this.checkHeuristic(child.data, 'markup')
@@ -323,11 +357,11 @@ export default class Preprocess {
                 continue
             }
             if (child.type === 'Text') {
-                const modify = textNodesToModify[i]
-                if (modify == null) { // whitespace
+                const nTxt = textNodesToModify[i]
+                if (nTxt == null) { // whitespace
                     continue
                 }
-                txt += ' ' + modify
+                txt += ' ' + nTxt.text
                 this.mstr.remove(child.start, child.end)
                 continue
             }
@@ -358,7 +392,7 @@ export default class Preprocess {
             let chTxt = ''
             for (const txt of this.visit(child)) {
                 if (nodesWithChildren.includes(child.type) && txt.scope === 'markup') {
-                    chTxt += txt.toString()
+                    chTxt += txt.text[0]
                     hasTextDescendants = true
                     snippNeedsCtx = true
                 } else { // attributes, blocks

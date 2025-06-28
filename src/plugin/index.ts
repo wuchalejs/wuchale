@@ -17,12 +17,14 @@ const virtualResolvedPrefix = '\0'
 const modulePatterns = ['.svelte.js', '.svelte.ts']
 const markupPatterns = ['.svelte']
 const patterns = [...modulePatterns, ...markupPatterns]
+const defaultPluralsRule = 'n === 1 ? 0 : 1'
 
 interface LoadedPO {
     translations: Translations,
     total: number,
     obsolete: number,
     untranslated: number,
+    headers: {[key: string]: string},
 }
 
 const ScriptParser = Parser.extend(tsPlugin())
@@ -64,16 +66,17 @@ async function loadPOFile(filename: string): Promise<LoadedPO> {
                 if (!item.msgstr[0]) {
                     untranslated++
                 }
-                const nTxt = new NestText(item.msgid, null, item.msgctxt)
+                const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
                 translations[nTxt.toKey()] = item
             }
-            res({ translations, total, obsolete, untranslated })
+            res({ translations, total, obsolete, untranslated, headers: po.headers })
         })
     })
 }
 
-async function savePO(translations: ItemType[], filename: string): Promise<void> {
+async function savePO(translations: ItemType[], filename: string, headers = {}): Promise<void> {
     const po = new PO()
+    po.headers = headers
     for (const item of Object.values(translations)) {
         po.items.push(item)
     }
@@ -95,6 +98,12 @@ class Plugin {
     #config: Config
 
     locales: string[]
+
+    _poHeaders: {[loc: string]: {[key: string]: string}} = {}
+    _plurals: {[loc: string]: {
+        rule: string,
+        n: number,
+    }} = {}
 
     // exposed for testing
     _translations: { [loc: string]: { [key: string]: ItemType } } = {}
@@ -160,9 +169,24 @@ class Plugin {
         await Promise.all(all)
     }
 
+    #fullHeaders = (loc: string) => {
+        const defaultHeaders = [
+            ['Plural-Forms', `nplurals=${this._plurals[loc].n}; plural=${this._plurals[loc].rule};`],
+            ['Language', loc]
+        ]
+        const fullHead = {...this._poHeaders[loc] ?? {}}
+        for (const [key, defaultVal] of defaultHeaders) {
+            if (!fullHead[key]) {
+                fullHead[key] = defaultVal
+            }
+        }
+        return fullHead
+    }
+
     #loadTranslations = async (loc: string) => {
         try {
-            const { translations: trans, total, obsolete, untranslated } = await loadPOFile(this.#translationsFname[loc])
+            const { translations: trans, total, obsolete, untranslated, headers } = await loadPOFile(this.#translationsFname[loc])
+            this._poHeaders[loc] = headers
             this._translations[loc] = trans
             console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
         } catch (err) {
@@ -173,6 +197,13 @@ class Plugin {
                 await this.directExtract()
             }
         }
+        const pluralForms = PO.parsePluralForms(this._poHeaders[loc]['Plural-Forms'])
+        this._plurals[loc] = {
+            // @ts-ignore
+            rule: pluralForms.plural ?? defaultPluralsRule,
+            // @ts-ignore
+            n: pluralForms.nplurals ?? 2,
+        }
     }
 
     #compile = (loc: string) => {
@@ -180,7 +211,18 @@ class Plugin {
         for (const key in this._translations[loc]) {
             const poItem = this._translations[loc][key]
             const index = this.#indexTracker.get(key)
-            this._compiled[loc][index] = compileTranslation(poItem.msgstr[0], this._compiled[this.#config.sourceLocale][index])
+            let compiled: CompiledFragment
+            const fallback = this._compiled[this.#config.sourceLocale][index]
+            if (poItem.msgid_plural) {
+                if (poItem.msgstr.join('').trim()) {
+                    compiled = poItem.msgstr
+                } else {
+                    compiled = fallback
+                }
+            } else {
+                compiled = compileTranslation(poItem.msgstr[0], fallback)
+            }
+            this._compiled[loc][index] = compiled
         }
         for (const [i, item] of this._compiled[loc].entries()) {
             if (item == null) {
@@ -203,13 +245,13 @@ class Plugin {
         }
         for (const loc of this.locales) {
             this.#compile(loc)
-            await writeFile(this.#compiledFname[loc], `export {default} from '${virtualPrefix}${loc}'`)
+            await writeFile(this.#compiledFname[loc], `export {default, pluralsRule} from '${virtualPrefix}${loc}'`)
         }
     }
 
     afterExtract = async (loc: string) => {
         if (this.#currentPurpose !== 'test') {
-            await savePO(Object.values(this._translations[loc]), this.#translationsFname[loc])
+            await savePO(Object.values(this._translations[loc]), this.#translationsFname[loc], this.#fullHeaders(loc))
         }
         if (this.#currentPurpose !== 'extract') {
             this.#compile(loc)
@@ -228,8 +270,12 @@ class Plugin {
                 let key = nTxt.toKey()
                 let translated = this._translations[loc][key]
                 if (!translated) {
-                    translated = new PO.Item()
-                    translated.msgid = nTxt.toString()
+                    // @ts-ignore
+                    translated = new PO.Item({ nplurals: this._plurals[loc].n })
+                    translated.msgid = nTxt.text[0]
+                    if (nTxt.plural) {
+                        translated.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
+                    }
                     this._translations[loc][key] = translated
                 }
                 if (nTxt.context) {
@@ -239,9 +285,9 @@ class Plugin {
                     translated.references.push(filename)
                 }
                 if (loc === this.#config.sourceLocale) {
-                    const txt = nTxt.toString()
-                    if (translated.msgstr[0] !== txt) {
-                        translated.msgstr = [txt]
+                    const txt = nTxt.text.join('\n')
+                    if (translated.msgstr.join('\n') !== txt) {
+                        translated.msgstr = nTxt.text
                         newTxts.push(translated)
                     }
                 } else if (!translated.msgstr[0]) {
@@ -323,7 +369,8 @@ class Plugin {
             return null
         }
         const locale = id.slice(prefix.length)
-        return `export default ${JSON.stringify(this._compiled[locale])}`
+        const pluralRule = `export const pluralsRule = n => ${this._plurals[locale].rule}\n`
+        return `${pluralRule}export default ${JSON.stringify(this._compiled[locale])}`
     }
 
     transformHandler = async (code: string, id: string) => {

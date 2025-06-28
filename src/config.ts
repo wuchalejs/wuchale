@@ -6,6 +6,7 @@ export interface Config {
     localesDir?: string
     srcDirs?: string[]
     heuristic?: HeuristicFunc
+    pluralFunc?: string
     hmr?: boolean
     geminiAPIKey?: string,
 }
@@ -16,6 +17,7 @@ export const defaultOptions: Config = {
     localesDir: './src/locales',
     srcDirs: ['src'],
     heuristic: defaultHeuristic,
+    pluralFunc: 'plural',
     hmr: true,
     geminiAPIKey: 'env',
 }

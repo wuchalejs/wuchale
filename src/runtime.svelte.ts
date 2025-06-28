@@ -1,10 +1,17 @@
-let translations = $state({})
-
 type Composite = (number | string | Composite)[]
+type PluralsRule = (n: number) => number
 
-export function setTranslations(transArray: (string | Composite)[]) {
-    translations = transArray
+const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
+
+let translations: (string | Composite)[] = $state([])
+let pluralsRule = $state(defaultPluralsRule)
+
+export function setTranslations(mod: {default: (string | Composite)[], pluralsRule: PluralsRule}) {
+    translations = mod.default
+    pluralsRule = mod.pluralsRule ?? pluralsRule
 }
+
+export const wuchalePluralsRule = () => pluralsRule
 
 export function getCtx(id: number) {
     const ctx = translations[id]
@@ -31,6 +38,10 @@ export function wuchaleTransCtx(ctx: Composite, args: any[] = [], start = 1) {
         }
     }
     return txt
+}
+
+export function wuchaleTransPlural(id: number) {
+    return translations[id] ?? []
 }
 
 export function wuchaleTrans(id: number, args: any[] = []) {

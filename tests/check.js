@@ -17,8 +17,9 @@ export async function getOutput(content) {
 export const svelte = foo => foo.join('')
 
 // const p = await getOutput(svelte`
-// <p>
-// </p>
+// <i>Hola</i>
+// <p>{plural(2, ['one', 'two', 'three'],)}</p>
 // `)
+//
 // console.log(p.processed.code)
-// console.log(Object.keys(p.translations.en))
+// console.log(Object.values(p.translations.en))
