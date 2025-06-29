@@ -1,43 +1,43 @@
 <script>
-import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
-import WuchaleTrans from "wuchale/runtime.svelte"
-const normalParam = 44;
-function someFunction(a, b, c) {
-    return true;
-}
-const collection = { members: [1] };
-const someJSEven = 34;
-const obj = $derived({
-    property: {
-        ["non-extracted text"]: { [wuchaleTrans(0)]: 42 },
-    },
-});
-const p = {
-    id: 23,
-    name: 'foo',
-}
-const derived = $derived.by(() => {
-    const f = wuchaleTrans(9)
-    if (!f) return
-    let e = {}
-    if (f == 'something else') {
-        let d = wuchaleTrans(10)
-        d = d + wuchaleTrans(11)
-        return d
-    } else if (f == wuchaleTrans(12)) {
-        return f
-    } else {
-        for (const q of [1,2,3]) {
-            e[`${q}/${collection.members[0]}`] = {...p, name: wuchaleTrans(13)}
+    import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
+    import WuchaleTrans from "wuchale/runtime.svelte"
+    const normalParam = 44;
+    function someFunction(a, b, c) {
+        return true;
+    }
+    const collection = { members: [1] };
+    const someJSEven = 34;
+    const obj = $derived({
+        property: {
+            ["non-extracted text"]: { [wuchaleTrans(0)]: 42 },
+        },
+    });
+    const p = {
+        id: 23,
+        name: 'foo',
+    }
+    const derived = $derived.by(() => {
+        const f = wuchaleTrans(9)
+        if (!f) return
+        let e = {}
+        if (f == 'something else') {
+            let d = wuchaleTrans(10)
+            d = d + wuchaleTrans(11)
+            return d
+        } else if (f == wuchaleTrans(12)) {
+            return f
+        } else {
+            for (const q of [1,2,3]) {
+                e[`${q}/${collection.members[0]}`] = {...p, name: wuchaleTrans(13)}
+            }
+            e.default = [f, wuchaleTrans(14), e]
         }
-        e.default = [f, wuchaleTrans(14), e]
-    }
-    return {
-        [wuchaleTrans(14)]: f,
-        butNotThis: wuchaleTrans(15),
-        e
-    }
-})
+        return {
+            [wuchaleTrans(14)]: f,
+            butNotThis: wuchaleTrans(15),
+            e
+        }
+    })
 </script>
 <p>
     {#snippet wuchaleSnippet2(ctx)}

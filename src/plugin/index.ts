@@ -171,7 +171,7 @@ class Plugin {
 
     #fullHeaders = (loc: string) => {
         const defaultHeaders = [
-            ['Plural-Forms', `nplurals=${this._plurals[loc].n}; plural=${this._plurals[loc].rule};`],
+            ['Plural-Forms', `nplurals=${this._plurals[loc]?.n ?? 2}; plural=${this._plurals[loc]?.rule ?? defaultPluralsRule};`],
             ['Language', loc]
         ]
         const fullHead = {...this._poHeaders[loc] ?? {}}
@@ -235,8 +235,10 @@ class Plugin {
         for (const loc of this.locales) {
             this._translations[loc] = {}
         } // all before #loadTranslations because we will loop over them in transformHandler at startup
-        for (const loc of this.locales) {
-            await this.#loadTranslations(loc)
+        if (this.#currentPurpose !== 'test') {
+            for (const loc of this.locales) {
+                await this.#loadTranslations(loc)
+            }
         }
         this.#sourceTranslations = this._translations[this.#config.sourceLocale]
         this.#indexTracker = new IndexTracker(this.#sourceTranslations)
@@ -268,30 +270,30 @@ class Plugin {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
-                let translated = this._translations[loc][key]
-                if (!translated) {
+                let poItem = this._translations[loc][key]
+                if (!poItem) {
                     // @ts-ignore
-                    translated = new PO.Item({ nplurals: this._plurals[loc].n })
-                    translated.msgid = nTxt.text[0]
+                    poItem = new PO.Item({ nplurals: this._plurals[loc]?.n ?? 2 })
+                    poItem.msgid = nTxt.text[0]
                     if (nTxt.plural) {
-                        translated.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
+                        poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
                     }
-                    this._translations[loc][key] = translated
+                    this._translations[loc][key] = poItem
                 }
                 if (nTxt.context) {
-                    translated.msgctxt = nTxt.context
+                    poItem.msgctxt = nTxt.context
                 }
-                if (!translated.references.includes(filename)) {
-                    translated.references.push(filename)
+                if (!poItem.references.includes(filename)) {
+                    poItem.references.push(filename)
                 }
                 if (loc === this.#config.sourceLocale) {
                     const txt = nTxt.text.join('\n')
-                    if (translated.msgstr.join('\n') !== txt) {
-                        translated.msgstr = nTxt.text
-                        newTxts.push(translated)
+                    if (poItem.msgstr.join('\n') !== txt) {
+                        poItem.msgstr = nTxt.text
+                        newTxts.push(poItem)
                     }
-                } else if (!translated.msgstr[0]) {
-                    newTxts.push(translated)
+                } else if (!poItem.msgstr[0]) {
+                    newTxts.push(poItem)
                 }
             }
             if (newTxts.length == 0) {

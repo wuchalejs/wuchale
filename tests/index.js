@@ -41,7 +41,7 @@ test('Compile nested', function(t) {
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
+            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         {wuchaleTrans(0)}
@@ -58,7 +58,7 @@ test('Simple text', async function(t) {
 test('Simple element', async function(t) {
     await testContent(t, '<p>Hello</p>', svelte`
         <script>
-            import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
+            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         <p>{wuchaleTrans(0)}</p>
@@ -70,6 +70,27 @@ test('Simple element', async function(t) {
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
+})
+
+test('Plural', async function(t) {
+    await testContent(t,
+        svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
+        svelte`
+            <script>
+                import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
+                import WuchaleTrans from "wuchale/runtime.svelte"
+            </script>
+            <p>{plural(items, wuchaleTransPlural(0), wuchalePluralsRule())}</p>
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: src/test.svelte
+    msgid "One item"
+    msgid_plural "# items"
+    msgstr[0] "One item"
+    msgstr[1] "# items"
+    `, [ [ 'One item', '# items' ] ])
 })
 
 test('Lower case string in expression tag', async function(t) { // small letter beginning inside string

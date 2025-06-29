@@ -1,5 +1,5 @@
 <script>
-    import {wuchaleTrans, wuchaleTransCtx} from "wuchale/runtime.svelte.js"
+    import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
     import WuchaleTrans from "wuchale/runtime.svelte"
 </script>
 <h1>{wuchaleTrans(0)}</h1>
