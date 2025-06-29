@@ -115,6 +115,7 @@ export const defaultOptions: Config = {
     localesDir: './src/locales',
     srcDirs: ['src'],
     heuristic: defaultHeuristic,
+    pluralFunc: 'plural',
     hmr: true,
     geminiAPIKey: 'env',
 }
@@ -500,17 +501,59 @@ Excuse my poor example choice.
 
 ## Plurals?
 
-Since messages can be written anywhere in the reactive places, it was not
-necessary to have a separate plurals support because you can do something like:
+The plurals support is implemented in such a way that it extends what you likely
+write for just one language: a function that takes a number and candidates that
+returns properly structured text, that you would use like this:
 
 ```svelte
-
-<p>{items === 1 ? 'One item listed' : `${items} items listed`}
+<p>{plural(items, ['One item', '# items'])}</p>
 
 ```
 
-And they will be extracted separately. You can also make a reusable function
-yourself.
+You would implement it with a logic that selects one of the two based on the
+number and replaces the `#` with the number. Simple. Now to integrate
+`wuchale`'s plurals support, you would alter the definition of the function to
+also accept the selection rule as an additional argument with a fallback rule
+like this:
+
+```javascript
+export function plural(num, candidates, rule = n => n === 1 ? 0 : 1) {
+    const index = rule(num)
+    return candidates[index].replace('#')
+}
+```
+
+Now this can work with `wuchale`. All usages that match the call signature
+above are extended into something like:
+
+```svelte
+<p>{plural(items, wuchaleTransPlural(0), wuchalePluralsRule())}</p>
+```
+
+The source language continues to work as written because the same candidates
+will be given at runtime, but different candidates and a different rule will be
+passed for other languages. The extracted text is in the PO file format as
+well:
+
+```nginx
+# ...other headers
+"Plural-Forms: nplurals=2; plural=n === 1 ? 0 : 1;\n"
+
+#: src/test.svelte
+msgid "One item"
+msgid_plural "# items"
+msgstr[0] "One item"
+msgstr[1] "# items"
+```
+
+And there will be a header entry for the plurals support at the top where the
+number of plurals for the language and the rule for selecting from the
+candidates (an expression that uses `n` and decides the candidate index). This
+way, when the texts are extracted, the correct preparation will be made, and
+during runtime, the correct one will be selected, and lastly, your code will
+still be valid even without `wuchale`.
+
+You can change the name of the plural function in the config.
 
 ## CLI
 
