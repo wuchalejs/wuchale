@@ -6,15 +6,33 @@ import type { AST } from "svelte/compiler"
 import type Estree from 'estree'
 import type { Program, AnyNode } from "acorn"
 
-type TxtScope = "script" | "markup" | "attribute"
-
 type ElementNode = AST.ElementLike & { inCompoundText: boolean }
 
-export type HeuristicFunc = (text: string, scope: TxtScope) => boolean
+type TxtScope = "script" | "markup" | "attribute"
+
+type HeuristicDetails = {
+    scope: TxtScope,
+    element?: string,
+    attribute?: string,
+}
+
+export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean
+
+export function defaultHeuristic(text: string, details: HeuristicDetails) {
+    if (details.scope === 'markup') {
+        return true
+    }
+    if (details.element === 'path') { // ignore attributes for svg path
+        return false
+    }
+    // script and attribute
+    const range = 'AZ'
+    const startCode = text.charCodeAt(0)
+    return startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)
+}
 
 const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
-const ignoreElements = ['svg']
 const rtComponent = 'WuchaleTrans'
 const rtFunc = 'wuchaleTrans'
 const rtFuncCtx = 'wuchaleTransCtx'
@@ -22,16 +40,6 @@ const rtFuncPlural = 'wuchaleTransPlural'
 const rtPluralsRule = 'wuchalePluralsRule'
 const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
-
-export function defaultHeuristic(text: string, scope: TxtScope) {
-    if (scope === 'markup') {
-        return true
-    }
-    // script and attribute
-    const range = 'AZ'
-    const startCode = text.charCodeAt(0)
-    return startCode >= range.charCodeAt(0) && startCode <= range.charCodeAt(1)
-}
 
 export class NestText {
 
@@ -88,11 +96,14 @@ export default class Preprocess {
     heuristic: HeuristicFunc
     content: string = ''
     mstr: MagicString
+    currentSnippet: number = 0
+    pluralFunc: string
+
+    // state
     forceInclude: boolean | null = null
     context: string | null = null
     insideDerived: boolean = false
-    currentSnippet: number = 0
-    pluralFunc: string
+    currentElement: ElementNode
 
     constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, pluralsFunc: string = 'plural') {
         this.index = index
@@ -100,14 +111,14 @@ export default class Preprocess {
         this.pluralFunc = pluralsFunc
     }
 
-    checkHeuristic = (text: string, scope: TxtScope): [boolean, NestText] => {
+    checkHeuristic = (text: string, details: HeuristicDetails): [boolean, NestText] => {
         text = text.replace(/\s+/g, ' ').trim()
         if (text === '') {
             // nothing to ask
             return [false, null]
         }
-        const extract = this.forceInclude || this.heuristic(text, scope)
-        return [extract, new NestText(text, scope)]
+        const extract = this.forceInclude || this.heuristic(text, details)
+        return [extract, new NestText(text, details.scope)]
     }
 
     visitLiteral = (node: Estree.Literal & { start: number; end: number }): NestText[] => {
@@ -115,7 +126,7 @@ export default class Preprocess {
             return []
         }
         const { start, end } = node
-        const [pass, txt] = this.checkHeuristic(node.value, 'script')
+        const [pass, txt] = this.checkHeuristic(node.value, {scope: 'script'})
         if (!pass) {
             return []
         }
@@ -279,7 +290,7 @@ export default class Preprocess {
         const quasi0 = node.quasis[0]
         // @ts-ignore
         const { start: start0, end: end0 } = quasi0
-        const [pass, txt0] = this.checkHeuristic(quasi0.value.cooked, 'script')
+        const [pass, txt0] = this.checkHeuristic(quasi0.value.cooked, {scope: 'script'})
         if (!pass) {
             return txts
         }
@@ -313,14 +324,7 @@ export default class Preprocess {
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
-    visitRegularElement = (node: ElementNode & {
-        fragment: AST.Fragment & {
-            nodes: ElementNode[]
-        }
-    }): NestText[] => {
-        if (ignoreElements.includes(node.name)) {
-            return []
-        }
+    visitRegularElementCore = (node: ElementNode): NestText[] => {
         const txts: NestText[] = []
         for (const attrib of node.attributes) {
             txts.push(...this.visit(attrib))
@@ -333,7 +337,7 @@ export default class Preprocess {
         const textNodesToModify: NestText[] = []
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const [pass, nTxt] = this.checkHeuristic(child.data, 'markup')
+                const [pass, nTxt] = this.checkHeuristic(child.data, {scope: 'markup', element: node.name})
                 if (pass) {
                     hasTextChild = true
                     textNodesToModify[i] = nTxt
@@ -465,10 +469,18 @@ export default class Preprocess {
         return txts
     }
 
+    visitRegularElement = (node: ElementNode): NestText[] => {
+        const currentElement = this.currentElement
+        this.currentElement = node
+        const txts = this.visitRegularElementCore(node)
+        this.currentElement = currentElement
+        return txts
+    }
+
     visitComponent = this.visitRegularElement
 
     visitText = (node: AST.Text): NestText[] => {
-        const [pass, txt] = this.checkHeuristic(node.data, 'markup')
+        const [pass, txt] = this.checkHeuristic(node.data, {scope: 'markup'})
         if (!pass) {
             return []
         }
@@ -499,7 +511,11 @@ export default class Preprocess {
             }
             // Text
             const { start, end } = value
-            const [pass, txt] = this.checkHeuristic(value.data, 'attribute')
+            const [pass, txt] = this.checkHeuristic(value.data, {
+                scope: 'attribute',
+                element: this.currentElement.name,
+                attribute: node.name,
+            })
             if (!pass) {
                 continue
             }

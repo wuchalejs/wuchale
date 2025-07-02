@@ -93,8 +93,11 @@ test('Plural', async function(t) {
     `, [ [ 'One item', '# items' ] ])
 })
 
-test('Lower case string in expression tag', async function(t) { // small letter beginning inside string
-    await testContent(t, `<p>{'hello there'}</p>`, undefined, `
+test('Ignore some', async function(t) { // small letter beginning inside string
+    await testContent(t, svelte`
+        <p>{'hello there'}</p>
+        <svg><path d="M100 200" /></svg>
+    `, undefined, `
     msgid ""
     msgstr ""
     `, [])
