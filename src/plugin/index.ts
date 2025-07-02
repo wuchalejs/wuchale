@@ -100,10 +100,6 @@ class Plugin {
     locales: string[]
 
     _poHeaders: {[loc: string]: {[key: string]: string}} = {}
-    _plurals: {[loc: string]: {
-        rule: string,
-        n: number,
-    }} = {}
 
     // exposed for testing
     _translations: { [loc: string]: { [key: string]: ItemType } } = {}
@@ -132,18 +128,22 @@ class Plugin {
 
     init = async (configRaw: Config) => {
         this.#config = await getOptions(configRaw)
-        this.locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
+        this.locales = [
+            this.#config.sourceLocale,
+            ...Object.keys(this.#config.locales).filter(loc => loc != this.#config.sourceLocale),
+        ]
         for (const loc of this.locales) {
             this.#compiledFname[loc] = `${this.#config.localesDir}/${loc}.js`
             this.#translationsFname[loc] = `${this.#config.localesDir}/${loc}.po`
         }
-        for (const loc of this.#config.otherLocales) {
+        const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
+        for (const loc of this.locales) {
             if (loc === this.#config.sourceLocale) {
-                throw Error('Source locale cannot included in other locales.')
+                continue
             }
             this.#geminiQueue[loc] = new GeminiQueue(
-                this.#config.sourceLocale,
-                loc,
+                sourceLocaleName,
+                this.#config.locales[loc].name,
                 this.#config.geminiAPIKey,
                 async () => await this.afterExtract(loc),
             )
@@ -170,15 +170,14 @@ class Plugin {
     }
 
     #fullHeaders = (loc: string) => {
+        const localeConf = this.#config.locales[loc]
         const defaultHeaders = [
-            ['Plural-Forms', `nplurals=${this._plurals[loc]?.n ?? 2}; plural=${this._plurals[loc]?.rule ?? defaultPluralsRule};`],
-            ['Language', loc]
+            ['Plural-Forms', `nplurals=${localeConf.nPlurals ?? 2}; plural=${localeConf.pluralRule ?? defaultPluralsRule};`],
+            ['Language', this.#config.locales[loc].name]
         ]
         const fullHead = {...this._poHeaders[loc] ?? {}}
         for (const [key, defaultVal] of defaultHeaders) {
-            if (!fullHead[key]) {
-                fullHead[key] = defaultVal
-            }
+            fullHead[key] = defaultVal
         }
         return fullHead
     }
@@ -188,7 +187,8 @@ class Plugin {
             const { translations: trans, total, obsolete, untranslated, headers } = await loadPOFile(this.#translationsFname[loc])
             this._poHeaders[loc] = headers
             this._translations[loc] = trans
-            console.info(`i18n stats (${loc}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
+            const locName = this.#config.locales[loc].name
+            console.info(`i18n stats (${locName}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
@@ -196,13 +196,6 @@ class Plugin {
             if (this.#currentPurpose === 'dev') {
                 await this.directExtract()
             }
-        }
-        const pluralForms = PO.parsePluralForms(this._poHeaders[loc]['Plural-Forms'])
-        this._plurals[loc] = {
-            // @ts-ignore
-            rule: pluralForms.plural ?? defaultPluralsRule,
-            // @ts-ignore
-            n: pluralForms.nplurals ?? 2,
         }
     }
 
@@ -273,7 +266,7 @@ class Plugin {
                 let poItem = this._translations[loc][key]
                 if (!poItem) {
                     // @ts-ignore
-                    poItem = new PO.Item({ nplurals: this._plurals[loc]?.n ?? 2 })
+                    poItem = new PO.Item({ nplurals: this.#config.locales[loc].nPlurals ?? 2 })
                     poItem.msgid = nTxt.text[0]
                     if (nTxt.plural) {
                         poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
@@ -305,7 +298,8 @@ class Plugin {
             }
             const newRequest = this.#geminiQueue[loc].add(newTxts)
             const opType = `(${newRequest ? 'new request' : 'add to request'})`
-            console.info('Gemini translate', newTxts.length, 'items to', loc, opType)
+            const locName = this.#config.locales[loc].name
+            console.info('Gemini translate', newTxts.length, 'items to', locName, opType)
             await this.#geminiQueue[loc].running
         }
         return {
@@ -371,8 +365,9 @@ class Plugin {
             return null
         }
         const locale = id.slice(prefix.length)
-        const pluralRule = `export const pluralsRule = n => ${this._plurals[locale].rule}\n`
-        return `${pluralRule}export default ${JSON.stringify(this._compiled[locale])}`
+        const pluralsRule = this.#config.locales[locale].pluralRule ?? defaultPluralsRule
+        const pluralRuleExport = `export const pluralsRule = n => ${pluralsRule}\n`
+        return `${pluralRuleExport}export default ${JSON.stringify(this._compiled[locale])}`
     }
 
     transformHandler = async (code: string, id: string) => {

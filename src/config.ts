@@ -1,8 +1,14 @@
 import { defaultHeuristic, type HeuristicFunc } from "./plugin/prep.js"
 
+type LocaleConf = {
+    name: string
+    nPlurals?: number
+    pluralRule?: string
+}
+
 export interface Config {
     sourceLocale?: string
-    otherLocales?: string[]
+    locales?: {[locale: string]: LocaleConf}
     localesDir?: string
     srcDirs?: string[]
     heuristic?: HeuristicFunc
@@ -13,7 +19,7 @@ export interface Config {
 
 export const defaultOptions: Config = {
     sourceLocale: 'en',
-    otherLocales: [],
+    locales: {en: {name: 'English'}},
     localesDir: './src/locales',
     srcDirs: ['src'],
     heuristic: defaultHeuristic,
@@ -22,9 +28,20 @@ export const defaultOptions: Config = {
     geminiAPIKey: 'env',
 }
 
-function mergeOptions(fromOpt: Config, toOpt: Config) {
-    for (const key of Object.keys(fromOpt)) {
-        toOpt[key] = fromOpt[key]
+function deepAssign(fromObj: object, toObj: object) {
+    for (const [key, value] of Object.entries(fromObj)) {
+        if (value === undefined) {
+            delete toObj[key]
+        }
+        if (!value || Array.isArray(value) || typeof value !== 'object') {
+            toObj[key] = value
+            continue
+        }
+        // objects
+        if (!toObj[key]) {
+            toObj[key] = {}
+        }
+        deepAssign(fromObj[key], toObj[key])
     }
 }
 
@@ -32,8 +49,8 @@ export async function getOptions(codeOptions: Config = {}) {
     const options: Config = defaultOptions
     try {
         const module = await import(process.cwd() + '/wuchale.config.js')
-        mergeOptions(module.default, options)
+        deepAssign(module.default, options)
     } catch {}
-    mergeOptions(codeOptions, options)
+    deepAssign(codeOptions, options)
     return options
 }

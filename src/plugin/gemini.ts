@@ -6,10 +6,6 @@ import PO from 'pofile'
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 
-function codeStandard(locale: string) {
-    return `ISO 639-${locale.length === 2 ? 1 : 3}`
-}
-
 export type ItemType = InstanceType<typeof PO.Item>
 
 interface GeminiRes {
@@ -30,27 +26,25 @@ export default class GeminiQueue {
 
     batches: ItemType[][] = []
     running: Promise<void> | null = null
-    sourceLocale: string
-    targetLocale: string
+    sourceLang: string
+    targetLang: string
     url: string
     instruction: string
     onComplete: () => Promise<void>
 
-    constructor(sourceLocale: string, targetLocale: string, apiKey: string | null, onComplete: () => Promise<void>) {
+    constructor(sourceLang: string, targetLang: string, apiKey: string | null, onComplete: () => Promise<void>) {
         if (apiKey === 'env') {
             apiKey = process.env.GEMINI_API_KEY
         }
         if (!apiKey) {
             return
         }
-        this.sourceLocale = sourceLocale
-        this.targetLocale = targetLocale
+        this.sourceLang = sourceLang
+        this.targetLang = targetLang
         this.url = `${baseURL}${apiKey}`
         this.instruction = `
             You will be given the contents of a gettext .po file for a web app.
-            Translate each of the items from the source to the target language.
-            The source language ${codeStandard(this.sourceLocale)} code is: ${this.sourceLocale}.
-            The target language ${codeStandard(this.targetLocale)} code is: ${this.targetLocale}.
+            Translate each of the items from ${this.sourceLang} to ${this.targetLang}.
             You can read all of the information for the items including contexts,
             comments and references to get the appropriate context about each item.
             Provide the same content with the only difference being that the

@@ -1,7 +1,7 @@
 // $$ node %f
 import {wuchale} from '../dist/index.js'
 
-const config = { otherLocales: [], geminiAPIKey: null }
+const config = { geminiAPIKey: null }
 
 const configFromVite = {env: {PROD: null}, root: process.cwd()}
 
