@@ -17,7 +17,6 @@ const virtualResolvedPrefix = '\0'
 const modulePatterns = ['.svelte.js', '.svelte.ts']
 const markupPatterns = ['.svelte']
 const patterns = [...modulePatterns, ...markupPatterns]
-const defaultPluralsRule = 'n === 1 ? 0 : 1'
 
 interface LoadedPO {
     translations: Translations,
@@ -172,7 +171,7 @@ class Plugin {
     #fullHeaders = (loc: string) => {
         const localeConf = this.#config.locales[loc]
         const defaultHeaders = [
-            ['Plural-Forms', `nplurals=${localeConf.nPlurals ?? 2}; plural=${localeConf.pluralRule ?? defaultPluralsRule};`],
+            ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.pluralRule};`],
             ['Language', this.#config.locales[loc].name]
         ]
         const fullHead = {...this._poHeaders[loc] ?? {}}
@@ -266,7 +265,7 @@ class Plugin {
                 let poItem = this._translations[loc][key]
                 if (!poItem) {
                     // @ts-ignore
-                    poItem = new PO.Item({ nplurals: this.#config.locales[loc].nPlurals ?? 2 })
+                    poItem = new PO.Item({ nplurals: this.#config.locales[loc].nPlurals })
                     poItem.msgid = nTxt.text[0]
                     if (nTxt.plural) {
                         poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
@@ -365,8 +364,7 @@ class Plugin {
             return null
         }
         const locale = id.slice(prefix.length)
-        const pluralsRule = this.#config.locales[locale].pluralRule ?? defaultPluralsRule
-        const pluralRuleExport = `export const pluralsRule = n => ${pluralsRule}\n`
+        const pluralRuleExport = `export const pluralsRule = n => ${this.#config.locales[locale].pluralRule}\n`
         return `${pluralRuleExport}export default ${JSON.stringify(this._compiled[locale])}`
     }
 

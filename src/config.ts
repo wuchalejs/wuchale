@@ -2,8 +2,8 @@ import { defaultHeuristic, type HeuristicFunc } from "./plugin/prep.js"
 
 type LocaleConf = {
     name: string
-    nPlurals?: number
-    pluralRule?: string
+    nPlurals: number
+    pluralRule: string
 }
 
 export interface Config {
@@ -19,7 +19,13 @@ export interface Config {
 
 export const defaultOptions: Config = {
     sourceLocale: 'en',
-    locales: {en: {name: 'English'}},
+    locales: {
+        en: {
+            name: 'English',
+            nPlurals: 2,
+            pluralRule: 'n == 1 ? 0 : 1',
+        },
+    },
     localesDir: './src/locales',
     srcDirs: ['src'],
     heuristic: defaultHeuristic,
