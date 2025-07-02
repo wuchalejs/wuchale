@@ -111,7 +111,13 @@ The config object should look like the following (the default):
 ```javascript
 export const defaultOptions: Config = {
     sourceLocale: 'en',
-    otherLocales: [],
+    locales: {
+        en: {
+            name: 'English',
+            nPlurals: 2,
+            pluralRule: 'n == 1 ? 0 : 1',
+        },
+    },
     localesDir: './src/locales',
     srcDirs: ['src'],
     heuristic: defaultHeuristic,
@@ -121,8 +127,7 @@ export const defaultOptions: Config = {
 }
 ```
 
-Note that you have to provide `otherLocales`, otherwise it doesn't have any
-effect.
+For details about plurals, read the Plurals section.
 
 While the others are self explanatory, the `heuristic` is a function that
 globally decides what text to extract and what not to. The `defaultHeuristic`
@@ -131,7 +136,10 @@ your own and provide it here. The function should receive the following
 arguments:
 
 - `text`: The candidate text
-- `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
+- `details`: An object with details about the origins of the text
+  - `scope`: Where the text is located, i.e. it can be one of `markup`, `script`, and `attribute`
+  - `element`: (for `markup` and `attribute`) The owner element / component name
+  - `attribute`: (for `attribute`) The name of the attribute
 
 And it should return boolean to indicate whether to extract it.
 
@@ -499,7 +507,7 @@ they will be separate.
 
 Excuse my poor example choice.
 
-## Plurals?
+## Plurals
 
 The plurals support is implemented in such a way that it extends what you likely
 write for just one language: a function that takes a number and candidates that
@@ -513,8 +521,8 @@ returns properly structured text, that you would use like this:
 You would implement it with a logic that selects one of the two based on the
 number and replaces the `#` with the number. Simple. Now to integrate
 `wuchale`'s plurals support, you would alter the definition of the function to
-also accept the selection rule as an additional argument with a fallback rule
-like this:
+also accept the selection rule as an optional additional argument with a
+fallback rule like this:
 
 ```javascript
 export function plural(num, candidates, rule = n => n === 1 ? 0 : 1) {
@@ -546,12 +554,12 @@ msgstr[0] "One item"
 msgstr[1] "# items"
 ```
 
-And there will be a header entry for the plurals support at the top where the
-number of plurals for the language and the rule for selecting from the
-candidates (an expression that uses `n` and decides the candidate index). This
-way, when the texts are extracted, the correct preparation will be made, and
-during runtime, the correct one will be selected, and lastly, your code will
-still be valid even without `wuchale`.
+The plurals options are configured as shown in the Configuration section. That
+information will be passed to the PO file's header for the translator's
+knowledge, and also to the compiled language data for runtime decitions.
+
+**Note**: When writing a rule, only use `n` as a variable name for the number,
+because it will be the body of an arrow function whose argument is named `n`.
 
 You can change the name of the plural function in the config.
 
