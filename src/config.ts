@@ -32,7 +32,7 @@ export const defaultOptions: Config = {
         },
     },
     localesDir: './src/locales',
-    files: ['src/**/*.svelte', 'src/**/*.svelte.js', 'src/**/*.svelte.ts'],
+    files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     heuristic: defaultHeuristic,
     pluralFunc: 'plural',
     hmr: true,
