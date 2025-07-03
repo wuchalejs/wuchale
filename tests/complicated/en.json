@@ -1,4 +1,5 @@
 [
+  "Bar",
   "Extracted text",
   "Extracted",
   "Extracted Text",
@@ -32,6 +33,18 @@
     [
       1
     ]
+  ],
+  "Extract",
+  [
+    "Interpolate",
+    0,
+    " ",
+    1
+  ],
+  "Extracted name",
+  [
+    "This page says:",
+    0
   ],
   "Extract this",
   "Variable",

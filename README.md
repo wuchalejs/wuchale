@@ -431,8 +431,8 @@ The rule for this is that all strings and template strings that start with
 capital letters are extracted. Additionally, if they are used inside the
 `<script>` tags and in their own files (third case above), there is the
 additional restriction that they must be inside a `$derived` or `$derived.by`
-variable declaration. This is to make the behavior less magic and being more
-explicit. Example:
+variable declaration, or a function declaration. This is to make the behavior
+less magic and being more explicit. Example:
 
 ```svelte
 <script>

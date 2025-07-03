@@ -2,6 +2,10 @@ msgid ""
 msgstr ""
 
 #: src/test.svelte
+msgid "Bar"
+msgstr "Bar"
+
+#: src/test.svelte
 msgid "Extracted text"
 msgstr "Extracted text"
 
@@ -36,6 +40,22 @@ msgstr "Supported"
 #: src/test.svelte
 msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
+
+#: src/test.svelte
+msgid "Extract"
+msgstr "Extract"
+
+#: src/test.svelte
+msgid "Interpolate{0} {1}"
+msgstr "Interpolate{0} {1}"
+
+#: src/test.svelte
+msgid "Extracted name"
+msgstr "Extracted name"
+
+#: src/test.svelte
+msgid "This page says:{0}"
+msgstr "This page says:{0}"
 
 #: src/test.svelte
 msgid "Extract this"

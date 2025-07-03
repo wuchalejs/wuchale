@@ -102,7 +102,7 @@ export default class Preprocess {
     // state
     forceInclude: boolean | null = null
     context: string | null = null
-    insideDerived: boolean = false
+    insideFunc: boolean = false
     currentElement: ElementNode
 
     constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, pluralsFunc: string = 'plural') {
@@ -200,6 +200,10 @@ export default class Preprocess {
         ...this.visit(node.right),
     ]
 
+    visitUnaryExpression = (node: Estree.UnaryExpression): NestText[] => this.visit(node.argument)
+
+    visitAwaitExpression = (node: Estree.AwaitExpression): NestText[] => this.visit(node.argument)
+
     visitAssignmentExpression = this.visitBinaryExpression
 
     visitExpressionStatement = (node: Estree.ExpressionStatement): NestText[] => this.visit(node.expression)
@@ -225,27 +229,29 @@ export default class Preprocess {
 
     visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
         const txts = []
-        let atTopLevel = !this.insideDerived
+        let atTopLevel = !this.insideFunc
         for (const dec of node.declarations) {
             if (!dec.init) {
                 continue
             }
-            // visit only contents inside $derived
+            // visit only contents inside $derived or functions
             if (atTopLevel) {
-                if (dec.init.type !== 'CallExpression') {
+                if (dec.init.type === 'CallExpression') {
+                    const callee = dec.init.callee
+                    const isDerived = callee.type === 'Identifier' && callee.name === '$derived'
+                    const isDerivedBy = callee.type === 'MemberExpression'
+                        && callee.object.type === 'Identifier'
+                        && callee.object.name === '$derived'
+                        && callee.property.type === 'Identifier'
+                        && callee.property.name === 'by'
+                    if (!isDerived && !isDerivedBy) {
+                        continue
+                    }
+                } else if (dec.init.type !== 'ArrowFunctionExpression') {
                     continue
+                } else {
                 }
-                const callee = dec.init.callee
-                const isDerived = callee.type === 'Identifier' && callee.name === '$derived'
-                const isDerivedBy = callee.type === 'MemberExpression'
-                    && callee.object.type === 'Identifier'
-                    && callee.object.name === '$derived'
-                    && callee.property.type === 'Identifier'
-                    && callee.property.name === 'by'
-                if (!isDerived && !isDerivedBy) {
-                    continue
-                }
-                this.insideDerived = true
+                this.insideFunc = true
             }
             const decVisit = this.visit(dec.init)
             if (!decVisit.length) {
@@ -254,7 +260,19 @@ export default class Preprocess {
             txts.push(...decVisit)
         }
         if (atTopLevel) {
-            this.insideDerived = false
+            this.insideFunc = false
+        }
+        return txts
+    }
+
+    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => this.visit(node.declaration)
+
+    visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
+        const insideFunc = this.insideFunc
+        this.insideFunc = true
+        const txts = this.visit(node.body)
+        if (!insideFunc) {
+            this.insideFunc = false
         }
         return txts
     }

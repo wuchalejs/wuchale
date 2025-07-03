@@ -1,8 +1,23 @@
 <script>
     const normalParam = 44;
+
     function someFunction(a, b, c) {
-        return true;
+        const value = 'Extract'
+        const next = `Interpolate ${a} ${b}`
+        return next + c + value
     }
+
+    async function someFunctionAsync() {
+        const res = await fetch("https://jsonplaceholder.typicode.com/todos/1")
+        const json = await res.json()
+        json.name = 'Extracted name'
+        return json
+    }
+
+    export const arrow = (msg) => {
+        alert(`This page says: ${msg}`)
+    }
+
     const collection = { members: [1] };
     const someJSEven = 34;
     const obj = $derived({
@@ -14,6 +29,7 @@
         id: 23,
         name: 'foo',
     }
+
     const derived = $derived.by(() => {
         const f = 'Extract this'
         if (!f) return
@@ -38,6 +54,8 @@
     })
 </script>
 
+<div>{definition('foo', 'Bar')}</div>
+
 <p>
     This is a very {obj.property["non-extracted text"]["Extracted text"]}
     Complicated
@@ -51,10 +69,8 @@
         {#each collection.members as member}
             Loops and {member}
             <!-- What not -->
-            {#await fetch("https://jsonplaceholder.typicode.com/todos/1") then res}
-                {#await res.json() then json}
-                    <b>{json.title} other blocks</b>
-                {/await}
+            {#await someFunctionAsync(a) then json}
+                <b>{json.title} other blocks</b>
             {/await}
             Supported
         {/each}
