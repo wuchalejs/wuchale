@@ -120,13 +120,17 @@ export const defaultOptions: Config = {
         },
     },
     localesDir: './src/locales',
-    srcDirs: ['src'],
+    files: ['src/**/*.svelte', 'src/**/*.svelte.js', 'src/**/*.svelte.ts'],
     heuristic: defaultHeuristic,
     pluralFunc: 'plural',
     hmr: true,
     geminiAPIKey: 'env',
 }
+
 ```
+
+The glob patterns in `files` can be string patterns or an object with `pattern`
+and `ignore` pattern arrays.
 
 When configuring `locales`, you use the language code in any standard (ISO
 639-1/2/3) or POSIX Locale (e.g. `en_US`) and provide the name inside the

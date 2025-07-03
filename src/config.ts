@@ -6,11 +6,16 @@ type LocaleConf = {
     pluralRule?: string
 }
 
+export type GlobConf = string | {
+    pattern: string[],
+    ignore: string[],
+}
+
 export interface Config {
     sourceLocale?: string
     locales?: {[locale: string]: LocaleConf}
     localesDir?: string
-    srcDirs?: string[]
+    files?: GlobConf[],
     heuristic?: HeuristicFunc
     pluralFunc?: string
     hmr?: boolean
@@ -27,7 +32,7 @@ export const defaultOptions: Config = {
         },
     },
     localesDir: './src/locales',
-    srcDirs: ['src'],
+    files: ['src/**/*.svelte', 'src/**/*.svelte.js', 'src/**/*.svelte.ts'],
     heuristic: defaultHeuristic,
     pluralFunc: 'plural',
     hmr: true,

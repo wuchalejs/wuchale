@@ -6,17 +6,18 @@ import { writeFile, readFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
+import pm, {type Matcher} from 'picomatch'
 import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program, Options as ParserOptions } from "acorn"
-import { getOptions, type Config as Config } from "../config.js"
+import { getOptions, type Config as Config, type GlobConf } from "../config.js"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
-const modulePatterns = ['.svelte.js', '.svelte.ts']
-const markupPatterns = ['.svelte']
-const patterns = [...modulePatterns, ...markupPatterns]
+
+const moduleEnd = ['.svelte.js', '.svelte.ts']
+const markupEnd = ['.svelte']
 
 interface LoadedPO {
     translations: Translations,
@@ -119,7 +120,7 @@ class Plugin {
 
     transform: { order: 'pre', handler: any }
 
-    #allowDirs: string[] = []
+    #patterns: Matcher[] = []
 
     constructor() {
         this.#indexTracker = new IndexTracker({})
@@ -155,14 +156,24 @@ class Plugin {
         }
     }
 
+    #globOptsToArgs = (pattern: GlobConf): [string[], {ignore: string[]} | undefined] => {
+        let patt: string[]
+        let options: {ignore: string[]}
+        if (typeof pattern === 'string') {
+            patt = [pattern]
+        } else {
+            patt = pattern.pattern
+            options = {ignore: pattern.ignore}
+        }
+        return [patt, options]
+    }
+
     directExtract = async () => {
         const all = []
-        for (const dir of this.#config.srcDirs) {
-            for (const patternEnd of patterns) {
-                for (const file of await glob(`${dir}/**/*${patternEnd}`)) {
-                    const contents = await readFile(file)
-                    all.push(this.transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
-                }
+        for (const pattern of this.#config.files) {
+            for (const file of await glob(...this.#globOptsToArgs(pattern))) {
+                const contents = await readFile(file)
+                all.push(this.transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
             }
         }
         await Promise.all(all)
@@ -320,8 +331,8 @@ class Plugin {
         } // else, already dev
         this.#projectRoot = config.root
         // for transform
-        for (const dir of this.#config.srcDirs) {
-            this.#allowDirs.push(normalize(this.#projectRoot + '/' + dir))
+        for (const pattern of this.#config.files) {
+            this.#patterns.push(pm(...this.#globOptsToArgs(pattern)))
         }
         // for handleHotUpdate below
         this.#transFnamesToLocales = Object.fromEntries(
@@ -369,11 +380,12 @@ class Plugin {
     }
 
     transformHandler = async (code: string, id: string) => {
-        if (!this.#allowDirs.find(dir => id.startsWith(dir))) {
+        const filename = relative(this.#projectRoot, id)
+        if (!this.#patterns.find(isMatch => isMatch(filename))) {
             return
         }
-        const isModule = modulePatterns.find(p => id.endsWith(p))
-        if (!markupPatterns.find(p => id.endsWith(p)) && !isModule) {
+        const isModule = moduleEnd.find(p => id.endsWith(p))
+        if (!markupEnd.find(p => id.endsWith(p)) && !isModule) {
             return
         }
         let ast: AST.Root | Program
@@ -382,7 +394,6 @@ class Plugin {
         } else {
             ast = parse(code, { modern: true })
         }
-        const filename = relative(this.#projectRoot, id)
         return await this.#preprocess(code, ast, filename)
     }
 }
