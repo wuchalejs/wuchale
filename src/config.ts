@@ -2,8 +2,8 @@ import { defaultHeuristic, type HeuristicFunc } from "./plugin/prep.js"
 
 type LocaleConf = {
     name: string
-    nPlurals: number
-    pluralRule: string
+    nPlurals?: number
+    pluralRule?: string
 }
 
 export interface Config {
@@ -51,10 +51,14 @@ function deepAssign(fromObj: object, toObj: object) {
     }
 }
 
+export function defineConfig(config: Config) {
+    return config
+}
+
 export async function getOptions(codeOptions: Config = {}) {
     const options: Config = defaultOptions
     try {
-        const module = await import(process.cwd() + '/wuchale.config.js')
+        const module = await import(`${process.cwd()}/wuchale.config.js`)
         deepAssign(module.default, options)
     } catch {}
     deepAssign(codeOptions, options)

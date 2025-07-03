@@ -104,7 +104,8 @@ To configure `wuchale`, you can do one of:
 - Pass an object `wuchale()` in your `vite.config.js` `vite.config.ts`
 - Create a `wuchale.config.js` file that exports the config object as `default` in your project root directory.
 
-But the latter is recommended as it is also read when using the CLI command to extract items.
+But `wuchale.config.js` is recommended as it is also read when using the CLI
+command to extract items.
 
 The config object should look like the following (the default):
 
@@ -127,9 +128,17 @@ export const defaultOptions: Config = {
 }
 ```
 
-For details about plurals, read the Plurals section.
+When configuring `locales`, you use the language code in any standard (ISO
+639-1/2/3) or POSIX Locale (e.g. `en_US`) and provide the name inside the
+details. And additionally, you provide how it works with plurals: the number of
+plural types `nPlurals` and the index computation of the candidate based on the
+number `pluralRule` (see Plurals below). if these are not specified, the
+English options will be used. And you don't have to re-specify the options for
+English. But if you don't plan to use English, or you want to use another code
+for it, you can disable `en` by setting its config to `undefined` instead of the
+object to remove it.
 
-While the others are self explanatory, the `heuristic` is a function that
+The `heuristic` is a function that
 globally decides what text to extract and what not to. The `defaultHeuristic`
 is the implementation of the default rules explained below, but you can roll
 your own and provide it here. The function should receive the following
@@ -150,6 +159,25 @@ imported by the top components and frequent modification of the language files
 can trigger big updates of the DOM, which may cause states not depending on the
 URL to be lost. If you choose to disable the `hmr` extraction, you can still
 extract (and translate with Gemini) using the CLI command.
+
+Note that `wuchale` doesn't read `wuchale.config.ts`.
+But to retain the benefits of TypeScript while configuring `wuchale`, the
+`defineConfig` function is provided and can be used for intellisense and type
+checking can be enabled by putting the `@ts-check` directive at the top:
+
+```javascript
+// @ts-check
+import { defineConfig } from "wuchale"
+
+export default defineConfig({
+    locales: {
+        es: {
+            name: 'Spanish',
+        },
+    }
+})
+
+```
 
 ### Register CLI
 
