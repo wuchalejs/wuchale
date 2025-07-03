@@ -196,18 +196,21 @@ interface Params {
 export async function load({ url }: Params): Promise<{}> {
     const locale = url.searchParams.get('locale') ?? 'es'
     // IMPORTANT! The path should be relative to the current file
-    const mod = await import(`../locales/${locale}.js`)
-    setTranslations(mod.default)
-    return {}
+    setTranslations(await import(`../locales/${locale}.js`))
+    return {locale}
 }
 ```
 
 What it does is it makes the locale dependent on the URL search param `locale`
-and loads the appropriate language js based on it. You can now adapt it to
-any state such as the `[locale]` slug in the URL path based on your own needs.
+and loads the appropriate language js based on it. You can now adapt it to any
+state such as the `[locale]` slug in the URL path based on your own needs.
+Additionally, as shown, you can return the locale as a load data to, for
+example, track and change the current locale.
 
 Now you can start the dev server and see it in action. You can change the URL
-search params like `?locale=es` (if you set up `es` in `otherLocales`)
+search params like `?locale=es` (if you set up `es` in `locales` in the config)
+or you can create a link to change it inside `+layout.svelte` or somewhere
+else.
 
 #### Svelte
 
