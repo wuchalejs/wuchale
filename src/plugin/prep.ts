@@ -111,11 +111,13 @@ export default class Preprocess {
         this.pluralFunc = pluralsFunc
     }
 
-    checkHeuristic = (text: string, details: HeuristicDetails): [boolean, NestText] => {
-        text = text.replace(/\s+/g, ' ').trim()
-        if (text === '') {
+    checkHeuristic = (text: string, details: HeuristicDetails, trim = false): [boolean, NestText] => {
+        if (text.trim() === '') {
             // nothing to ask
             return [false, null]
+        }
+        if (trim) {
+            text = text.trim()
         }
         const extract = this.forceInclude || this.heuristic(text, details)
         return [extract, new NestText(text, details.scope)]
@@ -355,7 +357,7 @@ export default class Preprocess {
         const textNodesToModify: NestText[] = []
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const [pass, nTxt] = this.checkHeuristic(child.data, {scope: 'markup', element: node.name})
+                const [pass, nTxt] = this.checkHeuristic(child.data, {scope: 'markup', element: node.name}, true)
                 if (pass) {
                     hasTextChild = true
                     textNodesToModify[i] = nTxt
@@ -498,7 +500,7 @@ export default class Preprocess {
     visitComponent = this.visitRegularElement
 
     visitText = (node: AST.Text): NestText[] => {
-        const [pass, txt] = this.checkHeuristic(node.data, {scope: 'markup'})
+        const [pass, txt] = this.checkHeuristic(node.data, {scope: 'markup'}, true)
         if (!pass) {
             return []
         }

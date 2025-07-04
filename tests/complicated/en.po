@@ -46,16 +46,16 @@ msgid "Extract"
 msgstr "Extract"
 
 #: src/test.svelte
-msgid "Interpolate{0} {1}"
-msgstr "Interpolate{0} {1}"
+msgid "Interpolate {0} {1}"
+msgstr "Interpolate {0} {1}"
 
 #: src/test.svelte
 msgid "Extracted name"
 msgstr "Extracted name"
 
 #: src/test.svelte
-msgid "This page says:{0}"
-msgstr "This page says:{0}"
+msgid "This page says: {0}"
+msgstr "This page says: {0}"
 
 #: src/test.svelte
 msgid "Extract this"

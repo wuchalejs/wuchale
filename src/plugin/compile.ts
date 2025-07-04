@@ -91,7 +91,7 @@ function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragm
             }
         } else if (type === 'selfclose') {
             ext.push([n])
-        } else {
+        } else { // placeholder
             ext.push(n)
         }
         i = newI
@@ -106,11 +106,11 @@ export default function compileTranslation(text: string, fallback: CompiledFragm
     if (!text) {
         return fallback
     }
-    if (!text.includes('<') && !text.includes('{')) {
-        return text
-    }
     try {
         const [compiled] = compile(text)
+        if (compiled.length === 1 && typeof compiled[0] === 'string') {
+            return compiled[0]
+        }
         return compiled
     } catch (err) {
         console.error(err)

@@ -59,21 +59,30 @@ test('Simple text', async function(t) {
     `, ['Hello'])
 })
 
-test('Simple element', async function(t) {
-    await testContent(t, '<p>Hello</p>', svelte`
+test('Simple element with new lines', async function(t) {
+    await testContent(t, svelte`
+        <p>
+            Hello
+            There
+        </p>`,
+    svelte`
         <script>
             import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
         <p>{wuchaleTrans(0)}</p>
     `, `
-    msgid ""
-    msgstr ""
+        msgid ""
+        msgstr ""
 
-    #: src/test.svelte
-    msgid "Hello"
-    msgstr "Hello"
-    `, ['Hello'])
+        #: src/test.svelte
+        msgid ""
+        "Hello\\n"
+        "            There"
+        msgstr ""
+        "Hello\\n"
+        "            There"
+    `, ['Hello\n            There'])
 })
 
 test('Plural', async function(t) {
