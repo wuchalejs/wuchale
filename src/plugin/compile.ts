@@ -1,40 +1,105 @@
 // $$ cd .. && npm run test
 
-import { parse } from "svelte/compiler"
-import type { AST } from 'svelte/compiler'
-import type { Expression } from 'estree'
-
 type CompiledNestedFragment = (string | number | CompiledNestedFragment)[]
 export type CompiledFragment = string | number | CompiledNestedFragment
+type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
 
-function walkCompileNodes(node: Expression | AST.Fragment | AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment): CompiledNestedFragment {
-    if (node.type === 'Text') {
-        return [node.data]
+const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
+
+function extractSpecial(txt: string, start: number): [SpecialType, number, number] {
+    const inPlaceHolder = txt[start] === '{'
+    const inTag = txt[start] === '<'
+    if (!inTag && !inPlaceHolder) {
+        return [null, null, start]
     }
-    if (node.type === 'Literal') {
-        if (typeof node.value === 'number') {
-            return [node.value]
+    let digits = ''
+    let endChar = ''
+    let inClose = false
+    let i = start + 1
+    const beginChar = txt[i]
+    if (beginChar === '/') {
+        inClose = true
+        i++
+    }
+    while (i < txt.length) {
+        const char = txt[i]
+        const code = char.charCodeAt(0)
+        if (code < digitRange[0] || code > digitRange[1]) {
+            endChar = char
+            break
         }
-        return []
+        digits += char
+        i++
     }
-    if (node.type === 'ExpressionTag') {
-        return walkCompileNodes(node.expression)
+    if (!digits) {
+        return [null, null, start]
     }
-    if (node.type === 'Component') {
-        return [[
-            Number(node.name.slice(1)),
-            ...walkCompileNodes(node.fragment),
-        ]]
-    }
-    if (node.type === 'Fragment') {
-        const parts = []
-        for (const child of node.nodes) {
-            parts.push(...walkCompileNodes(child))
+    const n = Number(digits)
+    if (inPlaceHolder) {
+        if (endChar !== '}') {
+            return [null, null, start]
         }
-        return parts
+        return ['placeholder', n, i + 1]
     }
-    console.error('Unexpected node type', node)
-    return []
+    if (endChar === '/' && txt[i + 1] === '>') {
+        return ['selfclose', n, i + 2]
+    }
+    if (endChar != '>') {
+        return [null, null, start]
+    }
+    if (inClose) {
+        return ['close', n, i + 1]
+    }
+    return ['open', n, i + 1]
+}
+
+function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragment, number] {
+    let curTxt = ''
+    const ext: CompiledNestedFragment = []
+    let i = start
+    const len = txt.length
+    let currentOpenTag = null
+    while (i < len) {
+        const char = txt[i]
+        const [type, n, newI] = extractSpecial(txt, i)
+        if (type === null) {
+            curTxt += char
+            i++
+            continue
+        }
+        if (curTxt) {
+            ext.push(curTxt)
+            curTxt = ''
+        }
+        if (type === 'open') {
+            currentOpenTag = n
+            const [subExt, newIc] = compile(txt, newI, n)
+            ext.push([n, ...subExt])
+            i = newIc
+            continue
+        }
+        if (type === 'close') {
+            if (currentOpenTag != null) {
+                if (currentOpenTag != n) {
+                    throw Error('Closing a different tag')
+                }
+                currentOpenTag = null
+            } else if (n === parentTag) {
+                break
+            } else {
+                throw Error('Closing a different tag')
+            }
+        } else if (type === 'selfclose') {
+            ext.push([n])
+        } else {
+            ext.push(n)
+        }
+        i = newI
+    }
+    if (curTxt) {
+        ext.push(curTxt)
+    }
+    return [ext, i]
 }
 
 export default function compileTranslation(text: string, fallback: CompiledFragment): CompiledFragment {
@@ -44,13 +109,12 @@ export default function compileTranslation(text: string, fallback: CompiledFragm
     if (!text.includes('<') && !text.includes('{')) {
         return text
     }
-    // <0></0> to <X0></X0> to please svelte parser
-    text = text.replace(/(<|(<\/))(\d+)/g, '$1X$3')
     try {
-        const ast = parse(text, { modern: true })
-        return walkCompileNodes(ast.fragment)
+        const [compiled] = compile(text)
+        return compiled
     } catch (err) {
         console.error(err)
+        console.error(text)
         return fallback
     }
 }
