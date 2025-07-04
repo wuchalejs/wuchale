@@ -115,8 +115,7 @@ export async function load({ url }) {
     let locale = $state('en')
     
     async function loadTranslations(locale) {
-        const mod = await import(`./locales/${locale}.js`)
-        setTranslations(mod.default)
+        setTranslations(await import(`./locales/${locale}.js`))
     }
 </script>
 
