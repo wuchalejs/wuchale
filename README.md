@@ -1,5 +1,7 @@
 # `wuchale`
 
+[![npm version](https://img.shields.io/npm/v/wuchale)](https://www.npmjs.com/package/wuchale) ![License](https://img.shields.io/github/license/K1DV5/wuchale)
+
 A non-invasive compile-time internationalization (i18n) system for Svelte.
 Inspired by Lingui, built from scratch with performance, clarity, and
 simplicity in mind.
