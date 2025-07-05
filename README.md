@@ -299,6 +299,8 @@ export default {
 
 Contributions are welcome! Please check out our [test suite](https://github.com/K1DV5/wuchale/tree/main/tests) for examples of supported scenarios.
 
-## 📄 License
+## ❤️ Sponsors
 
-MIT
+Thank you **[@hayzamjs](https://github.com/hayzamjs)** for sponsoring the
+project and using it in [Sylve](https://github.com/AlchemillaHQ/Sylve), giving
+valuable feedback!
