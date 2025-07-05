@@ -267,7 +267,7 @@ export default class Preprocess {
         return txts
     }
 
-    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => this.visit(node.declaration)
+    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => node.declaration ? this.visit(node.declaration) : []
 
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
         const insideFunc = this.insideFunc
