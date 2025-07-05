@@ -39,7 +39,8 @@ export const defaultOptions: Config = {
     geminiAPIKey: 'env',
 }
 
-function deepAssign(fromObj: object, toObj: object) {
+// dynamicKeysInside is mainly to fill plural rules for other languages with English
+function deepAssign(fromObj: object, toObj: object, dynamicKeysInside: string[] = []) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
             delete toObj[key]
@@ -54,6 +55,22 @@ function deepAssign(fromObj: object, toObj: object) {
         }
         deepAssign(fromObj[key], toObj[key])
     }
+    for (const key of dynamicKeysInside) {
+        const values = Object.values(toObj[key])
+        const defaultValEntries = Object.entries(values[0])
+        for (const val of values.slice(1)) {
+            for (const [k, defaultVal] of defaultValEntries) {
+                const v = val[k]
+                if (v != null) {
+                    continue
+                }
+                if (defaultVal == null) {
+                    throw Error(`At least the first option in ${key} should have ${k}`)
+                }
+                val[k] = defaultVal
+            }
+        }
+    }
 }
 
 export function defineConfig(config: Config) {
@@ -66,6 +83,6 @@ export async function getOptions(codeOptions: Config = {}) {
         const module = await import(`${process.cwd()}/wuchale.config.js`)
         deepAssign(module.default, options)
     } catch {}
-    deepAssign(codeOptions, options)
+    deepAssign(codeOptions, options, ['locales'])
     return options
 }
