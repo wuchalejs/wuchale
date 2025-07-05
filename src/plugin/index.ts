@@ -35,14 +35,26 @@ const scriptParseOptions: ParserOptions = {
     locations: true
 }
 
+type HMRCompiled = { locale: any; data: CompiledFragment[] }
+
+type ViteDevServer = {
+    ws: {
+        send: (event: string, data: HMRCompiled) => void,
+        on: (event: string, cb: (msg: object, client: HMRClient) => void) => void,
+    }
+    moduleGraph: {
+        getModuleById: Function,
+        invalidateModule: Function,
+    },
+}
+
+type HMRClient = {
+    send: (event: string, data: HMRCompiled) => void
+}
+
 type ViteHotUpdateCTX = {
     file: string,
-    server: {
-        moduleGraph: {
-            getModuleById: Function,
-            invalidateModule: Function,
-        },
-    },
+    server: ViteDevServer,
     timestamp: number,
 }
 
@@ -99,18 +111,20 @@ class Plugin {
 
     locales: string[]
 
-    _poHeaders: {[loc: string]: {[key: string]: string}} = {}
-
     // exposed for testing
+    _poHeaders: {[loc: string]: {[key: string]: string}} = {}
     _translations: { [loc: string]: { [key: string]: ItemType } } = {}
     _compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
 
     #sourceTranslations: { [key: string]: ItemType }
 
+    // for HMR
+    #server: ViteDevServer
+
     #compiledFname: { [loc: string]: string } = {}
     #translationsFname: { [loc: string]: string } = {}
 
-    #currentPurpose: 'dev' | 'extract' | 'test' = 'dev'
+    #currentPurpose: 'dev' | 'prod' | 'extract' | 'test' = 'dev'
     #projectRoot: string = ''
     #indexTracker: IndexTracker
 
@@ -133,7 +147,7 @@ class Plugin {
             ...Object.keys(this.#config.locales).filter(loc => loc != this.#config.sourceLocale),
         ]
         for (const loc of this.locales) {
-            this.#compiledFname[loc] = `${this.#config.localesDir}/${loc}.js`
+            this.#compiledFname[loc] = `${this.#config.localesDir}/${loc}.svelte.js`
             this.#translationsFname[loc] = `${this.#config.localesDir}/${loc}.po`
         }
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
@@ -203,7 +217,7 @@ class Plugin {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            if (this.#currentPurpose === 'dev') {
+            if (this.#currentPurpose === 'dev' || this.#currentPurpose === 'prod') {
                 await this.directExtract()
             }
         }
@@ -250,7 +264,27 @@ class Plugin {
         }
         for (const loc of this.locales) {
             this.#compile(loc)
-            await writeFile(this.#compiledFname[loc], `export {default, pluralsRule} from '${virtualPrefix}${loc}'`)
+            if (this.#currentPurpose !== 'dev') {
+                await writeFile(this.#compiledFname[loc], `export {default, pluralsRule} from '${virtualPrefix}${loc}'`)
+                continue
+            }
+            await writeFile(this.#compiledFname[loc], `
+                import defaultData, {pluralsRule} from '${virtualPrefix}${loc}'
+                const data = $state(defaultData)
+                import.meta.hot.on('${pluginName}:update', ({locale, data: newData}) => {
+                    if (locale !== '${loc}') {
+                        return
+                    }
+                    for (let i = 0; i < newData.length; i++) {
+                        if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                            data[i] = newData[i]
+                        }
+                    }
+                })
+                import.meta.hot.send('${pluginName}:get', {locale: '${loc}'})
+                export {pluralsRule}
+                export default data
+            `)
         }
     }
 
@@ -318,9 +352,11 @@ class Plugin {
         }
     }
 
-    configResolved = async (config: { env: { PROD?: boolean, EXTRACT?: boolean; }, root: string; }) => {
+    configResolved = async (config: { env: { DEV?: boolean, PROD?: boolean, EXTRACT?: boolean; }, root: string; }) => {
         if (config.env.EXTRACT) {
             this.#currentPurpose = 'extract'
+        } else if (config.env.DEV) {
+            this.#currentPurpose = 'dev'
         } else if (config.env.PROD == null) {
             this.#currentPurpose = "test"
             for (const loc of this.locales) {
@@ -328,7 +364,9 @@ class Plugin {
                 this._compiled[loc] = []
             }
             this.#sourceTranslations = this._translations[this.#config.sourceLocale]
-        } // else, already dev
+        } else {
+            this.#currentPurpose = 'prod'
+        }
         this.#projectRoot = config.root
         // for transform
         for (const pattern of this.#config.files) {
@@ -342,24 +380,26 @@ class Plugin {
         await this.#loadFilesAndSetup()
     }
 
+    configureServer = (server: ViteDevServer) => {
+        this.#server = server
+        // initial load
+        server.ws.on(`${pluginName}:get`, (msg: {locale: string}, client) => {
+            client.send(`${pluginName}:update`, {
+                locale: msg.locale,
+                data: this._compiled[msg.locale],
+            })
+        })
+    }
+
     handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
-        // PO file edit -> JS HMR
-        if (ctx.file in this.#transFnamesToLocales) {
-            const loc = this.#transFnamesToLocales[ctx.file]
-            await this.#loadTranslations(loc)
-            this.#compile(loc)
-            const moduleId = virtualResolvedPrefix + virtualPrefix + loc
-            const module = ctx.server.moduleGraph.getModuleById(moduleId)
-            if (module) {
-                ctx.server.moduleGraph.invalidateModule(
-                    module,
-                    [],
-                    ctx.timestamp,
-                    true
-                )
-                return [module]
-            }
+        // PO file write -> JS HMR
+        if (!(ctx.file in this.#transFnamesToLocales)) {
+            return
         }
+        const loc = this.#transFnamesToLocales[ctx.file]
+        await this.#loadTranslations(loc)
+        this.#compile(loc)
+        this.#server.ws.send(`${pluginName}:update`, {locale: loc, data: this._compiled[loc]})
     }
 
     resolveId = (source: string) => {
