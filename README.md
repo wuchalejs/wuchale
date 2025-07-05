@@ -30,9 +30,9 @@ Write your Svelte code naturally. No imports, no wrappers, no annotations.
 
 - **🔧 Zero-effort integration** - Add i18n to existing projects without rewriting code
 - **🚀 Compile-time optimization** - All transformations happen during build, minimal runtime overhead
-- **🔄 Full HMR support** - Live updates during development, including auto-translation
+- **🔄 Full, granular HMR support** - Live updates during development, including auto-translation
 - **📦 Tiny footprint** - Only 2 additional dependencies (`wuchale` + `pofile`), no bloated `node_modules`
-- **🎯 Smart extraction** - Handles nested markup, conditionals, loops, and complex interpolations
+- **🎯 Smart extraction** - Uses AST analysis: handles nested markup, conditionals, loops, and complex interpolations
 - **🌍 Standard .po files** - Compatible with existing translation tools and workflows
 - **🤖 Optional AI translation** - Gemini integration for automatic translations during development
 - **⚡ Svelte 5 ready** - Built for the future with runes and snippets support
@@ -100,7 +100,7 @@ import { setTranslations } from 'wuchale/runtime.svelte.js'
 export async function load({ url }) {
     const locale = url.searchParams.get('locale') ?? 'en'
     // or you can use [locale] in your dir names to get something like /en/path as params here
-    setTranslations(await import(`../locales/${locale}.js`))
+    setTranslations(await import(`../locales/${locale}.svelte.js`))
     return { locale }
 }
 ```
@@ -115,7 +115,7 @@ export async function load({ url }) {
     let locale = $state('en')
     
     async function loadTranslations(locale) {
-        setTranslations(await import(`./locales/${locale}.js`))
+        setTranslations(await import(`./locales/${locale}.svelte.js`))
     }
 </script>
 
@@ -242,11 +242,11 @@ GEMINI_API_KEY=your-key npm run dev
 ```
 src/
 ├── locales/
-│   ├── en.po      # Source catalog (commit this)
-│   ├── en.js      # Compiled module (gitignore)
-│   ├── es.po      # Translation catalog (commit this)
-│   └── es.js      # Compiled module (gitignore)
-└── App.svelte     # Your components
+│   ├── en.po         # Source catalog (commit this)
+│   ├── en.svelte.js  # Compiled data module (gitignore)
+│   ├── es.po         # Translation catalog (commit this)
+│   └── es.svelte.js  # Compiled data module (gitignore)
+└── App.svelte        # Your components
 ```
 
 ## 🛠️ Configuration Reference
@@ -282,9 +282,10 @@ export default {
     // Your plural function name
     pluralFunc: 'plural',
     
-    // Enable HMR updates during dev. You may disable this if you get annoyed
-    // by the loss of state because the whole app is invalidated when the
-    // translation .po file changes
+    // Enable HMR updates during development. You can disable this to avoid the small overhead
+    // of live translation updates and work solely with the source language.
+    // HMR is highly optimized -- it updates only the affected components,
+    // preserving application state and avoiding full reloads.
     hmr: true,
     
     // Gemini API key (or 'env' to use GEMINI_API_KEY)
