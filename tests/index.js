@@ -85,6 +85,53 @@ test('Simple element with new lines', async function(t) {
     `, ['Hello\n            There'])
 })
 
+test('Context', async function(t) {
+    await testContent(t,
+        svelte`
+            <p>{/* @wc-context: music */ 'String'}</p>
+            <p>{/* @wc-context: programming */ 'String'}</p>
+            <!-- @wc-context: door -->
+            <p>Close</p>
+            <!-- @wc-context: distance -->
+            <p>Close</p>
+        `,
+        svelte`
+            <script>
+                import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
+                import WuchaleTrans from "wuchale/runtime.svelte"
+            </script>
+            <p>{/* @wc-context: music */ wuchaleTrans(0)}</p>
+            <p>{/* @wc-context: programming */ wuchaleTrans(1)}</p>
+            <!-- @wc-context: door -->
+            <p>{wuchaleTrans(2)}</p>
+            <!-- @wc-context: distance -->
+            <p>{wuchaleTrans(3)}</p>
+    `, `
+        msgid ""
+        msgstr ""
+
+        #: src/test.svelte
+        msgctxt "music"
+        msgid "String"
+        msgstr "String"
+
+        #: src/test.svelte
+        msgctxt "programming"
+        msgid "String"
+        msgstr "String"
+
+        #: src/test.svelte
+        msgctxt "door"
+        msgid "Close"
+        msgstr "Close"
+
+        #: src/test.svelte
+        msgctxt "distance"
+        msgid "Close"
+        msgstr "Close"
+    `, [ 'String', 'String', 'Close', 'Close',  ])
+})
+
 test('Plural', async function(t) {
     await testContent(t,
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
