@@ -48,7 +48,7 @@ export class NestText {
     scope: TxtScope
     context: string
 
-    constructor(txt: string | string[], scope: TxtScope, context: string | null = null) {
+    constructor(txt: string | string[], scope: TxtScope, context: string | null) {
         if (typeof txt === 'string') {
             this.text = [txt]
         } else {
@@ -120,7 +120,7 @@ export default class Preprocess {
             text = text.trim()
         }
         const extract = this.forceInclude || this.heuristic(text, details)
-        return [extract, new NestText(text, details.scope)]
+        return [extract, new NestText(text, details.scope, this.context)]
     }
 
     visitLiteral = (node: Estree.Literal & { start: number; end: number }): NestText[] => {
@@ -132,7 +132,6 @@ export default class Preprocess {
         if (!pass) {
             return []
         }
-        txt.context = this.context
         this.mstr.update(start, end, `${rtFunc}(${this.index.get(txt.toKey())})`)
         return [txt]
     }
@@ -191,7 +190,7 @@ export default class Preprocess {
             }
             candidates.push(elm.value)
         }
-        const nTxt = new NestText(candidates, 'script')
+        const nTxt = new NestText(candidates, 'script', this.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
         // @ts-ignore
@@ -506,7 +505,6 @@ export default class Preprocess {
         if (!pass) {
             return []
         }
-        txt.context = this.context
         this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
@@ -541,7 +539,6 @@ export default class Preprocess {
             if (!pass) {
                 continue
             }
-            txt.context = this.context
             txts.push(txt)
             this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
@@ -676,19 +673,15 @@ export default class Preprocess {
             }
         }
         this.forceInclude = null
-        if (this.context != null) {
-            for (const txt of txts) {
-                txt.context = this.context
-            }
+        if (txts.length) { // if the context was used
+            this.context = null
         }
-        this.context = null
         return txts
     }
 
     process = (content: string, ast: Program | AST.Root): NestText[] => {
         this.content = content
         this.mstr = new MagicString(content)
-        const p = this.visit(ast)
-        return p
+        return this.visit(ast)
     }
 }
