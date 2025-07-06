@@ -6,7 +6,7 @@ import { writeFile, readFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
-import pm, {type Matcher} from 'picomatch'
+import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize, relative } from "node:path"
 import type { Program, Options as ParserOptions } from "acorn"
@@ -24,7 +24,7 @@ interface LoadedPO {
     total: number,
     obsolete: number,
     untranslated: number,
-    headers: {[key: string]: string},
+    headers: { [key: string]: string },
 }
 
 const ScriptParser = Parser.extend(tsPlugin())
@@ -112,7 +112,7 @@ class Plugin {
     locales: string[]
 
     // exposed for testing
-    _poHeaders: {[loc: string]: {[key: string]: string}} = {}
+    _poHeaders: { [loc: string]: { [key: string]: string } } = {}
     _translations: { [loc: string]: { [key: string]: ItemType } } = {}
     _compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
 
@@ -170,14 +170,14 @@ class Plugin {
         }
     }
 
-    #globOptsToArgs = (pattern: GlobConf): [string[], {ignore: string[]} | undefined] => {
+    #globOptsToArgs = (pattern: GlobConf): [string[], { ignore: string[] } | undefined] => {
         let patt: string[]
-        let options: {ignore: string[]}
+        let options: { ignore: string[] }
         if (typeof pattern === 'string') {
             patt = [pattern]
         } else {
             patt = pattern.pattern
-            options = {ignore: pattern.ignore}
+            options = { ignore: pattern.ignore }
         }
         return [patt, options]
     }
@@ -195,13 +195,25 @@ class Plugin {
 
     #fullHeaders = (loc: string) => {
         const localeConf = this.#config.locales[loc]
-        const defaultHeaders = [
+        const fullHead = { ...this._poHeaders[loc] ?? {} }
+        const updateHeaders = [
             ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.pluralRule};`],
-            ['Language', this.#config.locales[loc].name]
+            ['Language', this.#config.locales[loc].name],
+            ['MIME-Version', '1.0'],
+            ['Content-Type', 'text/plain; charset=utf-8'],
+            ['Content-Transfer-Encoding', '8bit'],
+            ['PO-Revision-Date', new Date().toISOString()],
         ]
-        const fullHead = {...this._poHeaders[loc] ?? {}}
-        for (const [key, defaultVal] of defaultHeaders) {
-            fullHead[key] = defaultVal
+        for (const [key, val] of updateHeaders) {
+            fullHead[key] = val
+        }
+        const defaultHeaders = [
+            ['POT-Creation-Date', new Date().toISOString()],
+        ]
+        for (const [key, val] of defaultHeaders) {
+            if (!fullHead[key]) {
+                fullHead[key] = val
+            }
         }
         return fullHead
     }
@@ -383,7 +395,7 @@ class Plugin {
     configureServer = (server: ViteDevServer) => {
         this.#server = server
         // initial load
-        server.ws.on(`${pluginName}:get`, (msg: {locale: string}, client) => {
+        server.ws.on(`${pluginName}:get`, (msg: { locale: string }, client) => {
             client.send(`${pluginName}:update`, {
                 locale: msg.locale,
                 data: this._compiled[msg.locale],
@@ -399,7 +411,7 @@ class Plugin {
         const loc = this.#transFnamesToLocales[ctx.file]
         await this.#loadTranslations(loc)
         this.#compile(loc)
-        this.#server.ws.send(`${pluginName}:update`, {locale: loc, data: this._compiled[loc]})
+        this.#server.ws.send(`${pluginName}:update`, { locale: loc, data: this._compiled[loc] })
     }
 
     resolveId = (source: string) => {
