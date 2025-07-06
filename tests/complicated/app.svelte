@@ -8,8 +8,7 @@
     }
 
     async function someFunctionAsync() {
-        const res = await fetch("https://jsonplaceholder.typicode.com/todos/1")
-        const json = await res.json()
+        const json = {}
         json.name = 'Extracted name'
         return json
     }
