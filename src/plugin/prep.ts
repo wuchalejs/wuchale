@@ -165,6 +165,8 @@ export default class Preprocess {
         ...this.visit(node.property),
     ]
 
+    visitNewExpression = (node: Estree.NewExpression): NestText[] => node.arguments.map(this.visit).flat()
+
     defaultVisitCallExpression = (node: Estree.CallExpression): NestText[] => {
         const txts = [...this.visit(node.callee)]
         for (const arg of node.arguments) {
