@@ -79,7 +79,13 @@ export default defineConfig({
 })
 ```
 
-### 4. Add CLI Scripts
+### 4. Create the locales directory
+
+```bash
+mkdir src/locales
+```
+
+### 5. Add CLI Scripts
 
 ```jsonc
 // package.json
@@ -91,7 +97,7 @@ export default defineConfig({
 }
 ```
 
-### 5. Setup in Your App
+### 6. Setup in Your App
 
 #### For SvelteKit (SSR/SSG)
 
@@ -129,7 +135,7 @@ export async function load({ url }) {
 {/await}
 ```
 
-### 6. Start Coding!
+### 7. Start Coding!
 
 Write your Svelte components naturally. `wuchale` will extract and compile translations automatically:
 
