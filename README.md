@@ -28,6 +28,11 @@ function calls or components. `wuchale` doesn't.
 Write your Svelte code naturally. No imports, no wrappers, no annotations.
 `wuchale` handles everything at compile time.
 
+Try live examples in your browser, no setup required:
+
+- Svelte: [![Svelte example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/svelte)
+- SvelteKit: [![SvelteKit example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/sveltekit)
+
 ## ✨ Key Features
 
 - **🔧 Zero-effort integration** - Add i18n to existing projects without rewriting code
