@@ -284,17 +284,19 @@ class Plugin {
             await writeFile(this.#compiledFname[loc], `
                 import defaultData, {pluralsRule} from '${virtualPrefix}${loc}'
                 const data = $state(defaultData)
-                import.meta.hot.on('${pluginName}:update', ({locale, data: newData}) => {
-                    if (locale !== '${loc}') {
-                        return
-                    }
-                    for (let i = 0; i < newData.length; i++) {
-                        if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
-                            data[i] = newData[i]
+                if (import.meta.hot) {
+                    import.meta.hot.on('${pluginName}:update', ({locale, data: newData}) => {
+                        if (locale !== '${loc}') {
+                            return
                         }
-                    }
-                })
-                import.meta.hot.send('${pluginName}:get', {locale: '${loc}'})
+                        for (let i = 0; i < newData.length; i++) {
+                            if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                                data[i] = newData[i]
+                            }
+                        }
+                    })
+                    import.meta.hot.send('${pluginName}:get', {locale: '${loc}'})
+                }
                 export {pluralsRule}
                 export default data
             `)
