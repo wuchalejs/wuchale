@@ -13,23 +13,23 @@ await plugin.configResolved({env: {EXTRACT: true}, root: process.cwd()})
 console.log('Extracting...')
 
 if (clean) {
-    for (const loc of plugin.locales) {
+    for (const loc of plugin._locales) {
         for (const item of Object.values(plugin._translations[loc])) {
             item.references = []
         }
     }
 }
 
-await plugin.directExtract()
+await plugin._directExtract()
 
 if (clean) {
-    for (const loc of plugin.locales) {
+    for (const loc of plugin._locales) {
         for (const [key, item] of Object.entries(plugin._translations[loc])) {
             if (item.references.length === 0) {
                 delete plugin._translations[loc][key]
             }
         }
-        plugin.afterExtract(loc)
+        plugin._afterExtract(loc)
     }
 }
 

@@ -6,7 +6,7 @@ type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
 
 const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
 
-function extractSpecial(txt: string, start: number): [SpecialType, number, number] {
+function extractSpecial(txt: string, start: number): [SpecialType | null, number, number] {
     const inPlaceHolder = txt[start] === '{'
     const inTag = txt[start] === '<'
     if (!inTag && !inPlaceHolder) {
@@ -17,7 +17,7 @@ function extractSpecial(txt: string, start: number): [SpecialType, number, numbe
     let inClose = false
     let i = start + 1
     const beginChar = txt[i]
-    if (beginChar === '/') {
+    if (inTag && beginChar === '/') {
         inClose = true
         i++
     }

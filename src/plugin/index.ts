@@ -37,6 +37,10 @@ const scriptParseOptions: ParserOptions = {
 
 type HMRCompiled = { locale: any; data: CompiledFragment[] }
 
+type HMRClient = {
+    send: (event: string, data: HMRCompiled) => void
+}
+
 type ViteDevServer = {
     ws: {
         send: (event: string, data: HMRCompiled) => void,
@@ -46,10 +50,6 @@ type ViteDevServer = {
         getModuleById: Function,
         invalidateModule: Function,
     },
-}
-
-type HMRClient = {
-    send: (event: string, data: HMRCompiled) => void
 }
 
 type ViteHotUpdateCTX = {
@@ -109,12 +109,13 @@ class Plugin {
 
     #config: Config
 
-    locales: string[]
+    _locales: string[]
 
     // exposed for testing
-    _poHeaders: { [loc: string]: { [key: string]: string } } = {}
     _translations: { [loc: string]: { [key: string]: ItemType } } = {}
     _compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
+
+    #poHeaders: { [loc: string]: { [key: string]: string } } = {}
 
     #sourceTranslations: { [key: string]: ItemType }
 
@@ -140,18 +141,18 @@ class Plugin {
         this.#indexTracker = new IndexTracker({})
     }
 
-    init = async (configRaw: Config) => {
+    _init = async (configRaw: Config) => {
         this.#config = await getOptions(configRaw)
-        this.locales = [
+        this._locales = [
             this.#config.sourceLocale,
             ...Object.keys(this.#config.locales).filter(loc => loc != this.#config.sourceLocale),
         ]
-        for (const loc of this.locales) {
+        for (const loc of this._locales) {
             this.#compiledFname[loc] = `${this.#config.localesDir}/${loc}.svelte.js`
             this.#translationsFname[loc] = `${this.#config.localesDir}/${loc}.po`
         }
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
-        for (const loc of this.locales) {
+        for (const loc of this._locales) {
             if (loc === this.#config.sourceLocale) {
                 continue
             }
@@ -159,13 +160,13 @@ class Plugin {
                 sourceLocaleName,
                 this.#config.locales[loc].name,
                 this.#config.geminiAPIKey,
-                async () => await this.afterExtract(loc),
+                async () => await this._afterExtract(loc),
             )
         }
         if (this.#config.hmr) {
             this.transform = {
                 order: 'pre',
-                handler: this.transformHandler,
+                handler: this._transformHandler,
             }
         }
     }
@@ -182,12 +183,12 @@ class Plugin {
         return [patt, options]
     }
 
-    directExtract = async () => {
+    _directExtract = async () => {
         const all = []
         for (const pattern of this.#config.files) {
             for (const file of await glob(...this.#globOptsToArgs(pattern))) {
                 const contents = await readFile(file)
-                all.push(this.transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
+                all.push(this._transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
             }
         }
         await Promise.all(all)
@@ -195,7 +196,7 @@ class Plugin {
 
     #fullHeaders = (loc: string) => {
         const localeConf = this.#config.locales[loc]
-        const fullHead = { ...this._poHeaders[loc] ?? {} }
+        const fullHead = { ...this.#poHeaders[loc] ?? {} }
         const updateHeaders = [
             ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.pluralRule};`],
             ['Language', this.#config.locales[loc].name],
@@ -221,7 +222,7 @@ class Plugin {
     #loadTranslations = async (loc: string) => {
         try {
             const { translations: trans, total, obsolete, untranslated, headers } = await loadPOFile(this.#translationsFname[loc])
-            this._poHeaders[loc] = headers
+            this.#poHeaders[loc] = headers
             this._translations[loc] = trans
             const locName = this.#config.locales[loc].name
             console.info(`i18n stats (${locName}): total: ${total}, obsolete: ${obsolete}, untranslated: ${untranslated}`)
@@ -230,7 +231,7 @@ class Plugin {
                 throw err
             }
             if (this.#currentPurpose === 'dev' || this.#currentPurpose === 'prod') {
-                await this.directExtract()
+                await this._directExtract()
             }
         }
     }
@@ -261,11 +262,11 @@ class Plugin {
     }
 
     #loadFilesAndSetup = async () => {
-        for (const loc of this.locales) {
+        for (const loc of this._locales) {
             this._translations[loc] = {}
         } // all before #loadTranslations because we will loop over them in transformHandler at startup
         if (this.#currentPurpose !== 'test') {
-            for (const loc of this.locales) {
+            for (const loc of this._locales) {
                 await this.#loadTranslations(loc)
             }
         }
@@ -274,7 +275,7 @@ class Plugin {
         if (this.#currentPurpose === 'test') {
             return
         }
-        for (const loc of this.locales) {
+        for (const loc of this._locales) {
             this.#compile(loc)
             if (this.#currentPurpose !== 'dev') {
                 await writeFile(this.#compiledFname[loc], `export {default, pluralsRule} from '${virtualPrefix}${loc}'`)
@@ -300,7 +301,7 @@ class Plugin {
         }
     }
 
-    afterExtract = async (loc: string) => {
+    _afterExtract = async (loc: string) => {
         if (this.#currentPurpose !== 'test') {
             await savePO(Object.values(this._translations[loc]), this.#translationsFname[loc], this.#fullHeaders(loc))
         }
@@ -315,7 +316,7 @@ class Plugin {
         if (!txts.length) {
             return {}
         }
-        for (const loc of this.locales) {
+        for (const loc of this._locales) {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
@@ -349,7 +350,7 @@ class Plugin {
                 continue
             }
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc].url) {
-                await this.afterExtract(loc)
+                await this._afterExtract(loc)
                 continue
             }
             const newRequest = this.#geminiQueue[loc].add(newTxts)
@@ -371,7 +372,7 @@ class Plugin {
             this.#currentPurpose = 'dev'
         } else if (config.env.PROD == null) {
             this.#currentPurpose = "test"
-            for (const loc of this.locales) {
+            for (const loc of this._locales) {
                 this._translations[loc] = {}
                 this._compiled[loc] = []
             }
@@ -431,7 +432,7 @@ class Plugin {
         return `${pluralRuleExport}export default ${JSON.stringify(this._compiled[locale])}`
     }
 
-    transformHandler = async (code: string, id: string) => {
+    _transformHandler = async (code: string, id: string) => {
         const filename = relative(this.#projectRoot, id)
         if (!this.#patterns.find(isMatch => isMatch(filename))) {
             return
@@ -452,6 +453,6 @@ class Plugin {
 
 export default async function wuchale(config: Config = {}) {
     const plugin = new Plugin()
-    await plugin.init(config)
+    await plugin._init(config)
     return plugin
 }

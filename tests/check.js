@@ -9,7 +9,7 @@ export async function getOutput(content) {
     const plug = await wuchale(config)
     await plug.configResolved(configFromVite)
     const { _translations: translations, _compiled: compiled } = plug
-    const processed = await plug.transformHandler(content, process.cwd() + '/src/test.svelte')
+    const processed = await plug._transformHandler(content, process.cwd() + '/src/test.svelte')
     return { processed, translations, compiled }
 }
 
