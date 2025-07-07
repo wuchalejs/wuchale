@@ -1,0 +1,75 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-07T13:05:01.620Z\n"
+"PO-Revision-Date: 2025-07-07T13:07:41.204Z\n"
+"Last-Translator: \n"
+"Language: French\n"
+"Language-Team: \n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n == 1 ? 0 : 1;\n"
+"MIME-Version: 1.0\n"
+
+#: src/App.svelte
+msgid "Vite Logo"
+msgstr "Logo Vite"
+
+#: src/App.svelte
+msgid "Svelte Logo"
+msgstr "Logo Svelte"
+
+#: src/App.svelte
+msgid "Vite + Svelte"
+msgstr "Vite + Svelte"
+
+#: src/App.svelte
+msgid "Check out <0>SvelteKit</0> , the official Svelte app framework powered by Vite!"
+msgstr "Découvrez <0>SvelteKit</0>, le framework d'application Svelte officiel alimenté par Vite !"
+
+#: src/App.svelte
+msgid "Click on the Vite and Svelte logos to learn more"
+msgstr "Cliquez sur les logos Vite et Svelte pour en savoir plus"
+
+#: src/App.svelte
+msgid ""
+".logo {\n"
+"      height: 6em;\n"
+"      padding: 1.5em;\n"
+"      will-change: filter;\n"
+"      transition: filter 300ms;\n"
+"    }\n"
+"    .logo:hover {\n"
+"      filter: drop-shadow(0 0 2em #646cffaa);\n"
+"    }\n"
+"    .logo.svelte:hover {\n"
+"      filter: drop-shadow(0 0 2em #ff3e00aa);\n"
+"    }\n"
+"    .read-the-docs {\n"
+"      color: #888;\n"
+"    }"
+msgstr ""
+".logo {\n"
+"      height: 6em;\n"
+"      padding: 1.5em;\n"
+"      will-change: filter;\n"
+"      transition: filter 300ms;\n"
+"    }\n"
+"    .logo:hover {\n"
+"      filter: drop-shadow(0 0 2em #646cffaa);\n"
+"    }\n"
+"    .logo.svelte:hover {\n"
+"      filter: drop-shadow(0 0 2em #ff3e00aa);\n"
+"    }\n"
+"    .read-the-docs {\n"
+"      color: #888;\n"
+"    }```"
+
+#: src/lib/Counter.svelte
+msgid "count is {0}"
+msgstr "le compte est de {0}"
+
+#: src/App.svelte
+msgid "Current locale: {0}"
+msgstr "Locale actuelle : {0}"

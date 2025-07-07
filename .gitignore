@@ -1,4 +1,4 @@
 node_modules
 rnd
-locales
+**/locales/*.svelte.js
 dist/
