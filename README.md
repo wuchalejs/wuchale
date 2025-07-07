@@ -144,6 +144,8 @@ Write your Svelte components naturally. `wuchale` will extract and compile trans
 <p>Hello {userName}, you have {itemCount} items in your cart.</p>
 ```
 
+For full usage examples, look inside the **[examples directory](https://github.com/K1DV5/wuchale/tree/main/examples)**.
+
 ## 📖 How It Works
 
 ![Diagram](https://raw.githubusercontent.com/K1DV5/wuchale/main/images/diagram.svg)
