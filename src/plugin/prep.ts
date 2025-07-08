@@ -379,6 +379,11 @@ export default class Preprocess {
         let hasTextDescendants = false
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Comment') {
+                this.visit(child)
+                continue
+            }
+            if (this.forceInclude === false) {
+                this.resetComments(child)
                 continue
             }
             if (child.type === 'Text') {
@@ -392,6 +397,7 @@ export default class Preprocess {
             }
             if (!node.inCompoundText && !hasCompoundText) {
                 txts.push(...this.visit(child))
+                this.resetComments(child)
                 continue
             }
             if (child.type === 'ExpressionTag') {
@@ -436,6 +442,7 @@ export default class Preprocess {
                 txt += ' '
             }
             txt += chTxt
+            this.resetComments(child)
         }
         txt = txt.trim()
         if (!txt) {
@@ -652,6 +659,14 @@ export default class Preprocess {
         }
     }
 
+    resetComments = (node: AST.SvelteNode | AnyNode) => {
+        if (node.type === 'Text' && !node.data.trim()) {
+            return
+        }
+        this.forceInclude = null
+        this.context = null
+    }
+
     visit = (node: AST.SvelteNode | AnyNode): NestText[] => {
         if (node.type === 'Comment') {
             this.processCommentDirectives(node.data.trim())
@@ -672,10 +687,7 @@ export default class Preprocess {
             //     console.log(node)
             }
         }
-        this.forceInclude = null
-        if (txts.length) { // if the context was used
-            this.context = null
-        }
+        this.resetComments(node)
         return txts
     }
 

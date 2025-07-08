@@ -85,6 +85,39 @@ test('Simple element with new lines', async function(t) {
     `, ['Hello\n            There'])
 })
 
+test('Ignore and include', async function(t) {
+    await testContent(t, svelte`
+        <div>
+            <svg><path d="M100 200" /></svg>
+            <p>{'hello there'}</p>
+            <!-- @wc-ignore -->
+            <span>Ignore this</span>
+            <!-- @wc-include -->
+            {'include this'}
+        </div>
+    `, svelte`
+        <script>
+            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
+            import WuchaleTrans from "wuchale/runtime.svelte"
+        </script>
+        <div>
+            <svg><path d="M100 200" /></svg>
+            <p>{'hello there'}</p>
+            <!-- @wc-ignore -->
+            <span>Ignore this</span>
+            <!-- @wc-include -->
+            {wuchaleTrans(0)}
+        </div>
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: src/test.svelte
+    msgid "include this"
+    msgstr "include this"
+    `, ['include this'])
+})
+
 test('Context', async function(t) {
     await testContent(t,
         svelte`
@@ -151,16 +184,6 @@ test('Plural', async function(t) {
     msgstr[0] "One item"
     msgstr[1] "# items"
     `, [ [ 'One item', '# items' ] ])
-})
-
-test('Ignore some', async function(t) { // small letter beginning inside string
-    await testContent(t, svelte`
-        <p>{'hello there'}</p>
-        <svg><path d="M100 200" /></svg>
-    `, undefined, `
-    msgid ""
-    msgstr ""
-    `, [])
 })
 
 async function testDir(t, dir) {
