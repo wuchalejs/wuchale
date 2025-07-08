@@ -4,6 +4,10 @@
 <p>Nested <b>mixed with {text}</b></p>
 <p>Nested <b>{expressionOnly}</b></p>
 <p>
+    {1}
+    {2} / {3}...
+</p>
+<p>
     Nested deep nontext
     <b>
         <i>

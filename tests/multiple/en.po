@@ -22,5 +22,9 @@ msgid "Nested <0/>"
 msgstr "Nested <0/>"
 
 #: src/test.svelte
+msgid "{0} {1} / {2}..."
+msgstr "{0} {1} / {2}..."
+
+#: src/test.svelte
 msgid "Nested deep nontext <0/>"
 msgstr "Nested deep nontext <0/>"

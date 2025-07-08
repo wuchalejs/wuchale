@@ -76,11 +76,16 @@
     {/snippet}<!-- foo bar -->
 
     {#snippet wuchaleSnippet3()}
-        {#if someFunction(wuchaleTrans(3), normalParam, [/* @wc-include */ wuchaleTrans(4)])}{wuchaleTrans(5)}{#each collection.members as member}{wuchaleTrans(6)}{member}
-            <!-- What not -->
-            {#await someFunctionAsync(a) then json}
-                <b>{wuchaleTrans(7, [json.title])}</b>
-            {/await}{wuchaleTrans(8)}{/each}
+        {#if someFunction(wuchaleTrans(3), normalParam, [/* @wc-include */ wuchaleTrans(4)])}
+            {wuchaleTrans(5)}
+            {#each collection.members as member}
+                {wuchaleTrans(6)} {member}
+                <!-- What not -->
+                {#await someFunctionAsync(a) then json}
+                    <b>{wuchaleTrans(7, [json.title])}</b>
+                {/await}
+                {wuchaleTrans(8)}
+            {/each}
         {/if}
     {/snippet}
 

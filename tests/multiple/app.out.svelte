@@ -23,6 +23,8 @@
     <WuchaleTrans tags={[wuchaleSnippet2]} id={4} />
 </p>
 <p>
+{wuchaleTrans(5, [1, 2, 3])}</p>
+<p>
     {#snippet wuchaleSnippet3()}
         <b>
             <i>
@@ -31,5 +33,5 @@
             </i>
         </b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet3]} id={5} />
+    <WuchaleTrans tags={[wuchaleSnippet3]} id={6} />
 </p>
