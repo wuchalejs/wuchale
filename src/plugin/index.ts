@@ -187,6 +187,7 @@ class Plugin {
         const all = []
         for (const pattern of this.#config.files) {
             for (const file of await glob(...this.#globOptsToArgs(pattern))) {
+                console.log('Extract from', file)
                 const contents = await readFile(file)
                 all.push(this._transformHandler(contents.toString(), normalize(process.cwd() + '/' + file)))
             }
