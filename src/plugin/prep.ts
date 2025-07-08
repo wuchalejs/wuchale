@@ -305,14 +305,22 @@ export default class Preprocess {
 
     visitTemplateLiteral = (node: Estree.TemplateLiteral): NestText[] => {
         const txts = []
-        const quasi0 = node.quasis[0]
-        // @ts-ignore
-        const { start: start0, end: end0 } = quasi0
-        const [pass, txt0] = this.checkHeuristic(quasi0.value.cooked, {scope: 'script'})
+        let heurTxt = ''
+        for (const quasi of node.quasis) {
+            heurTxt += quasi.value.cooked ?? ''
+            if (!quasi.tail) {
+                heurTxt += '#'
+            }
+        }
+        heurTxt = heurTxt.trim()
+        const [pass] = this.checkHeuristic(heurTxt, {scope: 'script'})
         if (!pass) {
             return txts
         }
-        let txt = txt0.text[0]
+        const quasi0 = node.quasis[0]
+        // @ts-ignore
+        const { start: start0, end: end0 } = quasi0
+        let txt = quasi0.value?.cooked ?? ''
         for (const [i, expr] of node.expressions.entries()) {
             txts.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
@@ -325,7 +333,7 @@ export default class Preprocess {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const nTxt = new NestText(txt, txt0.scope, this.context)
+        const nTxt = new NestText(txt, 'script', this.context)
         let begin = `${rtFunc}(${this.index.get(nTxt.toKey())}`
         let end = ')'
         if (node.expressions.length) {
@@ -360,30 +368,31 @@ export default class Preprocess {
         }
         let hasTextChild = false
         let hasNonTextChild = false
-        const textNodesToModify: [number, NestText, number][] = []
-        for (const [i, child] of node.fragment.nodes.entries()) {
+        let heurTxt = ''
+        for (const child of node.fragment.nodes) {
             if (child.type === 'Text') {
-                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
-                const [pass, nTxt] = this.checkHeuristic(trimmed, {scope: 'markup', element: node.name})
-                textNodesToModify[i] = [startWh, nTxt, endWh]
-                if (pass) {
-                    hasTextChild = true
-                } else if (i === 0 && nTxt != null) { // non whitespace
-                    return txts // explicitly to ignore
+                const txt = child.data.trim()
+                if (!txt) {
+                    continue
                 }
+                hasTextChild = true
+                heurTxt += child.data + ' '
             } else if (child.type !== 'Comment') {
                 hasNonTextChild = true
+                heurTxt += `# `
             }
             // no break because of textNodesToModify, already started, finish it
         }
-        let hasCompoundText = hasTextChild && hasNonTextChild
+        heurTxt = heurTxt.trimEnd()
+        const [passHeur] = this.checkHeuristic(heurTxt, {scope: 'markup', element: node.name})
+        let hasCompoundText = passHeur && hasTextChild && hasNonTextChild
         let txt = ''
         let iArg = 0
         let iTag = 0
         const lastChildEnd = node.fragment.nodes.slice(-1)[0].end
         const childrenForSnippets: [number, number, boolean][] = []
         let hasTextDescendants = false
-        for (const [i, child] of node.fragment.nodes.entries()) {
+        for (const child of node.fragment.nodes) {
             if (child.type === 'Comment') {
                 this.visit(child)
                 continue
@@ -393,11 +402,15 @@ export default class Preprocess {
                 continue
             }
             if (child.type === 'Text') {
-                const [startWh, nTxt, endWh] = textNodesToModify[i] ?? []
+                if (!passHeur) {
+                    continue
+                }
+                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
+                const nTxt = new NestText(trimmed, 'markup', this.context)
                 if (startWh && !txt.endsWith(' ')) {
                     txt += ' '
                 }
-                if (nTxt == null) { // whitespace
+                if (!trimmed) { // whitespace
                     continue
                 }
                 txt += nTxt.text
