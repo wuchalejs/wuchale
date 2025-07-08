@@ -213,6 +213,11 @@ export default class Preprocess {
 
     visitUnaryExpression = (node: Estree.UnaryExpression): NestText[] => this.visit(node.argument)
 
+    visitLogicalExpression = (node: Estree.LogicalExpression): NestText[] => [
+        ...this.visit(node.left),
+        ...this.visit(node.right),
+    ]
+
     visitAwaitExpression = (node: Estree.AwaitExpression): NestText[] => this.visit(node.argument)
 
     visitAssignmentExpression = this.visitBinaryExpression
