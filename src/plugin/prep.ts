@@ -16,7 +16,7 @@ type HeuristicDetails = {
     attribute?: string,
 }
 
-export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean
+export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
 
 export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (text.search(/\p{L}/u) === -1) {
@@ -119,7 +119,15 @@ export default class Preprocess {
             // nothing to ask
             return [false, null]
         }
-        const extract = this.forceInclude || this.heuristic(text, details)
+        let extract: boolean
+        if (this.forceInclude) {
+            extract = true
+        } else {
+            extract = this.heuristic(text, details)
+            if (extract == null) {
+                extract = defaultHeuristic(text, details) ?? true
+            }
+        }
         return [extract, new NestText(text, details.scope, this.context)]
     }
 
