@@ -19,6 +19,9 @@ type HeuristicDetails = {
 export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean
 
 export function defaultHeuristic(text: string, details: HeuristicDetails) {
+    if (text.search(/\p{L}/u) === -1) {
+        return false
+    }
     if (details.scope === 'markup') {
         return true
     }
