@@ -1,6 +1,6 @@
 {
     "name": "wuchale",
-    "version": "0.7.3",
+    "version": "0.7.4",
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
