@@ -111,13 +111,10 @@ export default class Preprocess {
         this.pluralFunc = pluralsFunc
     }
 
-    checkHeuristic = (text: string, details: HeuristicDetails, trim = false): [boolean, NestText] => {
-        if (text.trim() === '') {
+    checkHeuristic = (text: string, details: HeuristicDetails): [boolean, NestText] => {
+        if (!text) {
             // nothing to ask
             return [false, null]
-        }
-        if (trim) {
-            text = text.trim()
         }
         const extract = this.forceInclude || this.heuristic(text, details)
         return [extract, new NestText(text, details.scope, this.context)]
@@ -345,6 +342,14 @@ export default class Preprocess {
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
+    nonWhitespaceText = (node: AST.Text): [number, string, number] => {
+        let trimmedS = node.data.trimStart()
+        const startWh = node.data.length - trimmedS.length
+        let trimmed = trimmedS.trimEnd()
+        const endWh = trimmedS.length - trimmed.length
+        return [startWh, trimmed, endWh]
+    }
+
     visitRegularElementCore = (node: ElementNode): NestText[] => {
         const txts: NestText[] = []
         for (const attrib of node.attributes) {
@@ -355,13 +360,14 @@ export default class Preprocess {
         }
         let hasTextChild = false
         let hasNonTextChild = false
-        const textNodesToModify: NestText[] = []
+        const textNodesToModify: [number, NestText, number][] = []
         for (const [i, child] of node.fragment.nodes.entries()) {
             if (child.type === 'Text') {
-                const [pass, nTxt] = this.checkHeuristic(child.data, {scope: 'markup', element: node.name}, true)
+                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
+                const [pass, nTxt] = this.checkHeuristic(trimmed, {scope: 'markup', element: node.name})
+                textNodesToModify[i] = [startWh, nTxt, endWh]
                 if (pass) {
                     hasTextChild = true
-                    textNodesToModify[i] = nTxt
                 } else if (i === 0 && nTxt != null) { // non whitespace
                     return txts // explicitly to ignore
                 }
@@ -387,11 +393,17 @@ export default class Preprocess {
                 continue
             }
             if (child.type === 'Text') {
-                const nTxt = textNodesToModify[i]
+                const [startWh, nTxt, endWh] = textNodesToModify[i] ?? []
+                if (startWh && !txt.endsWith(' ')) {
+                    txt += ' '
+                }
                 if (nTxt == null) { // whitespace
                     continue
                 }
-                txt += ' ' + nTxt.text
+                txt += nTxt.text
+                if (endWh) {
+                    txt += ' '
+                }
                 this.mstr.remove(child.start, child.end)
                 continue
             }
@@ -405,7 +417,7 @@ export default class Preprocess {
                 if (!hasCompoundText) {
                     continue
                 }
-                txt += ` {${iArg}}`
+                txt += `{${iArg}}`
                 let moveStart = child.start
                 if (iArg > 0) {
                     this.mstr.update(child.start, child.start + 1, ', ')
@@ -440,9 +452,6 @@ export default class Preprocess {
                 chTxt = `<${iTag}/>`
             }
             iTag++
-            if (chTxt && !txt.endsWith(' ')) {
-                txt += ' '
-            }
             txt += chTxt
             this.resetComments(child)
         }
@@ -510,11 +519,12 @@ export default class Preprocess {
     visitComponent = this.visitRegularElement
 
     visitText = (node: AST.Text): NestText[] => {
-        const [pass, txt] = this.checkHeuristic(node.data, {scope: 'markup'}, true)
+        const [startWh, trimmed, endWh] = this.nonWhitespaceText(node)
+        const [pass, txt] = this.checkHeuristic(trimmed, {scope: 'markup'})
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start, node.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
 
