@@ -406,12 +406,14 @@ export default class Preprocess {
                     continue
                 }
                 txt += ` {${iArg}}`
-                this.mstr.move(child.start + 1, child.end - 1, lastChildEnd)
+                let moveStart = child.start
                 if (iArg > 0) {
                     this.mstr.update(child.start, child.start + 1, ', ')
                 } else {
+                    moveStart++
                     this.mstr.remove(child.start, child.start + 1)
                 }
+                this.mstr.move(moveStart, child.end - 1, lastChildEnd)
                 this.mstr.remove(child.end - 1, child.end)
                 iArg++
                 continue
