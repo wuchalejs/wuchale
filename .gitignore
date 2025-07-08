@@ -2,3 +2,5 @@ node_modules
 rnd
 **/locales/*.svelte.js
 dist/
+examples/*/package-lock.json
+.svelte-kit
