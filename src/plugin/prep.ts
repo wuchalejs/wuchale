@@ -706,6 +706,21 @@ export default class Preprocess {
         return txts
     }
 
+    visitSvelteBody = (node: AST.SvelteBody): NestText[] => node.attributes.map(this.visit).flat()
+
+    visitSvelteDocument = (node: AST.SvelteDocument): NestText[] => node.attributes.map(this.visit).flat()
+
+    visitSvelteElement = (node: AST.SvelteElement): NestText[] => node.attributes.map(this.visit).flat()
+
+    visitSvelteBoundary = (node: AST.SvelteBoundary): NestText[] => [
+        ...node.attributes.map(this.visit).flat(),
+        ...this.visit(node.fragment),
+    ]
+
+    visitSvelteHead = (node: AST.SvelteHead): NestText[] => this.visit(node.fragment)
+
+    visitSvelteWindow = (node: AST.SvelteWindow): NestText[] => node.attributes.map(this.visit).flat()
+
     visitProgram = (node: Estree.Program, needImport = true): NestText[] => {
         const txts = []
         this.insideScript = true
