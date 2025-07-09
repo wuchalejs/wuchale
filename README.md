@@ -264,58 +264,61 @@ src/
 └── App.svelte        # Your components
 ```
 
-## Behaviour explanation
+## 🧠 Behavior Explanation
 
-### Default heuristic
+### Default Heuristic
 
-The default behaviour is dictated by the default heuristic function. It has the following rules:
+`wuchale` uses a built-in heuristic to determine which text fragments to extract. Here's how it works:
 
-- For all texts regardless of scope:
-    - If the text doesn't contain any letter used to form words in any language, ignore.
-- For markup:
-    - Extract all text.
-- For attribute:
-    - If the first character is a small English letter like `[a-z]`, ignore.
-    - If the element is a `path`, ignore. (This is to ignore `svg` `path` definitions because they can start with `M`)
-    - Else extract all.
-- For script:
-    - If it is in a top level variable assignment (not a function definition):
-        - if it is not inside `$derived` or `$derived.by`, ignore.
-    - If the first character is a small English letter like `[a-z]`, ignore.
-    - If it is inside `console.*()` or `$inspect()` call, ignore.
-    - Else extract all.
+#### General rule (applies everywhere):
+- If the text contains no letters used in any natural language (e.g., just numbers or symbols), it is ignored.
 
-This handles many cases where text we don't want may be extracted. But if we
-want to refine the logic further, we can define a custom heuristic function and
-provide it in the configuration. If the custom heuristic function returns
-`undefined` or `null`, the default heuristic will be used. This allows the
-custom one to handle one case and delegate the rest to the default one as a
-fallback. Furthermore, if we want to access the default heuristic function, it
-is exported from the package.
+#### In `markup` (`<p>Text</p>`):
+- All textual content is extracted.
 
-if the comment directives, `@wc-ignore` or `@wc-include` are provided, they
-will take precedence on that specific case.
+#### In `attribute` (`<div title="Info">`):
+- If the first character is a lowercase English letter (`[a-z]`), it is ignored.
+- If the element is a `<path>`, it is ignored (e.g., for SVG `d="M10 10..."` attributes).
+- Otherwise, it is extracted.
 
-### Useful usage pattern
+#### In `script` (`<script>` and `.svelte.js/ts`):
+- If it's in a top-level variable assignment (not inside a function):
+    - And not inside `$derived` or `$derived.by`, it is ignored.
+- If the first character is a lowercase English letter (`[a-z]`), it is ignored.
+- If the value is inside `console.*()` or `$inspect()` calls, it is ignored.
+- Otherwise, it is extracted.
 
-Sometimes, we may need to prevent the extraction of strings inside function for
-example (script scope). And because of the global nature of the heuristic
-function, we may want to avoid altering it. And using the common directives may
-be too much typing. In that case, we can define the strings in a top level
-constant (ignored by default) and access them inside our function:
+This heuristic strikes a balance between useful automation and practical
+exclusion of irrelevant strings. 
 
-```javascript
+If you need more control, you can supply your own heuristic function in the
+configuration. Custom heuristics can return `undefined` or `null` to fall back
+to the default. For convenience, the default heuristic is exported by the
+package.
+
+> 💡 You can override extraction with comment directives:
+> - `@wc-ignore` — skips extraction
+> - `@wc-include` — forces extraction  
+> These always take precedence.
+
+### Useful Usage Pattern
+
+A common scenario is needing to prevent string extraction inside functions, but
+you may not want to modify the global heuristic or litter your code with
+comment directives. A cleaner approach is to extract constants to the top
+level, which are ignored by default:
+
+```js
 const keys = {
-    Escape: 'Escape',
-    ArrowUp: 'ArrowUp',
-    // ...
-}
+  Escape: 'Escape',
+  ArrowUp: 'ArrowUp',
+  // ...
+};
 
 function eventHandler(event) {
+  if (event.key === keys.Escape) {
     // ...
-    if (event.key === keys.Escape) {
-        // ...
-    }
+  }
 }
 ```
 
