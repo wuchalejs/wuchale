@@ -414,6 +414,9 @@ export default class Preprocess {
                 continue
             }
             if (this.forceInclude === false) {
+                if (hasCompoundText) {
+                    console.warn('Mixed text with ignore can result in an unexpected result.')
+                }
                 this.resetComments(child)
                 continue
             }
