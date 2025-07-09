@@ -45,6 +45,8 @@
             }
             e.default = [f, 'And this', e]
         }
+        console.log("Don't translate this.")
+        $inspect('Not this either')
         return {
             ['And this']: f,
             butNotThis: 'Okay?',

@@ -12,11 +12,17 @@ type TxtScope = "script" | "markup" | "attribute"
 
 type HeuristicDetails = {
     scope: TxtScope,
+    topLevelDef?: "variable" | "function",
+    topLevelCall?: string,
+    call?: string,
     element?: string,
     attribute?: string,
 }
 
 export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
+
+const topLevelDeclarationsInside = ['$derived', '$derived.by']
+const ignoreElements = ['path']
 
 export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (text.search(/\p{L}/u) === -1) {
@@ -25,7 +31,13 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (details.scope === 'markup') {
         return true
     }
-    if (details.element === 'path') { // ignore attributes for svg path
+    if (ignoreElements.includes(details.element)) {
+        return false
+    }
+    if (details.topLevelDef === 'variable' && !topLevelDeclarationsInside.includes(details.topLevelCall)) {
+        return false
+    }
+    if (details.call?.startsWith('console.') || details.call === '$inspect') {
         return false
     }
     // script and attribute
@@ -105,7 +117,10 @@ export default class Preprocess {
     // state
     forceInclude: boolean | null = null
     context: string | null = null
-    insideFunc: boolean = false
+    insideScript: boolean = false
+    topLevelDef: "variable" | "function" = null
+    currentCall: string
+    currentTopLevelCall: string
     currentElement: ElementNode
 
     constructor(index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, pluralsFunc: string = 'plural') {
@@ -136,7 +151,12 @@ export default class Preprocess {
             return []
         }
         const { start, end } = node
-        const [pass, txt] = this.checkHeuristic(node.value, {scope: 'script'})
+        const [pass, txt] = this.checkHeuristic(node.value, {
+            scope: 'script',
+            call: this.currentCall,
+            topLevelDef: this.topLevelDef,
+            topLevelCall: this.currentTopLevelCall,
+        })
         if (!pass) {
             return []
         }
@@ -176,9 +196,12 @@ export default class Preprocess {
 
     defaultVisitCallExpression = (node: Estree.CallExpression): NestText[] => {
         const txts = [...this.visit(node.callee)]
+        const currentCall = this.currentCall
+        this.currentCall = this.getCalleeName(node.callee)
         for (const arg of node.arguments) {
             txts.push(...this.visit(arg))
         }
+        this.currentCall = currentCall // restore
         return txts
     }
 
@@ -243,31 +266,53 @@ export default class Preprocess {
         ...this.visit(node.body),
     ]
 
+    getMemberChainName = (node: Estree.MemberExpression): string => {
+        let name = ''
+        if (node.object.type === 'Identifier') {
+            name = node.object.name
+        } else if (node.object.type === 'MemberExpression') {
+            name = this.getMemberChainName(node.object)
+        } else {
+            name = '[other]'
+        }
+        name += '.'
+        if (node.property.type === 'Identifier') {
+            name += node.property.name
+        } else if (node.property.type === 'MemberExpression') {
+            name += this.getMemberChainName(node.property)
+        } else {
+            name += '[other]'
+        }
+        return name
+    }
+
+    getCalleeName = (callee: Estree.Expression | Estree.Super): string => {
+        if (callee.type === 'Identifier') {
+            return callee.name
+        }
+        if (callee.type === 'MemberExpression') {
+            return this.getMemberChainName(callee)
+        }
+        return '[other]'
+    }
+
     visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
         const txts = []
-        let atTopLevel = !this.insideFunc
+        let atTopLevelDefn = this.insideScript && !this.topLevelDef
         for (const dec of node.declarations) {
             if (!dec.init) {
                 continue
             }
-            // visit only contents inside $derived or functions
-            if (atTopLevel) {
-                if (dec.init.type === 'CallExpression') {
-                    const callee = dec.init.callee
-                    const isDerived = callee.type === 'Identifier' && callee.name === '$derived'
-                    const isDerivedBy = callee.type === 'MemberExpression'
-                        && callee.object.type === 'Identifier'
-                        && callee.object.name === '$derived'
-                        && callee.property.type === 'Identifier'
-                        && callee.property.name === 'by'
-                    if (!isDerived && !isDerivedBy) {
-                        continue
-                    }
-                } else if (dec.init.type !== 'ArrowFunctionExpression') {
-                    continue
+            // store the name of the function after =
+            if (atTopLevelDefn) {
+                if (dec.init.type === 'ArrowFunctionExpression') {
+                    this.topLevelDef = 'function'
                 } else {
+                    this.topLevelDef = 'variable'
+                    if (dec.init.type === 'CallExpression') {
+                        this.currentTopLevelCall = this.getCalleeName(dec.init.callee)
+                    }
                 }
-                this.insideFunc = true
             }
             const decVisit = this.visit(dec.init)
             if (!decVisit.length) {
@@ -275,8 +320,9 @@ export default class Preprocess {
             }
             txts.push(...decVisit)
         }
-        if (atTopLevel) {
-            this.insideFunc = false
+        if (atTopLevelDefn) {
+            this.currentTopLevelCall = null // reset
+            this.topLevelDef = null
         }
         return txts
     }
@@ -284,11 +330,11 @@ export default class Preprocess {
     visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => node.declaration ? this.visit(node.declaration) : []
 
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
-        const insideFunc = this.insideFunc
-        this.insideFunc = true
+        const topLevelDef = this.topLevelDef
+        this.topLevelDef = 'function'
         const txts = this.visit(node.body)
-        if (!insideFunc) {
-            this.insideFunc = false
+        if (!topLevelDef) {
+            this.topLevelDef = null
         }
         return txts
     }
@@ -329,7 +375,12 @@ export default class Preprocess {
             }
         }
         heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, {scope: 'script'})
+        const [pass] = this.checkHeuristic(heurTxt, {
+            scope: 'script',
+            call: this.currentCall,
+            topLevelDef: this.topLevelDef,
+            topLevelCall: this.currentTopLevelCall,
+        })
         if (!pass) {
             return txts
         }
@@ -400,7 +451,7 @@ export default class Preprocess {
             // no break because of textNodesToModify, already started, finish it
         }
         heurTxt = heurTxt.trimEnd()
-        const [passHeur] = this.checkHeuristic(heurTxt, {scope: 'markup', element: node.name})
+        const [passHeur] = this.checkHeuristic(heurTxt, { scope: 'markup', element: node.name })
         let hasCompoundText = passHeur && hasTextChild && hasNonTextChild
         let txt = ''
         let iArg = 0
@@ -552,7 +603,7 @@ export default class Preprocess {
 
     visitText = (node: AST.Text): NestText[] => {
         const [startWh, trimmed, endWh] = this.nonWhitespaceText(node)
-        const [pass, txt] = this.checkHeuristic(trimmed, {scope: 'markup'})
+        const [pass, txt] = this.checkHeuristic(trimmed, { scope: 'markup' })
         if (!pass) {
             return []
         }
@@ -657,9 +708,11 @@ export default class Preprocess {
 
     visitProgram = (node: Estree.Program, needImport = true): NestText[] => {
         const txts = []
+        this.insideScript = true
         for (const child of node.body) {
             txts.push(...this.visit(child))
         }
+        this.insideScript = false
         if (needImport) {
             // @ts-ignore
             this.mstr.appendRight(node.start, importModule + '\n')
@@ -727,8 +780,8 @@ export default class Preprocess {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 txts = this[methodName](node)
-            // } else {
-            //     console.log(node)
+                // } else {
+                //     console.log(node)
             }
         }
         this.resetComments(node)

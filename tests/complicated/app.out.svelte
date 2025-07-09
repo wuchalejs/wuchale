@@ -48,6 +48,8 @@
             }
             e.default = [f, wuchaleTrans(19), e]
         }
+        console.log("Don't translate this.")
+        $inspect('Not this either')
         return {
             [wuchaleTrans(19)]: f,
             butNotThis: wuchaleTrans(20),
