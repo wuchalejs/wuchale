@@ -264,6 +264,61 @@ src/
 └── App.svelte        # Your components
 ```
 
+## Behaviour explanation
+
+### Default heuristic
+
+The default behaviour is dictated by the default heuristic function. It has the following rules:
+
+- For all texts regardless of scope:
+    - If the text doesn't contain any letter used to form words in any language, ignore.
+- For markup:
+    - Extract all text.
+- For attribute:
+    - If the first character is a small English letter like `[a-z]`, ignore.
+    - If the element is a `path`, ignore. (This is to ignore `svg` `path` definitions because they can start with `M`)
+    - Else extract all.
+- For script:
+    - If it is in a top level variable assignment (not a function definition):
+        - if it is not inside `$derived` or `$derived.by`, ignore.
+    - If the first character is a small English letter like `[a-z]`, ignore.
+    - If it is inside `console.*()` or `$inspect()` call, ignore.
+    - Else extract all.
+
+This handles many cases where text we don't want may be extracted. But if we
+want to refine the logic further, we can define a custom heuristic function and
+provide it in the configuration. If the custom heuristic function returns
+`undefined` or `null`, the default heuristic will be used. This allows the
+custom one to handle one case and delegate the rest to the default one as a
+fallback. Furthermore, if we want to access the default heuristic function, it
+is exported from the package.
+
+if the comment directives, `@wc-ignore` or `@wc-include` are provided, they
+will take precedence on that specific case.
+
+### Useful usage pattern
+
+Sometimes, we may need to prevent the extraction of strings inside function for
+example (script scope). And because of the global nature of the heuristic
+function, we may want to avoid altering it. And using the common directives may
+be too much typing. In that case, we can define the strings in a top level
+constant (ignored by default) and access them inside our function:
+
+```javascript
+const keys = {
+    Escape: 'Escape',
+    ArrowUp: 'ArrowUp',
+    // ...
+}
+
+function eventHandler(event) {
+    // ...
+    if (event.key === keys.Escape) {
+        // ...
+    }
+}
+```
+
 ## 🛠️ Configuration Reference
 
 ```javascript
@@ -291,7 +346,14 @@ export default {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     
     // Custom extraction logic
-    // signature should be: (text, details: {scope, element, attribute}) => boolean
+    // signature should be: (text: string, details: object) => boolean | undefined
+    // details has the following properties:
+        // scope: "markup" | "attribute" | "script",
+        // topLevelDef?: "variable" | "function",
+        // topLevelCall?: string,
+        // call?: string,
+        // element?: string,
+        // attribute?: string,
     heuristic: defaultHeuristic,
     
     // Your plural function name
