@@ -284,8 +284,8 @@ src/
 #### In `script` (`<script>` and `.svelte.js/ts`):
 - If it's in a top-level variable assignment (not inside a function):
     - And not inside `$derived` or `$derived.by`, it is ignored.
-- If the first character is a lowercase English letter (`[a-z]`), it is ignored.
 - If the value is inside `console.*()` or `$inspect()` calls, it is ignored.
+- If the first character is a lowercase English letter (`[a-z]`) or is any non-letter, it is ignored.
 - Otherwise, it is extracted.
 
 This heuristic strikes a balance between useful automation and practical
