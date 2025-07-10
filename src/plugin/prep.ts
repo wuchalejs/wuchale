@@ -40,10 +40,9 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (details.call?.startsWith('console.') || details.call === '$inspect') {
         return false
     }
-    // script and attribute, ignore lower case
-    const range = 'az'
-    const startCode = text.charCodeAt(0)
-    return startCode < range.charCodeAt(0) || startCode > range.charCodeAt(1)
+    // script and attribute
+    // only allow non lower-case English letter beginnings
+    return (/\p{L}/u).test(text[0]) && !/[a-z]/.test(text[0])
 }
 
 const snipPrefix = 'wuchaleSnippet'
