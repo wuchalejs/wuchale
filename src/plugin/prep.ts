@@ -405,10 +405,12 @@ export default class Preprocess {
         if (node.expressions.length) {
             begin += ', ['
             end = ']' + end
+            this.mstr.update(start0 - 1, end0 + 2, begin)
+            // @ts-ignore
+            this.mstr.update(node.end - 1, node.end, end)
+        } else {
+            this.mstr.update(start0 - 1, end0 + 1, begin + end)
         }
-        this.mstr.update(start0 - 1, end0 + 2, begin)
-        // @ts-ignore
-        this.mstr.update(node.end - 1, node.end, end)
         txts.push(nTxt)
         return txts
     }
