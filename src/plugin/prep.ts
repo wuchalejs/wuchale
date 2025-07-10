@@ -436,6 +436,7 @@ export default class Preprocess {
         let hasTextChild = false
         let hasNonTextChild = false
         let heurTxt = ''
+        let hasIgnore = false
         for (const child of node.fragment.nodes) {
             if (child.type === 'Text') {
                 const txt = child.data.trim()
@@ -444,14 +445,21 @@ export default class Preprocess {
                 }
                 hasTextChild = true
                 heurTxt += child.data + ' '
-            } else if (child.type !== 'Comment') {
+            } else if (child.type === 'Comment') {
+                if (child.data.trim() === '@wc-ignore') {
+                    hasIgnore = true
+                }
+            } else {
                 hasNonTextChild = true
                 heurTxt += `# `
             }
             // no break because of textNodesToModify, already started, finish it
         }
         heurTxt = heurTxt.trimEnd()
-        const [passHeur] = this.checkHeuristic(heurTxt, { scope: 'markup', element: node.name })
+        let passHeur = false
+        if (!hasIgnore) {
+            [passHeur] = this.checkHeuristic(heurTxt, { scope: 'markup', element: node.name })
+        }
         let hasCompoundText = passHeur && hasTextChild && hasNonTextChild
         let txt = ''
         let iArg = 0
@@ -465,18 +473,25 @@ export default class Preprocess {
                 continue
             }
             if (this.forceInclude === false) {
-                if (hasCompoundText) {
-                    console.warn('Mixed text with ignore can result in an unexpected result.')
-                }
                 this.resetComments(child)
                 continue
             }
             if (child.type === 'Text') {
-                if (!passHeur) {
+                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
+                let nTxt: NestText
+                let pass = passHeur
+                if (hasIgnore) {
+                    [pass, nTxt] = this.checkHeuristic(trimmed, {scope: 'markup', element: this.currentElement.name})
+                    if (pass) {
+                        txts.push(...this.visit(child))
+                    }
+                    continue
+                } else {
+                    nTxt = new NestText(trimmed, 'markup', this.context)
+                }
+                if (!pass) {
                     continue
                 }
-                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
-                const nTxt = new NestText(trimmed, 'markup', this.context)
                 if (startWh && !txt.endsWith(' ')) {
                     txt += ' '
                 }
