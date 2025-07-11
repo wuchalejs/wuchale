@@ -4,13 +4,25 @@
   "Extracted",
   "Extracted Text",
   "extracted anyway",
-  "Conditionals,",
-  "Loops and",
   [
     0,
     " other blocks"
   ],
-  "Supported",
+  [
+    "Loops and ",
+    0,
+    " ",
+    [
+      0
+    ],
+    " Supported"
+  ],
+  [
+    "Conditionals, ",
+    [
+      0
+    ]
+  ],
   [
     "This is a very ",
     0,

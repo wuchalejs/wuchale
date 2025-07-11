@@ -22,20 +22,16 @@ msgid "extracted anyway"
 msgstr "extracted anyway"
 
 #: src/test.svelte
-msgid "Conditionals,"
-msgstr "Conditionals,"
-
-#: src/test.svelte
-msgid "Loops and"
-msgstr "Loops and"
-
-#: src/test.svelte
 msgid "{0} other blocks"
 msgstr "{0} other blocks"
 
 #: src/test.svelte
-msgid "Supported"
-msgstr "Supported"
+msgid "Loops and {0} <0/> Supported"
+msgstr "Loops and {0} <0/> Supported"
+
+#: src/test.svelte
+msgid "Conditionals, <0/>"
+msgstr "Conditionals, <0/>"
 
 #: src/test.svelte
 msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"

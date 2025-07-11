@@ -1,16 +1,20 @@
 // $$ node %f
-import {wuchale} from '../dist/index.js'
-
-const config = { geminiAPIKey: null }
-
-const configFromVite = {env: {PROD: null}, root: process.cwd()}
+import { TransformHandler } from '../dist/plugin/handler.js'
+import { IndexTracker } from '../dist/plugin/transform.js'
+import { defaultConfig } from '../dist/config.js'
 
 export async function getOutput(content) {
-    const plug = await wuchale(config)
-    await plug.configResolved(configFromVite)
-    const { _translations: translations, _compiled: compiled } = plug
-    const processed = await plug._transformHandler(content, process.cwd() + '/src/test.svelte')
-    return { processed, translations, compiled }
+    const handler = new TransformHandler(
+        defaultConfig.transformers[0],
+        defaultConfig,
+        new IndexTracker(),
+        'test',
+        process.cwd(),
+    )
+    await handler.init()
+    const { code } = await handler.transform(content, 'src/test.svelte')
+    const { translations, compiled } = handler
+    return { code, translations, compiled }
 }
 
 // only for syntax highlighting
@@ -20,6 +24,5 @@ export const svelte = foo => foo.join('')
 // <i>Hola</i>
 // <p>{plural(2, ['one', 'two', 'three'],)}</p>
 // `)
-//
-// console.log(p.processed.code)
+// console.log(p.code)
 // console.log(Object.values(p.translations.en))

@@ -22,8 +22,8 @@ function trimLines(str) {
 }
 
 async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
-    const { processed, translations, compiled } = await getOutput(content)
-    t.assert.strictEqual(trimLines(processed.code), trimLines(expectedContent))
+    const { code, translations, compiled } = await getOutput(content)
+    t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
     for (const key in translations.en) {
         po.items.push(translations.en[key])
@@ -70,7 +70,9 @@ test('Simple element with new lines', async function(t) {
             import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
             import WuchaleTrans from "wuchale/runtime.svelte"
         </script>
-        <p>{wuchaleTrans(0)}</p>
+        <p>
+            {wuchaleTrans(0)}
+        </p>
     `, `
         msgid ""
         msgstr ""

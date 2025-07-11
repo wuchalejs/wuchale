@@ -1,28 +1,24 @@
-import { defaultHeuristic, type HeuristicFunc } from "./plugin/prep.js"
+import svelte from "./plugin/transform-svelte.js"
+import { type TransformerType } from "./plugin/transform.js"
 
-type LocaleConf = {
+export type LocaleConf = {
     name: string
     nPlurals?: number
     pluralRule?: string
 }
 
-export type GlobConf = string | {
-    pattern: string[],
-    ignore: string[],
-}
-
-export interface Config {
+export type ConfigPartial = {
     sourceLocale?: string
     locales?: {[locale: string]: LocaleConf}
-    localesDir?: string
-    files?: GlobConf[],
-    heuristic?: HeuristicFunc
-    pluralFunc?: string
-    hmr?: boolean
     geminiAPIKey?: string,
 }
 
-export const defaultOptions: Config = {
+export type Config = ConfigPartial & {
+    transformers?: TransformerType[]
+    hmr?: boolean
+}
+
+export const defaultConfig: Config = {
     sourceLocale: 'en',
     locales: {
         en: {
@@ -31,10 +27,12 @@ export const defaultOptions: Config = {
             pluralRule: 'n == 1 ? 0 : 1',
         },
     },
-    localesDir: './src/locales',
-    files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-    heuristic: defaultHeuristic,
-    pluralFunc: 'plural',
+    transformers: [
+        svelte({
+            files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
+            catalog: './src/locales/{locale}',
+        })
+    ],
     hmr: true,
     geminiAPIKey: 'env',
 }
@@ -77,8 +75,8 @@ export function defineConfig(config: Config) {
     return config
 }
 
-export async function getOptions(codeOptions: Config = {}) {
-    const options: Config = defaultOptions
+export async function getConfig(codeOptions: Config = {}) {
+    const options: Config = defaultConfig
     try {
         const module = await import(`${process.cwd()}/wuchale.config.js`)
         deepAssign(module.default, options)
