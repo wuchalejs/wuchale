@@ -265,6 +265,7 @@ class Plugin {
     #loadFilesAndSetup = async () => {
         for (const loc of this._locales) {
             this._translations[loc] = {}
+            this._compiled[loc] = []
         } // all before #loadTranslations because we will loop over them in transformHandler at startup
         if (this.#currentPurpose !== 'test') {
             for (const loc of this._locales) {
