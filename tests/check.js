@@ -1,11 +1,11 @@
 // $$ node %f
-import { TransformHandler } from '../dist/plugin/handler.js'
+import { AdapterHandler } from '../dist/plugin/handler.js'
 import { IndexTracker } from '../dist/plugin/transform.js'
 import { defaultConfig } from '../dist/config.js'
 
 export async function getOutput(content) {
-    const handler = new TransformHandler(
-        defaultConfig.transformers[0],
+    const handler = new AdapterHandler(
+        defaultConfig.adapters[0],
         defaultConfig,
         new IndexTracker(),
         'test',

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { getConfig } from "./config.js"
-import { TransformHandler } from "./plugin/handler.js"
+import { AdapterHandler } from "./plugin/handler.js"
 import { IndexTracker } from "./plugin/transform.js"
 
 let clean = false
@@ -15,8 +15,8 @@ const config = await getConfig()
 
 const locales = Object.keys(config.locales)
 
-for (const transform of config.transformers) {
-    const handler = new TransformHandler(transform, config, new IndexTracker(), 'extract', process.cwd())
+for (const adapter of config.adapters) {
+    const handler = new AdapterHandler(adapter, config, new IndexTracker(), 'extract', process.cwd())
     await handler.init()
 
     if (clean) {

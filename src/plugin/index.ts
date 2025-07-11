@@ -3,13 +3,13 @@ import { IndexTracker } from "./transform.js"
 import { type CompiledFragment } from "./compile.js"
 import { relative } from "node:path"
 import { getConfig as getConfig, type Config } from "../config.js"
-import { TransformHandler, pluginName, virtualPrefix } from "./handler.js"
+import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {TransformMode, TranslationsByLocale, CompiledByLocale} from './handler.js'
 
 const virtualResolvedPrefix = '\0'
 
 type HMRCompiled = {
-    transformer: string
+    adapter: string
     locale: string
     data: CompiledFragment[]
 }
@@ -44,7 +44,7 @@ class Plugin {
 
     #server: ViteDevServer
 
-    #transformers: TransformHandler[] = []
+    #adapters: AdapterHandler[] = []
 
     transform: { order: 'pre', handler: any }
 
@@ -54,21 +54,21 @@ class Plugin {
 
     #init = async (mode: TransformMode) => {
         this.#config = await getConfig(this.#config)
-        const dedupeTrans: {[translationFile: string]: {
+        const dedupeAdapters: {[catalog: string]: {
             index?: IndexTracker
             translations?: TranslationsByLocale
             compiled?: CompiledByLocale
         }} = {}
-        for (const transf of this.#config.transformers) {
-            const dedupe = dedupeTrans[transf.catalog] ?? {}
-            const transformer = new TransformHandler(
-                transf,
+        for (const adapter of this.#config.adapters) {
+            const dedupe = dedupeAdapters[adapter.catalog] ?? {}
+            const handler = new AdapterHandler(
+                adapter,
                 this.#config, dedupe.index ?? new IndexTracker(),
                 mode,
                 this.#projectRoot,
             )
-            await transformer.init(dedupe.translations, dedupe.compiled)
-            this.#transformers.push(transformer)
+            await handler.init(dedupe.translations, dedupe.compiled)
+            this.#adapters.push(handler)
         }
         if (this.#config.hmr) {
             this.transform = {
@@ -94,33 +94,33 @@ class Plugin {
     configureServer = (server: ViteDevServer) => {
         this.#server = server
         // initial load
-        server.ws.on(`${pluginName}:get`, (msg: { transformer: string, locale: string }, client) => {
-            const transformer = this.#transformers.find(t => t.name === transformer)
-            if (!transformer) {
-                console.warn('Hot update requested for non-existent transformer:', transformer)
+        server.ws.on(`${pluginName}:get`, (msg: { adapter: string, locale: string }, client) => {
+            const adapter = this.#adapters.find(t => t.name === adapter)
+            if (!adapter) {
+                console.warn('Hot update requested for non-existent adapter:', adapter)
                 return
             }
             client.send(`${pluginName}:update`, {
-                transformer: transformer.name,
+                adapter: adapter.name,
                 locale: msg.locale,
-                data: transformer._compiled[msg.locale],
+                data: adapter._compiled[msg.locale],
             })
         })
     }
 
     handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
         // PO file write -> JS HMR
-        const transformer = this.#transformers.find(t => ctx.file in t.transFnamesToLocales)
-        if (!transformer) {
+        const adapter = this.#adapters.find(t => ctx.file in t.transFnamesToLocales)
+        if (!adapter) {
             return
         }
-        const loc = transformer.transFnamesToLocales[ctx.file]
-        await transformer.loadTranslations(loc)
-        transformer.compile(loc)
+        const loc = adapter.transFnamesToLocales[ctx.file]
+        await adapter.loadTranslations(loc)
+        adapter.compile(loc)
         this.#server.ws.send(`${pluginName}:update`, {
-            transformer: transformer.name,
+            adapter: adapter.name,
             locale: loc,
-            data: transformer.compiled[loc],
+            data: adapter.compiled[loc],
         })
     }
 
@@ -136,20 +136,20 @@ class Plugin {
         if (!id.startsWith(prefix)) {
             return null
         }
-        const [transformerName, locale] = id.slice(prefix.length).split(':')
-        const transformer = this.#transformers.find(t => t.name === transformerName)
-        if (!transformer) {
-            console.error('Transformer not found for:', transformerName)
+        const [adapterName, locale] = id.slice(prefix.length).split(':')
+        const adapter = this.#adapters.find(t => t.name === adapterName)
+        if (!adapter) {
+            console.error('Adapter not found for:', adapterName)
             return
         }
-        return transformer.loadProxyMod(locale)
+        return adapter.loadProxyMod(locale)
     }
 
     #transformHandler = async (code: string, id: string) => {
         const filename = relative(this.#projectRoot, id)
-        for (const transformer of this.#transformers) {
-            if (transformer.patterns.find(isMatch => isMatch(filename))) {
-                return await transformer.transform(code, filename)
+        for (const adapter of this.#adapters) {
+            if (adapter.patterns.find(isMatch => isMatch(filename))) {
+                return await adapter.transform(code, filename)
             }
         }
         return {}

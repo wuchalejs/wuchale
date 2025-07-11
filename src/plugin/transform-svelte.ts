@@ -1,14 +1,12 @@
 import MagicString from "magic-string"
-import { Transformer, type IndexTracker, type HeuristicFunc, defaultHeuristic, rtFunc, rtFuncPlural, rtPluralsRule, NestText, parseScript, type TransformOutput, type TransformerFunc, type TransformerArgs, type CommentDirectives } from './transform.js'
+import { Transformer, type IndexTracker, type HeuristicFunc, defaultHeuristic, rtFunc, importModule, rtFuncCtx, NestText, parseScript, type TransformOutput, type AdapterFunc, type AdapterArgs, type CommentDirectives } from './transform.js'
 import type { Program } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import type { AnyNode } from "acorn"
 
 const rtComponent = 'WuchaleTrans'
-const rtFuncCtx = 'wuchaleTransCtx'
 const snipPrefix = 'wuchaleSnippet'
 const nodesWithChildren = ['RegularElement', 'Component']
-const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
@@ -42,7 +40,7 @@ export class SvelteTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc = svelteHeuristic, pluralsFunc: string = 'plural') {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
         super(content, filename, index, heuristic, pluralsFunc)
     }
 
@@ -412,7 +410,7 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const svelteTransformer: TransformerFunc = (args: TransformerArgs) => {
+const svelteAdapter: AdapterFunc = (args: AdapterArgs) => {
     const { heuristic = svelteHeuristic, pluralsFunc = 'plural', ...rest } = args
     return {
         name: 'svelte',
@@ -423,4 +421,4 @@ const svelteTransformer: TransformerFunc = (args: TransformerArgs) => {
     }
 }
 
-export default svelteTransformer
+export default svelteAdapter

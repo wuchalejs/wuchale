@@ -1,6 +1,6 @@
 // $$ cd ../.. && npm run test
 import { IndexTracker, NestText, type Translations } from "./transform.js"
-import type { TransformerType, GlobConf } from "./transform.js"
+import type { TransformerType as Adapter, GlobConf } from "./transform.js"
 import { writeFile, readFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -64,7 +64,7 @@ export type TransformMode = 'dev' | 'prod' | 'extract' | 'test'
 export type TranslationsByLocale = { [loc: string]: { [key: string]: ItemType } }
 export type CompiledByLocale = { [locale: string]: (CompiledFragment | number)[] }
 
-export class TransformHandler {
+export class AdapterHandler {
 
     name: string
 
@@ -73,7 +73,7 @@ export class TransformHandler {
     patterns: Matcher[] = []
     #projectRoot: string
 
-    #transformer: TransformerType
+    #adapter: Adapter
 
     translations: TranslationsByLocale = {}
     compiled: CompiledByLocale = {}
@@ -89,9 +89,9 @@ export class TransformHandler {
     #indexTracker: IndexTracker
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(transformer: TransformerType, config: ConfigPartial, indexTracker: IndexTracker, mode: TransformMode, projectRoot: string) {
-        this.name = transformer.name
-        this.#transformer = transformer
+    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: TransformMode, projectRoot: string) {
+        this.name = adapter.name
+        this.#adapter = adapter
         this.#indexTracker = indexTracker
         this.#mode = mode
         this.#projectRoot = projectRoot
@@ -99,8 +99,7 @@ export class TransformHandler {
     }
 
     init = async (translations?: TranslationsByLocale, compiled?: CompiledByLocale) => {
-        // for transform
-        for (const pattern of this.#transformer.files) {
+        for (const pattern of this.#adapter.files) {
             this.patterns.push(pm(...this.#globOptsToArgs(pattern)))
         }
         this.#locales = [
@@ -110,8 +109,8 @@ export class TransformHandler {
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
         for (const loc of this.#locales) {
-            const catalog = this.#transformer.catalog.replace('{locale}', loc)
-            const translFname = `${catalog}/.po`
+            const catalog = this.#adapter.catalog.replace('{locale}', loc)
+            const translFname = `${catalog}.po`
             this.#translationsFname[loc] = translFname
             this.#compiledFname[loc] = `${catalog}.svelte.js`
             this.translations[loc] = translations?.[loc] ?? {}
@@ -131,10 +130,10 @@ export class TransformHandler {
                 continue
             }
             await this.loadTranslations(loc)
-            this.#indexTracker.reload(this.#sourceTranslations)
             this.compile(loc)
         }
         this.#sourceTranslations = this.translations[this.#config.sourceLocale] ?? {}
+        this.#indexTracker.reload(this.#sourceTranslations)
         if (this.#mode === 'test') {
             return
         }
@@ -148,8 +147,8 @@ export class TransformHandler {
                 import defaultData, {pluralsRule} from '${virtModName}'
                 const data = $state(defaultData)
                 if (import.meta.hot) {
-                    import.meta.hot.on('${pluginName}:update', ({transformer, locale, data: newData}) => {
-                        if (transformer !== ${this.name} || locale !== '${loc}') {
+                    import.meta.hot.on('${pluginName}:update', ({adapter, locale, data: newData}) => {
+                        if (adapter !== ${this.name} || locale !== '${loc}') {
                             return
                         }
                         for (let i = 0; i < newData.length; i++) {
@@ -158,7 +157,7 @@ export class TransformHandler {
                             }
                         }
                     })
-                    import.meta.hot.send('${pluginName}:get', {transformer: ${this.name}, locale: '${loc}'})
+                    import.meta.hot.send('${pluginName}:get', {adapter: ${this.name}, locale: '${loc}'})
                 }
                 export {pluralsRule}
                 export default data
@@ -193,7 +192,7 @@ export class TransformHandler {
 
     directExtract = async () => {
         const all = []
-        for (const pattern of this.#transformer.files) {
+        for (const pattern of this.#adapter.files) {
             for (const file of await glob(...this.#globOptsToArgs(pattern))) {
                 console.log('Extract from', file)
                 const contents = await readFile(file)
@@ -273,7 +272,7 @@ export class TransformHandler {
     }
 
     transform = async (content: string, filename: string) => {
-        const {txts, ...output} = this.#transformer.transform(content, filename, this.#indexTracker)
+        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker)
         if (!txts.length) {
             return {}
         }

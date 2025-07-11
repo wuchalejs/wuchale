@@ -48,6 +48,8 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
 export const rtFunc = 'wuchaleTrans'
 export const rtFuncPlural = 'wuchaleTransPlural'
 export const rtPluralsRule = 'wuchalePluralsRule'
+export const rtFuncCtx = 'wuchaleTransCtx'
+export const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 
 export class NestText {
 
@@ -133,7 +135,7 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc = defaultHeuristic, pluralsFunc: string = 'plural') {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
@@ -503,16 +505,16 @@ export interface TransformerType {
     catalog: string
 }
 
-export interface TransformerArgs {
+export interface AdapterArgs {
     files: string[]
     catalog: string
     heuristic?: HeuristicFunc
     pluralsFunc?: string
 }
 
-export type TransformerFunc = (args: TransformerArgs) => TransformerType
+export type AdapterFunc = (args: AdapterArgs) => TransformerType
 
-const esTransformer: TransformerFunc = (args: TransformerArgs) => {
+const esAdapter: AdapterFunc = (args: AdapterArgs) => {
     const { heuristic = defaultHeuristic, pluralsFunc = 'plural', ...rest } = args
     return {
         name: 'es',
@@ -523,4 +525,4 @@ const esTransformer: TransformerFunc = (args: TransformerArgs) => {
     }
 }
 
-export default esTransformer
+export default esAdapter

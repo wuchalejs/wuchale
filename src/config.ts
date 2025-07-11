@@ -14,7 +14,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    transformers?: TransformerType[]
+    adapters?: TransformerType[]
     hmr?: boolean
 }
 
@@ -27,7 +27,7 @@ export const defaultConfig: Config = {
             pluralRule: 'n == 1 ? 0 : 1',
         },
     },
-    transformers: [
+    adapters: [
         svelte({
             files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
             catalog: './src/locales/{locale}',
