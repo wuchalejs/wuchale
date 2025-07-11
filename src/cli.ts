@@ -2,7 +2,7 @@
 
 import { getConfig } from "./config.js"
 import { AdapterHandler } from "./plugin/handler.js"
-import { IndexTracker } from "./plugin/transform.js"
+import { IndexTracker } from "./plugin/adapter.js"
 
 let clean = false
 if (process.argv[2] === '--clean') {

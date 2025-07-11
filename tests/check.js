@@ -1,6 +1,6 @@
 // $$ node %f
 import { AdapterHandler } from '../dist/plugin/handler.js'
-import { IndexTracker } from '../dist/plugin/transform.js'
+import { IndexTracker } from '../dist/plugin/adapter.js'
 import { defaultConfig } from '../dist/config.js'
 
 export async function getOutput(content) {

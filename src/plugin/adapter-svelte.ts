@@ -1,8 +1,17 @@
 import MagicString from "magic-string"
-import { Transformer, type IndexTracker, type HeuristicFunc, defaultHeuristic, rtFunc, importModule, rtFuncCtx, NestText, parseScript, type TransformOutput, type AdapterFunc, type AdapterArgs, type CommentDirectives } from './transform.js'
-import type { Program } from "acorn"
+import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import type { AnyNode } from "acorn"
+import { defaultHeuristic, rtFunc, importModule, rtFuncCtx, NestText } from './adapter.js'
+import { Transformer, parseScript } from './adapter-es.js'
+import type {
+    IndexTracker,
+    HeuristicFunc,
+    TransformOutput,
+    AdapterFunc,
+    AdapterArgs,
+    CommentDirectives,
+    ProxyModuleFunc
+} from './adapter.js'
 
 const rtComponent = 'WuchaleTrans'
 const snipPrefix = 'wuchaleSnippet'
@@ -410,14 +419,41 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
+const adapterName = 'svelte'
+
+const proxyModuleOther: ProxyModuleFunc = (virtModName) => `export {default, pluralsRule} from '${virtModName}'`
+const proxyModuleDev: ProxyModuleFunc = (virtModName, locale, pluginName) => `
+    import defaultData, {pluralsRule} from '${virtModName}'
+    const data = $state(defaultData)
+    if (import.meta.hot) {
+        import.meta.hot.on('${pluginName}:update', ({adapter, locale, data: newData}) => {
+            if (adapter !== ${adapterName} || locale !== '${locale}') {
+                return
+            }
+            for (let i = 0; i < newData.length; i++) {
+                if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                    data[i] = newData[i]
+                }
+            }
+        })
+        import.meta.hot.send('${pluginName}:get', {adapter: ${adapterName}, locale: '${locale}'})
+    }
+    export {pluralsRule}
+    export default data
+`
+
 const svelteAdapter: AdapterFunc = (args: AdapterArgs) => {
     const { heuristic = svelteHeuristic, pluralsFunc = 'plural', ...rest } = args
     return {
-        name: 'svelte',
+        name: adapterName,
         transform: (content: string, filename: string, index: IndexTracker) => {
             return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
+        proxyModule: {
+            dev: proxyModuleDev,
+            other: proxyModuleOther,
+        }
     }
 }
 

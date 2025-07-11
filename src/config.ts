@@ -1,5 +1,5 @@
-import svelte from "./plugin/transform-svelte.js"
-import { type TransformerType } from "./plugin/transform.js"
+import svelte from "./plugin/adapter-svelte.js"
+import { type Adapter } from "./plugin/adapter.js"
 
 export type LocaleConf = {
     name: string
@@ -14,7 +14,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    adapters?: TransformerType[]
+    adapters?: Adapter[]
     hmr?: boolean
 }
 

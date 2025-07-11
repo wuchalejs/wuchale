@@ -1,10 +1,10 @@
 // $$ cd ../.. && npm run test
-import { IndexTracker } from "./transform.js"
+import { IndexTracker } from "./adapter.js"
 import { type CompiledFragment } from "./compile.js"
 import { relative } from "node:path"
 import { getConfig as getConfig, type Config } from "../config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
-import type {TransformMode, TranslationsByLocale, CompiledByLocale} from './handler.js'
+import type {Mode, TranslationsByLocale, CompiledByLocale} from './handler.js'
 
 const virtualResolvedPrefix = '\0'
 
@@ -52,7 +52,7 @@ class Plugin {
         this.#config = config
     }
 
-    #init = async (mode: TransformMode) => {
+    #init = async (mode: Mode) => {
         this.#config = await getConfig(this.#config)
         const dedupeAdapters: {[catalog: string]: {
             index?: IndexTracker
@@ -79,7 +79,7 @@ class Plugin {
     }
 
     configResolved = async (config: { env: { DEV?: boolean }, root: string }) => {
-        let mode: TransformMode
+        let mode: Mode
         if (config.env.DEV) {
             mode = 'dev'
         } else if (config.env.DEV == null) {
@@ -142,7 +142,7 @@ class Plugin {
             console.error('Adapter not found for:', adapterName)
             return
         }
-        return adapter.loadProxyMod(locale)
+        return adapter.loadDataModule(locale)
     }
 
     #transformHandler = async (code: string, id: string) => {

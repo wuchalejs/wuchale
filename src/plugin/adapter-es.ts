@@ -1,111 +1,21 @@
 // $$ cd .. && npm run test
 
 import MagicString from "magic-string"
-import type { ItemType } from "./gemini.js"
 import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-
-type TxtScope = "script" | "markup" | "attribute"
-
-type HeuristicDetailsBase = {
-    scope: TxtScope,
-    element?: string,
-    attribute?: string,
-}
-
-type HeuristicDetails = HeuristicDetailsBase & {
-    file: string,
-    topLevelDef?: "variable" | "function",
-    topLevelCall?: string,
-    call?: string,
-}
-
-export type TransformOutput = {
-    code?: string,
-    map?: any,
-    txts: NestText[],
-}
-
-export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
-
-export function defaultHeuristic(text: string, details: HeuristicDetails) {
-    if (text.search(/\p{L}/u) === -1) {
-        return false
-    }
-    if (details.scope === 'markup') {
-        return true
-    }
-    // script and attribute
-    if (details.scope === 'script' && details.call?.startsWith('console.')) {
-        return false
-    }
-    // only allow non lower-case English letter beginnings
-    return (/\p{L}/u).test(text[0]) && !/[a-z]/.test(text[0])
-}
-
-export const rtFunc = 'wuchaleTrans'
-export const rtFuncPlural = 'wuchaleTransPlural'
-export const rtPluralsRule = 'wuchalePluralsRule'
-export const rtFuncCtx = 'wuchaleTransCtx'
-export const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
-
-export class NestText {
-
-    text: string[] // array for plurals
-    plural: boolean = false
-    scope: TxtScope
-    context: string
-
-    constructor(txt: string | string[], scope: TxtScope, context: string | null) {
-        if (typeof txt === 'string') {
-            this.text = [txt]
-        } else {
-            this.text = txt
-        }
-        this.scope = scope
-        this.context = context ?? null
-    }
-
-    toKey = () => `${this.text.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
-
-}
-
-export interface Translations {
-    [key: string]: ItemType
-}
-
-export type CommentDirectives = {
-    forceInclude?: boolean
-    context?: string
-}
-
-export class IndexTracker {
-
-    indices: { [key: string]: number } = {}
-    nextIndex: number = 0
-
-    reload(sourceTranslations: Translations) {
-        this.nextIndex = 0
-        this.indices = {}
-        for (const txt of Object.keys(sourceTranslations)) {
-            // guaranteed order for strings since ES2015
-            this.indices[txt] = this.nextIndex
-            this.nextIndex++
-        }
-    }
-
-    get = (txt: string) => {
-        if (txt in this.indices) {
-            return this.indices[txt]
-        }
-        const index = this.nextIndex
-        this.indices[txt] = index
-        this.nextIndex++
-        return index
-    }
-}
+import { defaultHeuristic, NestText, rtFunc, rtFuncPlural, rtPluralsRule } from './adapter.js'
+import type {
+    AdapterArgs,
+    AdapterFunc,
+    CommentDirectives,
+    HeuristicDetailsBase,
+    HeuristicFunc,
+    IndexTracker,
+    ProxyModuleFunc,
+    TransformOutput
+} from "./adapter.js"
 
 const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -169,7 +79,7 @@ export class Transformer {
             return []
         }
         const { start, end } = node
-        const [pass, txt] = this.checkHeuristic(node.value, {scope: 'script'})
+        const [pass, txt] = this.checkHeuristic(node.value, { scope: 'script' })
         if (!pass) {
             return []
         }
@@ -237,8 +147,9 @@ export class Transformer {
         const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
+        const pluralUpdate = `${rtFuncPlural}(${index}), ${rtPluralsRule}()`
         // @ts-ignore
-        this.mstr.update(secondArg.start, node.end - 1, `${rtFuncPlural}(${index}), ${rtPluralsRule}()`)
+        this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [nTxt]
     }
 
@@ -388,7 +299,7 @@ export class Transformer {
             }
         }
         heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, {scope: 'script'})
+        const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
         if (!pass) {
             return txts
         }
@@ -473,7 +384,7 @@ export class Transformer {
     }
 
     finalize = (txts: NestText[]): TransformOutput => {
-        const output = {txts}
+        const output = { txts }
         if (txts.length === 0) {
             return output
         }
@@ -491,28 +402,8 @@ export class Transformer {
     }
 }
 
-export type GlobConf = string | {
-    pattern: string[],
-    ignore: string[],
-}
 
-export type TransformFunc = (content: string, filename: string, index: IndexTracker) => TransformOutput
-
-export interface TransformerType {
-    name: string
-    transform: TransformFunc
-    files: GlobConf[]
-    catalog: string
-}
-
-export interface AdapterArgs {
-    files: string[]
-    catalog: string
-    heuristic?: HeuristicFunc
-    pluralsFunc?: string
-}
-
-export type AdapterFunc = (args: AdapterArgs) => TransformerType
+const proxyModule: ProxyModuleFunc = (virtModName) => `export {default, pluralsRule} from '${virtModName}'`
 
 const esAdapter: AdapterFunc = (args: AdapterArgs) => {
     const { heuristic = defaultHeuristic, pluralsFunc = 'plural', ...rest } = args
@@ -522,6 +413,10 @@ const esAdapter: AdapterFunc = (args: AdapterArgs) => {
             return new Transformer(content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
+        proxyModule: {
+            dev: proxyModule,
+            other: proxyModule,
+        }
     }
 }
 

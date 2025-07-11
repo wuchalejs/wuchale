@@ -1,6 +1,6 @@
 // $$ cd ../.. && npm run test
-import { IndexTracker, NestText, type Translations } from "./transform.js"
-import type { TransformerType as Adapter, GlobConf } from "./transform.js"
+import { IndexTracker, NestText, type Translations } from "./adapter.js"
+import type { Adapter, GlobConf } from "./adapter.js"
 import { writeFile, readFile } from 'node:fs/promises'
 import compileTranslation, { type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -60,7 +60,7 @@ async function savePO(translations: ItemType[], filename: string, headers = {}):
     })
 }
 
-export type TransformMode = 'dev' | 'prod' | 'extract' | 'test'
+export type Mode = 'dev' | 'prod' | 'extract' | 'test'
 export type TranslationsByLocale = { [loc: string]: { [key: string]: ItemType } }
 export type CompiledByLocale = { [locale: string]: (CompiledFragment | number)[] }
 
@@ -85,11 +85,11 @@ export class AdapterHandler {
 
     #poHeaders: { [loc: string]: { [key: string]: string } } = {}
 
-    #mode: TransformMode
+    #mode: Mode
     #indexTracker: IndexTracker
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: TransformMode, projectRoot: string) {
+    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
         this.name = adapter.name
         this.#adapter = adapter
         this.#indexTracker = indexTracker
@@ -139,29 +139,9 @@ export class AdapterHandler {
         }
         for (const loc of this.#locales) {
             const virtModName = `${virtualPrefix}${this.name}:${loc}`
-            if (this.#mode !== 'dev') {
-                await writeFile(this.#compiledFname[loc], `export {default, pluralsRule} from '${virtModName}'`)
-                continue
-            }
-            await writeFile(this.#compiledFname[loc], `
-                import defaultData, {pluralsRule} from '${virtModName}'
-                const data = $state(defaultData)
-                if (import.meta.hot) {
-                    import.meta.hot.on('${pluginName}:update', ({adapter, locale, data: newData}) => {
-                        if (adapter !== ${this.name} || locale !== '${loc}') {
-                            return
-                        }
-                        for (let i = 0; i < newData.length; i++) {
-                            if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
-                                data[i] = newData[i]
-                            }
-                        }
-                    })
-                    import.meta.hot.send('${pluginName}:get', {adapter: ${this.name}, locale: '${loc}'})
-                }
-                export {pluralsRule}
-                export default data
-            `)
+            const proxyMode = this.#mode === 'dev' ? 'dev' : 'other'
+            const proxyModule = this.#adapter.proxyModule[proxyMode](virtModName, loc, pluginName)
+            await writeFile(this.#compiledFname[loc], proxyModule)
         }
     }
 
@@ -220,7 +200,7 @@ export class AdapterHandler {
         }
     }
 
-    loadProxyMod = (locale: string) => {
+    loadDataModule = (locale: string) => {
         const pluralRuleExport = `export const pluralsRule = n => ${this.#config.locales[locale].pluralRule}\n`
         return `${pluralRuleExport}export default ${JSON.stringify(this.compiled[locale])}`
     }
