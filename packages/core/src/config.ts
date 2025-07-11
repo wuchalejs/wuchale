@@ -1,4 +1,3 @@
-import svelte from "./plugin/adapter-svelte.js"
 import { type Adapter } from "./plugin/adapter.js"
 
 export type LocaleConf = {
@@ -27,12 +26,7 @@ export const defaultConfig: Config = {
             pluralRule: 'n == 1 ? 0 : 1',
         },
     },
-    adapters: [
-        svelte({
-            files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-            catalog: './src/locales/{locale}',
-        })
-    ],
+    adapters: [],
     hmr: true,
     geminiAPIKey: 'env',
 }

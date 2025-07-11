@@ -1,0 +1,82 @@
+{
+    "name": "wuchale",
+    "version": "0.7.7",
+    "description": "i18n for svelte without turning your codebase upside down",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node tests"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "vite",
+        "po",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight"
+    ],
+    "files": [ "dist" ],
+    "exports": {
+        ".": {
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/src/index.js",
+            "source": "./src/index.ts"
+        },
+        "./config": {
+            "types": "./dist/src/config.d.ts",
+            "import": "./dist/src/config.js",
+            "source": "./src/config.ts"
+        },
+        "./adapter": {
+            "types": "./dist/src/plugin/adapter.d.ts",
+            "import": "./dist/src/plugin/adapter.js",
+            "source": "./src/plugin/adapter.ts"
+        },
+        "./adapter-es": {
+            "types": "./dist/src/plugin/adapter-es.d.ts",
+            "import": "./dist/src/plugin/adapter-es.js",
+            "source": "./src/plugin/adapter-es.ts"
+        },
+        "./runtime": {
+            "types": "./dist/src/runtime.d.ts",
+            "import": "./dist/src/runtime.js",
+            "source": "./src/runtime.ts"
+        }
+    },
+    "bin": {
+        "wuchale": "./dist/src/cli.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/K1DV5/wuchale.git"
+    },
+    "homepage": "https://github.com/K1DV5/wuchale",
+    "bugs": "https://github.com/K1DV5/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "dependencies": {
+        "acorn": "^8.15.0",
+        "@sveltejs/acorn-typescript": "^1.0.5",
+        "magic-string": "^0.30.17",
+        "picomatch": "^4.0.2",
+        "pofile": "^1.1.4",
+        "tinyglobby": "^0.2.14"
+    },
+    "devDependencies": {
+        "@types/node": "^24.0.3",
+        "@types/picomatch": "^4.0.0",
+        "typescript": "^5.8.3"
+    },
+    "type": "module"
+}

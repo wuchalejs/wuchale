@@ -1,8 +1,8 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultHeuristic, rtFunc, rtFuncCtx, NestText, rtFuncPlural, rtPluralsRule } from './adapter.js'
-import { Transformer, parseScript } from './adapter-es.js'
+import { defaultHeuristic, rtFunc, rtFuncCtx, NestText, rtFuncPlural, rtPluralsRule } from 'wuchale/adapter'
+import { Transformer, parseScript } from 'wuchale/adapter-es'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -11,7 +11,7 @@ import type {
     AdapterArgs,
     CommentDirectives,
     ProxyModuleFunc
-} from './adapter.js'
+} from 'wuchale/adapter'
 
 const rtComponent = 'WuchaleTrans'
 const snipPrefix = 'wuchaleSnippet'
@@ -451,7 +451,12 @@ const proxyModuleDev: ProxyModuleFunc = (virtModName, locale, pluginName) => `
     export default data
 `
 
-const svelteAdapter: AdapterFunc = (args: AdapterArgs) => {
+const defaultArgs = {
+    files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
+    catalog: './src/locales/{locale}',
+}
+
+const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic = svelteHeuristic, pluralsFunc = 'plural', ...rest } = args
     return {
         name: adapterName,
@@ -466,4 +471,4 @@ const svelteAdapter: AdapterFunc = (args: AdapterArgs) => {
     }
 }
 
-export default svelteAdapter
+export default adapter
