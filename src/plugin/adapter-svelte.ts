@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultHeuristic, rtFunc, importModule, rtFuncCtx, NestText } from './adapter.js'
+import { defaultHeuristic, rtFunc, rtFuncCtx, NestText, rtFuncPlural, rtPluralsRule } from './adapter.js'
 import { Transformer, parseScript } from './adapter-es.js'
 import type {
     IndexTracker,
@@ -15,9 +15,10 @@ import type {
 
 const rtComponent = 'WuchaleTrans'
 const snipPrefix = 'wuchaleSnippet'
-const nodesWithChildren = ['RegularElement', 'Component']
+const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
+const nodesWithChildren = ['RegularElement', 'Component']
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['path']
 
@@ -361,23 +362,13 @@ export class SvelteTransformer extends Transformer {
         const txts = this.visitFragment(node.fragment)
         if (node.instance) {
             this.commentDirectives = {} // reset
-            txts.push(...this.visitProgram(node.instance.content, false))
+            txts.push(...this.visitProgram(node.instance.content))
         }
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
             this.commentDirectives = {} // reset
             // @ts-ignore
-            txts.push(...this.visitProgram(node.module.content, false))
-        }
-        const importStmt = `\n${importModule}\n${importComponent}\n`
-        if (node.instance) {
-            // @ts-ignore
-            this.mstr.appendRight(node.instance.content.start, importStmt)
-        } else if (node.module) {
-            // @ts-ignore
-            this.mstr.appendRight(node.module.content.start, importStmt)
-        } else {
-            this.mstr.prepend(`<script>${importStmt}</script>\n`)
+            txts.push(...this.visitProgram(node.module.content))
         }
         return txts
     }
@@ -415,7 +406,25 @@ export class SvelteTransformer extends Transformer {
             ast = parseScript(this.content)
         }
         this.mstr = new MagicString(this.content)
-        return this.finalize(this.visitSv(ast))
+        const txts = this.visitSv(ast)
+        if (!txts.length) {
+            return this.finalize(txts)
+        }
+        if (ast.type === 'Program') {
+            this.mstr.appendRight(0, importModule + '\n')
+            return this.finalize(txts)
+        }
+        const importStmt = `\n${importModule}\n${importComponent}\n`
+        if (ast.module) {
+            // @ts-ignore
+            this.mstr.appendRight(ast.module.content.start, importStmt)
+        } else if (ast.instance) {
+            // @ts-ignore
+            this.mstr.appendRight(ast.instance.content.start, importStmt)
+        } else {
+            this.mstr.prepend(`<script>${importStmt}</script>\n`)
+        }
+        return this.finalize(txts)
     }
 }
 

@@ -42,7 +42,6 @@ export const rtFunc = 'wuchaleTrans'
 export const rtFuncPlural = 'wuchaleTransPlural'
 export const rtPluralsRule = 'wuchalePluralsRule'
 export const rtFuncCtx = 'wuchaleTransCtx'
-export const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
 
 export class NestText {
 

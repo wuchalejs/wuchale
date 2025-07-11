@@ -17,6 +17,8 @@ import type {
     TransformOutput
 } from "./adapter.js"
 
+const importModule = `import {${rtFunc}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.js"`
+
 const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
     ecmaVersion: 'latest',
@@ -335,17 +337,13 @@ export class Transformer {
         return txts
     }
 
-    visitProgram = (node: Estree.Program, needImport = true): NestText[] => {
+    visitProgram = (node: Estree.Program): NestText[] => {
         const txts = []
         this.insideScript = true
         for (const child of node.body) {
             txts.push(...this.visit(child))
         }
         this.insideScript = false
-        if (needImport) {
-            // @ts-ignore
-            this.mstr.appendRight(node.start, importModule + '\n')
-        }
         return txts
     }
 
@@ -398,7 +396,11 @@ export class Transformer {
     transform = (): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
-        return this.finalize(this.visit(ast))
+        const txts = this.visit(ast)
+        if (txts.length) {
+            this.mstr.appendRight(0, importModule + '\n')
+        }
+        return this.finalize(txts)
     }
 }
 
