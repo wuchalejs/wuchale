@@ -428,7 +428,7 @@ const defaultArgs: AdapterArgs = {
     heuristic: defaultHeuristic,
 }
 
-const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
+export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
@@ -441,5 +441,3 @@ const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         }
     }
 }
-
-export default adapter

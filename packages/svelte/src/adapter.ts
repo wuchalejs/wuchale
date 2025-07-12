@@ -413,16 +413,16 @@ export class SvelteTransformer extends Transformer {
             return this.finalize(txts)
         }
         const getCtxFunc = 'getTranslations'
-        const importModule = `
+        const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
+        const importStmt = `
             import { ${getCtxFunc} } from "@wuchale/svelte"
+            ${ast.type === 'Root' ? importComponent : ''}
             const ${runtimeConst} = ${getCtxFunc}("${this.key}")
         `
-        const importComponent = `import ${rtComponent} from "@wuchale/svelte/component.svelte"`
         if (ast.type === 'Program') {
-            this.mstr.appendRight(0, importModule + '\n')
+            this.mstr.appendRight(0, importStmt + '\n')
             return this.finalize(txts)
         }
-        const importStmt = `\n${importModule}\n${importComponent}\n`
         if (ast.module) {
             // @ts-ignore
             this.mstr.appendRight(ast.module.content.start, importStmt)
@@ -461,7 +461,7 @@ const defaultArgs: AdapterArgs = {
     heuristic: svelteHeuristic,
 }
 
-const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
+export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
@@ -474,5 +474,3 @@ const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         }
     }
 }
-
-export default adapter

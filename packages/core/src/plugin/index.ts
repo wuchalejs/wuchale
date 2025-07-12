@@ -42,12 +42,11 @@ class Plugin {
 
     transform: { order: 'pre', handler: any }
 
-    constructor(config: Config) {
-        this.#config = config
-    }
-
     #init = async (mode: Mode) => {
         this.#config = await getConfig()
+        if (Object.keys(this.#config.adapters).length === 0) {
+            throw Error('At least one adapter is needed.')
+        }
         const dedupeAdapters: {[catalog: string]: {
             index?: IndexTracker
             translations?: TranslationsByLocale
@@ -143,6 +142,6 @@ class Plugin {
     }
 }
 
-export default async function wuchale(config: Config = {}) {
-    return new Plugin(config)
+export default async function wuchale() {
+    return new Plugin()
 }
