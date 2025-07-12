@@ -1,8 +1,8 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultHeuristic, rtFunc, rtFuncCtx, NestText, rtFuncPlural, rtPluralsRule } from 'wuchale/adapter'
-import { Transformer, parseScript } from 'wuchale/adapter-es'
+import { defaultHeuristic, NestText } from 'wuchale/adapter'
+import { Transformer, parseScript, runtimeConst } from 'wuchale/adapter-es'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -12,11 +12,6 @@ import type {
     CommentDirectives,
     ProxyModuleFunc
 } from 'wuchale/adapter'
-
-const rtComponent = 'WuchaleTrans'
-const snipPrefix = 'wuchaleSnippet'
-const importModule = `import {${rtFunc}, ${rtFuncCtx}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.svelte.js"`
-const importComponent = `import ${rtComponent} from "wuchale/runtime.svelte"`
 
 const nodesWithChildren = ['RegularElement', 'Component']
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
@@ -41,6 +36,11 @@ const svelteHeuristic: HeuristicFunc = (text, details) => {
     return true
 }
 
+const rtComponent = 'WuchaleTrans'
+const snipPrefix = 'wuchaleSnippet'
+const rtFuncCtx = `${runtimeConst}.cx`
+const rtFuncCtxTrans = `${runtimeConst}.tx`
+
 export class SvelteTransformer extends Transformer {
 
     // state
@@ -50,8 +50,8 @@ export class SvelteTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(content, filename, index, heuristic, pluralsFunc)
+    constructor(key: string, content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
+        super(key, content, filename, index, heuristic, pluralsFunc)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
@@ -202,11 +202,12 @@ export class SvelteTransformer extends Transformer {
                 this.mstr.appendRight(childStart, snippetBegin)
                 this.mstr.prependLeft(childEnd, '\n{/snippet}')
             }
-            let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} `
+            let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
             if (this.inCompoundText) {
-                begin += `ctx={ctx}`
+                begin += `{ctx} nest`
             } else {
-                begin += `id={${this.index.get(nTxt.toKey())}}`
+                const index = this.index.get(nTxt.toKey())
+                begin += `{${rtFuncCtx}(${index})}`
             }
             let end = ' />\n'
             if (iArg > 0) {
@@ -220,9 +221,9 @@ export class SvelteTransformer extends Transformer {
             let begin = '{'
             let end = ')}'
             if (this.inCompoundText) {
-                begin += `${rtFuncCtx}(ctx`
+                begin += `${rtFuncCtxTrans}(ctx`
             } else {
-                begin += `${rtFunc}(${this.index.get(nTxt.toKey())}`
+                begin += `${this.rtFunc}(${this.index.get(nTxt.toKey())}`
             }
             if (iArg) {
                 begin += ', ['
@@ -254,7 +255,7 @@ export class SvelteTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.rtFunc}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
 
@@ -287,7 +288,7 @@ export class SvelteTransformer extends Transformer {
                 continue
             }
             txts.push(txt)
-            this.mstr.update(value.start, value.end, `{${rtFunc}(${this.index.get(txt.toKey())})}`)
+            this.mstr.update(value.start, value.end, `{${this.rtFunc}(${this.index.get(txt.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
@@ -410,6 +411,12 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
+        const getCtxFunc = 'getTranslations'
+        const importModule = `
+            import { ${getCtxFunc} } from "@wuchale/svelte"
+            const ${runtimeConst} = ${getCtxFunc}("${this.key}")
+        `
+        const importComponent = `import ${rtComponent} from "@wuchale/svelte/component.svelte"`
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, importModule + '\n')
             return this.finalize(txts)
@@ -457,11 +464,12 @@ const defaultArgs = {
 }
 
 const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic = svelteHeuristic, pluralsFunc = 'plural', ...rest } = args
+    const { heuristic = svelteHeuristic, pluralsFunc = 'plural', key = '', ...rest } = args
     return {
         name: adapterName,
+        key,
         transform: (content: string, filename: string, index: IndexTracker) => {
-            return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform()
+            return new SvelteTransformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
         proxyModule: {

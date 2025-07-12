@@ -38,11 +38,6 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     return (/\p{L}/u).test(text[0]) && !/[a-z]/.test(text[0])
 }
 
-export const rtFunc = 'wuchaleTrans'
-export const rtFuncPlural = 'wuchaleTransPlural'
-export const rtPluralsRule = 'wuchalePluralsRule'
-export const rtFuncCtx = 'wuchaleTransCtx'
-
 export class NestText {
 
     text: string[] // array for plurals
@@ -110,6 +105,7 @@ export type ProxyModuleFunc = (virtModName: string, locale: string, pluginName: 
 
 export interface Adapter {
     name: string
+    key: string
     transform: TransformFunc
     files: GlobConf[]
     catalog: string
@@ -124,6 +120,7 @@ export interface AdapterArgs {
     catalog: string
     heuristic?: HeuristicFunc
     pluralsFunc?: string
+    key?: string
 }
 
 export type AdapterFunc = (args: AdapterArgs) => Adapter

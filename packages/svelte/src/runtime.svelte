@@ -1,14 +1,12 @@
 <script>
-    import {getCtx} from './dist/runtime.svelte.js'
-    const {id = null, ctx, tags, args} = $props()
-    const finalCtx = $derived(id != null ? getCtx(id) : ctx)
+    const {nest = false, ctx, tags, args} = $props()
 </script>
 
-{#each finalCtx as fragment, i}
+{#each ctx as fragment, i}
     {#if typeof fragment === 'string'}
         {fragment}
     {:else if typeof fragment === 'number'}
-        {#if id != null || i > 0}
+        {#if !nest || i > 0}
             {args[fragment]}
         {/if}
     {:else}

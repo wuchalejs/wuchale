@@ -1,5 +1,6 @@
 {
     "name": "wuchale",
+    "type": "module",
     "private": true,
     "scripts": {
         "dev": "tsc --build --watch",

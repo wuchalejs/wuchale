@@ -36,15 +36,15 @@
     ],
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
         "./runtime.svelte.js": {
-            "import": "./dist/runtime.svelte.js",
-            "types": "./dist/runtime.svelte.d.ts"
+            "types": "./dist/runtime.svelte.d.ts",
+            "import": "./dist/runtime.svelte.js"
         },
         "./runtime.svelte": "./runtime.svelte"
     },
-    "types": "./dist/index.d.ts",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/K1DV5/wuchale.git"

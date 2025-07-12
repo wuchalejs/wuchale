@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristic, NestText, rtFunc, rtFuncPlural, rtPluralsRule } from './adapter.js'
+import { defaultHeuristic, NestText } from './adapter.js'
 import type {
     AdapterArgs,
     AdapterFunc,
@@ -16,8 +16,6 @@ import type {
     ProxyModuleFunc,
     TransformOutput
 } from "./adapter.js"
-
-const importModule = `import {${rtFunc}, ${rtFuncPlural}, ${rtPluralsRule}} from "wuchale/runtime.js"`
 
 const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -31,6 +29,10 @@ export function parseScript(content: string) {
     return ScriptParser.parse(content, scriptParseOptions)
 }
 
+const collectionVar = '_wr_'
+
+export const runtimeConst = 'wuchaleRuntime'
+
 export class Transformer {
 
     index: IndexTracker
@@ -40,6 +42,12 @@ export class Transformer {
     mstr: MagicString
     pluralFunc: string
 
+    // for runtime
+    key: string
+    rtFunc = `${runtimeConst}.t`
+    rtFuncPlural = `${runtimeConst}.tp`
+    rtPluralsRule = `${runtimeConst}.plRl`
+
     // state
     commentDirectives: CommentDirectives = {}
     insideScript: boolean = false
@@ -47,7 +55,8 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
+    constructor(key: string, content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
+        this.key = key
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
@@ -85,7 +94,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${rtFunc}(${this.index.get(txt.toKey())})`)
+        this.mstr.update(start, end, `${this.rtFunc}(${this.index.get(txt.toKey())})`)
         return [txt]
     }
 
@@ -149,7 +158,7 @@ export class Transformer {
         const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
-        const pluralUpdate = `${rtFuncPlural}(${index}), ${rtPluralsRule}()`
+        const pluralUpdate = `${this.rtFuncPlural}(${index}), ${this.rtPluralsRule}()`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [nTxt]
@@ -322,7 +331,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const nTxt = new NestText(txt, 'script', this.commentDirectives.context)
-        let begin = `${rtFunc}(${this.index.get(nTxt.toKey())}`
+        let begin = `${this.rtFunc}(${this.index.get(nTxt.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -398,7 +407,11 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            this.mstr.appendRight(0, importModule + '\n')
+            const importModule = `
+                import { ${collectionVar} } from "wuchale/runtime"
+                const ${runtimeConst} = ${collectionVar}["${this.key}"]
+            `
+            this.mstr.appendRight(0, importModule)
         }
         return this.finalize(txts)
     }
@@ -408,11 +421,12 @@ export class Transformer {
 const proxyModule: ProxyModuleFunc = (virtModName) => `export {default, pluralsRule} from '${virtModName}'`
 
 const esAdapter: AdapterFunc = (args: AdapterArgs) => {
-    const { heuristic = defaultHeuristic, pluralsFunc = 'plural', ...rest } = args
+    const { heuristic = defaultHeuristic, pluralsFunc = 'plural', key = '', ...rest } = args
     return {
         name: 'es',
+        key,
         transform: (content, filename, index) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform()
+            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
         proxyModule: {
