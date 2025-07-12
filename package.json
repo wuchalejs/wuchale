@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsc --build --watch",
         "build": "tsc --build",
-        "test": "npm run test --workspaces"
+        "test": "npm run test --workspaces --if-present"
     },
     "workspaces": [ "packages/*" ]
 }

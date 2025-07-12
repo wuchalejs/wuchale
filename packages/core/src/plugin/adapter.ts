@@ -120,4 +120,4 @@ export interface AdapterArgs {
     pluralsFunc?: string
 }
 
-export type AdapterFunc = (args: AdapterArgs) => Adapter
+export type AdapterFunc = (args?: AdapterArgs) => Adapter

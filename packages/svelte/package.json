@@ -4,8 +4,7 @@
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
-        "build": "tsc",
-        "test": "node tests"
+        "build": "tsc"
     },
     "keywords": [
         "i18n",
@@ -55,7 +54,6 @@
     "license": "MIT",
     "dependencies": {
         "wuchale": "^0.7.7",
-        "magic-string": "^0.30.17",
         "svelte": "^5.28.1"
     },
     "devDependencies": {

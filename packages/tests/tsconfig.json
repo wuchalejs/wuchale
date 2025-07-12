@@ -1,0 +1,12 @@
+{
+    "extends": "../../tsconfig-base",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "composite": true
+    },
+    "references": [
+        { "path": "../core" },
+        { "path": "../svelte" }
+    ],
+    "include": ["./**/*"]
+}

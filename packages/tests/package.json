@@ -1,0 +1,12 @@
+{
+    "name": "test",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "test": "node ."
+    },
+    "dependencies": {
+        "wuchale": "^0.7.7",
+        "@wuchale/svelte": "^0.7.7"
+    }
+}

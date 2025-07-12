@@ -1,36 +1,8 @@
 // $$ cd .. && npm run test
-// @ts-nocheck
 
 import { test } from 'node:test'
-import { parse } from 'svelte/compiler'
-import { readFile } from 'fs/promises'
-import compileTranslation from '../dist/plugin/compile.js'
-import PO from 'pofile'
-import { getOutput, svelte } from './check.js'
-
-function trimLines(str) {
-    if (!str) {
-        return
-    }
-    let result = []
-    for (const line of str.split('\n')) {
-        if (line.trim()) {
-            result.push(line.trim())
-        }
-    }
-    return result.join('\n')
-}
-
-async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
-    const { code, translations, compiled } = await getOutput(content)
-    t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
-    const po = new PO()
-    for (const key in translations.en) {
-        po.items.push(translations.en[key])
-    }
-    t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
-    t.assert.deepEqual(compiled.en, expectedCompiled)
-}
+import { compileTranslation } from 'wuchale/compile'
+import { testContent, testDir, svelte } from './check.js'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -187,14 +159,6 @@ test('Plural', async function(t) {
     msgstr[1] "# items"
     `, [ [ 'One item', '# items' ] ])
 })
-
-async function testDir(t, dir) {
-    const content = (await readFile(`tests/${dir}/app.svelte`)).toString()
-    const contentOut = (await readFile(`tests/${dir}/app.out.svelte`)).toString()
-    const poContents = (await readFile(`tests/${dir}/en.po`)).toString()
-    const compiledContents = JSON.parse((await readFile(`tests/${dir}/en.json`)).toString())
-    await testContent(t, content, contentOut, poContents, compiledContents)
-}
 
 test('Multiple in one file', async t => await testDir(t, 'multiple'))
 

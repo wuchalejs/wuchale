@@ -1,1 +1,1 @@
-export {default as svelte} from './adapter.js'
+export { adapter } from './adapter.js'
