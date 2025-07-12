@@ -4,7 +4,7 @@ import { type CompiledFragment } from "./compile.js"
 import { relative } from "node:path"
 import { getConfig as getConfig, type Config } from "../config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
-import type {Mode, TranslationsByLocale, CompiledByLocale} from './handler.js'
+import type {Mode, CatalogssByLocale} from './handler.js'
 
 const virtualResolvedPrefix = '\0'
 
@@ -47,13 +47,12 @@ class Plugin {
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        const dedupeAdapters: {[catalog: string]: {
+        const dedupeCatalogs: {[catalog: string]: {
             index?: IndexTracker
-            translations?: TranslationsByLocale
-            compiled?: CompiledByLocale
+            catalogs?: CatalogssByLocale
         }} = {}
         for (const [key, adapter] of Object.entries(this.#config.adapters)) {
-            const dedupe = dedupeAdapters[adapter.catalog] ?? {}
+            const dedupe = dedupeCatalogs[adapter.catalog] ?? {}
             const handler = new AdapterHandler(
                 adapter,
                 key,
@@ -61,7 +60,7 @@ class Plugin {
                 mode,
                 this.#projectRoot,
             )
-            await handler.init(dedupe.translations, dedupe.compiled)
+            await handler.init(dedupe.catalogs)
             this.#adapters.push(handler)
         }
         if (this.#config.hmr) {
@@ -105,8 +104,7 @@ class Plugin {
             return
         }
         const loc = adapter.transFnamesToLocales[ctx.file]
-        await adapter.loadTranslations(loc)
-        adapter.compile(loc)
+        await adapter.loadCatalogNCompile(loc)
         this.#server.ws.send(adapter.virtModEvent(loc), adapter.compiled[loc])
     }
 
@@ -122,7 +120,7 @@ class Plugin {
         if (!id.startsWith(prefix)) {
             return null
         }
-        const [adapterName, locale] = id.slice(prefix.length).split(':')
+        const [locale, adapterName] = id.slice(prefix.length).split(':')
         const adapter = this.#adapters.find(t => t.key === adapterName)
         if (!adapter) {
             console.error('Adapter not found for:', adapterName)
@@ -142,6 +140,4 @@ class Plugin {
     }
 }
 
-export default async function wuchale() {
-    return new Plugin()
-}
+export default () => new Plugin()

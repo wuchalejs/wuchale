@@ -1,18 +1,21 @@
 type Composite = (number | string | Composite)[]
-type TranslationsData = (string | Composite)[]
+type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
-export type TranslationsModule = {
-    default: TranslationsData
+export type CatalogModule = {
+    default: CompiledData
     pluralsRule: PluralsRule
 }
 
-export class RunTime {
+export class Runtime {
 
-    data: TranslationsData = []
+    data: CompiledData = []
     pr: PluralsRule = n => n === 1 ? 0 : 1
 
-    constructor(module: TranslationsModule) {
+    constructor(module?: CatalogModule) {
+        if (!module) { // for fallback
+            return
+        }
         this.data = module.default
         this.pr = module.pluralsRule ?? this.pr
     }
@@ -57,8 +60,8 @@ export class RunTime {
     }
 }
 
-export const _wr_: Map<string, RunTime> = new Map()
+export const _wr_: Map<string, Runtime> = new Map()
 
-export function setTranslations(mod: TranslationsModule, key: string | number = 0) {
-    _wr_[key] = new RunTime(mod)
+export function setCatalog(mod: CatalogModule, key: string | number = 0) {
+    _wr_[key] = new Runtime(mod)
 }

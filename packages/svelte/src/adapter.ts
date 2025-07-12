@@ -412,12 +412,12 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
-        const getCtxFunc = 'getTranslations'
+        const getCtxFunc = '_wrs_'
         const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
         const importStmt = `
             import { ${getCtxFunc} } from "@wuchale/svelte/runtime.svelte.js"
             ${ast.type === 'Root' ? importComponent : ''}
-            const ${runtimeConst} = ${getCtxFunc}("${this.key}")
+            const ${runtimeConst} = $derived(${getCtxFunc}("${this.key}"))
         `
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, importStmt + '\n')
@@ -468,6 +468,7 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
             return new SvelteTransformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
+        compiledExt: '.svelte.js',
         proxyModule: {
             dev: proxyModuleDev,
             other: proxyModuleOther,

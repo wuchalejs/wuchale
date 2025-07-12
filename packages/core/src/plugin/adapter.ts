@@ -59,7 +59,7 @@ export class NestText {
 
 }
 
-export interface Translations {
+export interface Catalog {
     [key: string]: ItemType
 }
 
@@ -73,10 +73,10 @@ export class IndexTracker {
     indices: { [key: string]: number } = {}
     nextIndex: number = 0
 
-    reload(sourceTranslations: Translations) {
+    reload(sourceCatalog: Catalog) {
         this.nextIndex = 0
         this.indices = {}
-        for (const txt of Object.keys(sourceTranslations)) {
+        for (const txt of Object.keys(sourceCatalog)) {
             // guaranteed order for strings since ES2015
             this.indices[txt] = this.nextIndex
             this.nextIndex++
@@ -107,6 +107,8 @@ export interface Adapter {
     transform: TransformFunc
     files: GlobConf[]
     catalog: string
+    /** filename extension for compiled. E.g. `.js` */
+    compiledExt: string
     proxyModule: {
         dev: ProxyModuleFunc
         other: ProxyModuleFunc

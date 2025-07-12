@@ -1,8 +1,10 @@
-import { getContext, setContext } from 'svelte'
-import { RunTime, type TranslationsModule } from "wuchale/runtime"
+import { Runtime, type CatalogModule } from "wuchale/runtime"
 
-export function setTranslations(mod: TranslationsModule, key: string = '') {
-    setContext(key, $state(new RunTime(mod)))
+const dataCollection: {[key: string]: Runtime} = $state({})
+const fallback = new Runtime()
+
+export function setTranslations(mod: CatalogModule, key: string) {
+    dataCollection[key] = new Runtime(mod)
 }
 
-export const getTranslations = (key: string): RunTime => getContext(key)
+export const _wrs_ = (key: string): Runtime => dataCollection[key] ?? fallback

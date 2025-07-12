@@ -77,11 +77,7 @@ export function deepMergeObjects<Type>(source: Type, target: Type, dynamicKeysIn
 
 const configName = 'wuchale.config.js'
 
-export async function getConfig() {
-    let options: Config = defaultConfig
-    try {
-        const module = await import(`${process.cwd()}/${configName}`)
-        options = deepMergeObjects(module, options, ['locales'])
-    } catch {}
-    return options
+export async function getConfig(): Promise<Config> {
+    const module = await import(`${process.cwd()}/${configName}`)
+    return deepMergeObjects(module.default, defaultConfig, ['locales'])
 }

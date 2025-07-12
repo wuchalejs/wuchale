@@ -1,5 +1,5 @@
 // $$ cd ../.. && npm run test
-import { IndexTracker, NestText, type Translations } from "./adapter.js"
+import { IndexTracker, NestText, type Catalog } from "./adapter.js"
 import type { Adapter, GlobConf } from "./adapter.js"
 import { writeFile, readFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
@@ -14,7 +14,7 @@ export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`
 
 interface LoadedPO {
-    translations: Translations,
+    catalog: Catalog,
     total: number,
     untranslated: number,
     headers: { [key: string]: string },
@@ -23,7 +23,7 @@ interface LoadedPO {
 async function loadPOFile(filename: string): Promise<LoadedPO> {
     return new Promise((res, rej) => {
         PO.load(filename, (err, po) => {
-            const translations: Translations = {}
+            const catalog: Catalog = {}
             let total = 0
             let untranslated = 0
             if (err) {
@@ -36,17 +36,17 @@ async function loadPOFile(filename: string): Promise<LoadedPO> {
                     untranslated++
                 }
                 const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
-                translations[nTxt.toKey()] = item
+                catalog[nTxt.toKey()] = item
             }
-            res({ translations, total, untranslated, headers: po.headers })
+            res({ catalog: catalog, total, untranslated, headers: po.headers })
         })
     })
 }
 
-async function savePO(translations: ItemType[], filename: string, headers = {}): Promise<void> {
+async function savePO(items: ItemType[], filename: string, headers = {}): Promise<void> {
     const po = new PO()
     po.headers = headers
-    for (const item of Object.values(translations)) {
+    for (const item of Object.values(items)) {
         po.items.push(item)
     }
     return new Promise((res, rej) => {
@@ -61,8 +61,7 @@ async function savePO(translations: ItemType[], filename: string, headers = {}):
 }
 
 export type Mode = 'dev' | 'prod' | 'extract' | 'test'
-export type TranslationsByLocale = { [loc: string]: { [key: string]: ItemType } }
-export type CompiledByLocale = { [locale: string]: (CompiledFragment | number)[] }
+export type CatalogssByLocale = { [loc: string]: { [key: string]: ItemType } }
 
 export class AdapterHandler {
 
@@ -75,12 +74,12 @@ export class AdapterHandler {
 
     #adapter: Adapter
 
-    translations: TranslationsByLocale = {}
-    compiled: CompiledByLocale = {}
-    #sourceTranslations: { [key: string]: ItemType }
+    catalogs: CatalogssByLocale = {}
+    compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
+    #sourceCatalog: { [key: string]: ItemType }
 
     #compiledFname: { [loc: string]: string } = {}
-    #translationsFname: { [loc: string]: string } = {}
+    #catalogsFname: { [loc: string]: string } = {}
     transFnamesToLocales: { [key: string]: string } = {}
 
     #poHeaders: { [loc: string]: { [key: string]: string } } = {}
@@ -101,46 +100,41 @@ export class AdapterHandler {
     /** Get both virtual module names AND HMR event names */
     virtModEvent = (locale: string) => `${virtualPrefix}${locale}:${this.key}`
 
-    init = async (translations?: TranslationsByLocale, compiled?: CompiledByLocale) => {
+    init = async (catalogs?: CatalogssByLocale) => {
         for (const pattern of this.#adapter.files) {
             this.patterns.push(pm(...this.#globOptsToArgs(pattern)))
         }
-        this.#locales = [
-            this.#config.sourceLocale,
-            ...Object.keys(this.#config.locales).filter(loc => loc != this.#config.sourceLocale),
-        ]
+        this.#locales = Object.keys(this.#config.locales)
+            .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
         for (const loc of this.#locales) {
             const catalog = this.#adapter.catalog.replace('{locale}', loc)
-            const translFname = `${catalog}.po`
-            this.#translationsFname[loc] = translFname
-            this.#compiledFname[loc] = `${catalog}.svelte.js`
-            this.translations[loc] = translations?.[loc] ?? {}
-            this.compiled[loc] = compiled?.[loc] ?? []
+            const catalogFname = `${catalog}.po`
+            this.#catalogsFname[loc] = catalogFname
+            this.#compiledFname[loc] = `${catalog}${this.#adapter.compiledExt}`
+            this.catalogs[loc] = catalogs?.[loc] ?? {}
             // for handleHotUpdate
-            this.transFnamesToLocales[normalize(this.#projectRoot + '/' + translFname)] = loc
+            this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
             if (loc === this.#config.sourceLocale) {
+                this.#sourceCatalog = this.catalogs[loc]
+                this.#indexTracker.reload(this.#sourceCatalog)
+            } else if (this.#mode !== 'test') {
+                this.#geminiQueue[loc] = new GeminiQueue(
+                    sourceLocaleName,
+                    this.#config.locales[loc].name,
+                    this.#config.geminiAPIKey,
+                    async () => await this.afterExtract(loc),
+                )
+            }
+            if (this.#mode === 'test') {
                 continue
             }
-            this.#geminiQueue[loc] = new GeminiQueue(
-                sourceLocaleName,
-                this.#config.locales[loc].name,
-                this.#config.geminiAPIKey,
-                async () => await this.afterExtract(loc),
-            )
-            if (this.#mode === 'test' || translations != null) {
-                continue
+            if (catalogs == null) {
+                await this.loadCatalogNCompile(loc)
+            } else {
+                this.compile(loc)
             }
-            await this.loadTranslations(loc)
-            this.compile(loc)
-        }
-        this.#sourceTranslations = this.translations[this.#config.sourceLocale] ?? {}
-        this.#indexTracker.reload(this.#sourceTranslations)
-        if (this.#mode === 'test') {
-            return
-        }
-        for (const loc of this.#locales) {
             const proxyMode = this.#mode === 'dev' ? 'dev' : 'other'
             const proxyModule = this.#adapter.proxyModule[proxyMode](this.virtModEvent(loc))
             await writeFile(this.#compiledFname[loc], proxyModule)
@@ -174,24 +168,27 @@ export class AdapterHandler {
 
     directExtract = async () => {
         const all = []
+        const extract = async (file: string) => {
+            const contents = await readFile(file)
+            await this.transform(contents.toString(), file)
+        }
         for (const pattern of this.#adapter.files) {
             for (const file of await glob(...this.#globOptsToArgs(pattern))) {
                 console.log('Extract from', file)
-                const contents = await readFile(file)
-                const promise = this.transform(contents.toString(), normalize(process.cwd() + '/' + file))
-                all.push(promise)
+                all.push(extract(file))
             }
         }
         await Promise.all(all)
     }
 
-    loadTranslations = async (loc: string) => {
+    loadCatalogNCompile = async (loc: string) => {
         try {
-            const { translations: trans, total, untranslated, headers } = await loadPOFile(this.#translationsFname[loc])
+            const { catalog, total, untranslated, headers } = await loadPOFile(this.#catalogsFname[loc])
             this.#poHeaders[loc] = headers
-            this.translations[loc] = trans
+            this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
             console.info(`i18n stats (${this.key}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
+            this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
@@ -209,8 +206,8 @@ export class AdapterHandler {
 
     compile = (loc: string) => {
         this.compiled[loc] = []
-        for (const key in this.translations[loc]) {
-            const poItem = this.translations[loc][key]
+        for (const key in this.catalogs[loc]) {
+            const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
             let compiled: CompiledFragment
             const fallback = this.compiled[this.#config.sourceLocale][index]
@@ -246,7 +243,7 @@ export class AdapterHandler {
 
     afterExtract = async (loc: string) => {
         if (this.#mode !== 'test') {
-            await savePO(Object.values(this.translations[loc]), this.#translationsFname[loc], this.#fullHeaders(loc))
+            await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], this.#fullHeaders(loc))
         }
         if (this.#mode !== 'extract') {
             this.compile(loc)
@@ -262,7 +259,7 @@ export class AdapterHandler {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
-                let poItem = this.translations[loc][key]
+                let poItem = this.catalogs[loc][key]
                 if (!poItem) {
                     // @ts-ignore
                     poItem = new PO.Item({ nplurals: this.#config.locales[loc].nPlurals })
@@ -270,7 +267,7 @@ export class AdapterHandler {
                     if (nTxt.plural) {
                         poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
                     }
-                    this.translations[loc][key] = poItem
+                    this.catalogs[loc][key] = poItem
                 }
                 if (nTxt.context) {
                     poItem.msgctxt = nTxt.context

@@ -17,9 +17,9 @@ test('Compile nested', function(t) {
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = getTranslations("svelte")
+            const wuchaleRuntime = $derived(_wrs_("svelte"))
         </script>
         {wuchaleRuntime.t(0)}
     `, `
@@ -40,9 +40,9 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = getTranslations("svelte")
+            const wuchaleRuntime = $derived(_wrs_("svelte"))
         </script>
         <p>
             {wuchaleRuntime.t(0)}
@@ -73,9 +73,9 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = getTranslations("svelte")
+            const wuchaleRuntime = $derived(_wrs_("svelte"))
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -107,9 +107,9 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-                const wuchaleRuntime = getTranslations("svelte")
+                const wuchaleRuntime = $derived(_wrs_("svelte"))
             </script>
             <p>{/* @wc-context: music */ wuchaleRuntime.t(0)}</p>
             <p>{/* @wc-context: programming */ wuchaleRuntime.t(1)}</p>
@@ -148,9 +148,9 @@ test('Plural', async function(t) {
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
         svelte`
             <script>
-                import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+                import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-                const wuchaleRuntime = getTranslations("svelte")
+                const wuchaleRuntime = $derived(_wrs_("svelte"))
             </script>
             <p>{plural(items, wuchaleRuntime.tp(0), wuchaleRuntime.plr())}</p>
     `, `

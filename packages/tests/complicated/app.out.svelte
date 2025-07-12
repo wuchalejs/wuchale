@@ -1,7 +1,7 @@
 <script>
-    import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+    import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
     import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-    const wuchaleRuntime = getTranslations("svelte")
+    const wuchaleRuntime = $derived(_wrs_("svelte"))
 
     const normalParam = 44;
 

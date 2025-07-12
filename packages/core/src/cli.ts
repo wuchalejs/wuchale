@@ -21,7 +21,7 @@ for (const [key, adapter] of Object.entries(config.adapters)) {
 
     if (clean) {
         for (const loc of locales) {
-            for (const item of Object.values(handler.translations[loc])) {
+            for (const item of Object.values(handler.catalogs[loc])) {
                 item.references = []
             }
         }
@@ -31,9 +31,9 @@ for (const [key, adapter] of Object.entries(config.adapters)) {
 
     if (clean) {
         for (const loc of locales) {
-            for (const [key, item] of Object.entries(handler.translations[loc])) {
+            for (const [key, item] of Object.entries(handler.catalogs[loc])) {
                 if (item.references.length === 0) {
-                    delete handler.translations[loc][key]
+                    delete handler.catalogs[loc][key]
                 }
             }
             await handler.afterExtract(loc)

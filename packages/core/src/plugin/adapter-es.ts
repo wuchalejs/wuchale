@@ -435,6 +435,7 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
             return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
+        compiledExt: '.js',
         proxyModule: {
             dev: proxyModule,
             other: proxyModule,

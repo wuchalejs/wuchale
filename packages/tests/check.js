@@ -11,7 +11,7 @@ import PO from 'pofile'
 /**
  * @param {string} content
  */
-export async function getOutput(content) {
+export async function getOutput(content, filename = 'src/test.svelte') {
     const handler = new AdapterHandler(
         adapter(),
         'svelte',
@@ -21,9 +21,9 @@ export async function getOutput(content) {
         process.cwd(),
     )
     await handler.init()
-    const { code } = await handler.transform(content, 'src/test.svelte')
-    const { translations, compiled } = handler
-    return { code, translations, compiled }
+    const { code } = await handler.transform(content, filename)
+    const { catalogs, compiled } = handler
+    return { code, catalogs, compiled }
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -53,11 +53,11 @@ function trimLines(str) {
  * @param {string[] | string[][]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
-    const { code, translations, compiled } = await getOutput(content)
+    const { code, catalogs, compiled } = await getOutput(content)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
-    for (const key in translations.en) {
-        po.items.push(translations.en[key])
+    for (const key in catalogs.en) {
+        po.items.push(catalogs.en[key])
     }
     t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
     t.assert.deepEqual(compiled.en, expectedCompiled)
@@ -80,8 +80,7 @@ export async function testDir(t, testDir) {
 export const svelte = (/** @type {TemplateStringsArray} */ foo) => foo.join('')
 
 // const p = await getOutput(svelte`
-// <i>Hola</i>
-// <p>{plural(2, ['one', 'two', 'three'],)}</p>
-// `)
+// const f = $derived('Foo')
+// `, 'src/f.svelte.js')
 // console.log(p.code)
-// console.log(Object.values(p.translations.en))
+// console.log(Object.values(p.catalogs.en))
