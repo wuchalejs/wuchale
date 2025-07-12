@@ -17,10 +17,11 @@ test('Compile nested', function(t) {
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-            import WuchaleTrans from "wuchale/runtime.svelte"
+            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+            const wuchaleRuntime = getTranslations("svelte")
         </script>
-        {wuchaleTrans(0)}
+        {wuchaleRuntime.t(0)}
     `, `
     msgid ""
     msgstr ""
@@ -39,11 +40,12 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-            import WuchaleTrans from "wuchale/runtime.svelte"
+            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+            const wuchaleRuntime = getTranslations("svelte")
         </script>
         <p>
-            {wuchaleTrans(0)}
+            {wuchaleRuntime.t(0)}
         </p>
     `, `
         msgid ""
@@ -71,8 +73,9 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-            import WuchaleTrans from "wuchale/runtime.svelte"
+            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+            import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+            const wuchaleRuntime = getTranslations("svelte")
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -80,7 +83,7 @@ test('Ignore and include', async function(t) {
             <!-- @wc-ignore -->
             <span>Ignore this</span>
             <!-- @wc-include -->
-            {wuchaleTrans(0)}
+            {wuchaleRuntime.t(0)}
         </div>
     `, `
     msgid ""
@@ -104,15 +107,16 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-                import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-                import WuchaleTrans from "wuchale/runtime.svelte"
+            import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+                import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+                const wuchaleRuntime = getTranslations("svelte")
             </script>
-            <p>{/* @wc-context: music */ wuchaleTrans(0)}</p>
-            <p>{/* @wc-context: programming */ wuchaleTrans(1)}</p>
+            <p>{/* @wc-context: music */ wuchaleRuntime.t(0)}</p>
+            <p>{/* @wc-context: programming */ wuchaleRuntime.t(1)}</p>
             <!-- @wc-context: door -->
-            <p>{wuchaleTrans(2)}</p>
+            <p>{wuchaleRuntime.t(2)}</p>
             <!-- @wc-context: distance -->
-            <p>{wuchaleTrans(3)}</p>
+            <p>{wuchaleRuntime.t(3)}</p>
     `, `
         msgid ""
         msgstr ""
@@ -144,10 +148,11 @@ test('Plural', async function(t) {
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
         svelte`
             <script>
-                import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-                import WuchaleTrans from "wuchale/runtime.svelte"
+                import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+                import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+                const wuchaleRuntime = getTranslations("svelte")
             </script>
-            <p>{plural(items, wuchaleTransPlural(0), wuchalePluralsRule())}</p>
+            <p>{plural(items, wuchaleRuntime.tp(0), wuchaleRuntime.plr())}</p>
     `, `
     msgid ""
     msgstr ""

@@ -1,29 +1,30 @@
 <script>
-    import {wuchaleTrans, wuchaleTransCtx, wuchaleTransPlural, wuchalePluralsRule} from "wuchale/runtime.svelte.js"
-    import WuchaleTrans from "wuchale/runtime.svelte"
+    import { getTranslations } from "@wuchale/svelte/runtime.svelte.js"
+    import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+    const wuchaleRuntime = getTranslations("svelte")
 </script>
-<h1>{wuchaleTrans(0)}</h1>
-<p>{wuchaleTrans(1)}</p>
+<h1>{wuchaleRuntime.t(0)}</h1>
+<p>{wuchaleRuntime.t(1)}</p>
 <p>
     {#snippet wuchaleSnippet0(ctx)}
-        <b>{wuchaleTransCtx(ctx)}</b>
+        <b>{wuchaleRuntime.tx(ctx)}</b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet0]} id={2} />
+    <WuchaleTrans tags={[wuchaleSnippet0]} ctx={wuchaleRuntime.cx(2)} />
 </p>
 <p>
     {#snippet wuchaleSnippet1(ctx)}
-        <b>{wuchaleTransCtx(ctx, [text])}</b>
+        <b>{wuchaleRuntime.tx(ctx, [text])}</b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet1]} id={3} />
+    <WuchaleTrans tags={[wuchaleSnippet1]} ctx={wuchaleRuntime.cx(3)} />
 </p>
 <p>
     {#snippet wuchaleSnippet2()}
         <b>{expressionOnly}</b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet2]} id={4} />
+    <WuchaleTrans tags={[wuchaleSnippet2]} ctx={wuchaleRuntime.cx(4)} />
 </p>
 <p>
-{wuchaleTrans(5, [1, 2, 3])}</p>
+{wuchaleRuntime.t(5, [1, 2, 3])}</p>
 <p>
     {#snippet wuchaleSnippet3()}
         <b>
@@ -33,5 +34,5 @@
             </i>
         </b>
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet3]} id={6} />
+    <WuchaleTrans tags={[wuchaleSnippet3]} ctx={wuchaleRuntime.cx(6)} />
 </p>
