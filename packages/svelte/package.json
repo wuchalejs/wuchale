@@ -42,7 +42,7 @@
             "types": "./dist/runtime.svelte.d.ts",
             "import": "./dist/runtime.svelte.js"
         },
-        "./runtime.svelte": "./runtime.svelte"
+        "./runtime.svelte": "./src/runtime.svelte"
     },
     "repository": {
         "type": "git",
