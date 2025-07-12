@@ -1,8 +1,8 @@
 <h1>Title</h1>
 <p>{'Welcome to the app'}</p>
 <p>Nested <b>non-mixed</b></p>
-<p>Nested <b>mixed with {text}</b></p>
-<p>Nested <b>{expressionOnly}</b></p>
+<p>Nested <b>mixed with {'text'}</b></p>
+<p>Nested <b>{console.log('expression')}</b></p>
 <p>
     Result:
     {1}
@@ -12,8 +12,8 @@
     Nested deep nontext
     <b>
         <i>
-            <Icon />
-            <OtherComponent prop={prop} />
+            <img src="/foo.png" alt="foo" />
+            <other-elements prop={navigator.doNotTrack}>{33}</other-elements>
         </i>
     </b>
 </p>

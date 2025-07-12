@@ -1,8 +1,7 @@
 {
     "extends": "../../tsconfig-base",
     "compilerOptions": {
-        "outDir": "./dist",
-        "composite": true
+        "outDir": "./dist"
     },
     "references": [
         { "path": "../core" },

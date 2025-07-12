@@ -13,13 +13,13 @@
 </p>
 <p>
     {#snippet wuchaleSnippet1(ctx)}
-        <b>{wuchaleRuntime.tx(ctx, [text])}</b>
+        <b>{wuchaleRuntime.tx(ctx, ['text'])}</b>
     {/snippet}
     <WuchaleTrans tags={[wuchaleSnippet1]} ctx={wuchaleRuntime.cx(3)} />
 </p>
 <p>
     {#snippet wuchaleSnippet2()}
-        <b>{expressionOnly}</b>
+        <b>{console.log('expression')}</b>
     {/snippet}
     <WuchaleTrans tags={[wuchaleSnippet2]} ctx={wuchaleRuntime.cx(4)} />
 </p>
@@ -29,8 +29,8 @@
     {#snippet wuchaleSnippet3()}
         <b>
             <i>
-                <Icon />
-                <OtherComponent prop={prop} />
+                <img src="/foo.png" alt="foo" />
+                <other-elements prop={navigator.doNotTrack}>{33}</other-elements>
             </i>
         </b>
     {/snippet}

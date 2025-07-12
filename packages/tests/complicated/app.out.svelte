@@ -10,9 +10,9 @@
         const next = wuchaleRuntime.t(10, [a, b])
         return next + c + value
     }
-    async function someFunctionAsync() {
+    async function someFunctionAsync(name) {
         const json = {}
-        json.name = wuchaleRuntime.t(11)
+        json.name = name ?? wuchaleRuntime.t(11)
         return json
     }
     export const arrow = (msg) => {
@@ -29,8 +29,8 @@
         id: 23,
         name: 'foo',
     }
-    const derived = $derived.by(() => {
-        const f = wuchaleRuntime.t(13)
+    const derive = $derived.by(() => {
+        const f = obj.property[wuchaleRuntime.t(13)]
         if (!f) return
         let e = {}
         if (f == 'something else') {
@@ -55,7 +55,7 @@
     })
 </script>
 
-<div>{definition('foo', wuchaleRuntime.t(0))}</div>
+<div>{someFunction('foo', wuchaleRuntime.t(0))}</div>
 
 <p>
     {#snippet wuchaleSnippet4(ctx)}
@@ -79,7 +79,7 @@
                 {#each collection.members as member}
                     <!-- What not -->
                     {#snippet wuchaleSnippet2()}
-                        {#await someFunctionAsync(a) then json}
+                        {#await someFunctionAsync(derive) then json}
                             <b>{wuchaleRuntime.t(5, [json.title])}</b>
                         {/await}
                     {/snippet}

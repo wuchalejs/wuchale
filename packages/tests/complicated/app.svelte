@@ -7,9 +7,9 @@
         return next + c + value
     }
 
-    async function someFunctionAsync() {
+    async function someFunctionAsync(name) {
         const json = {}
-        json.name = 'Extracted name'
+        json.name = name ?? 'Extracted name'
         return json
     }
 
@@ -18,19 +18,22 @@
     }
 
     const collection = { members: [1] };
+
     const someJSEven = 34;
+
     const obj = $derived({
         property: {
             ["non-extracted text"]: { ["Extracted text"]: 42 },
         },
     });
+
     const p = {
         id: 23,
         name: 'foo',
     }
 
-    const derived = $derived.by(() => {
-        const f = 'Extract this'
+    const derive = $derived.by(() => {
+        const f = obj.property["Extract this"]
         if (!f) return
         let e = {}
         if (f == 'something else') {
@@ -55,7 +58,7 @@
     })
 </script>
 
-<div>{definition('foo', 'Bar')}</div>
+<div>{someFunction('foo', 'Bar')}</div>
 
 <p>
     This is a very {obj.property["non-extracted text"]["Extracted text"]}
@@ -70,7 +73,7 @@
         {#each collection.members as member}
             Loops and {member}
             <!-- What not -->
-            {#await someFunctionAsync(a) then json}
+            {#await someFunctionAsync(derive) then json}
                 <b>{json.title} other blocks</b>
             {/await}
             Supported
