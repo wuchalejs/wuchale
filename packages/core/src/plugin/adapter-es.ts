@@ -47,7 +47,7 @@ export class Transformer {
     key: string
     rtFunc = `${runtimeConst}.t`
     rtFuncPlural = `${runtimeConst}.tp`
-    rtPluralsRule = `${runtimeConst}.plRl`
+    rtPluralsRule = `${runtimeConst}.plr`
 
     // state
     commentDirectives: CommentDirectives = {}

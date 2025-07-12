@@ -1,7 +1,6 @@
 type Composite = (number | string | Composite)[]
 type TranslationsData = (string | Composite)[]
 type PluralsRule = (n: number) => number
-type RunTimeByKey = Map<string, RunTime>
 
 export type TranslationsModule = {
     default: TranslationsData
@@ -11,11 +10,11 @@ export type TranslationsModule = {
 export class RunTime {
 
     data: TranslationsData = []
-    plRl: PluralsRule = n => n === 1 ? 0 : 1
+    pr: PluralsRule = n => n === 1 ? 0 : 1
 
     constructor(module: TranslationsModule) {
         this.data = module.default
-        this.plRl = module.pluralsRule ?? this.plRl
+        this.pr = module.pluralsRule ?? this.pr
     }
 
     /** get composite context */
@@ -58,7 +57,7 @@ export class RunTime {
     }
 }
 
-export const _wr_: RunTimeByKey = new Map()
+export const _wr_: Map<string, RunTime> = new Map()
 
 export function setTranslations(mod: TranslationsModule, key: string | number = 0) {
     _wr_[key] = new RunTime(mod)

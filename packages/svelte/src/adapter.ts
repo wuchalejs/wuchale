@@ -415,7 +415,7 @@ export class SvelteTransformer extends Transformer {
         const getCtxFunc = 'getTranslations'
         const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
         const importStmt = `
-            import { ${getCtxFunc} } from "@wuchale/svelte"
+            import { ${getCtxFunc} } from "@wuchale/svelte/runtime.svelte.js"
             ${ast.type === 'Root' ? importComponent : ''}
             const ${runtimeConst} = ${getCtxFunc}("${this.key}")
         `

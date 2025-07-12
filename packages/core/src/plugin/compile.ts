@@ -102,7 +102,7 @@ function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragm
     return [ext, i]
 }
 
-export default function compileTranslation(text: string, fallback: CompiledFragment): CompiledFragment {
+export function compileTranslation(text: string, fallback: CompiledFragment): CompiledFragment {
     if (!text) {
         return fallback
     }
