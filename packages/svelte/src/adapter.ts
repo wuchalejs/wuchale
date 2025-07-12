@@ -2,6 +2,7 @@ import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { defaultHeuristic, NestText } from 'wuchale/adapter'
+import { deepMergeObjects } from 'wuchale/config'
 import { Transformer, parseScript, runtimeConst } from 'wuchale/adapter-es'
 import type {
     IndexTracker,
@@ -435,40 +436,35 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const adapterName = 'svelte'
-
-const proxyModuleOther: ProxyModuleFunc = (virtModName) => `export {default, pluralsRule} from '${virtModName}'`
-const proxyModuleDev: ProxyModuleFunc = (virtModName, locale, pluginName) => `
-    import defaultData, {pluralsRule} from '${virtModName}'
-    const data = $state(defaultData)
-    if (import.meta.hot) {
-        import.meta.hot.on('${pluginName}:update', ({adapter, locale, data: newData}) => {
-            if (adapter !== ${adapterName} || locale !== '${locale}') {
-                return
-            }
-            for (let i = 0; i < newData.length; i++) {
-                if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
-                    data[i] = newData[i]
+const proxyModuleOther: ProxyModuleFunc = (virtModEvent) => `export {default, pluralsRule} from '${virtModEvent}'`
+const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
+        import defaultData, {pluralsRule} from '${virtModEvent}'
+        const data = $state(defaultData)
+        if (import.meta.hot) {
+            import.meta.hot.on('${virtModEvent}', newData => {
+                for (let i = 0; i < newData.length; i++) {
+                    if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                        data[i] = newData[i]
+                    }
                 }
-            }
-        })
-        import.meta.hot.send('${pluginName}:get', {adapter: ${adapterName}, locale: '${locale}'})
-    }
-    export {pluralsRule}
-    export default data
-`
+            })
+            import.meta.hot.send('${virtModEvent}')
+        }
+        export {pluralsRule}
+        export default data
+    `
 
-const defaultArgs = {
+const defaultArgs: AdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     catalog: './src/locales/{locale}',
+    pluralsFunc: 'plural',
+    heuristic: svelteHeuristic,
 }
 
 const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic = svelteHeuristic, pluralsFunc = 'plural', key = '', ...rest } = args
+    const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
-        name: adapterName,
-        key,
-        transform: (content: string, filename: string, index: IndexTracker) => {
+        transform: (content, filename, index, key) => {
             return new SvelteTransformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,

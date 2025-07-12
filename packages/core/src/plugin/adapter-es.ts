@@ -6,6 +6,7 @@ import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultHeuristic, NestText } from './adapter.js'
+import { deepMergeObjects } from "../config.js"
 import type {
     AdapterArgs,
     AdapterFunc,
@@ -418,14 +419,19 @@ export class Transformer {
 }
 
 
-const proxyModule: ProxyModuleFunc = (virtModName) => `export {default, pluralsRule} from '${virtModName}'`
+const proxyModule: ProxyModuleFunc = virtModEvent => `export {default, pluralsRule} from '${virtModEvent}'`
 
-const esAdapter: AdapterFunc = (args: AdapterArgs) => {
-    const { heuristic = defaultHeuristic, pluralsFunc = 'plural', key = '', ...rest } = args
+const defaultArgs: AdapterArgs = {
+    files: ['src/**/*.{js,ts}'],
+    catalog: './src/locales/{locale}',
+    pluralsFunc: 'plural',
+    heuristic: defaultHeuristic,
+}
+
+const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
+    const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
-        name: 'es',
-        key,
-        transform: (content, filename, index) => {
+        transform: (content, filename, index, key) => {
             return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         ...rest,
@@ -436,4 +442,4 @@ const esAdapter: AdapterFunc = (args: AdapterArgs) => {
     }
 }
 
-export default esAdapter
+export default adapter

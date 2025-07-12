@@ -99,13 +99,11 @@ export type GlobConf = string | {
     ignore: string[],
 }
 
-export type TransformFunc = (content: string, filename: string, index: IndexTracker) => TransformOutput
+export type TransformFunc = (content: string, filename: string, index: IndexTracker, key: string) => TransformOutput
 
-export type ProxyModuleFunc = (virtModName: string, locale: string, pluginName: string) => string
+export type ProxyModuleFunc = (virtModName: string) => string
 
 export interface Adapter {
-    name: string
-    key: string
     transform: TransformFunc
     files: GlobConf[]
     catalog: string
@@ -120,7 +118,6 @@ export interface AdapterArgs {
     catalog: string
     heuristic?: HeuristicFunc
     pluralsFunc?: string
-    key?: string
 }
 
 export type AdapterFunc = (args: AdapterArgs) => Adapter

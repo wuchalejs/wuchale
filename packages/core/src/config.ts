@@ -13,7 +13,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    adapters?: Adapter[]
+    adapters?: {[key: string]: Adapter}
     hmr?: boolean
 }
 
@@ -26,13 +26,13 @@ export const defaultConfig: Config = {
             pluralRule: 'n == 1 ? 0 : 1',
         },
     },
-    adapters: [],
+    adapters: {},
     hmr: true,
     geminiAPIKey: 'env',
 }
 
 // dynamicKeysInside is mainly to fill plural rules for other languages with English
-function deepAssign(fromObj: object, toObj: object, dynamicKeysInside: string[] = []) {
+function deepAssign<Type>(fromObj: Type, toObj: Type, dynamicKeysInside: string[] = []) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
             delete toObj[key]
@@ -69,12 +69,19 @@ export function defineConfig(config: Config) {
     return config
 }
 
-export async function getConfig(codeOptions: Config = {}) {
-    const options: Config = defaultConfig
+export function deepMergeObjects<Type>(source: Type, target: Type, dynamicKeysInside?: string[]): Type {
+    const full = {...target}
+    deepAssign(source, full, dynamicKeysInside)
+    return full
+}
+
+const configName = 'wuchale.config.js'
+
+export async function getConfig() {
+    let options: Config = defaultConfig
     try {
-        const module = await import(`${process.cwd()}/wuchale.config.js`)
-        deepAssign(module.default, options)
+        const module = await import(`${process.cwd()}/${configName}`)
+        options = deepMergeObjects(module, options, ['locales'])
     } catch {}
-    deepAssign(codeOptions, options, ['locales'])
     return options
 }

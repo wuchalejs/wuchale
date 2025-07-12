@@ -8,19 +8,13 @@ import type {Mode, TranslationsByLocale, CompiledByLocale} from './handler.js'
 
 const virtualResolvedPrefix = '\0'
 
-type HMRCompiled = {
-    adapter: string
-    locale: string
-    data: CompiledFragment[]
-}
-
 type HMRClient = {
-    send: (event: string, data: HMRCompiled) => void
+    send: (event: string, data: CompiledFragment[]) => void
 }
 
 type ViteDevServer = {
     ws: {
-        send: (event: string, data: HMRCompiled) => void,
+        send: (event: string, data: CompiledFragment[]) => void,
         on: (event: string, cb: (msg: object, client: HMRClient) => void) => void,
     }
     moduleGraph: {
@@ -53,16 +47,17 @@ class Plugin {
     }
 
     #init = async (mode: Mode) => {
-        this.#config = await getConfig(this.#config)
+        this.#config = await getConfig()
         const dedupeAdapters: {[catalog: string]: {
             index?: IndexTracker
             translations?: TranslationsByLocale
             compiled?: CompiledByLocale
         }} = {}
-        for (const adapter of this.#config.adapters) {
+        for (const [key, adapter] of Object.entries(this.#config.adapters)) {
             const dedupe = dedupeAdapters[adapter.catalog] ?? {}
             const handler = new AdapterHandler(
                 adapter,
+                key,
                 this.#config, dedupe.index ?? new IndexTracker(),
                 mode,
                 this.#projectRoot,
@@ -94,18 +89,14 @@ class Plugin {
     configureServer = (server: ViteDevServer) => {
         this.#server = server
         // initial load
-        server.ws.on(`${pluginName}:get`, (msg: { adapter: string, locale: string }, client) => {
-            const adapter = this.#adapters.find(t => t.name === adapter)
-            if (!adapter) {
-                console.warn('Hot update requested for non-existent adapter:', adapter)
-                return
+        for (const adapter of this.#adapters) {
+            for (const loc of Object.keys(this.#config.locales)) {
+                const event = adapter.virtModEvent(loc)
+                server.ws.on(event, (_, client) => {
+                    client.send(event, adapter.compiled[loc])
+                })
             }
-            client.send(`${pluginName}:update`, {
-                adapter: adapter.name,
-                locale: msg.locale,
-                data: adapter._compiled[msg.locale],
-            })
-        })
+        }
     }
 
     handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
@@ -117,11 +108,7 @@ class Plugin {
         const loc = adapter.transFnamesToLocales[ctx.file]
         await adapter.loadTranslations(loc)
         adapter.compile(loc)
-        this.#server.ws.send(`${pluginName}:update`, {
-            adapter: adapter.name,
-            locale: loc,
-            data: adapter.compiled[loc],
-        })
+        this.#server.ws.send(adapter.virtModEvent(loc), adapter.compiled[loc])
     }
 
     resolveId = (source: string) => {
@@ -137,7 +124,7 @@ class Plugin {
             return null
         }
         const [adapterName, locale] = id.slice(prefix.length).split(':')
-        const adapter = this.#adapters.find(t => t.name === adapterName)
+        const adapter = this.#adapters.find(t => t.key === adapterName)
         if (!adapter) {
             console.error('Adapter not found for:', adapterName)
             return

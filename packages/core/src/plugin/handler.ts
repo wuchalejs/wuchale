@@ -66,7 +66,7 @@ export type CompiledByLocale = { [locale: string]: (CompiledFragment | number)[]
 
 export class AdapterHandler {
 
-    name: string
+    key: string
 
     #config: ConfigPartial
     #locales: string[]
@@ -89,14 +89,17 @@ export class AdapterHandler {
     #indexTracker: IndexTracker
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
-        this.name = adapter.name
+    constructor(adapter: Adapter, key: string, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
+        this.key = key
         this.#adapter = adapter
         this.#indexTracker = indexTracker
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
     }
+
+    /** Get both virtual module names AND HMR event names */
+    virtModEvent = (locale: string) => `${virtualPrefix}${locale}:${this.key}`
 
     init = async (translations?: TranslationsByLocale, compiled?: CompiledByLocale) => {
         for (const pattern of this.#adapter.files) {
@@ -138,9 +141,8 @@ export class AdapterHandler {
             return
         }
         for (const loc of this.#locales) {
-            const virtModName = `${virtualPrefix}${this.name}:${loc}`
             const proxyMode = this.#mode === 'dev' ? 'dev' : 'other'
-            const proxyModule = this.#adapter.proxyModule[proxyMode](virtModName, loc, pluginName)
+            const proxyModule = this.#adapter.proxyModule[proxyMode](this.virtModEvent(loc))
             await writeFile(this.#compiledFname[loc], proxyModule)
         }
     }
@@ -189,7 +191,7 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.translations[loc] = trans
             const locName = this.#config.locales[loc].name
-            console.info(`i18n stats (${this.name}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
+            console.info(`i18n stats (${this.key}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
@@ -252,7 +254,7 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string) => {
-        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker)
+        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker, this.key)
         if (!txts.length) {
             return {}
         }

@@ -15,8 +15,8 @@ const config = await getConfig()
 
 const locales = Object.keys(config.locales)
 
-for (const adapter of config.adapters) {
-    const handler = new AdapterHandler(adapter, config, new IndexTracker(), 'extract', process.cwd())
+for (const [key, adapter] of Object.entries(config.adapters)) {
+    const handler = new AdapterHandler(adapter, key, config, new IndexTracker(), 'extract', process.cwd())
     await handler.init()
 
     if (clean) {
