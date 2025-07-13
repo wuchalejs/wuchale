@@ -36,12 +36,12 @@
     ],
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/src/index.js"
         },
         "./runtime.svelte.js": {
-            "types": "./dist/runtime.svelte.d.ts",
-            "import": "./dist/runtime.svelte.js"
+            "types": "./dist/src/runtime.svelte.d.ts",
+            "import": "./dist/src/runtime.svelte.js"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },
