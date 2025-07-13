@@ -4,7 +4,8 @@
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
-        "build": "tsc"
+        "build": "tsc",
+        "test": "node tests"
     },
     "keywords": [
         "i18n",
@@ -51,11 +52,6 @@
             "types": "./dist/src/plugin/adapter-es.d.ts",
             "import": "./dist/src/plugin/adapter-es.js",
             "source": "./src/plugin/adapter-es.ts"
-        },
-        "./compile": {
-            "types": "./dist/src/plugin/compile.d.ts",
-            "import": "./dist/src/plugin/compile.js",
-            "source": "./src/plugin/compile.ts"
         },
         "./runtime": {
             "types": "./dist/src/runtime.d.ts",

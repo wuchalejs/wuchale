@@ -4,7 +4,8 @@
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
-        "build": "tsc"
+        "build": "tsc",
+        "test": "node tests"
     },
     "keywords": [
         "i18n",
