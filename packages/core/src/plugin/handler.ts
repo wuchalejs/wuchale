@@ -128,6 +128,7 @@ export class AdapterHandler {
                 )
             }
             if (this.#mode === 'test') {
+                this.compiled[loc] = []
                 continue
             }
             if (catalogs == null) {

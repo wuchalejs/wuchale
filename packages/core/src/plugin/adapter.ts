@@ -8,9 +8,11 @@ export type HeuristicDetailsBase = {
     attribute?: string,
 }
 
+export type ScriptTopLevel = "variable" | "function" | "expression"
+
 type HeuristicDetails = HeuristicDetailsBase & {
     file: string,
-    topLevelDef?: "variable" | "function",
+    topLevel?: ScriptTopLevel,
     topLevelCall?: string,
     call?: string,
 }
@@ -31,7 +33,7 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
         return true
     }
     // script and attribute
-    if (details.scope === 'script' && details.call?.startsWith('console.')) {
+    if (details.scope === 'script' && (details.call?.startsWith('console.') || details.topLevel == 'expression')) {
         return false
     }
     // only allow non lower-case English letter beginnings

@@ -15,6 +15,7 @@ import type {
     HeuristicFunc,
     IndexTracker,
     ProxyModuleFunc,
+    ScriptTopLevel,
     TransformOutput
 } from "./adapter.js"
 
@@ -51,8 +52,8 @@ export class Transformer {
 
     // state
     commentDirectives: CommentDirectives = {}
-    insideScript: boolean = false
-    topLevelDef: "variable" | "function" = null
+    insideProgram: boolean = false
+    topLevel: ScriptTopLevel = null
     currentCall: string
     currentTopLevelCall: string
 
@@ -75,9 +76,12 @@ export class Transformer {
             const details = {
                 file: this.filename,
                 call: this.currentCall,
-                topLevelDef: this.topLevelDef,
+                topLevel: this.topLevel,
                 topLevelCall: this.currentTopLevelCall,
                 ...detailsBase,
+            }
+            if (details.topLevel == null && this.insideProgram) {
+                details.topLevel = 'expression'
             }
             extract = this.heuristic(text, details)
                 ?? defaultHeuristic(text, details)
@@ -234,7 +238,7 @@ export class Transformer {
 
     visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
         const txts = []
-        let atTopLevelDefn = this.insideScript && !this.topLevelDef
+        let atTopLevelDefn = this.insideProgram && !this.topLevel
         for (const dec of node.declarations) {
             if (!dec.init) {
                 continue
@@ -242,9 +246,9 @@ export class Transformer {
             // store the name of the function after =
             if (atTopLevelDefn) {
                 if (dec.init.type === 'ArrowFunctionExpression') {
-                    this.topLevelDef = 'function'
+                    this.topLevel = 'function'
                 } else {
-                    this.topLevelDef = 'variable'
+                    this.topLevel = 'variable'
                     if (dec.init.type === 'CallExpression') {
                         this.currentTopLevelCall = this.getCalleeName(dec.init.callee)
                     }
@@ -258,7 +262,7 @@ export class Transformer {
         }
         if (atTopLevelDefn) {
             this.currentTopLevelCall = null // reset
-            this.topLevelDef = null
+            this.topLevel = null
         }
         return txts
     }
@@ -268,11 +272,11 @@ export class Transformer {
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
-        const topLevelDef = this.topLevelDef
-        this.topLevelDef = 'function'
+        const topLevelDef = this.topLevel
+        this.topLevel = 'function'
         const txts = this.visit(node.body)
         if (!topLevelDef) {
-            this.topLevelDef = null
+            this.topLevel = null
         }
         return txts
     }
@@ -351,11 +355,11 @@ export class Transformer {
 
     visitProgram = (node: Estree.Program): NestText[] => {
         const txts = []
-        this.insideScript = true
+        this.insideProgram = true
         for (const child of node.body) {
             txts.push(...this.visit(child))
         }
-        this.insideScript = false
+        this.insideProgram = false
         return txts
     }
 
