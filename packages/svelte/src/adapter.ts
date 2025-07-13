@@ -3,7 +3,7 @@ import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
-import { Transformer, parseScript, runtimeConst } from 'wuchale/adapter-es'
+import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-es'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -440,16 +440,7 @@ const proxyModuleOther: ProxyModuleFunc = (virtModEvent) => `export {default, pl
 const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
         import defaultData, {pluralsRule} from '${virtModEvent}'
         const data = $state(defaultData)
-        if (import.meta.hot) {
-            import.meta.hot.on('${virtModEvent}', newData => {
-                for (let i = 0; i < newData.length; i++) {
-                    if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
-                        data[i] = newData[i]
-                    }
-                }
-            })
-            import.meta.hot.send('${virtModEvent}')
-        }
+        ${proxyModuleHotUpdate(virtModEvent)}
         export {pluralsRule}
         export default data
     `
@@ -462,12 +453,13 @@ const defaultArgs: AdapterArgs = {
 }
 
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
             return new SvelteTransformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
-        ...rest,
+        files,
+        catalog,
         compiledExt: '.svelte.js',
         proxyModule: {
             dev: proxyModuleDev,

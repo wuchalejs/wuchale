@@ -116,8 +116,8 @@ export interface Adapter {
 }
 
 export interface AdapterArgs {
-    files: string[]
-    catalog: string
+    files?: string[]
+    catalog?: string
     heuristic?: HeuristicFunc
     pluralsFunc?: string
 }

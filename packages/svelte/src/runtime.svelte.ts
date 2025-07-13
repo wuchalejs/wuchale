@@ -3,7 +3,7 @@ import { Runtime, type CatalogModule } from "wuchale/runtime"
 const dataCollection: {[key: string]: Runtime} = $state({})
 const fallback = new Runtime()
 
-export function setTranslations(mod: CatalogModule, key: string) {
+export function setCatalog(mod: CatalogModule, key: string) {
     dataCollection[key] = new Runtime(mod)
 }
 

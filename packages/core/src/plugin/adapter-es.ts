@@ -30,7 +30,7 @@ export function parseScript(content: string) {
     return ScriptParser.parse(content, scriptParseOptions)
 }
 
-const collectionVar = '_wr_'
+const collectionFunc = '_wre_'
 
 export const runtimeConst = 'wuchaleRuntime'
 
@@ -265,6 +265,8 @@ export class Transformer {
 
     visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => node.declaration ? this.visit(node.declaration) : []
 
+    visitExportDefaultDeclaration = this.visitExportNamedDeclaration
+
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
         const topLevelDef = this.topLevelDef
         this.topLevelDef = 'function'
@@ -383,8 +385,8 @@ export class Transformer {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 txts = this[methodName](node)
-                // } else {
-                //     console.log(node)
+            // } else {
+            //     console.log(node)
             }
         }
         this.commentDirectives = commentDirectives // restore
@@ -409,8 +411,8 @@ export class Transformer {
         const txts = this.visit(ast)
         if (txts.length) {
             const importModule = `
-                import { ${collectionVar} } from "wuchale/runtime"
-                const ${runtimeConst} = ${collectionVar}["${this.key}"]
+                import { ${collectionFunc} } from "wuchale/runtime"
+                const ${runtimeConst} = ${collectionFunc}("${this.key}")
             `
             this.mstr.appendRight(0, importModule)
         }
@@ -418,8 +420,27 @@ export class Transformer {
     }
 }
 
+export const proxyModuleHotUpdate = (virtModEvent: string, targetVar = 'data') => `
+    if (import.meta.hot) {
+        import.meta.hot.on('${virtModEvent}', newData => {
+            for (let i = 0; i < newData.length; i++) {
+                if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                    ${targetVar}[i] = newData[i]
+                }
+            }
+        })
+        import.meta.hot.send('${virtModEvent}')
+    }
+`
 
-const proxyModule: ProxyModuleFunc = virtModEvent => `export {default, pluralsRule} from '${virtModEvent}'`
+const proxyModuleOther: ProxyModuleFunc = virtModEvent => `export {default, pluralsRule} from '${virtModEvent}'`
+const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
+        import defaultData, {pluralsRule} from '${virtModEvent}'
+        const data = defaultData
+        ${proxyModuleHotUpdate(virtModEvent)}
+        export {pluralsRule}
+        export default data
+    `
 
 const defaultArgs: AdapterArgs = {
     files: ['src/**/*.{js,ts}'],
@@ -429,16 +450,17 @@ const defaultArgs: AdapterArgs = {
 }
 
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, ...rest } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
             return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
-        ...rest,
+        files,
+        catalog,
         compiledExt: '.js',
         proxyModule: {
-            dev: proxyModule,
-            other: proxyModule,
+            dev: proxyModuleDev,
+            other: proxyModuleOther,
         }
     }
 }

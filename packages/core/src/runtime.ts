@@ -60,8 +60,12 @@ export class Runtime {
     }
 }
 
-export const _wr_: Map<string, Runtime> = new Map()
+const dataCollection: {[key: string]: Runtime} = {}
 
-export function setCatalog(mod: CatalogModule, key: string | number = 0) {
-    _wr_[key] = new Runtime(mod)
+export function setCatalog(mod: CatalogModule, key: string = '') {
+    dataCollection[key] = new Runtime(mod)
 }
+
+const fallback = new Runtime()
+
+export const _wre_ = (key: string): Runtime => dataCollection[key] ?? fallback
