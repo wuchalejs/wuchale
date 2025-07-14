@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristic, NestText } from './adapter.js'
+import { defaultHeuristicFuncOnly, NestText } from './adapter.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
@@ -82,7 +82,7 @@ export class Transformer {
                 details.topLevel = 'expression'
             }
             extract = this.heuristic(text, details)
-                ?? defaultHeuristic(text, details)
+                ?? defaultHeuristicFuncOnly(text, details)
                 ?? true
         }
         return [extract, new NestText(text, detailsBase.scope, this.commentDirectives.context)]
@@ -451,7 +451,7 @@ const defaultArgs: BasicAdapterArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
-    heuristic: defaultHeuristic,
+    heuristic: defaultHeuristicFuncOnly,
     forServer: false,
 }
 

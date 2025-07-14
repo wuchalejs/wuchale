@@ -33,11 +33,19 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
         return true
     }
     // script and attribute
-    if (details.scope === 'script' && (details.call?.startsWith('console.') || details.topLevel == 'expression')) {
+    // only allow non lower-case English letter beginnings
+    if (!/\p{L}/u.test(text[0]) || /[a-z]/.test(text[0])) {
         return false
     }
-    // only allow non lower-case English letter beginnings
-    return (/\p{L}/u).test(text[0]) && !/[a-z]/.test(text[0])
+    if (details.scope !== 'script') {
+        return true
+    }
+    return !details.call?.startsWith('console.')
+}
+
+// only allow inside function definitions
+export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
+    return defaultHeuristic(text, details) && details.topLevel === 'function'
 }
 
 export class NestText {

@@ -16,21 +16,32 @@ test('Compile nested', function(t) {
     )
 })
 
-test('Simple string expression', async function(t) {
-    await testContent(t, '"Hello"', '', `
+test('Simple expression and assignment', async function(t) {
+    await testContent(t, typescript`
+        'Not translation!' // simple expression
+        const varName = 'No extraction' // simple assignment
+    `, undefined, `
     msgid ""
     msgstr ""
     `, [])
 })
 
-test('Variable assign', async function(t) {
+test('Inside function definitions', async function(t) {
     await testContent(t, typescript`
-        const varName = 'Hello'
+        function foo(): string {
+            const varName = 'Hello'
+            return varName
+        }
+        const bar: (a: string) => string = (a) => \`Hello \${a\}\`
     `, typescript`
         import { _wre_ } from "wuchale/runtime"
-        const wuchaleRuntime = _wre_("es")
+        const wuchaleRuntime = _wre_("basic")
 
-        const varName = wuchaleRuntime.t(0)
+        function foo(): string {
+            const varName = wuchaleRuntime.t(0)
+            return varName
+        }
+        const bar: (a: string) => string = (a) => wuchaleRuntime.t(1, [a])
     `, `
     msgid ""
     msgstr ""
@@ -38,7 +49,11 @@ test('Variable assign', async function(t) {
     #: src/test.svelte
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'])
+
+    #: src/test.svelte
+    msgid "Hello {0}"
+    msgstr "Hello {0}"
+    `, ['Hello', ['Hello ', 0]])
 })
 
 const testCatalog = {pluralsRule: n => n, default: [
