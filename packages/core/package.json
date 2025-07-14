@@ -57,6 +57,11 @@
             "types": "./dist/src/runtime.d.ts",
             "import": "./dist/src/runtime.js",
             "source": "./src/runtime.ts"
+        },
+        "./runtime-server": {
+            "types": "./dist/src/runtime-server.d.ts",
+            "import": "./dist/src/runtime-server.js",
+            "source": "./src/runtime-server.ts"
         }
     },
     "bin": {

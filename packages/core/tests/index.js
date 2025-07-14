@@ -3,6 +3,15 @@
 import { test } from 'node:test'
 import { compileTranslation } from '../dist/src/plugin/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
+import { runWithCatalog, _wre_ } from '../dist/src/runtime-server.js'
+
+test('Runtime server side', t => {
+    const testCatalog = {pluralsRule: n => n, default: ['Hello']}
+    const msg = runWithCatalog(testCatalog, () => {
+        return _wre_().t(0)
+    })
+    t.assert.equal(msg, 'Hello')
+})
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])

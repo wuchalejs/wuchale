@@ -68,4 +68,4 @@ export function setCatalog(mod: CatalogModule, key: string = '') {
 
 const fallback = new Runtime()
 
-export const _wre_ = (key: string): Runtime => dataCollection[key] ?? fallback
+export const _wre_ = (key: string) => dataCollection[key] ?? fallback
