@@ -31,8 +31,6 @@ export function parseScript(content: string) {
     return ScriptParser.parse(content, scriptParseOptions)
 }
 
-const collectionFunc = '_wre_'
-
 export const runtimeConst = 'wuchaleRuntime'
 
 export class Transformer {
@@ -409,13 +407,14 @@ export class Transformer {
         }
     }
 
-    transform = (): TransformOutput => {
+    transform = (forServer: boolean): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
+            const collectionFunc = '_wre_'
             const importModule = `
-                import { ${collectionFunc} } from "wuchale/runtime"
+                import { ${collectionFunc} } from "wuchale/runtime${forServer ? '-server' : ''}"
                 const ${runtimeConst} = ${collectionFunc}("${this.key}")
             `
             this.mstr.appendRight(0, importModule)
@@ -446,18 +445,21 @@ const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
         export default data
     `
 
-const defaultArgs: AdapterArgs = {
+type ESAdapterArgs = AdapterArgs & {forServer: boolean}
+
+const defaultArgs: ESAdapterArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristic,
+    forServer: false,
 }
 
-export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
+export const adapter: AdapterFunc = (args: ESAdapterArgs = defaultArgs) => {
+    const { heuristic, pluralsFunc, files, catalog, forServer } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
-            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
+            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform(forServer)
         },
         files,
         catalog,
