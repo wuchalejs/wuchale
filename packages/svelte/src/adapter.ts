@@ -3,7 +3,7 @@ import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
-import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-es'
+import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-basic'
 import type {
     IndexTracker,
     HeuristicFunc,

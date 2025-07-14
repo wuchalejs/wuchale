@@ -2,7 +2,7 @@
 import { AdapterHandler } from 'wuchale/handler'
 import { IndexTracker } from 'wuchale/adapter'
 import { defaultConfig } from 'wuchale/config'
-import { adapter } from 'wuchale/adapter-es'
+import { adapter } from 'wuchale/adapter-basic'
 import { readFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
@@ -80,7 +80,7 @@ export async function testDirSetup(t, adapter, key, dir) {
     await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents)
 }
 
-const es = adapter()
+const basic = adapter()
 
 /**
  * @param {any} t
@@ -90,7 +90,7 @@ const es = adapter()
  * @param {string[] | string[][]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
-    await testContentSetup(t, es, 'es', content, expectedContent, expectedTranslations, expectedCompiled)
+    await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled)
 }
 
 const dirBase = absDir(import.meta.url)
@@ -100,7 +100,7 @@ const dirBase = absDir(import.meta.url)
  * @param {string} dir
  */
 export async function testDir(t, dir) {
-    await testDirSetup(t, es, 'es',`${dirBase}/${dir}`)
+    await testDirSetup(t, basic, 'basic',`${dirBase}/${dir}`)
 }
 
 // only for syntax highlighting
@@ -110,7 +110,7 @@ export const javascript = typescript
 // const code = typescript`
 //     const t = 'Hello'
 // `
-// const p = await getOutput(es, 'es', code, 'src/test.ts')
+// const p = await getOutput(basic, 'basic', code, 'src/test.ts')
 // console.log(p.code)
 // console.log(Object.values(p.catalogs.en))
 // console.log(p.compiled.en)

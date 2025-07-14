@@ -2,7 +2,7 @@
 import { IndexTracker } from "./adapter.js"
 import { type CompiledFragment } from "./compile.js"
 import { relative } from "node:path"
-import { getConfig as getConfig, type Config } from "../config.js"
+import { getConfig as getConfig, type Config } from "./config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {Mode, CatalogssByLocale} from './handler.js'
 

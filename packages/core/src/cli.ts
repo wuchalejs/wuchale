@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { getConfig } from "./config.js"
-import { AdapterHandler } from "./plugin/handler.js"
-import { IndexTracker } from "./plugin/adapter.js"
+import { AdapterHandler } from "./handler.js"
+import { IndexTracker } from "./adapter.js"
 
 let clean = false
 if (process.argv[2] === '--clean') {

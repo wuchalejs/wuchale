@@ -8,7 +8,7 @@ import { glob } from "tinyglobby"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize } from "node:path"
-import { type ConfigPartial } from "../config.js"
+import { type ConfigPartial } from "./config.js"
 
 export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`

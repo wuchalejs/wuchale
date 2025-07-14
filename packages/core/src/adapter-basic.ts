@@ -6,7 +6,7 @@ import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultHeuristic, NestText } from './adapter.js'
-import { deepMergeObjects } from "../config.js"
+import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
     AdapterFunc,
@@ -445,9 +445,9 @@ const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
         export default data
     `
 
-type ESAdapterArgs = AdapterArgs & {forServer: boolean}
+type BasicAdapterArgs = AdapterArgs & {forServer: boolean}
 
-const defaultArgs: ESAdapterArgs = {
+const defaultArgs: BasicAdapterArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
@@ -455,7 +455,7 @@ const defaultArgs: ESAdapterArgs = {
     forServer: false,
 }
 
-export const adapter: AdapterFunc = (args: ESAdapterArgs = defaultArgs) => {
+export const adapter: AdapterFunc = (args: BasicAdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, files, catalog, forServer } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
