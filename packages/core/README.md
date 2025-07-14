@@ -41,12 +41,12 @@ Write your code naturally. No imports, no wrappers, no annotations.
 To use `wuchale` you need the main `vite` plugin (this package) and an adapter
 for your project type. The following adapters are currently available:
 
-- JavaScript/TypeScript (ES adapter): included in this package.
+- JavaScript/TypeScript (basic adapter): included in this package.
 - Svelte: [here](https://www.npmjs.com/package/@wuchale/svelte)
 
 ## 🚀 Quick Start
 
-We will use the ES adapter as an example.
+We will use the basic adapter as an example.
 
 ### 1. Install
 
@@ -73,8 +73,8 @@ Create `wuchale.config.js` in your project root:
 
 ```javascript
 // @ts-check
-import { adapter as esAdapter } from "wuchale/adapter-es"
-import { defineConfig } from "wuchale"
+import { adapter as basicAdapter } from "wuchale/adapter-basic"
+import { defineConfig } from "wuchale/config"
 
 export default defineConfig({
     locales: {
@@ -83,7 +83,7 @@ export default defineConfig({
         fr: { name: 'French' }
     },
     adapters: {
-        main: esAdapter(),
+        main: basicAdapter(),
     }
 })
 ```
@@ -151,7 +151,7 @@ src/
 └── index.js   # Your code
 ```
 
-## 🧠 Behavior Explanation (ES adapter)
+## 🧠 Behavior Explanation (basic adapter)
 
 ### What Gets Extracted?
 
@@ -264,7 +264,7 @@ export default {
         }
     },
     
-    // Adapters are the project type specific bindings for wuchale. For the ES adapter configuration, look below.
+    // Adapters are the project type specific bindings for wuchale. For the basic adapter configuration, look below.
     // You can repeat the same adapter with different keys and catalog configurations
     // to break the translations into smaller parts
     adapters: {
@@ -284,13 +284,13 @@ export default {
 }
 ```
 
-### ES Adapter
+### Basic Adapter
 
 ```javascript
 
-import { adapter as esAdapter } from "wuchale/adapter-es"
+import { adapter as basicAdapter } from "wuchale/adapter-basic"
 
-const esAdapterConf = esAdapter({
+const esAdapterConf = basicAdapter({
     // Where to store translation files. {locale} will be replaced with the respective locale.
     catalog: './src/locales/{locale}',
     
@@ -306,7 +306,7 @@ const esAdapterConf = esAdapter({
         // call?: string,
         // element?: string,
         // attribute?: string,
-        // filename?: string,
+        // file?: string,
     heuristic: defaultHeuristic,
     
     // Your plural function name

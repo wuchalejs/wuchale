@@ -112,13 +112,25 @@ mkdir src/locales
 
 ```typescript
 // src/routes/+layout.js
-import { setTranslations } from 'wuchale/runtime.svelte.js'
+import { setCatalog } from 'wuchale/runtime.svelte.js'
 
 export async function load({ url }) {
     const locale = url.searchParams.get('locale') ?? 'en'
     // or you can use [locale] in your dir names to get something like /en/path as params here
-    setTranslations(await import(`../locales/${locale}.svelte.js`))
+    setCatalog(await import(`../locales/${locale}.svelte.js`))
     return { locale }
+}
+```
+
+```typescript
+// src/hooks.server.js
+import { runWithCatalog } from 'wuchale/runtime-server'
+
+export async function handle({ event, resolve }) {
+    const locale = event.url.searchParams.get('locale') ?? 'en'
+    const catalog = await import(`./locales/${locale}.svelte.js`)
+    const response = await runWithCatalog(catalog, async () => await resolve(event))
+	return response;
 }
 ```
 
@@ -127,12 +139,12 @@ export async function load({ url }) {
 ```svelte
 <!-- src/App.svelte -->
 <script>
-    import { setTranslations } from 'wuchale/runtime.svelte.js'
+    import { setCatalog } from 'wuchale/runtime.svelte.js'
     
     let locale = $state('en')
     
     async function loadTranslations(locale) {
-        setTranslations(await import(`./locales/${locale}.svelte.js`))
+        setCatalog(await import(`./locales/${locale}.svelte.js`))
     }
 </script>
 
@@ -338,7 +350,7 @@ const svelteAdapter = {
         // call?: string,
         // element?: string,
         // attribute?: string,
-        // filename?: string,
+        // file?: string,
     heuristic: defaultHeuristic,
     
     // Your plural function name
