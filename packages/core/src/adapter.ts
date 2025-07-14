@@ -121,7 +121,7 @@ export interface Adapter {
     compiledExt: string
     proxyModule: {
         dev: ProxyModuleFunc
-        other: ProxyModuleFunc
+        default: ProxyModuleFunc
     }
 }
 

@@ -3,7 +3,7 @@ import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
-import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-basic'
+import { Transformer, parseScript, proxyModuleHotUpdate, proxyModuleDefault, runtimeConst } from 'wuchale/adapter-basic'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -436,14 +436,13 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleOther: ProxyModuleFunc = (virtModEvent) => `export {default, pluralsRule} from '${virtModEvent}'`
 const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
-        import defaultData, {pluralsRule} from '${virtModEvent}'
-        const data = $state(defaultData)
-        ${proxyModuleHotUpdate(virtModEvent)}
-        export {pluralsRule}
-        export default data
-    `
+    import defaultData, {key, pluralsRule} from '${virtModEvent}'
+    const data = $state(defaultData)
+    ${proxyModuleHotUpdate(virtModEvent)}
+    export {key, pluralsRule}
+    export default data
+`
 
 const defaultArgs: AdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
@@ -463,7 +462,7 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         compiledExt: '.svelte.js',
         proxyModule: {
             dev: proxyModuleDev,
-            other: proxyModuleOther,
+            default: proxyModuleDefault,
         }
     }
 }

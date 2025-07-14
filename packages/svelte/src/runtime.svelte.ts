@@ -14,6 +14,6 @@ if (globalThis.window) {
 
 const fallback = new Runtime()
 
-export function setCatalog(mod: CatalogModule, key: string) {
-    dataCollection[key] = new Runtime(mod)
+export function setCatalog(mod: CatalogModule) {
+    dataCollection[mod.key] = new Runtime(mod)
 }

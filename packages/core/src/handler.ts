@@ -200,10 +200,11 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string) => {
-        const pluralRuleExport = `export const pluralsRule = n => ${this.#config.locales[locale].pluralRule}\n`
-        return `${pluralRuleExport}export default ${JSON.stringify(this.compiled[locale])}`
-    }
+    loadDataModule = (locale: string) => `
+        export const key = '${this.key}'
+        export const pluralsRule = n => ${this.#config.locales[locale].pluralRule}
+        export default ${JSON.stringify(this.compiled[locale])}
+    `
 
     compile = (loc: string) => {
         this.compiled[loc] = []

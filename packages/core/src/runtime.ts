@@ -3,6 +3,7 @@ type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
 export type CatalogModule = {
+    key: string
     default: CompiledData
     pluralsRule: PluralsRule
 }
@@ -65,8 +66,8 @@ export class Runtime {
 
 const dataCollection: {[key: string]: Runtime} = {}
 
-export function setCatalog(mod: CatalogModule, key: string = '') {
-    dataCollection[key] = new Runtime(mod)
+export function setCatalog(mod: CatalogModule) {
+    dataCollection[mod.key] = new Runtime(mod)
 }
 
 const fallback = new Runtime()
