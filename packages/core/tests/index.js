@@ -3,15 +3,8 @@
 import { test } from 'node:test'
 import { compileTranslation } from '../dist/src/plugin/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
-import { runWithCatalog, _wre_ } from '../dist/src/runtime-server.js'
-
-test('Runtime server side', t => {
-    const testCatalog = {pluralsRule: n => n, default: ['Hello']}
-    const msg = runWithCatalog(testCatalog, () => {
-        return _wre_().t(0)
-    })
-    t.assert.equal(msg, 'Hello')
-})
+import { setCatalog, _wre_ } from '../dist/src/runtime.js'
+import { runWithCatalog, _wre_ as wre_server } from '../dist/src/runtime-server.js'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -48,3 +41,23 @@ test('Variable assign', async function(t) {
     `, ['Hello'])
 })
 
+const testCatalog = {pluralsRule: n => n, default: [
+    'Hello', // simple message
+    ['Hello ', 0, '!'], // compound message
+    ['One item', '# items'], // plurals
+]}
+
+test('Runtime', t => {
+    setCatalog(testCatalog, 'test')
+    t.assert.equal(_wre_('test').t(0), 'Hello')
+    t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
+    t.assert.equal(_wre_('test').t(42), '[i18n-404:42(undefined)]')
+})
+
+test('Runtime server side', t => {
+    const msg = runWithCatalog(testCatalog, () => {
+        return wre_server().t(1, ['server user'])
+    })
+    t.assert.equal(msg, 'Hello server user!')
+})
