@@ -26,10 +26,13 @@ export class Runtime {
         if (typeof ctx === 'string') {
             return [ctx]
         }
-        if (ctx == null || typeof ctx === 'number') {
-            return [`[i18n-404:${id}(${ctx})]`]
+        if (Array.isArray(ctx)) {
+            return ctx
         }
-        return ctx
+        if (ctx == null) {
+            return [`[i18n-404:${id}]`]
+        }
+        return [`[i18n-400:${id}(${ctx})]`]
     }
 
     /** get translation using composite context */

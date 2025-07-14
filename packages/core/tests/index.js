@@ -45,6 +45,7 @@ const testCatalog = {pluralsRule: n => n, default: [
     'Hello', // simple message
     ['Hello ', 0, '!'], // compound message
     ['One item', '# items'], // plurals
+    400, // bad
 ]}
 
 test('Runtime', t => {
@@ -52,7 +53,8 @@ test('Runtime', t => {
     t.assert.equal(_wre_('test').t(0), 'Hello')
     t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
-    t.assert.equal(_wre_('test').t(42), '[i18n-404:42(undefined)]')
+    t.assert.equal(_wre_('test').t(42), '[i18n-404:42]')
+    t.assert.equal(_wre_('test').t(3), '[i18n-400:3(400)]')
 })
 
 test('Runtime server side', t => {
