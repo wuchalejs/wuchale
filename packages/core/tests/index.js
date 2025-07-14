@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { compileTranslation } from '../dist/src/plugin/compile.js'
+import { compileTranslation } from '../dist/src/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
 import { setCatalog, _wre_ } from '../dist/src/runtime.js'
 import { runWithCatalog, _wre_ as wre_server } from '../dist/src/runtime-server.js'
@@ -56,15 +56,19 @@ test('Inside function definitions', async function(t) {
     `, ['Hello', ['Hello ', 0]])
 })
 
-const testCatalog = {pluralsRule: n => n, default: [
-    'Hello', // simple message
-    ['Hello ', 0, '!'], // compound message
-    ['One item', '# items'], // plurals
-    400, // bad
-]}
+const testCatalog = {
+    key: 'test',
+    pluralsRule: n => n == 1 ? 0 : 1,
+    default: [
+        'Hello', // simple message
+        ['Hello ', 0, '!'], // compound message
+        ['One item', '# items'], // plurals
+        400, // bad
+    ]
+}
 
 test('Runtime', t => {
-    setCatalog(testCatalog, 'test')
+    setCatalog(testCatalog)
     t.assert.equal(_wre_('test').t(0), 'Hello')
     t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
