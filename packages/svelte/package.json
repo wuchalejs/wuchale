@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.7.7",
+    "version": "0.8.0",
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
@@ -54,7 +54,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "wuchale": "^0.7.7",
+        "wuchale": "^0.8.0",
         "svelte": "^5.28.1"
     },
     "devDependencies": {
