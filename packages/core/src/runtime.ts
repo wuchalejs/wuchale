@@ -67,9 +67,21 @@ export class Runtime {
 const dataCollection: {[key: string]: Runtime} = {}
 
 export function setCatalog(mod: CatalogModule) {
-    dataCollection[mod.key] = new Runtime(mod)
+    if (!(mod.key in dataCollection)) {
+        dataCollection[mod.key] = new Runtime(mod)
+        return
+    }
+    // modify in-place
+    const existing = dataCollection[mod.key]
+    existing.data = mod.default
+    existing.pr = mod.pluralsRule
 }
 
-const fallback = new Runtime()
-
-export const _wre_ = (key: string) => dataCollection[key] ?? fallback
+export const _wre_ = (key: string) => {
+    if (key in dataCollection) {
+        return dataCollection[key]
+    }
+    const fallback = new Runtime()
+    dataCollection[key] = fallback
+    return fallback
+}

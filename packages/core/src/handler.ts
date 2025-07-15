@@ -109,11 +109,16 @@ export class AdapterHandler {
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
         for (const loc of this.#locales) {
+            // all of them before loadCatalogNCompile
+            this.catalogs[loc] = {}
+            this.compiled[loc] = []
             const catalog = this.#adapter.catalog.replace('{locale}', loc)
             const catalogFname = `${catalog}.po`
             this.#catalogsFname[loc] = catalogFname
             this.#compiledFname[loc] = `${catalog}${this.#adapter.compiledExt}`
-            this.catalogs[loc] = catalogs?.[loc] ?? {}
+            if (catalogs) {
+                this.catalogs[loc] = catalogs[loc]
+            }
             // for handleHotUpdate
             this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
             if (loc === this.#config.sourceLocale) {
@@ -127,10 +132,11 @@ export class AdapterHandler {
                     async () => await this.afterExtract(loc),
                 )
             }
-            if (this.#mode === 'test') {
-                this.compiled[loc] = []
-                continue
-            }
+        }
+        if (this.#mode === 'test') {
+            return
+        }
+        for (const loc of this.#locales) {
             if (catalogs == null) {
                 await this.loadCatalogNCompile(loc)
             } else {
@@ -290,7 +296,7 @@ export class AdapterHandler {
             if (newTxts.length == 0) {
                 continue
             }
-            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc].url) {
+            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
                 await this.afterExtract(loc)
                 continue
             }
