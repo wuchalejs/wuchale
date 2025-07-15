@@ -1,6 +1,6 @@
 {
     "name": "wuchale",
-    "version": "0.8.1",
+    "version": "0.8.2",
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
@@ -26,7 +26,10 @@
         "automatic-i18n",
         "lightweight"
     ],
-    "files": [ "dist" ],
+    "files": [
+        "dist",
+        "src"
+    ],
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",

@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.8.1",
+    "version": "0.8.3",
     "description": "i18n for svelte without turning your codebase upside down",
     "scripts": {
         "dev": "tsc --watch",
@@ -32,16 +32,18 @@
     ],
     "files": [
         "dist",
-        "runtime.svelte"
+        "src"
     ],
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",
-            "import": "./dist/src/index.js"
+            "import": "./dist/src/index.js",
+            "source": "./src/index.ts"
         },
         "./runtime.svelte.js": {
             "types": "./dist/src/runtime.svelte.d.ts",
-            "import": "./dist/src/runtime.svelte.js"
+            "import": "./dist/src/runtime.svelte.js",
+            "source": "./src/runtime.svelte.ts"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },
