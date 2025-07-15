@@ -11,5 +11,12 @@ export const handle: Handle = async ({ event, resolve }) => {
         return await resolve(event)
     }
     const catalog = await import(`./locales/${locale}.svelte.js`)
-    return await runWithCatalog(catalog, async () => await resolve(event))
+    return await runWithCatalog(catalog, async () => await resolve(event, {
+		transformPageChunk: ({ html }) => {
+			if (html.includes('%sveltekit.lang%')) {
+				return html.replace('%sveltekit.lang%', locale);
+			}
+			return html;
+		}
+	});)
 }
