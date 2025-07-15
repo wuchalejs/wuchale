@@ -30,6 +30,7 @@ Write your code naturally. No imports, no wrappers, no annotations.
 
 Try live examples in your browser, no setup required:
 
+- Vanilla TS: [![Vanilla TS example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/vanilla)
 - Svelte: [![Svelte example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/svelte)
 - SvelteKit: [![SvelteKit example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/sveltekit)
 
