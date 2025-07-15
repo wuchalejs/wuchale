@@ -124,13 +124,16 @@ export async function load({ url }) {
 
 ```typescript
 // src/hooks.server.js
-import { runWithCatalog } from 'wuchale/runtime-server'
+import { initRegistry } from 'wuchale/runtime'
 
+const runWithCatalog = await initRegistry()
+
+/** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
     const locale = event.url.searchParams.get('locale') ?? 'en'
     const catalog = await import(`./locales/${locale}.svelte.js`)
     const response = await runWithCatalog(catalog, async () => await resolve(event))
-	return response;
+	return response
 }
 ```
 
