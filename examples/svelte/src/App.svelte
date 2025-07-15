@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { setTranslations } from 'wuchale/runtime.svelte.js'
+  import { setCatalog } from '@wuchale/svelte/runtime.svelte.js'
   import Counter from './lib/Counter.svelte'
 
   let locale = $state('en')
     
   async function loadTranslations(locale: string) {
-    setTranslations(await import(`./locales/${locale}.svelte.js`))
+    setCatalog(await import(`./locales/${locale}.svelte.js`))
   }
 </script>
 

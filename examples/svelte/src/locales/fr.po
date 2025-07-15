@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-07-07T13:05:01.620Z\n"
-"PO-Revision-Date: 2025-07-07T13:07:41.204Z\n"
+"PO-Revision-Date: 2025-07-15T14:42:27.123Z\n"
 "Last-Translator: \n"
 "Language: French\n"
 "Language-Team: \n"
@@ -73,3 +73,7 @@ msgstr "le compte est de {0}"
 #: src/App.svelte
 msgid "Current locale: {0}"
 msgstr "Locale actuelle : {0}"
+
+#: src/App.svelte
+msgid "Check out <0>SvelteKit</0>, the official Svelte app framework powered by Vite!"
+msgstr "Découvrez <0>SvelteKit</0>, le framework d'application Svelte officiel propulsé par Vite !"

@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from "wuchale"
+import { adapter } from '@wuchale/svelte'
 
 export default defineConfig({
     locales: {
@@ -7,4 +8,7 @@ export default defineConfig({
         es: { name: 'Spanish' },
         fr: { name: 'French' }
     },
+    adapters: {
+        main: adapter(),
+    }
 })

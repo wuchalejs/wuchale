@@ -1,4 +1,4 @@
-import {adapter as basic} from 'wuchale/adapter-basic'
+import {adapter as basic} from 'wuchale/adapter-vanilla'
 
 export default {
     locales: {

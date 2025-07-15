@@ -3,5 +3,14 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "target": "ES2020",
+    "module": "ESNext",
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["*.js"]
 }
