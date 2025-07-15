@@ -2,7 +2,7 @@
 import { AdapterHandler } from 'wuchale/handler'
 import { IndexTracker } from 'wuchale/adapter'
 import { defaultConfig } from 'wuchale/config'
-import { adapter } from 'wuchale/adapter-basic'
+import { adapter } from 'wuchale/adapter-vanilla'
 import { readFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'

@@ -1,6 +1,6 @@
 // $$ node %f
 
-import { testContentSetup, testDirSetup, absDir, typescript } from '../../core/tests/check.js'
+import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
 import { adapter } from '@wuchale/svelte'
 
 const sv = adapter()

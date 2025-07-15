@@ -3,8 +3,7 @@
 import { test } from 'node:test'
 import { compileTranslation } from '../dist/src/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
-import { setCatalog, _wre_ } from '../dist/src/runtime.js'
-import { runWithCatalog, _wre_ as wre_server } from '../dist/src/runtime-server.js'
+import { setCatalog, _wre_, _wrc_, runWithCatalog } from '../dist/src/runtime.js'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -69,16 +68,16 @@ const testCatalog = {
 
 test('Runtime', t => {
     setCatalog(testCatalog)
-    t.assert.equal(_wre_('test').t(0), 'Hello')
-    t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
-    t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
-    t.assert.equal(_wre_('test').t(42), '[i18n-404:42]')
-    t.assert.equal(_wre_('test').t(3), '[i18n-400:3(400)]')
+    t.assert.equal(_wrc_('test').t(0), 'Hello')
+    t.assert.equal(_wrc_('test').t(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(_wrc_('test').tp(2), ['One item', '# items'])
+    t.assert.equal(_wrc_('test').t(42), '[i18n-404:42]')
+    t.assert.equal(_wrc_('test').t(3), '[i18n-400:3(400)]')
 })
 
 test('Runtime server side', t => {
     const msg = runWithCatalog(testCatalog, () => {
-        return wre_server().t(1, ['server user'])
+        return _wre_().t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })
