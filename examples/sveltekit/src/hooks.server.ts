@@ -8,7 +8,14 @@ const locales = ['en', 'es', 'fr']
 export const handle: Handle = async ({ event, resolve }) => {
     const locale = locales.find(l => l === event.params.locale)
     if (!locale) {
-        return await resolve(event)
+        return await resolve(event, {
+		transformPageChunk: ({ html }) => {
+			if (html.includes('%sveltekit.lang%')) {
+				return html.replace('%sveltekit.lang%', 'en');
+			}
+			return html;
+		}
+	})
     }
     const catalog = await import(`./locales/${locale}.svelte.js`)
     return await runWithCatalog(catalog, async () => await resolve(event, {
@@ -18,5 +25,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 			return html;
 		}
-	});)
+	}))
 }
