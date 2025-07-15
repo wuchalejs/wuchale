@@ -1,6 +1,4 @@
-import { Runtime, runWithCatalog, _wre_, type CatalogModule } from "wuchale/runtime"
-
-export { runWithCatalog }
+import { Runtime, _wre_, type CatalogModule } from "wuchale/runtime"
 
 export let _wrs_: (key: string) => Runtime
 

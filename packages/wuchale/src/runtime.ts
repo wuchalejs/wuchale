@@ -88,23 +88,13 @@ export function setCatalog(mod: CatalogModule) {
     existing.pr = mod.pluralsRule
 }
 
-// for servers below
+type AsyncLocalStorageRunner = <Type>(mod: CatalogModule, callback: () => Type) => Type
 
-type AsyncLocalStorageRunner = <Type>(mod: CatalogModule, callback: () => Type) => void
-
-export let runWithCatalog: AsyncLocalStorageRunner
-
-// only for testing the one above
-export let _wrc_: typeof _wre_
-
-if (!globalThis.window) {
-    // for servers
+/** Returns a concurrency safe runner for tasks on a server that processes requests from multiple clients */
+export async function initRegistry(): Promise<AsyncLocalStorageRunner> {
     const { AsyncLocalStorage } = await import('node:async_hooks')
     const dataCollection: AsyncLocalStorage<CatalogModule> = new AsyncLocalStorage()
-    /** This is a concurrency safe usage for tasks on a server that processes requests from multiple clients */
-    runWithCatalog = (mod, callback) => dataCollection.run(mod, callback)
-    // save old version for testing
-    _wrc_ = _wre_
     /** A version of _wre_ that works with runWithCatalog */
     _wre_ = () => new Runtime(dataCollection.getStore())
+    return (mod, callback) => dataCollection.run(mod, callback)
 }

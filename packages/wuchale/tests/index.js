@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import { compileTranslation } from '../dist/src/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
-import { setCatalog, _wre_, _wrc_, runWithCatalog } from '../dist/src/runtime.js'
+import { setCatalog, _wre_, initRegistry } from '../dist/src/runtime.js'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -68,14 +68,16 @@ const testCatalog = {
 
 test('Runtime', t => {
     setCatalog(testCatalog)
-    t.assert.equal(_wrc_('test').t(0), 'Hello')
-    t.assert.equal(_wrc_('test').t(1, ['User']), 'Hello User!')
-    t.assert.deepEqual(_wrc_('test').tp(2), ['One item', '# items'])
-    t.assert.equal(_wrc_('test').t(42), '[i18n-404:42]')
-    t.assert.equal(_wrc_('test').t(3), '[i18n-400:3(400)]')
+    t.assert.equal(_wre_('test').t(0), 'Hello')
+    t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
+    t.assert.equal(_wre_('test').t(42), '[i18n-404:42]')
+    t.assert.equal(_wre_('test').t(3), '[i18n-400:3(400)]')
 })
 
-test('Runtime server side', t => {
+// This should be run AFTER the test Runtime completes
+test('Runtime server side', async t => {
+    const runWithCatalog = await initRegistry()
     const msg = runWithCatalog(testCatalog, () => {
         return _wre_().t(1, ['server user'])
     })
