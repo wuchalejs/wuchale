@@ -26,6 +26,10 @@ const t = 'Hello'
 Write your code naturally. No imports, no wrappers, no annotations.
 `wuchale` handles everything at compile time.
 
+Try the live example in your browser, no setup required:
+
+- Vanilla TS: [![Vanilla TS example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/vanilla)
+
 ## ✨ Key Features
 
 - **🔧 Zero-effort integration** - Add i18n to existing projects without rewriting code
