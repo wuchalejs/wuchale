@@ -5,7 +5,7 @@
         "composite": true
     },
     "references": [
-        { "path": "../core" }
+        { "path": "../wuchale" }
     ],
     "include": ["./src/**/*"]
 }

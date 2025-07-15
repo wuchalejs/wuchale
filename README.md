@@ -45,10 +45,10 @@ Try live examples in your browser, no setup required:
 
 ## 🚀 Quick Start
 
-Currently the following are supported. Visit the links for specific information.
+This repo currently contains these packages:
 
-- [Plain JS/TS](https://github.com/K1DV5/wuchale/tree/main/packages/core)
-- [Svelte/SvelteKit](https://github.com/K1DV5/wuchale/tree/main/packages/svelte)
+- [Core + CLI + Vanilla JS/TS adapter](https://github.com/K1DV5/wuchale/tree/main/packages/wuchale)
+- [Svelte/SvelteKit adapter](https://github.com/K1DV5/wuchale/tree/main/packages/svelte)
 
 For full usage examples, look inside the **[examples directory](https://github.com/K1DV5/wuchale/tree/main/examples)**.
 

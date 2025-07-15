@@ -41,12 +41,12 @@ Write your code naturally. No imports, no wrappers, no annotations.
 To use `wuchale` you need the main `vite` plugin (this package) and an adapter
 for your project type. The following adapters are currently available:
 
-- JavaScript/TypeScript (basic adapter): included in this package.
+- JavaScript/TypeScript (vanilla adapter): included in this package.
 - Svelte: [here](https://www.npmjs.com/package/@wuchale/svelte)
 
 ## 🚀 Quick Start
 
-We will use the basic adapter as an example.
+We will use the vanilla adapter as an example.
 
 ### 1. Install
 
@@ -73,7 +73,7 @@ Create `wuchale.config.js` in your project root:
 
 ```javascript
 // @ts-check
-import { adapter as basicAdapter } from "wuchale/adapter-basic"
+import { adapter as vanillaAdapter } from "wuchale/adapter-vanilla"
 import { defineConfig } from "wuchale/config"
 
 export default defineConfig({
@@ -83,7 +83,7 @@ export default defineConfig({
         fr: { name: 'French' }
     },
     adapters: {
-        main: basicAdapter(),
+        main: vanillaAdapter(),
     }
 })
 ```
@@ -106,15 +106,24 @@ mkdir src/locales
 }
 ```
 
-### 6. Setup in Your App
+### 6. Use in Your App!
 
 ```javascript
 // src/index.js
-import { setCatalog } from 'wuchale/runtime'
 
-export async function setup(locale) {
-    setCatalog(await import(`../locales/${locale}.js`))
+import { runWithCatalog } from 'wuchale/runtime-server'
+
+const catalogs = {
+    en: await import(`./locales/en.js`),
+    es: await import(`./locales/es.js`),
+    fr: await import(`./locales/fr.js`),
 }
+
+// adapted from an express.js example
+// only to show how to use runWithCatalog
+app.get('/', (req, res) => {
+    runWithCatalog(catalogs.es, () => res.send('Hello')) // will return Hola
+})
 ```
 
 ### 7. Start Coding!
@@ -151,7 +160,7 @@ src/
 └── index.js   # Your code
 ```
 
-## 🧠 Behavior Explanation (basic adapter)
+## 🧠 Behavior Explanation (vanilla adapter)
 
 ### What Gets Extracted?
 
@@ -264,7 +273,7 @@ export default {
         }
     },
     
-    // Adapters are the project type specific bindings for wuchale. For the basic adapter configuration, look below.
+    // Adapters are the project type specific bindings for wuchale. For the vanilla adapter configuration, look below.
     // You can repeat the same adapter with different keys and catalog configurations
     // to break the translations into smaller parts
     adapters: {
@@ -288,9 +297,9 @@ export default {
 
 ```javascript
 
-import { adapter as basicAdapter } from "wuchale/adapter-basic"
+import { adapter as vanillaAdapter } from "wuchale/adapter-vanilla"
 
-const esAdapterConf = basicAdapter({
+const vanillaAdapterConf = vanillaAdapter({
     // Where to store translation files. {locale} will be replaced with the respective locale.
     catalog: './src/locales/{locale}',
     

@@ -1,4 +1,6 @@
-import { Runtime, type CatalogModule } from "wuchale/runtime"
+import { Runtime, runWithCatalog, _wre_, type CatalogModule } from "wuchale/runtime"
+
+export { runWithCatalog }
 
 export let _wrs_: (key: string) => Runtime
 
@@ -8,7 +10,6 @@ const dataCollection: {[key: string]: Runtime} = $state({})
 if (globalThis.window) {
     _wrs_ = key => dataCollection[key] ?? fallback
 } else {
-    const { _wre_ } = await import('wuchale/runtime-server')
     _wrs_ = _wre_
 }
 

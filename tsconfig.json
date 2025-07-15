@@ -3,7 +3,7 @@
     "files": [],
     "include": [],
     "references": [
-        { "path": "./packages/core" },
+        { "path": "./packages/wuchale" },
         { "path": "./packages/svelte" }
     ]
 }

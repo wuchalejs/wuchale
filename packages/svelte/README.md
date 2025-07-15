@@ -94,7 +94,7 @@ export default defineConfig({
 mkdir src/locales
 ```
 
-### 5. Add CLI Scripts
+### 5. Add CLI Scripts (Optional)
 
 ```jsonc
 // package.json

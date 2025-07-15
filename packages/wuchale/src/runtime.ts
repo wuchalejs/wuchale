@@ -1,3 +1,5 @@
+import type { AsyncLocalStorage } from 'node:async_hooks'
+
 type Composite = (number | string | Composite)[]
 type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
@@ -66,22 +68,34 @@ export class Runtime {
 
 const dataCollection: {[key: string]: Runtime} = {}
 
-export function setCatalog(mod: CatalogModule) {
-    if (!(mod.key in dataCollection)) {
-        dataCollection[mod.key] = new Runtime(mod)
-        return
-    }
-    // modify in-place
-    const existing = dataCollection[mod.key]
-    existing.data = mod.default
-    existing.pr = mod.pluralsRule
+type AsyncLocalStorageRunner = <Type>(mod: CatalogModule, callback: () => Type) => void
+
+export let runWithCatalog: AsyncLocalStorageRunner
+
+if (!globalThis.window) {
+    // for servers
+    const { AsyncLocalStorage } = await import('node:async_hooks')
+    const dataCollection: AsyncLocalStorage<CatalogModule> = new AsyncLocalStorage()
+    /** This is a concurrency safe usage for tasks on a server that processes requests from multiple clients */
+    runWithCatalog = (mod, callback) => dataCollection.run(mod, callback)
 }
 
-export const _wre_ = (key: string) => {
+export let _wre_ = (key: string) => {
     if (key in dataCollection) {
         return dataCollection[key]
     }
     const fallback = new Runtime()
     dataCollection[key] = fallback
     return fallback
+}
+
+export function setCatalog(mod: CatalogModule) {
+    if (!(mod.key in dataCollection)) {
+        dataCollection[mod.key] = new Runtime(mod)
+        return
+    }
+    // modify in-place to preserve references for later rt.t() call
+    const existing = dataCollection[mod.key]
+    existing.data = mod.default
+    existing.pr = mod.pluralsRule
 }

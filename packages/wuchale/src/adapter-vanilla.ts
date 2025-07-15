@@ -407,14 +407,14 @@ export class Transformer {
         }
     }
 
-    transform = (forServer: boolean): TransformOutput => {
+    transform = (): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
             const collectionFunc = '_wre_'
             const importModule = `
-                import { ${collectionFunc} } from "wuchale/runtime${forServer ? '-server' : ''}"
+                import { ${collectionFunc} } from "wuchale/runtime"
                 const ${runtimeConst} = ${collectionFunc}("${this.key}")
             `
             this.mstr.appendRight(0, importModule)
@@ -445,21 +445,18 @@ const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
     export default data
 `
 
-type BasicAdapterArgs = AdapterArgs & {forServer: boolean}
-
-const defaultArgs: BasicAdapterArgs = {
+const defaultArgs: AdapterArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
-    forServer: false,
 }
 
-export const adapter: AdapterFunc = (args: BasicAdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, files, catalog, forServer } = deepMergeObjects(args, defaultArgs)
+export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
+    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, key) => {
-            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform(forServer)
+            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
         },
         files,
         catalog,
