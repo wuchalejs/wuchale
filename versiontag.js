@@ -1,12 +1,14 @@
 // $node %f wuchale
 // @ts-check
 
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 import { readFile } from 'fs/promises'
 import readline from 'readline'
 import { glob } from 'tinyglobby'
 
-if (execSync(`git status --porcelain`).toString().trim()) {
+const checkGitStatusDirty = () => !execSync(`git status --porcelain`).toString().trim()
+
+if (checkGitStatusDirty()) {
     console.log('Worktree not clean. Exiting')
     process.exit(1)
 }
@@ -95,6 +97,8 @@ if (pacDir == null) {
     process.exit(1)
 }
 
+const runCmd = (/** @type {string} */ cmd) => spawnSync(cmd, {stdio: 'inherit'})
+
 /**
  * @param {string} pac
  * @param {string} dir
@@ -107,10 +111,10 @@ async function versionWorkspace(pac, dir) {
         p: 'patch',
     }
     const versionType = versionTypes[verType]
-    execSync(`npm version ${versionType} -w ${pac} --no-git-tag-version`)
+    runCmd(`npm version ${versionType} -w ${pac} --no-git-tag-version`)
     const version = JSON.parse((await readFile(`${dir}package.json`)).toString()).version
-    const newVersions = {[pac]: version}
-    for (const {name, dir, deps} of workspaces) {
+    const newVersions = { [pac]: version }
+    for (const { name, dir, deps } of workspaces) {
         if (name === pac) {
             continue
         }
@@ -130,21 +134,21 @@ async function versionWorkspace(pac, dir) {
     }
 }
 
-const {versionType, versions} = await versionWorkspace(pac, pacDir)
-if (!execSync(`git status --porcelain`).toString().trim()) {
+const { versionType, versions } = await versionWorkspace(pac, pacDir)
+if (!checkGitStatusDirty()) {
     console.log('No change. Exiting')
     process.exit(0)
 }
 const updated = Object.entries(versions)
 const commitMsg = `bump ${versionType} version for ${pac} to ${versions[pac]}`
 console.log('commit:', commitMsg)
-execSync(`git add -u && git commit -m "${commitMsg}"`)
+runCmd(`git add -u && git commit -m "${commitMsg}"`)
 for (const [pac, version] of updated) {
     const tagName = `${pac}@${version}`
     console.log('tag:', tagName)
-    execSync(`git tag ${tagName}`)
+    runCmd(`git tag ${tagName}`)
 }
 if (updated.length && await confirm('Push new commit and tags?')) {
     console.log('Pushing...')
-    execSync('git push && git push --tags')
+    runCmd('git push --follow-tags')
 }

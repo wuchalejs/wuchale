@@ -9,6 +9,11 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Extract package name
+        id: package
+        run: |
+          tagname=${{ github.event.release.tag_name }}
+          echo "package=${tagname%%@*}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v4
@@ -20,3 +25,4 @@ jobs:
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        working-directory: ${{ steps.package.outputs.package }}"
