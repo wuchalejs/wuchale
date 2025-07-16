@@ -5,7 +5,9 @@
     "scripts": {
         "dev": "tsc --build --watch",
         "build": "tsc --build",
-        "test": "npm run test --workspaces"
+        "test": "npm run test --workspaces",
+        "v:wuchale": "node ./versiontag.js wuchale",
+        "v:svelte": "node ./versiontag.js svelte"
     },
     "workspaces": [ "packages/*" ]
 }
