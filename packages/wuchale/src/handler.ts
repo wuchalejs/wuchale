@@ -142,7 +142,7 @@ export class AdapterHandler {
             } else {
                 this.compile(loc)
             }
-            const proxyMode = this.#mode === 'dev' ? 'dev' : 'other'
+            const proxyMode = this.#mode === 'dev' ? 'dev' : 'default'
             const proxyModule = this.#adapter.proxyModule[proxyMode](this.virtModEvent(loc))
             await writeFile(this.#compiledFname[loc], proxyModule)
         }
