@@ -1,5 +1,3 @@
-import type { AsyncLocalStorage } from 'node:async_hooks'
-
 type Composite = (number | string | Composite)[]
 type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
@@ -64,17 +62,4 @@ export class Runtime {
     t(id: number, args: any[] = []) {
         return this.tx(this.cx(id), args, 0)
     }
-}
-
-export let _wre_: (key: string) => Runtime
-
-type AsyncLocalStorageRunner = <Type>(mod: CatalogModule, callback: () => Type) => Type
-
-/** Returns a concurrency safe runner for tasks on a server that processes requests from multiple clients */
-export async function initRegistry(): Promise<AsyncLocalStorageRunner> {
-    const { AsyncLocalStorage } = await import('node:async_hooks')
-    const dataCollection: AsyncLocalStorage<CatalogModule> = new AsyncLocalStorage()
-    /** A version of _wre_ that works with runWithCatalog */
-    _wre_ = () => new Runtime(dataCollection.getStore())
-    return (mod, callback) => dataCollection.run(mod, callback)
 }

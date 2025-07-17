@@ -2,7 +2,7 @@
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
 import {dirname, relative, resolve} from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
-import { writeFile, readFile, copyFile } from 'node:fs/promises'
+import { readFile, copyFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -67,7 +67,10 @@ export type CatalogssByLocale = { [loc: string]: { [key: string]: ItemType } }
 export class AdapterHandler {
 
     key: string
-    #loaderPath: string
+
+    loaderPath: string
+    loader: string
+    loaderSync: string
 
     #config: ConfigPartial
     #locales: string[]
@@ -99,15 +102,15 @@ export class AdapterHandler {
         this.#config = config
     }
 
-    /** Get both virtual module names AND HMR event names */
-    virtModEvent = (locale: string) => `${virtualPrefix}${locale}:${this.key}`
+    /** Get both catalog virtual module names AND HMR event names */
+    virtModEvent = (locale: string) => `${virtualPrefix}catalog/${this.key}/${locale}`
 
     async writeInitialLoader() {
         // write the initial loader, but not if it already exists
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
-        this.#loaderPath = resolve(catalogToLoader) + this.#adapter.compiledExt
+        this.loaderPath = resolve(catalogToLoader) + this.#adapter.compiledExt
         try {
-            const contents = await readFile(this.#loaderPath)
+            const contents = await readFile(this.loaderPath)
             if (contents.toString().trim() !== '') {
                 return
             }
@@ -116,7 +119,22 @@ export class AdapterHandler {
                 throw err
             }
         }
-        await copyFile(this.#adapter.loaderTemplateFile, this.#loaderPath)
+        await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
+    }
+
+    #prepLoaders() {
+        const imports = this.#locales.map(loc => `${loc}: () => import('${this.virtModEvent(loc)}')`)
+        this.loader = `
+            const catalogs = {${imports.join(',')}}
+            export default locale => catalogs[locale]()
+        `
+        const importsSync = this.#locales.map(loc => `import * as ${loc} from '${this.virtModEvent(loc)}'`)
+        const object = this.#locales.map(loc => `${loc}: ${loc}`)
+        this.loaderSync = `
+            ${importsSync.join('\n')}
+            const catalogs = {${object.join(',')}}
+            export default locale => catalogs[locale]
+        `
     }
 
     init = async (catalogs?: CatalogssByLocale) => {
@@ -128,6 +146,7 @@ export class AdapterHandler {
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
         await this.writeInitialLoader()
+        this.#prepLoaders()
         for (const loc of this.#locales) {
             // all of them before loadCatalogNCompile
             this.catalogs[loc] = {}
@@ -162,9 +181,6 @@ export class AdapterHandler {
             } else {
                 this.compile(loc)
             }
-            const proxyMode = this.#mode === 'dev' ? 'dev' : 'default'
-            const proxyModule = this.#adapter.proxyModule[proxyMode](this.virtModEvent(loc))
-            await writeFile(this.#compiledFname[loc], proxyModule)
         }
     }
 
@@ -279,7 +295,10 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string) => {
-        const loaderPathRel = relative(dirname(filename), this.#loaderPath)
+        let loaderPathRel = relative(dirname(filename), this.loaderPath)
+        if (!loaderPathRel.startsWith('.')) {
+            loaderPathRel = `./${loaderPathRel}`
+        }
         const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker, loaderPathRel)
         if (!txts.length) {
             return {}

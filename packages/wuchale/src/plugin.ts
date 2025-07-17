@@ -108,9 +108,9 @@ class Plugin {
         this.#server.ws.send(adapter.virtModEvent(loc), adapter.compiled[loc])
     }
 
-    resolveId = (source: string) => {
+    resolveId = (source: string, importer: string) => {
         if (source.startsWith(virtualPrefix)) {
-            return virtualResolvedPrefix + source
+            return `${virtualResolvedPrefix}${source}?importer=${importer}`
         }
         return null
     }
@@ -120,20 +120,42 @@ class Plugin {
         if (!id.startsWith(prefix)) {
             return null
         }
-        const [locale, adapterName] = id.slice(prefix.length).split(':')
-        const adapter = this.#adapters.find(t => t.key === adapterName)
+        id = id.slice(prefix.length)
+        const [path, qp] = id.split('?')
+        const [part, ...rest] = path.split('/')
+        if (part === 'catalog') {
+            const [key, locale] = rest
+            const adapter = this.#adapters.find(t => t.key === key)
+            if (!adapter) {
+                console.error('Adapter not found for:', key)
+                return null
+            }
+            return adapter.loadDataModule(locale)
+        }
+        if (part !== 'loader') {
+            console.error('Unknown virtual request:', id)
+            return null
+        }
+        // data loader
+        const importer = qp.slice('importer='.length)
+        const adapter = this.#adapters.find(a => a.loaderPath === importer)
         if (!adapter) {
-            console.error('Adapter not found for:', adapterName)
+            console.error('Adapter not found for filename:', importer)
             return
         }
-        return adapter.loadDataModule(locale)
+        if (rest[0] === 'sync') {
+            return adapter.loaderSync
+        }
+        return adapter.loader
     }
 
     #transformHandler = async (code: string, id: string) => {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of this.#adapters) {
             if (adapter.patterns.find(isMatch => isMatch(filename))) {
-                return await adapter.transform(code, filename)
+                const r = await adapter.transform(code, filename)
+                console.log(filename)
+                return r
             }
         }
         return {}
