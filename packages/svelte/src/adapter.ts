@@ -51,8 +51,8 @@ export class SvelteTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
 
-    constructor(key: string, content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(key, content, filename, index, heuristic, pluralsFunc)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
+        super(content, filename, index, heuristic, pluralsFunc)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
@@ -399,7 +399,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transform = (): TransformOutput => {
+    transform = (loaderPath: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -412,12 +412,11 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
-        const getCtxFunc = '_wrs_'
         const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
         const importStmt = `
-            import { ${getCtxFunc} } from "@wuchale/svelte/runtime.svelte.js"
+            import _loader_ from "${loaderPath}"
             ${ast.type === 'Root' ? importComponent : ''}
-            const ${runtimeConst} = $derived(${getCtxFunc}("${this.key}"))
+            const ${runtimeConst} = $derived(_loader_())
         `
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, importStmt + '\n')
@@ -454,8 +453,8 @@ const defaultArgs: AdapterArgs = {
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, key) => {
-            return new SvelteTransformer(key, content, filename, index, heuristic, pluralsFunc).transform()
+        transform: (content, filename, index, loaderPath) => {
+            return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
         },
         files,
         catalog,
@@ -463,6 +462,7 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         proxyModule: {
             dev: proxyModuleDev,
             default: proxyModuleDefault,
-        }
+        },
+        loaderTemplateFile: new URL('../../src/loader.svelte.js', import.meta.url).pathname,
     }
 }

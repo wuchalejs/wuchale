@@ -1,7 +1,8 @@
 // $$ cd ../.. && npm run test
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
+import {dirname, relative, resolve} from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
-import { writeFile, readFile } from 'node:fs/promises'
+import { writeFile, readFile, copyFile, constants, access } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -66,6 +67,7 @@ export type CatalogssByLocale = { [loc: string]: { [key: string]: ItemType } }
 export class AdapterHandler {
 
     key: string
+    #loaderPath: string
 
     #config: ConfigPartial
     #locales: string[]
@@ -100,6 +102,21 @@ export class AdapterHandler {
     /** Get both virtual module names AND HMR event names */
     virtModEvent = (locale: string) => `${virtualPrefix}${locale}:${this.key}`
 
+    async writeInitialLoader() {
+        // write the initial loader, but not if it already exists
+        const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
+        this.#loaderPath = resolve(catalogToLoader) + this.#adapter.compiledExt
+        try {
+            await access(this.#loaderPath, constants.W_OK)
+            return
+        } catch (err: any) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+        }
+        await copyFile(this.#adapter.loaderTemplateFile, this.#loaderPath)
+    }
+
     init = async (catalogs?: CatalogssByLocale) => {
         for (const pattern of this.#adapter.files) {
             this.patterns.push(pm(...this.#globOptsToArgs(pattern)))
@@ -108,6 +125,7 @@ export class AdapterHandler {
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
+        await this.writeInitialLoader()
         for (const loc of this.#locales) {
             // all of them before loadCatalogNCompile
             this.catalogs[loc] = {}
@@ -259,7 +277,8 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string) => {
-        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker, this.key)
+        const loaderPathRel = relative(dirname(filename), this.#loaderPath)
+        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker, loaderPathRel)
         if (!txts.length) {
             return {}
         }

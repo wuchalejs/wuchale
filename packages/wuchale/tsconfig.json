@@ -6,5 +6,6 @@
     },
     "references": [
     ],
-    "include": ["./src/**/*"]
+    "include": ["./src/**/*"],
+    "exclude": ["./src/loader.js"]
 }

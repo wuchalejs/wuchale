@@ -43,7 +43,6 @@ export class Transformer {
     pluralFunc: string
 
     // for runtime
-    key: string
     rtFunc = `${runtimeConst}.t`
     rtFuncPlural = `${runtimeConst}.tp`
     rtPluralsRule = `${runtimeConst}.plr`
@@ -55,8 +54,7 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(key: string, content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        this.key = key
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
@@ -407,15 +405,14 @@ export class Transformer {
         }
     }
 
-    transform = (): TransformOutput => {
+    transform = (loaderPath: string): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            const collectionFunc = '_wre_'
             const importModule = `
-                import { ${collectionFunc} } from "wuchale/runtime"
-                const ${runtimeConst} = ${collectionFunc}("${this.key}")
+                import _loader_ from "${loaderPath}"
+                const ${runtimeConst} = _loader_()
             `
             this.mstr.appendRight(0, importModule)
         }
@@ -455,8 +452,8 @@ const defaultArgs: AdapterArgs = {
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, key) => {
-            return new Transformer(key, content, filename, index, heuristic, pluralsFunc).transform()
+        transform: (content, filename, index, loaderPath) => {
+            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
         },
         files,
         catalog,
@@ -464,6 +461,7 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         proxyModule: {
             dev: proxyModuleDev,
             default: proxyModuleDefault,
-        }
+        },
+        loaderTemplateFile: new URL('../../src/loader.default.js', import.meta.url).pathname,
     }
 }

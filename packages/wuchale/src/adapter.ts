@@ -109,7 +109,7 @@ export type GlobConf = string | {
     ignore: string[],
 }
 
-export type TransformFunc = (content: string, filename: string, index: IndexTracker, key: string) => TransformOutput
+export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string) => TransformOutput
 
 export type ProxyModuleFunc = (virtModName: string) => string
 
@@ -123,6 +123,7 @@ export interface Adapter {
         dev: ProxyModuleFunc
         default: ProxyModuleFunc
     }
+    loaderTemplateFile: string
 }
 
 export interface AdapterArgs {
