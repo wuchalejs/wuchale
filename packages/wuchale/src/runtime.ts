@@ -66,27 +66,7 @@ export class Runtime {
     }
 }
 
-const dataCollection: {[key: string]: Runtime} = {}
-
-export let _wre_ = (key: string) => {
-    if (key in dataCollection) {
-        return dataCollection[key]
-    }
-    const fallback = new Runtime()
-    dataCollection[key] = fallback
-    return fallback
-}
-
-export function setCatalog(mod: CatalogModule) {
-    if (!(mod.key in dataCollection)) {
-        dataCollection[mod.key] = new Runtime(mod)
-        return
-    }
-    // modify in-place to preserve references for later rt.t() call
-    const existing = dataCollection[mod.key]
-    existing.data = mod.default
-    existing.pr = mod.pluralsRule
-}
+export let _wre_: (key: string) => Runtime
 
 type AsyncLocalStorageRunner = <Type>(mod: CatalogModule, callback: () => Type) => Type
 
