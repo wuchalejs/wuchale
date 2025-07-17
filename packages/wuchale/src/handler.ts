@@ -2,7 +2,7 @@
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
 import {dirname, relative, resolve} from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
-import { writeFile, readFile, copyFile, constants, access } from 'node:fs/promises'
+import { writeFile, readFile, copyFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -107,8 +107,10 @@ export class AdapterHandler {
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
         this.#loaderPath = resolve(catalogToLoader) + this.#adapter.compiledExt
         try {
-            await access(this.#loaderPath, constants.W_OK)
-            return
+            const contents = await readFile(this.#loaderPath)
+            if (contents.toString().trim() !== '') {
+                return
+            }
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
                 throw err
