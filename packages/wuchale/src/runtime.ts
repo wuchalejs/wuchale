@@ -3,9 +3,8 @@ type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
 export type CatalogModule = {
-    key: string
     default: CompiledData
-    pluralsRule: PluralsRule
+    plural: PluralsRule
 }
 
 export class Runtime {
@@ -18,7 +17,7 @@ export class Runtime {
             return
         }
         this.data = module.default
-        this.pr = module.pluralsRule ?? this.pr
+        this.pr = module.plural ?? this.pr
     }
 
     /** get composite context */

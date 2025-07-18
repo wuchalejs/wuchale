@@ -62,11 +62,8 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
 }
 
 export type Mode = 'dev' | 'prod' | 'extract' | 'test'
-export type CatalogssByLocale = { [loc: string]: { [key: string]: ItemType } }
 
 export class AdapterHandler {
-
-    key: string
 
     loaderPath: string
     loader: string
@@ -79,11 +76,10 @@ export class AdapterHandler {
 
     #adapter: Adapter
 
-    catalogs: CatalogssByLocale = {}
-    compiled: { [locale: string]: (CompiledFragment | number)[] } = {}
+    catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
+    compiled: { [loc: string]: (CompiledFragment | number)[] } = {}
     #sourceCatalog: { [key: string]: ItemType }
 
-    #compiledFname: { [loc: string]: string } = {}
     #catalogsFname: { [loc: string]: string } = {}
     transFnamesToLocales: { [key: string]: string } = {}
 
@@ -93,8 +89,7 @@ export class AdapterHandler {
     #indexTracker: IndexTracker
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, key: string, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
-        this.key = key
+    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
         this.#adapter = adapter
         this.#indexTracker = indexTracker
         this.#mode = mode
@@ -102,13 +97,10 @@ export class AdapterHandler {
         this.#config = config
     }
 
-    /** Get both catalog virtual module names AND HMR event names */
-    virtModEvent = (locale: string) => `${virtualPrefix}catalog/${this.key}/${locale}`
-
     async writeInitialLoader() {
         // write the initial loader, but not if it already exists
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
-        this.loaderPath = resolve(catalogToLoader) + this.#adapter.compiledExt
+        this.loaderPath = resolve(catalogToLoader) + this.#adapter.loaderExt
         try {
             const contents = await readFile(this.loaderPath)
             if (contents.toString().trim() !== '') {
@@ -121,6 +113,9 @@ export class AdapterHandler {
         }
         await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
     }
+
+    /** Get both catalog virtual module names AND HMR event names */
+    virtModEvent = (locale: string) => `${virtualPrefix}catalog/${locale}`
 
     #prepLoaders() {
         const imports = this.#locales.map(loc => `${loc}: () => import('${this.virtModEvent(loc)}')`)
@@ -137,7 +132,7 @@ export class AdapterHandler {
         `
     }
 
-    init = async (catalogs?: CatalogssByLocale) => {
+    init = async () => {
         for (const pattern of this.#adapter.files) {
             this.patterns.push(pm(...this.#globOptsToArgs(pattern)))
         }
@@ -148,16 +143,10 @@ export class AdapterHandler {
         await this.writeInitialLoader()
         this.#prepLoaders()
         for (const loc of this.#locales) {
-            // all of them before loadCatalogNCompile
             this.catalogs[loc] = {}
-            this.compiled[loc] = []
             const catalog = this.#adapter.catalog.replace('{locale}', loc)
             const catalogFname = `${catalog}.po`
             this.#catalogsFname[loc] = catalogFname
-            this.#compiledFname[loc] = `${catalog}${this.#adapter.compiledExt}`
-            if (catalogs) {
-                this.catalogs[loc] = catalogs[loc]
-            }
             // for handleHotUpdate
             this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
             if (loc === this.#config.sourceLocale) {
@@ -171,16 +160,7 @@ export class AdapterHandler {
                     async () => await this.afterExtract(loc),
                 )
             }
-        }
-        if (this.#mode === 'test') {
-            return
-        }
-        for (const loc of this.#locales) {
-            if (catalogs == null) {
-                await this.loadCatalogNCompile(loc)
-            } else {
-                this.compile(loc)
-            }
+            await this.loadCatalogNCompile(loc)
         }
     }
 
@@ -188,7 +168,7 @@ export class AdapterHandler {
         const localeConf = this.#config.locales[loc]
         const fullHead = { ...this.#poHeaders[loc] ?? {} }
         const updateHeaders = [
-            ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.pluralRule};`],
+            ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.plural};`],
             ['Language', this.#config.locales[loc].name],
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
@@ -230,7 +210,14 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            console.info(`i18n stats (${this.key}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
+            let catPath = this.#adapter.catalog.replace('{locale}', '#')
+            if (catPath.startsWith('./')) {
+                catPath = catPath.slice(2)
+            }
+            if (catPath.endsWith('/')) {
+                catPath = catPath.slice(0, -1)
+            }
+            console.info(`i18n stats (${catPath}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
@@ -242,11 +229,17 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string) => `
-        export const key = '${this.key}'
-        export const pluralsRule = n => ${this.#config.locales[locale].pluralRule}
-        export default ${JSON.stringify(this.compiled[locale])}
-    `
+    loadDataModule = (locale: string) => {
+        const compiled = JSON.stringify(this.compiled[locale])
+        const plural = `n => ${this.#config.locales[locale].plural}`
+        if (this.#mode === 'dev') {
+            return this.#adapter.proxyModuleDev(this.virtModEvent(locale), compiled, plural)
+        }
+        return `
+            export const plural = ${plural}
+            export default ${compiled}
+        `
+    }
 
     compile = (loc: string) => {
         this.compiled[loc] = []
@@ -254,7 +247,7 @@ export class AdapterHandler {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
             let compiled: CompiledFragment
-            const fallback = this.compiled[this.#config.sourceLocale][index]
+            const fallback = this.compiled[this.#config.sourceLocale]?.[index] // ?. for sourceLocale itself
             if (poItem.msgid_plural) {
                 if (poItem.msgstr.join('').trim()) {
                     compiled = poItem.msgstr

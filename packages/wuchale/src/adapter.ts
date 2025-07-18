@@ -111,18 +111,15 @@ export type GlobConf = string | {
 
 export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string) => TransformOutput
 
-export type ProxyModuleFunc = (virtModName: string) => string
+export type ProxyModuleFunc = (virtModName: string, compiled: string, plural: string) => string
 
 export interface Adapter {
     transform: TransformFunc
     files: GlobConf[]
     catalog: string
-    /** filename extension for compiled. E.g. `.js` */
-    compiledExt: string
-    proxyModule: {
-        dev: ProxyModuleFunc
-        default: ProxyModuleFunc
-    }
+    /** filename extension for loader. E.g. `.js` */
+    loaderExt: string
+    proxyModuleDev: ProxyModuleFunc
     loaderTemplateFile: string
 }
 

@@ -3,7 +3,7 @@ import { type Adapter } from "./adapter.js"
 export type LocaleConf = {
     name: string
     nPlurals?: number
-    pluralRule?: string
+    plural?: string
 }
 
 export type ConfigPartial = {
@@ -13,7 +13,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    adapters?: {[key: string]: Adapter}
+    adapters?: Adapter[]
     hmr?: boolean
 }
 
@@ -23,10 +23,10 @@ export const defaultConfig: Config = {
         en: {
             name: 'English',
             nPlurals: 2,
-            pluralRule: 'n == 1 ? 0 : 1',
+            plural: 'n == 1 ? 0 : 1',
         },
     },
-    adapters: {},
+    adapters: [],
     hmr: true,
     geminiAPIKey: 'env',
 }

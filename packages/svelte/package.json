@@ -40,6 +40,11 @@
             "import": "./dist/src/index.js",
             "source": "./src/index.ts"
         },
+        "./reactive": {
+            "types": "./dist/src/reactive.d.ts",
+            "import": "./dist/src/reactive.js",
+            "source": "./src/reactive.ts"
+        },
         "./runtime.svelte": "./src/runtime.svelte"
     },
     "repository": {

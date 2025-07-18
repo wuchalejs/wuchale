@@ -4,7 +4,7 @@ import { type CompiledFragment } from "./compile.js"
 import { relative } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
-import type {Mode, CatalogssByLocale} from './handler.js'
+import type {Mode} from './handler.js'
 
 const virtualResolvedPrefix = '\0'
 
@@ -47,20 +47,15 @@ class Plugin {
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        const dedupeCatalogs: {[catalog: string]: {
-            index?: IndexTracker
-            catalogs?: CatalogssByLocale
-        }} = {}
-        for (const [key, adapter] of Object.entries(this.#config.adapters)) {
-            const dedupe = dedupeCatalogs[adapter.catalog] ?? {}
+        for (const adapter of this.#config.adapters) {
             const handler = new AdapterHandler(
                 adapter,
-                key,
-                this.#config, dedupe.index ?? new IndexTracker(),
+                this.#config,
+                new IndexTracker(),
                 mode,
                 this.#projectRoot,
             )
-            await handler.init(dedupe.catalogs)
+            await handler.init()
             this.#adapters.push(handler)
         }
         if (this.#config.hmr) {
@@ -121,41 +116,40 @@ class Plugin {
             return null
         }
         id = id.slice(prefix.length)
-        const [path, qp] = id.split('?')
+        const [path, qp1, qp2] = id.split('?')
         const [part, ...rest] = path.split('/')
         if (part === 'catalog') {
-            const [key, locale] = rest
-            const adapter = this.#adapters.find(t => t.key === key)
-            if (!adapter) {
-                console.error('Adapter not found for:', key)
+            const importer = qp2.slice('importer='.length)
+            const iAdapter = this.#adapters.findIndex(a => a.loaderPath === importer)
+            if (iAdapter === -1) {
+                console.error('Adapter not found for:', importer)
                 return null
             }
-            return adapter.loadDataModule(locale)
+            const adapter = this.#adapters[iAdapter]
+            return adapter.loadDataModule(/* locale */ rest[0])
         }
-        if (part !== 'loader') {
+        if (!['loader.svelte.js', 'loader-sync.svelte.js'].includes(part)) {
             console.error('Unknown virtual request:', id)
             return null
         }
+        const importer = qp1.slice('importer='.length)
         // data loader
-        const importer = qp.slice('importer='.length)
         const adapter = this.#adapters.find(a => a.loaderPath === importer)
         if (!adapter) {
             console.error('Adapter not found for filename:', importer)
             return
         }
-        if (rest[0] === 'sync') {
-            return adapter.loaderSync
+        if (part === 'loader.svelte.js') {
+            return adapter.loader
         }
-        return adapter.loader
+        return adapter.loaderSync
     }
 
     #transformHandler = async (code: string, id: string) => {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of this.#adapters) {
             if (adapter.patterns.find(isMatch => isMatch(filename))) {
-                const r = await adapter.transform(code, filename)
-                console.log(filename)
-                return r
+                return await adapter.transform(code, filename)
             }
         }
         return {}

@@ -433,12 +433,10 @@ export const proxyModuleHotUpdate = (virtModEvent: string, targetVar = 'data') =
     }
 `
 
-export const proxyModuleDefault: ProxyModuleFunc = virtModEvent => `export {key, default, pluralsRule} from '${virtModEvent}'`
-
-const proxyModuleDev: ProxyModuleFunc = (virtModEvent) => `
-    import data, {key, pluralsRule} from '${virtModEvent}'
+const proxyModuleDev: ProxyModuleFunc = (virtModEvent, compiled, plural) => `
+    export const plural = ${plural}
+    const data = ${compiled}
     ${proxyModuleHotUpdate(virtModEvent)}
-    export {key, pluralsRule}
     export default data
 `
 
@@ -457,11 +455,8 @@ export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
         },
         files,
         catalog,
-        compiledExt: '.js',
-        proxyModule: {
-            dev: proxyModuleDev,
-            default: proxyModuleDefault,
-        },
+        loaderExt: '.js',
+        proxyModuleDev,
         loaderTemplateFile: new URL('../../src/loader.default.js', import.meta.url).pathname,
     }
 }
