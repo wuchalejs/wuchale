@@ -1,15 +1,23 @@
-import type { Handle } from '@sveltejs/kit'
-import { initRegistry } from 'wuchale/runtime'
+import type { Handle } from '@sveltejs/kit';
+import { initRegistry } from 'wuchale/runtime';
+import * as enCatalog from './locales/en.svelte.js';
+import * as esCatalog from './locales/es.svelte.js';
+import * as frCatalog from './locales/fr.svelte.js';
 
-const runWithCatalog = await initRegistry()
+const catalogs: Record<string, typeof enCatalog> = {
+  "en": enCatalog,
+  "es": esCatalog,
+  "fr": frCatalog
+};
 
-const locales = ['en', 'es', 'fr']
+const runWithCatalog = await initRegistry();
 
 export const handle: Handle = async ({ event, resolve }) => {
-    const locale = locales.find(l => l === event.params.locale)
-    if (!locale) {
-        return await resolve(event)
-    }
-    const catalog = await import(`./locales/${locale}.svelte.js`)
-    return await runWithCatalog(catalog, async () => await resolve(event))
-}
+  const requestedLocale = event.params.locale ?? 'en';
+  const locale = Object.keys(catalogs).find(l => l === requestedLocale) ?? "en";
+  return await runWithCatalog(catalogs[locale], () =>
+    resolve(event, {
+      transformPageChunk: ({ html }) => html.replace('%sveltekit.lang%', locale)
+    })
+  );
+};
