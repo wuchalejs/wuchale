@@ -19,7 +19,7 @@ export class ReactiveArray extends Array {
             },
             set(target, prop, value, receiver) {
                 target[prop] = value
-                update()
+                update?.()
                 return Reflect.set(target, prop, value, receiver)
             },
         })

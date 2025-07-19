@@ -435,11 +435,11 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = (virtModEvent, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = (eventName, compiled, plural) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     const data = new ReactiveArray(...${compiled})
-    ${proxyModuleHotUpdate(virtModEvent)}
+    ${proxyModuleHotUpdate(eventName)}
     export default data
 `
 
@@ -448,16 +448,18 @@ const defaultArgs: AdapterArgs = {
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: svelteHeuristic,
+    perFile: false,
 }
 
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, loaderPath) => {
             return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
         },
         files,
         catalog,
+        perFile,
         loaderExt: '.svelte.js',
         proxyModuleDev,
         loaderTemplateFile: new URL('../../src/loader.svelte.js', import.meta.url).pathname,

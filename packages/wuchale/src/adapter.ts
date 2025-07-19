@@ -111,21 +111,23 @@ export type GlobConf = string | {
 
 export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string) => TransformOutput
 
-export type ProxyModuleFunc = (virtModName: string, compiled: string, plural: string) => string
+export type ProxyModuleFunc = (eventName: string, compiled: string, plural: string) => string
 
-export interface Adapter {
-    transform: TransformFunc
+type AdapterPassThruOpts = {
     files: GlobConf[]
     catalog: string
+    perFile: boolean
+}
+
+export type Adapter = AdapterPassThruOpts & {
+    transform: TransformFunc
     /** filename extension for loader. E.g. `.js` */
     loaderExt: string
     proxyModuleDev: ProxyModuleFunc
     loaderTemplateFile: string
 }
 
-export interface AdapterArgs {
-    files?: string[]
-    catalog?: string
+export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
     pluralsFunc?: string
 }

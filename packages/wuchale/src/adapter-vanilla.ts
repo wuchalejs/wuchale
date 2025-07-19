@@ -420,23 +420,23 @@ export class Transformer {
     }
 }
 
-export const proxyModuleHotUpdate = (virtModEvent: string, targetVar = 'data') => `
+export const proxyModuleHotUpdate = (eventName: string, targetVar = 'data') => `
     if (import.meta.hot) {
-        import.meta.hot.on('${virtModEvent}', newData => {
+        import.meta.hot.on('${eventName}', newData => {
             for (let i = 0; i < newData.length; i++) {
                 if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
                     ${targetVar}[i] = newData[i]
                 }
             }
         })
-        import.meta.hot.send('${virtModEvent}')
+        import.meta.hot.send('${eventName}')
     }
 `
 
-const proxyModuleDev: ProxyModuleFunc = (virtModEvent, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = (eventName, compiled, plural) => `
     export const plural = ${plural}
     const data = ${compiled}
-    ${proxyModuleHotUpdate(virtModEvent)}
+    ${proxyModuleHotUpdate(eventName)}
     export default data
 `
 
@@ -445,16 +445,18 @@ const defaultArgs: AdapterArgs = {
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
+    perFile: false,
 }
 
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, files, catalog } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
     return {
         transform: (content, filename, index, loaderPath) => {
             return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
         },
         files,
         catalog,
+        perFile,
         loaderExt: '.js',
         proxyModuleDev,
         loaderTemplateFile: new URL('../../src/loader.default.js', import.meta.url).pathname,

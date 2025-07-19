@@ -1,6 +1,6 @@
 // $$ cd ../.. && npm run test
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
-import {dirname, relative, resolve} from 'node:path'
+import {dirname, relative} from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
 import { readFile, copyFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
@@ -62,6 +62,7 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
 }
 
 export type Mode = 'dev' | 'prod' | 'extract' | 'test'
+type CompiledItems = (CompiledFragment | number)[]
 
 export class AdapterHandler {
 
@@ -77,7 +78,8 @@ export class AdapterHandler {
     #adapter: Adapter
 
     catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
-    compiled: { [loc: string]: (CompiledFragment | number)[] } = {}
+    compiled: { [loc: string]: CompiledItems } = {}
+    compiledPerFile: {[loc: string]: {[filename: string]: CompiledItems}} = {}
     #sourceCatalog: { [key: string]: ItemType }
 
     #catalogsFname: { [loc: string]: string } = {}
@@ -86,21 +88,24 @@ export class AdapterHandler {
     #poHeaders: { [loc: string]: { [key: string]: string } } = {}
 
     #mode: Mode
-    #indexTracker: IndexTracker
+    #indexTracker: IndexTracker = new IndexTracker()
+    #indexTrackerPerFile: {[filename: string]: IndexTracker} = {}
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, config: ConfigPartial, indexTracker: IndexTracker, mode: Mode, projectRoot: string) {
+    constructor(adapter: Adapter, config: ConfigPartial, mode: Mode, projectRoot: string) {
         this.#adapter = adapter
-        this.#indexTracker = indexTracker
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
     }
 
-    async writeInitialLoader() {
+    async #initLoader() {
         // write the initial loader, but not if it already exists
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
-        this.loaderPath = resolve(catalogToLoader) + this.#adapter.loaderExt
+        this.loaderPath = catalogToLoader + this.#adapter.loaderExt
+        if (this.loaderPath.startsWith('./')) {
+            this.loaderPath = this.loaderPath.slice(2)
+        }
         try {
             const contents = await readFile(this.loaderPath)
             if (contents.toString().trim() !== '') {
@@ -140,7 +145,7 @@ export class AdapterHandler {
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
-        await this.writeInitialLoader()
+        await this.#initLoader()
         this.#prepLoaders()
         for (const loc of this.#locales) {
             this.catalogs[loc] = {}
@@ -157,7 +162,7 @@ export class AdapterHandler {
                     sourceLocaleName,
                     this.#config.locales[loc].name,
                     this.#config.geminiAPIKey,
-                    async () => await this.afterExtract(loc),
+                    async () => await this.savePoAndCompile(loc),
                 )
             }
             await this.loadCatalogNCompile(loc)
@@ -229,11 +234,15 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string) => {
-        const compiled = JSON.stringify(this.compiled[locale])
+    loadDataModule = (locale: string, devEvent: string, perFileImporter?: string) => {
+        let compiledItems = this.compiled[locale]
+        if (this.#adapter.perFile) {
+            compiledItems = this.compiledPerFile[locale][perFileImporter] ?? []
+        }
+        const compiled = JSON.stringify(compiledItems)
         const plural = `n => ${this.#config.locales[locale].plural}`
         if (this.#mode === 'dev') {
-            return this.#adapter.proxyModuleDev(this.virtModEvent(locale), compiled, plural)
+            return this.#adapter.proxyModuleDev(devEvent, compiled, plural)
         }
         return `
             export const plural = ${plural}
@@ -241,8 +250,18 @@ export class AdapterHandler {
         `
     }
 
+    #getIndexTrackerPerFile(filename: string): IndexTracker {
+        let indexTracker = this.#indexTrackerPerFile[filename]
+        if (indexTracker == null) {
+            indexTracker = new IndexTracker()
+            this.#indexTrackerPerFile[filename] = indexTracker
+        }
+        return indexTracker
+    }
+
     compile = (loc: string) => {
         this.compiled[loc] = []
+        this.compiledPerFile[loc] = {}
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
@@ -258,10 +277,15 @@ export class AdapterHandler {
                 compiled = compileTranslation(poItem.msgstr[0], fallback)
             }
             this.compiled[loc][index] = compiled
-        }
-        for (const [i, item] of this.compiled[loc].entries()) {
-            if (item == null) {
-                this.compiled[loc][i] = 0 // reduce json size
+            if (!this.#adapter.perFile) {
+                continue
+            }
+            for (const fname of poItem.references) {
+                if (!(fname in this.compiledPerFile[loc])) {
+                    this.compiledPerFile[loc][fname] = []
+                }
+                const index = this.#getIndexTrackerPerFile(fname).get(key)
+                this.compiledPerFile[loc][fname][index] = compiled
             }
         }
     }
@@ -278,7 +302,7 @@ export class AdapterHandler {
         return [patt, options]
     }
 
-    afterExtract = async (loc: string) => {
+    savePoAndCompile = async (loc: string) => {
         if (this.#mode !== 'test') {
             await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], this.#fullHeaders(loc))
         }
@@ -288,11 +312,33 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string) => {
-        let loaderPathRel = relative(dirname(filename), this.loaderPath)
-        if (!loaderPathRel.startsWith('.')) {
-            loaderPathRel = `./${loaderPathRel}`
+        let indexTracker = this.#indexTracker
+        let loaderPathRel: string
+        if (this.#adapter.perFile) {
+            loaderPathRel = `${virtualPrefix}/per-file-loader`
+            indexTracker = this.#getIndexTrackerPerFile(filename)
+        } else {
+            loaderPathRel = relative(dirname(filename), this.loaderPath)
+            if (!loaderPathRel.startsWith('.')) {
+                loaderPathRel = `./${loaderPathRel}`
+            }
         }
-        const {txts, ...output} = this.#adapter.transform(content, filename, this.#indexTracker, loaderPathRel)
+        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPathRel)
+        // clear references to this file first
+        for (const loc of this.#locales) {
+            let newObsolete = false
+            for (const item of Object.values(this.catalogs[loc])) {
+                const initRefs = item.references.length
+                item.references = item.references.filter(f => f !== filename)
+                item.obsolete = item.references.length === 0
+                if (item.references.length < initRefs) {
+                    newObsolete = true
+                }
+            }
+            if (newObsolete && !txts.length) {
+                this.savePoAndCompile(loc)
+            }
+        }
         if (!txts.length) {
             return {}
         }
@@ -315,6 +361,7 @@ export class AdapterHandler {
                 }
                 if (!poItem.references.includes(filename)) {
                     poItem.references.push(filename)
+                    poItem.obsolete = false
                 }
                 if (loc === this.#config.sourceLocale) {
                     const txt = nTxt.text.join('\n')
@@ -330,7 +377,7 @@ export class AdapterHandler {
                 continue
             }
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
-                await this.afterExtract(loc)
+                await this.savePoAndCompile(loc)
                 continue
             }
             const newRequest = this.#geminiQueue[loc].add(newTxts)
