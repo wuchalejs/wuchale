@@ -1,3 +1,5 @@
+![logo](https://raw.githubusercontent.com/K1DV5/wuchale/main/images/logo.svg)
+
 # `wuchale`
 
 [![npm version](https://img.shields.io/npm/v/wuchale)](https://www.npmjs.com/package/wuchale) [![npm version](https://img.shields.io/npm/v/@wuchale/svelte)](https://www.npmjs.com/package/@wuchale/svelte) ![License](https://img.shields.io/github/license/K1DV5/wuchale)
