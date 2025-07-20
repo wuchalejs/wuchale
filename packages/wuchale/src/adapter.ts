@@ -83,16 +83,6 @@ export class IndexTracker {
     indices: { [key: string]: number } = {}
     nextIndex: number = 0
 
-    reload(sourceCatalog: Catalog) {
-        this.nextIndex = 0
-        this.indices = {}
-        for (const txt of Object.keys(sourceCatalog)) {
-            // guaranteed order for strings since ES2015
-            this.indices[txt] = this.nextIndex
-            this.nextIndex++
-        }
-    }
-
     get = (txt: string) => {
         if (txt in this.indices) {
             return this.indices[txt]

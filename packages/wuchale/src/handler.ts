@@ -13,6 +13,7 @@ import { type ConfigPartial } from "./config.js"
 
 export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`
+export const virtualPFLoader = `${virtualPrefix}per-file-loader`
 
 interface LoadedPO {
     catalog: Catalog,
@@ -85,7 +86,6 @@ export class AdapterHandler {
     catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
     compiled: { [loc: string]: CompiledItems } = {}
     compiledPerFile: {[loc: string]: {[filename: string]: CompiledItems}} = {}
-    #sourceCatalog: { [key: string]: ItemType }
 
     #catalogsFname: { [loc: string]: string } = {}
     transFnamesToLocales: { [key: string]: string } = {}
@@ -159,10 +159,7 @@ export class AdapterHandler {
             this.#catalogsFname[loc] = catalogFname
             // for handleHotUpdate
             this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
-            if (loc === this.#config.sourceLocale) {
-                this.#sourceCatalog = this.catalogs[loc]
-                this.#indexTracker.reload(this.#sourceCatalog)
-            } else if (this.#mode !== 'test') {
+            if (loc !== this.#config.sourceLocale && this.#mode !== 'test') {
                 this.#geminiQueue[loc] = new GeminiQueue(
                     sourceLocaleName,
                     this.#config.locales[loc].name,
@@ -318,17 +315,17 @@ export class AdapterHandler {
 
     transform = async (content: string, filename: string) => {
         let indexTracker = this.#indexTracker
-        let loaderPathRel: string
+        let loaderPath: string
         if (this.#adapter.perFile) {
-            loaderPathRel = `${virtualPrefix}/per-file-loader`
+            loaderPath = virtualPFLoader
             indexTracker = this.#getIndexTrackerPerFile(filename)
         } else {
-            loaderPathRel = relative(dirname(filename), this.loaderPath)
-            if (!loaderPathRel.startsWith('.')) {
-                loaderPathRel = `./${loaderPathRel}`
+            loaderPath = relative(dirname(filename), this.loaderPath)
+            if (!loaderPath.startsWith('.')) {
+                loaderPath = `./${loaderPath}`
             }
         }
-        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPathRel)
+        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPath)
         for (const loc of this.#locales) {
             // clear references to this file first
             let previouslyReferenced: {[key: string]: boolean} = {}

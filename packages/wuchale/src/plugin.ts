@@ -2,12 +2,12 @@
 import { type CompiledFragment } from "./compile.js"
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
-import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
+import { AdapterHandler, pluginName, virtualPFLoader, virtualPrefix } from "./handler.js"
 import type {Mode} from './handler.js'
 import { readFile } from "node:fs/promises"
 
 const virtualResolvedPrefix = '\0'
-const importerSep = '-_-_-'
+const importerSep = '-_-_-' // looks like w :D
 
 type HMRClient = {
     send: (event: string, data: CompiledFragment[]) => void
@@ -134,7 +134,7 @@ class Plugin {
             return null
         }
         const relImporter = relative(process.cwd(), importer)
-        if (source !== `${virtualPrefix}/per-file-loader`) {
+        if (source !== virtualPFLoader) {
             return `${virtualResolvedPrefix}${source}?${relImporter}`
         }
         for (const [i, adapter] of this.#adapters.entries()) {
