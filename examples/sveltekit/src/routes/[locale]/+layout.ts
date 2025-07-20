@@ -1,6 +1,7 @@
 // src/routes/+layout.js
 import { setCatalog } from '@wuchale/svelte/runtime.svelte.js'
 import type { LayoutLoad } from './$types'
+import '../app.css'
 
 export const prerender = true
 

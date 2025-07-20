@@ -12,9 +12,9 @@
     <ul>
         {#each locales as [locale, name]}
             {#if locale === data.locale}
-                <li>{name}</li>
+                <li class="ml-6">{name}</li>
             {:else}
-                <li><a href="/{locale}" data-sveltekit-preload-data="off">{name}</a></li>
+                <li class="ml-6 text-blue-600"><a href="/{locale}" data-sveltekit-preload-data="off">{name}</a></li>
             {/if}
         {/each}
     </ul>

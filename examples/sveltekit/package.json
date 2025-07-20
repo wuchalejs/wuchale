@@ -17,6 +17,7 @@
 		"@sveltejs/adapter-auto": "^6.0.0",
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@tailwindcss/vite": "^4.1.11",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"typescript": "^5.0.0",
@@ -24,6 +25,7 @@
 	},
 	"dependencies": {
 		"@wuchale/svelte": "^0.8.3",
-		"wuchale": "^0.8.2"
+		"tailwindcss": "^4.1.11",
+		"wuchale": "^0.8.3"
 	}
 }
