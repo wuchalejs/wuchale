@@ -328,25 +328,27 @@ export class AdapterHandler {
         const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPath)
         for (const loc of this.#locales) {
             // clear references to this file first
-            let previouslyReferenced: {[key: string]: boolean} = {}
-            let modifiedRefs = false
+            let previousReferences: {[key: string]: number} = {}
+            let fewerRefs = false
             for (const item of Object.values(this.catalogs[loc])) {
-                const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
-                previouslyReferenced[nTxt.toKey()] = item.references.includes(filename)
+                if (!item.references.includes(filename)) {
+                    continue
+                }
+                const key = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
                 const prevRefs = item.references.length
                 item.references = item.references.filter(f => f !== filename)
+                previousReferences[key] = prevRefs - item.references.length
                 item.obsolete = item.references.length === 0
-                if (item.references.length < prevRefs) {
-                    modifiedRefs = true
-                }
+                fewerRefs = true
             }
             if (!txts.length) {
-                if (modifiedRefs) {
+                if (fewerRefs) {
                     this.savePoAndCompile(loc)
                 }
                 continue
             }
             const newTxts: ItemType[] = []
+            let newRefs = false
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
                 let poItem = this.catalogs[loc][key]
@@ -362,8 +364,14 @@ export class AdapterHandler {
                 if (nTxt.context) {
                     poItem.msgctxt = nTxt.context
                 }
-                if (!previouslyReferenced[key]) { // false, or undefined for new
-                    modifiedRefs = true // now it references it
+                if (previousReferences[key] > 0) {
+                    if (previousReferences[key] === 1) {
+                        delete previousReferences[key]
+                    } else {
+                        previousReferences[key]--
+                    }
+                } else {
+                    newRefs = true // now it references it
                 }
                 poItem.references.push(filename)
                 poItem.obsolete = false
@@ -378,7 +386,7 @@ export class AdapterHandler {
                 }
             }
             if (newTxts.length === 0) {
-                if (modifiedRefs) {
+                if (newRefs || Object.keys(previousReferences).length) { // or unused refs
                     await this.savePoAndCompile(loc)
                 }
                 continue
