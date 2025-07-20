@@ -18,6 +18,7 @@ interface LoadedPO {
     catalog: Catalog,
     total: number,
     untranslated: number,
+    obsolete: number,
     headers: { [key: string]: string },
 }
 
@@ -27,6 +28,7 @@ async function loadPOFile(filename: string): Promise<LoadedPO> {
             const catalog: Catalog = {}
             let total = 0
             let untranslated = 0
+            let obsolete = 0
             if (err) {
                 rej(err)
                 return
@@ -36,10 +38,13 @@ async function loadPOFile(filename: string): Promise<LoadedPO> {
                 if (!item.msgstr[0]) {
                     untranslated++
                 }
+                if (item.obsolete) {
+                    obsolete++
+                }
                 const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
                 catalog[nTxt.toKey()] = item
             }
-            res({ catalog: catalog, total, untranslated, headers: po.headers })
+            res({ catalog: catalog, total, untranslated, obsolete, headers: po.headers })
         })
     })
 }
@@ -211,18 +216,18 @@ export class AdapterHandler {
 
     loadCatalogNCompile = async (loc: string) => {
         try {
-            const { catalog, total, untranslated, headers } = await loadPOFile(this.#catalogsFname[loc])
+            const { catalog, total, untranslated, obsolete, headers } = await loadPOFile(this.#catalogsFname[loc])
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            let catPath = this.#adapter.catalog.replace('{locale}', '#')
+            let catPath = this.#adapter.catalog.replace('{locale}', locName)
             if (catPath.startsWith('./')) {
                 catPath = catPath.slice(2)
             }
             if (catPath.endsWith('/')) {
                 catPath = catPath.slice(0, -1)
             }
-            console.info(`i18n stats (${catPath}, ${locName}): total: ${total}, untranslated: ${untranslated}`)
+            console.info(`i18n stats (${catPath}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
@@ -324,25 +329,26 @@ export class AdapterHandler {
             }
         }
         const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPathRel)
-        // clear references to this file first
         for (const loc of this.#locales) {
-            let newObsolete = false
+            // clear references to this file first
+            let previouslyReferenced: {[key: string]: boolean} = {}
+            let modifiedRefs = false
             for (const item of Object.values(this.catalogs[loc])) {
-                const initRefs = item.references.length
+                const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
+                previouslyReferenced[nTxt.toKey()] = item.references.includes(filename)
+                const prevRefs = item.references.length
                 item.references = item.references.filter(f => f !== filename)
                 item.obsolete = item.references.length === 0
-                if (item.references.length < initRefs) {
-                    newObsolete = true
+                if (item.references.length < prevRefs) {
+                    modifiedRefs = true
                 }
             }
-            if (newObsolete && !txts.length) {
-                this.savePoAndCompile(loc)
+            if (!txts.length) {
+                if (modifiedRefs) {
+                    this.savePoAndCompile(loc)
+                }
+                continue
             }
-        }
-        if (!txts.length) {
-            return {}
-        }
-        for (const loc of this.#locales) {
             const newTxts: ItemType[] = []
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
@@ -359,10 +365,11 @@ export class AdapterHandler {
                 if (nTxt.context) {
                     poItem.msgctxt = nTxt.context
                 }
-                if (!poItem.references.includes(filename)) {
-                    poItem.references.push(filename)
-                    poItem.obsolete = false
+                if (!previouslyReferenced[key]) { // false, or undefined for new
+                    modifiedRefs = true // now it references it
                 }
+                poItem.references.push(filename)
+                poItem.obsolete = false
                 if (loc === this.#config.sourceLocale) {
                     const txt = nTxt.text.join('\n')
                     if (poItem.msgstr.join('\n') !== txt) {
@@ -373,7 +380,10 @@ export class AdapterHandler {
                     newTxts.push(poItem)
                 }
             }
-            if (newTxts.length == 0) {
+            if (newTxts.length === 0) {
+                if (modifiedRefs) {
+                    await this.savePoAndCompile(loc)
+                }
                 continue
             }
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
@@ -385,6 +395,9 @@ export class AdapterHandler {
             const locName = this.#config.locales[loc].name
             console.info('Gemini translate', newTxts.length, 'items to', locName, opType)
             await this.#geminiQueue[loc].running
+        }
+        if (!txts.length) {
+            return {}
         }
         return output
     }
