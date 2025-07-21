@@ -5,16 +5,20 @@
 // because this file will just be used as a template, not imported directly.
 // If you make a change, restart the dev server.
 
+/// <reference types="wuchale/virtual" />
+
 import { Runtime } from 'wuchale/runtime'
-import loadCatalog from 'virtual:wuchale/loader' // or loader/sync
+import { loadCatalog, fileID } from 'virtual:wuchale/loader' // or loader/sync
+import { registerLoader } from 'wuchale/run-client'
 
-let currentCatalog = $state(new Runtime())
+const catalog = $state({ current: new Runtime() })
 
-/**
- * @param {string} locale
- */
-export async function setLocale(locale) {
-    currentCatalog = new Runtime(await loadCatalog(locale))
+let getCatalog = registerLoader('thisgroup', fileID, catalog, loadCatalog)
+
+if (import.meta.env.SSR) { // stripped for the client
+    const { registerLoader } = await import('wuchale/run-server')
+    const { loadCatalog } = await import('virtual:wuchale/loader/sync')
+    getCatalog = registerLoader(fileID, loadCatalog)
 }
 
-export default () => currentCatalog
+export default getCatalog

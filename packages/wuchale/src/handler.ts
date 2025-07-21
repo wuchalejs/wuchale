@@ -73,8 +73,6 @@ type CompiledItems = (CompiledFragment | number)[]
 export class AdapterHandler {
 
     loaderPath: string
-    loader: string
-    loaderSync: string
 
     #config: ConfigPartial
     #locales: string[]
@@ -127,18 +125,23 @@ export class AdapterHandler {
     /** Get both catalog virtual module names AND HMR event names */
     virtModEvent = (locale: string) => `${virtualPrefix}catalog/${locale}`
 
-    #prepLoaders() {
+    getLoader(pfId?: string) {
         const imports = this.#locales.map(loc => `${loc}: () => import('${this.virtModEvent(loc)}')`)
-        this.loader = `
+        return `
             const catalogs = {${imports.join(',')}}
-            export default locale => catalogs[locale]()
+            export const fileID = '${pfId}'
+            export const loadCatalog = locale => catalogs[locale]()
         `
+    }
+
+    getLoaderSync(pfId?: string) {
         const importsSync = this.#locales.map(loc => `import * as ${loc} from '${this.virtModEvent(loc)}'`)
         const object = this.#locales.map(loc => `${loc}: ${loc}`)
-        this.loaderSync = `
+        return `
             ${importsSync.join('\n')}
             const catalogs = {${object.join(',')}}
-            export default locale => catalogs[locale]
+            export const fileID = '${pfId}'
+            export const loadCatalog = locale => catalogs[locale]
         `
     }
 
@@ -151,7 +154,6 @@ export class AdapterHandler {
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
         await this.#initLoader()
-        this.#prepLoaders()
         for (const loc of this.#locales) {
             this.catalogs[loc] = {}
             const catalog = this.#adapter.catalog.replace('{locale}', loc)

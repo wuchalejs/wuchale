@@ -36,6 +36,9 @@
             "import": "./dist/src/index.js",
             "source": "./src/index.ts"
         },
+        "./virtual": {
+            "types": "./src/virtual.d.ts"
+        },
         "./config": {
             "types": "./dist/src/config.d.ts",
             "import": "./dist/src/config.js",
@@ -61,10 +64,15 @@
             "import": "./dist/src/runtime.js",
             "source": "./src/runtime.ts"
         },
-        "./runtime-server": {
-            "types": "./dist/src/runtime-server.d.ts",
-            "import": "./dist/src/runtime-server.js",
-            "source": "./src/runtime-server.ts"
+        "./run-client": {
+            "types": "./dist/src/run-client.d.ts",
+            "import": "./dist/src/run-client.js",
+            "source": "./src/run-client.ts"
+        },
+        "./run-server": {
+            "types": "./dist/src/run-server.d.ts",
+            "import": "./dist/src/run-server.js",
+            "source": "./src/run-server.ts"
         }
     },
     "bin": {

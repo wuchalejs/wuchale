@@ -156,7 +156,7 @@ class Plugin {
     load = (id: string) => {
         const [pfPath, pfImporter] = id.split(importerSep)
         if (pfPath in this.#loadersBodyByLoader) {
-            return this.#loadersBodyByLoader[pfPath]
+            return this.#loadersBodyByLoader[pfPath] // same loader for all
         }
         let [path, qp1, qp2] = pfPath.split('?')
         const prefix = virtualResolvedPrefix + virtualPrefix
@@ -179,21 +179,26 @@ class Plugin {
             const eventName = `${adapter.virtModEvent(locale)}.${perFileId}`
             return adapter.loadDataModule(locale, eventName, destImport)
         }
+        if (part === 'locales') {
+            return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`
+        }
         if (part !== 'loader') {
             console.error('Unknown virtual request:', id)
             return null
         }
         const importer = qp1
         // data loader
-        const adapter = this.#adapters.find(a => a.loaderPath === importer)
-        if (!adapter) {
+        const iAdapter = this.#adapters.findIndex(a => a.loaderPath === importer)
+        if (iAdapter === -1) {
             console.error('Adapter not found for filename:', importer)
             return
         }
+        const adapter = this.#adapters[iAdapter]
+        const perFileId = pfImporter?.slice(0, -this.#config.adapters[iAdapter].loaderExt.length)
         if (rest[0] === 'sync') {
-            return adapter.loaderSync
+            return adapter.getLoaderSync(perFileId)
         }
-        return adapter.loader
+        return adapter.getLoader(perFileId)
     }
 
     #transformHandler = async (code: string, id: string) => {
