@@ -1,6 +1,9 @@
 // This is just the default loader.
-// You can customize it however you want, it will not be overwritten once it exists.
+// You can customize it however you want, it will not be overwritten once it exists and is not empty.
 
-import { loadCatalog } from 'virtual:wuchale/loader' // or loader/sync
+/// <reference types="wuchale/virtual" />
 
-export default registerLoader('thisgroup', null, catalog, loadCatalog)
+import { loadCatalog, fileIDs } from 'virtual:wuchale/loader' // or loader/sync
+import { registerLoader } from 'wuchale/run-client'
+
+export default registerLoader('main', fileIDs, loadCatalog)
