@@ -16,17 +16,6 @@ type ViteDevServer = {
         send: (event: string, data: CompiledFragment[]) => void,
         on: (event: string, cb: (msg: {fileID: string | null}, client: HMRClient) => void) => void,
     }
-    moduleGraph: {
-        getModuleById: Function,
-        invalidateModule: Function,
-    },
-}
-
-type ViteHotUpdateCTX = {
-  file: string
-  timestamp: number
-  read: () => string | Promise<string>
-  server: ViteDevServer
 }
 
 class Plugin {
@@ -96,7 +85,7 @@ class Plugin {
         }
     }
 
-    handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
+    handleHotUpdate = async (ctx: {file: string}) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             return
         }

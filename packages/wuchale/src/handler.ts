@@ -127,7 +127,9 @@ export class AdapterHandler {
                 throw err
             }
         }
-        await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
+        if (this.#mode !== 'test') {
+            await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
+        }
     }
 
     /** Get both catalog virtual module names AND HMR event names */
