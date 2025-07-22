@@ -4,7 +4,6 @@ import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {Mode} from './handler.js'
-import { readFile } from "node:fs/promises"
 
 const virtualResolvedPrefix = '\0'
 
@@ -39,27 +38,28 @@ class Plugin {
 
     #server: ViteDevServer
 
-    #adapters: AdapterHandler[] = []
-    #loadersBodyByLoader: {[loader: string]: string} = {}
+    #adapters: {[key: string]: AdapterHandler} = {}
+    #adaptersByLoaderPath: {[loader: string]: AdapterHandler} = {}
+    #adaptersByCatalogPath: {[path: string]: AdapterHandler} = {}
 
     #init = async (mode: Mode) => {
         this.#config = await getConfig()
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        for (const [i, adapter] of this.#config.adapters.entries()) {
+        for (const [key, adapter] of Object.entries(this.#config.adapters)) {
             const handler = new AdapterHandler(
                 adapter,
-                i,
+                key,
                 this.#config,
                 mode,
                 this.#projectRoot,
             )
             await handler.init()
-            this.#adapters.push(handler)
-            if (adapter.perFile) {
-                const loaderRel = await readFile(handler.loaderPath)
-                this.#loadersBodyByLoader[resolve(handler.loaderPath)] = loaderRel.toString()
+            this.#adapters[key] = handler
+            this.#adaptersByLoaderPath[resolve(handler.loaderPath)] = handler
+            for (const loc of Object.keys(this.#config.locales)) {
+                this.#adaptersByCatalogPath[handler.transFnamesToLocales[loc]] = handler
             }
         }
     }
@@ -80,12 +80,12 @@ class Plugin {
     configureServer = (server: ViteDevServer) => {
         this.#server = server
         // initial load
-        for (const [i, adapter] of this.#adapters.entries()) {
+        for (const [key, adapter] of Object.entries(this.#adapters)) {
             for (const loc of Object.keys(this.#config.locales)) {
                 const event = adapter.virtModEvent(loc, null)
                 server.ws.on(event, (payload, client) => {
                     const eventSend = adapter.virtModEvent(loc, payload.fileID)
-                    if (!this.#config.adapters[i].perFile) {
+                    if (!this.#config.adapters[key].perFile) {
                         client.send(eventSend, adapter.compiled[loc])
                         return
                     }
@@ -97,22 +97,19 @@ class Plugin {
     }
 
     handleHotUpdate = async (ctx: ViteHotUpdateCTX) => {
-        for (const [i, adapter] of this.#adapters.entries()) {
-            if (!(ctx.file in adapter.transFnamesToLocales)) {
-                continue
-            }
-            // PO file write -> JS HMR
-            const loc = adapter.transFnamesToLocales[ctx.file]
-            await adapter.loadCatalogNCompile(loc)
-            if (this.#config.adapters[i].perFile) {
-                for (const [fileID, state] of Object.entries(adapter.perFileStateByID)) {
-                    const eventName = adapter.virtModEvent(loc, fileID)
-                    this.#server.ws.send(eventName, state.compiled[loc])
-                }
-            } else {
-                this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])
-            }
+        if (!(ctx.file in this.#adaptersByCatalogPath)) {
             return
+        }
+        const adapter = this.#adaptersByCatalogPath[ctx.file]
+        const loc = adapter.transFnamesToLocales[ctx.file]
+        await adapter.loadCatalogNCompile(loc)
+        if (!this.#config.adapters[adapter.key].perFile) {
+            this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])
+            return
+        }
+        for (const [fileID, state] of Object.entries(adapter.perFileStateByID)) {
+            const eventName = adapter.virtModEvent(loc, fileID)
+            this.#server.ws.send(eventName, state.compiled[loc])
         }
     }
 
@@ -120,8 +117,7 @@ class Plugin {
         if (!source.startsWith(virtualPrefix)) {
             return null
         }
-        const relImporter = relative(process.cwd(), importer)
-        return `${virtualResolvedPrefix}${source}?${relImporter}`
+        return `${virtualResolvedPrefix}${source}?${importer}`
     }
 
     load = (id: string) => {
@@ -148,12 +144,11 @@ class Plugin {
             return null
         }
         // data loader
-        const iAdapter = this.#adapters.findIndex(a => a.loaderPath === importer)
-        if (iAdapter === -1) {
+        const adapter = this.#adaptersByLoaderPath[importer]
+        if (adapter == null) {
             console.error('Adapter not found for filename:', importer)
             return
         }
-        const adapter = this.#adapters[iAdapter]
         if (rest[0] === 'sync') {
             return adapter.getLoaderSync()
         }
@@ -165,7 +160,7 @@ class Plugin {
             return {}
         }
         const filename = relative(this.#projectRoot, id)
-        for (const adapter of this.#adapters) {
+        for (const adapter of Object.values(this.#adapters)) {
             if (adapter.patterns.find(isMatch => isMatch(filename))) {
                 return await adapter.transform(code, filename)
             }

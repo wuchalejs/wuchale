@@ -13,7 +13,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    adapters?: Adapter[]
+    adapters?: {[key: string]: Adapter}
     hmr?: boolean
 }
 
@@ -26,7 +26,7 @@ export const defaultConfig: Config = {
             plural: 'n == 1 ? 0 : 1',
         },
     },
-    adapters: [],
+    adapters: {},
     hmr: true,
     geminiAPIKey: 'env',
 }
