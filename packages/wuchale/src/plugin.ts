@@ -2,12 +2,11 @@
 import { type CompiledFragment } from "./compile.js"
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
-import { AdapterHandler, pluginName, virtualPFLoader, virtualPrefix } from "./handler.js"
+import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {Mode} from './handler.js'
 import { readFile } from "node:fs/promises"
 
 const virtualResolvedPrefix = '\0'
-const importerSep = '-_-_-' // looks like w :D
 
 type HMRClient = {
     send: (event: string, data: CompiledFragment[]) => void
@@ -16,7 +15,7 @@ type HMRClient = {
 type ViteDevServer = {
     ws: {
         send: (event: string, data: CompiledFragment[]) => void,
-        on: (event: string, cb: (msg: {importer: string | null}, client: HMRClient) => void) => void,
+        on: (event: string, cb: (msg: {fileID: string | null}, client: HMRClient) => void) => void,
     }
     moduleGraph: {
         getModuleById: Function,
@@ -43,19 +42,15 @@ class Plugin {
     #adapters: AdapterHandler[] = []
     #loadersBodyByLoader: {[loader: string]: string} = {}
 
-    #perFilePathsToIds: {[file: string]: number} = {}
-    #perFileIdsToPaths: {[id: number]: string} = {}
-
-    transform: { order: 'pre', handler: any }
-
     #init = async (mode: Mode) => {
         this.#config = await getConfig()
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        for (const adapter of this.#config.adapters) {
+        for (const [i, adapter] of this.#config.adapters.entries()) {
             const handler = new AdapterHandler(
                 adapter,
+                i,
                 this.#config,
                 mode,
                 this.#projectRoot,
@@ -65,12 +60,6 @@ class Plugin {
             if (adapter.perFile) {
                 const loaderRel = await readFile(handler.loaderPath)
                 this.#loadersBodyByLoader[resolve(handler.loaderPath)] = loaderRel.toString()
-            }
-        }
-        if (this.#config.hmr) {
-            this.transform = {
-                order: 'pre',
-                handler: this.#transformHandler,
             }
         }
     }
@@ -91,15 +80,17 @@ class Plugin {
     configureServer = (server: ViteDevServer) => {
         this.#server = server
         // initial load
-        for (const adapter of this.#adapters) {
+        for (const [i, adapter] of this.#adapters.entries()) {
             for (const loc of Object.keys(this.#config.locales)) {
-                const event = adapter.virtModEvent(loc)
-                server.ws.on(event, (pl, client) => {
-                    if (pl?.importer) {
-                        client.send(event, adapter.compiledPerFile[loc][pl.importer])
-                    } else {
-                        client.send(event, adapter.compiled[loc])
+                const event = adapter.virtModEvent(loc, null)
+                server.ws.on(event, (payload, client) => {
+                    const eventSend = adapter.virtModEvent(loc, payload.fileID)
+                    if (!this.#config.adapters[i].perFile) {
+                        client.send(eventSend, adapter.compiled[loc])
+                        return
                     }
+                    const compiled = adapter.perFileStateByID[payload.fileID].compiled[loc]
+                    client.send(eventSend, compiled)
                 })
             }
         }
@@ -114,16 +105,12 @@ class Plugin {
             const loc = adapter.transFnamesToLocales[ctx.file]
             await adapter.loadCatalogNCompile(loc)
             if (this.#config.adapters[i].perFile) {
-                for (const file of Object.keys(adapter.compiledPerFile[loc])) {
-                    const pfId = this.#perFilePathsToIds[file]
-                    if (pfId == null) {
-                        continue
-                    }
-                    const eventName = `${adapter.virtModEvent(loc)}.${pfId}`
-                    this.#server.ws.send(eventName, adapter.compiledPerFile[loc][file])
+                for (const [fileID, state] of Object.entries(adapter.perFileStateByID)) {
+                    const eventName = adapter.virtModEvent(loc, fileID)
+                    this.#server.ws.send(eventName, state.compiled[loc])
                 }
             } else {
-                this.#server.ws.send(adapter.virtModEvent(loc), adapter.compiled[loc])
+                this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])
             }
             return
         }
@@ -134,50 +121,24 @@ class Plugin {
             return null
         }
         const relImporter = relative(process.cwd(), importer)
-        if (source !== virtualPFLoader) {
-            return `${virtualResolvedPrefix}${source}?${relImporter}`
-        }
-        for (const [i, adapter] of this.#adapters.entries()) {
-            if (!adapter.patterns.find(isMatch => isMatch(relImporter))) {
-                continue
-            }
-            if (!(relImporter in this.#perFilePathsToIds)) {
-                const id = Object.keys(this.#perFilePathsToIds).length
-                this.#perFilePathsToIds[relImporter] = id
-                this.#perFileIdsToPaths[id] = relImporter
-            }
-            const loaderExt = this.#config.adapters[i].loaderExt
-            const pfId = this.#perFilePathsToIds[relImporter]
-            return `${resolve(adapter.loaderPath)}${importerSep}${pfId}${loaderExt}`
-        }
-        return null
+        return `${virtualResolvedPrefix}${source}?${relImporter}`
     }
 
     load = (id: string) => {
-        const [pfPath, pfImporter] = id.split(importerSep)
-        if (pfPath in this.#loadersBodyByLoader) {
-            return this.#loadersBodyByLoader[pfPath] // same loader for all
-        }
-        let [path, qp1, qp2] = pfPath.split('?')
         const prefix = virtualResolvedPrefix + virtualPrefix
         if (!id.startsWith(prefix)) {
             return null
         }
-        path = path.slice(prefix.length)
+        const [path, importer] = id.slice(prefix.length).split('?')
         const [part, ...rest] = path.split('/')
         if (part === 'catalog') {
-            const importer = qp2
-            const iAdapter = this.#adapters.findIndex(a => a.loaderPath === importer)
-            if (iAdapter === -1) {
-                console.error('Adapter not found for:', importer)
+            const [adapterKey, fileID, locale] = rest
+            const adapter = this.#adapters[adapterKey]
+            if (adapter == null) {
+                console.error('Adapter not found for key:', adapterKey)
                 return null
             }
-            const perFileId = pfImporter?.slice(0, -this.#config.adapters[iAdapter].loaderExt.length)
-            const destImport = this.#perFileIdsToPaths[perFileId]
-            const adapter = this.#adapters[iAdapter]
-            const locale = rest[0]
-            const eventName = `${adapter.virtModEvent(locale)}.${perFileId}`
-            return adapter.loadDataModule(locale, eventName, destImport)
+            return adapter.loadDataModule(locale, fileID)
         }
         if (part === 'locales') {
             return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`
@@ -186,7 +147,6 @@ class Plugin {
             console.error('Unknown virtual request:', id)
             return null
         }
-        const importer = qp1
         // data loader
         const iAdapter = this.#adapters.findIndex(a => a.loaderPath === importer)
         if (iAdapter === -1) {
@@ -194,14 +154,16 @@ class Plugin {
             return
         }
         const adapter = this.#adapters[iAdapter]
-        const perFileId = pfImporter?.slice(0, -this.#config.adapters[iAdapter].loaderExt.length)
         if (rest[0] === 'sync') {
-            return adapter.getLoaderSync(perFileId)
+            return adapter.getLoaderSync()
         }
-        return adapter.getLoader(perFileId)
+        return adapter.getLoader()
     }
 
     #transformHandler = async (code: string, id: string) => {
+        if (!this.#config.hmr) {
+            return {}
+        }
         const filename = relative(this.#projectRoot, id)
         for (const adapter of this.#adapters) {
             if (adapter.patterns.find(isMatch => isMatch(filename))) {
@@ -210,6 +172,8 @@ class Plugin {
         }
         return {}
     }
+
+    transform = { order: 'pre', handler: this.#transformHandler }
 }
 
 export default () => new Plugin()

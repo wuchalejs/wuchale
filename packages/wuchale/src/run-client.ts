@@ -1,55 +1,89 @@
 import { type CatalogModule, Runtime } from './runtime.js'
 
-type LoaderFunc = (locale: string) => CatalogModule | Promise<CatalogModule>
-type LoaderState = {
-    current: Runtime
-}
+type LoaderFunc = (fileID: string, locale: string) => CatalogModule | Promise<CatalogModule>
+type LoaderState = {[fileID: string]: {catalog: Runtime, load: LoaderFunc}}
+
+type LoadedRTByFile = {[fileID: string]: Runtime}
 
 /** per-group states synchronizer */
 export class PerFileAsyncReg {
 
     locale: string | null = null
-    states: {[fileID: string]: {state: LoaderState, load: LoaderFunc}} = {}
+    defaultState: LoaderState = {}
 
-    async registerLoader(fileID: string, state: LoaderState, load: LoaderFunc) {
-        if (fileID in this.states) {
-            state.current = this.states[fileID].state.current
+    async registerLoader(fileID: string, load: LoaderFunc, state?: LoaderState) {
+        if (!state) {
+            state = this.defaultState
+        } else {
+            this.defaultState = state
+        }
+        if (fileID in state) {
             return
         }
-        this.states[fileID] = {state, load}
-        if (!this.locale) {
+        state[fileID] = {catalog: new Runtime(), load}
+        if (this.locale) {
+            state[fileID].catalog = new Runtime(await load(fileID, this.locale))
             return
         }
-        state.current = new Runtime(await load(this.locale))
     }
 
-    async setLocale(locale: string) {
-        for (const statesVal of Object.values(this.states)) {
-            statesVal.state.current = new Runtime(await statesVal.load(locale))
+    async setLocale(locale: string): Promise<LoadedRTByFile> {
+        const data: LoadedRTByFile = {}
+        const promises = []
+        const entries = Object.entries(this.defaultState)
+        for (const [fileID, statesVal] of entries) {
+            promises.push(statesVal.load(fileID, locale))
+        }
+        for (const [i, loaded] of (await Promise.all(promises)).entries()) {
+            const [fileID, statesVal] = entries[i]
+            statesVal.catalog = new Runtime(loaded)
+            data[fileID] = statesVal.catalog
         }
         this.locale = locale
+        return data
     }
 }
 
 /** Global catalog states registry */
 const states: {[key: string]: PerFileAsyncReg} = {}
 
-/** Should be called inside your loader file.
+/**
  * - `key` is a unique identifier for the group
- * - `fileID` MUST be imported from the loader virtual modules if you use per file loading. If not, it can be anything.
+ * - `fileIDs` and `load` MUST be imported from the loader virtual modules.
 */
-export function registerLoader(key: string, fileID: string, state: LoaderState, load: LoaderFunc): () => Runtime {
+export function registerLoader(key: string, fileIDs: string[], load: LoaderFunc, state?: LoaderState): (fileID: string) => Runtime {
     if (!(key in states)) {
         states[key] = new PerFileAsyncReg()
     }
-    states[key].registerLoader(fileID, state, load)
-    return () => states[key].states[fileID].state.current
+    for (const id of fileIDs) {
+        states[key].registerLoader(id, load, state)
+    }
+    return fileID => state[fileID].catalog ?? new Runtime()
 }
 
 /** Can be called anywhere you want to set the locale */
-export async function setLocale(locale: string, key?: string) {
+export async function setLocale(locale: string, key?: string): Promise<LoadedRTByFile> {
+    const data: LoadedRTByFile = {}
+    let promises: Promise<LoadedRTByFile>[]
     if (key) {
-        return await states[key]?.setLocale(locale)
+        promises = [states[key].setLocale(locale)]
+    } else {
+        promises = Object.values(states).map(s => s.setLocale(locale))
     }
-    await Promise.all(Object.values(states).map(s => s.setLocale(locale)))
+    // merge into one object
+    for (const set of await Promise.all(promises)) {
+        Object.assign(data, set)
+    }
+    return data
+}
+
+/** No-side effect way to load catalogs. Can be used for multiple file IDs. */
+export async function loadCatalogs(locale: string, fileIDs: string[], loadCatalog: LoaderFunc): Promise<LoadedRTByFile> {
+    const data: LoadedRTByFile = {}
+    const promises = fileIDs.map(id => loadCatalog(id, locale))
+    // merge into one object
+    for (const [i, loaded] of (await Promise.all(promises)).entries()) {
+        data[fileIDs[i]] = new Runtime(loaded)
+    }
+    return data
 }

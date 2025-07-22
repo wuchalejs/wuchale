@@ -399,7 +399,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transform = (loaderPath: string): TransformOutput => {
+    transform = (loaderPath: string, fileID: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -414,9 +414,9 @@ export class SvelteTransformer extends Transformer {
         }
         const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
         const importStmt = `
-            import _loader_ from "${loaderPath}"
+            import _wload_ from "${loaderPath}"
             ${ast.type === 'Root' ? importComponent : ''}
-            const ${runtimeConst} = $derived(_loader_())
+            const ${runtimeConst} = $derived(_wload_('${fileID}'))
         `
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, importStmt + '\n')
@@ -435,11 +435,11 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = (eventName, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = (fileID, eventSend, eventReceive, compiled, plural) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     const data = new ReactiveArray(...${compiled})
-    ${proxyModuleHotUpdate(eventName)}
+    ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
     export default data
 `
 
@@ -454,8 +454,8 @@ const defaultArgs: AdapterArgs = {
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, loaderPath) => {
-            return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
+        transform: (content, filename, index, loaderPath, fileID) => {
+            return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
         },
         files,
         catalog,

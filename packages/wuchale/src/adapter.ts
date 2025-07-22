@@ -99,9 +99,9 @@ export type GlobConf = string | {
     ignore: string[],
 }
 
-export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string) => TransformOutput
+export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string, fileID: string) => TransformOutput
 
-export type ProxyModuleFunc = (eventName: string, compiled: string, plural: string) => string
+export type ProxyModuleFunc = (fileID: string | null, eventSend: string, eventReceive: string, compiled: string, plural: string) => string
 
 type AdapterPassThruOpts = {
     files: GlobConf[]

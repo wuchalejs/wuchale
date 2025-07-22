@@ -13,7 +13,6 @@ import { type ConfigPartial } from "./config.js"
 
 export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`
-export const virtualPFLoader = `${virtualPrefix}per-file-loader`
 
 interface LoadedPO {
     catalog: Catalog,
@@ -69,9 +68,16 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
 
 export type Mode = 'dev' | 'prod' | 'extract' | 'test'
 type CompiledItems = (CompiledFragment | number)[]
+type CompiledCatalog = { [loc: string]: CompiledItems }
+type PerFileState = {
+    id: string,
+    compiled: CompiledCatalog,
+    indexTracker: IndexTracker,
+}
 
 export class AdapterHandler {
 
+    key: string
     loaderPath: string
 
     #config: ConfigPartial
@@ -82,8 +88,10 @@ export class AdapterHandler {
     #adapter: Adapter
 
     catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
-    compiled: { [loc: string]: CompiledItems } = {}
-    compiledPerFile: {[loc: string]: {[filename: string]: CompiledItems}} = {}
+    compiled: CompiledCatalog = {}
+
+    perFileState: {[filename: string]: PerFileState} = {}
+    perFileStateByID: {[id: string]: PerFileState} = {}
 
     #catalogsFname: { [loc: string]: string } = {}
     transFnamesToLocales: { [key: string]: string } = {}
@@ -92,11 +100,11 @@ export class AdapterHandler {
 
     #mode: Mode
     #indexTracker: IndexTracker = new IndexTracker()
-    #indexTrackerPerFile: {[filename: string]: IndexTracker} = {}
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, config: ConfigPartial, mode: Mode, projectRoot: string) {
+    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, projectRoot: string) {
         this.#adapter = adapter
+        this.key = key.toString()
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
@@ -123,25 +131,48 @@ export class AdapterHandler {
     }
 
     /** Get both catalog virtual module names AND HMR event names */
-    virtModEvent = (locale: string) => `${virtualPrefix}catalog/${locale}`
+    virtModEvent = (locale: string, fileID: string | null) => `${virtualPrefix}catalog/${this.key}/${fileID ?? this.key}/${locale}`
 
-    getLoader(pfId?: string) {
-        const imports = this.#locales.map(loc => `${loc}: () => import('${this.virtModEvent(loc)}')`)
+    getLoader() {
+        let fileIDs = [this.key]
+        if (this.#adapter.perFile) {
+            fileIDs = Object.values(this.perFileState).filter(f => f.compiled[this.#config.sourceLocale].length > 0).map(f => f.id)
+        }
+        const imports = []
+        for (const id of fileIDs) {
+            const importsByLocale = []
+            for (const loc of this.#locales) {
+                importsByLocale.push(`${loc}: () => import('${this.virtModEvent(loc, id)}')`)
+            }
+            imports.push(`${id}: {${importsByLocale.join(',')}}`)
+        }
         return `
             const catalogs = {${imports.join(',')}}
-            export const fileID = '${pfId}'
-            export const loadCatalog = locale => catalogs[locale]()
+            export const fileIDs = ['${fileIDs.join("', '")}']
+            export const loadCatalog = (fileID, locale) => catalogs[fileID][locale]()
         `
     }
 
-    getLoaderSync(pfId?: string) {
-        const importsSync = this.#locales.map(loc => `import * as ${loc} from '${this.virtModEvent(loc)}'`)
-        const object = this.#locales.map(loc => `${loc}: ${loc}`)
+    getLoaderSync() {
+        let fileIDs = [this.key]
+        if (this.#adapter.perFile) {
+            fileIDs = Object.values(this.perFileState).filter(f => f.compiled[this.#config.sourceLocale].length > 0).map(f => f.id)
+        }
+        const imports = []
+        const object = []
+        for (const id of fileIDs) {
+            const importedByLocale = []
+            for (const loc of this.#locales) {
+                imports.push(`import * as ${loc}Of${id} from '${this.virtModEvent(loc, id)}'`)
+                importedByLocale.push(this.#locales.map(loc => `${loc}: ${loc}Of${id}`))
+            }
+            object.push(`${id}: {${importedByLocale.join(',')}}`)
+        }
         return `
-            ${importsSync.join('\n')}
+            ${imports.join('\n')}
             const catalogs = {${object.join(',')}}
-            export const fileID = '${pfId}'
-            export const loadCatalog = locale => catalogs[locale]
+            export const fileIDs = ['${fileIDs.join("', '")}']
+            export const loadCatalog = (fileID, locale) => catalogs[fileID][locale]
         `
     }
 
@@ -238,15 +269,17 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string, devEvent: string, perFileImporter?: string) => {
+    loadDataModule = (locale: string, fileID: string) => {
         let compiledItems = this.compiled[locale]
         if (this.#adapter.perFile) {
-            compiledItems = this.compiledPerFile[locale][perFileImporter] ?? []
+            compiledItems = this.perFileStateByID[fileID]?.compiled?.[locale] ?? []
         }
         const compiled = JSON.stringify(compiledItems)
         const plural = `n => ${this.#config.locales[locale].plural}`
         if (this.#mode === 'dev') {
-            return this.#adapter.proxyModuleDev(devEvent, compiled, plural)
+            const eventSend = this.virtModEvent(locale, fileID)
+            const eventReceive = this.virtModEvent(locale, null)
+            return this.#adapter.proxyModuleDev(fileID, eventSend, eventReceive, compiled, plural)
         }
         return `
             export const plural = ${plural}
@@ -254,18 +287,22 @@ export class AdapterHandler {
         `
     }
 
-    #getIndexTrackerPerFile(filename: string): IndexTracker {
-        let indexTracker = this.#indexTrackerPerFile[filename]
-        if (indexTracker == null) {
-            indexTracker = new IndexTracker()
-            this.#indexTrackerPerFile[filename] = indexTracker
+    #getStatePerFile(filename: string): PerFileState {
+        let state = this.perFileState[filename]
+        if (state == null) {
+            state = {
+                id: Object.keys(this.perFileState).length.toString(),
+                compiled: Object.fromEntries(this.#locales.map(loc => [loc, []])),
+                indexTracker: new IndexTracker(),
+            }
+            this.perFileState[filename] = state
+            this.perFileStateByID[state.id] = state
         }
-        return indexTracker
+        return state
     }
 
     compile = (loc: string) => {
         this.compiled[loc] = []
-        this.compiledPerFile[loc] = {}
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
@@ -285,11 +322,8 @@ export class AdapterHandler {
                 continue
             }
             for (const fname of poItem.references) {
-                if (!(fname in this.compiledPerFile[loc])) {
-                    this.compiledPerFile[loc][fname] = []
-                }
-                const index = this.#getIndexTrackerPerFile(fname).get(key)
-                this.compiledPerFile[loc][fname][index] = compiled
+                const state = this.#getStatePerFile(fname)
+                state.compiled[loc][state.indexTracker.get(key)] = compiled
             }
         }
     }
@@ -317,17 +351,17 @@ export class AdapterHandler {
 
     transform = async (content: string, filename: string) => {
         let indexTracker = this.#indexTracker
-        let loaderPath: string
+        let fileID = this.key
         if (this.#adapter.perFile) {
-            loaderPath = virtualPFLoader
-            indexTracker = this.#getIndexTrackerPerFile(filename)
-        } else {
-            loaderPath = relative(dirname(filename), this.loaderPath)
-            if (!loaderPath.startsWith('.')) {
-                loaderPath = `./${loaderPath}`
-            }
+            const state = this.#getStatePerFile(filename)
+            indexTracker = state.indexTracker
+            fileID = state.id
         }
-        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPath)
+        let loaderPath = relative(dirname(filename), this.loaderPath)
+        if (!loaderPath.startsWith('.')) {
+            loaderPath = `./${loaderPath}`
+        }
+        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPath, fileID)
         for (const loc of this.#locales) {
             // clear references to this file first
             let previousReferences: {[key: string]: number} = {}

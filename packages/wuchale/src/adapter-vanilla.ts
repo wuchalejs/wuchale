@@ -405,14 +405,14 @@ export class Transformer {
         }
     }
 
-    transform = (loaderPath: string): TransformOutput => {
+    transform = (loaderPath: string, fileID: string): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
             const importModule = `
-                import _loader_ from "${loaderPath}"
-                const ${runtimeConst} = _loader_()
+                import _wload_ from "${loaderPath}"
+                const ${runtimeConst} = _wload_('${fileID}')
             `
             this.mstr.appendRight(0, importModule)
         }
@@ -420,23 +420,23 @@ export class Transformer {
     }
 }
 
-export const proxyModuleHotUpdate = (eventName: string, targetVar = 'data') => `
+export const proxyModuleHotUpdate = (fileID: string | null, eventSend: string, eventReceive: string, targetVar = 'data') => `
     if (import.meta.hot) {
-        import.meta.hot.on('${eventName}', newData => {
+        import.meta.hot.on('${eventSend}', newData => {
             for (let i = 0; i < newData.length; i++) {
                 if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
                     ${targetVar}[i] = newData[i]
                 }
             }
         })
-        import.meta.hot.send('${eventName}')
+        import.meta.hot.send('${eventReceive}'${fileID == null ? '' : `, {fileID: '${fileID}'}`})
     }
 `
 
-const proxyModuleDev: ProxyModuleFunc = (eventName, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = (fileID, eventSend, eventReceive, compiled, plural) => `
     export const plural = ${plural}
     const data = ${compiled}
-    ${proxyModuleHotUpdate(eventName)}
+    ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
     export default data
 `
 
@@ -451,8 +451,8 @@ const defaultArgs: AdapterArgs = {
 export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
     const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, loaderPath) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath)
+        transform: (content, filename, index, loaderPath, fileID) => {
+            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
         },
         files,
         catalog,
