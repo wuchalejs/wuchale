@@ -1,28 +1,28 @@
 <script>
-    import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+    import _w_load_ from "./locales/loader.svelte.js"
     import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-    const wuchaleRuntime = $derived(_wrs_("svelte"))
+    const _w_runtime_ = $derived(_w_load_('svelte'))
 
     const normalParam = 44;
 
     function someFunction(a, b, c) {
-        const value = wuchaleRuntime.t(9)
-        const next = wuchaleRuntime.t(10, [a, b])
+        const value = _w_runtime_.t(9)
+        const next = _w_runtime_.t(10, [a, b])
         return next + c + value
     }
     async function someFunctionAsync(name) {
         const json = {}
-        json.name = name ?? wuchaleRuntime.t(11)
+        json.name = name ?? _w_runtime_.t(11)
         return json
     }
     export const arrow = (msg) => {
-        alert(wuchaleRuntime.t(12, [msg]))
+        alert(_w_runtime_.t(12, [msg]))
     }
     const collection = { members: [1] };
     const someJSEven = 34;
     const obj = $derived({
         property: {
-            ["non-extracted text"]: { [wuchaleRuntime.t(1)]: 42 },
+            ["non-extracted text"]: { [_w_runtime_.t(1)]: 42 },
         },
     });
     const p = {
@@ -30,41 +30,41 @@
         name: 'foo',
     }
     const derive = $derived.by(() => {
-        const f = obj.property[wuchaleRuntime.t(13)]
+        const f = obj.property[_w_runtime_.t(13)]
         if (!f) return
         let e = {}
         if (f == 'something else') {
-            let d = wuchaleRuntime.t(14)
-            d = d + wuchaleRuntime.t(15)
+            let d = _w_runtime_.t(14)
+            d = d + _w_runtime_.t(15)
             return d
-        } else if (f == wuchaleRuntime.t(16)) {
+        } else if (f == _w_runtime_.t(16)) {
             return f
         } else {
             for (const q of [1,2,3]) {
-                e[`${q}/${collection.members[0]}`] = {...p, name: wuchaleRuntime.t(17)}
+                e[`${q}/${collection.members[0]}`] = {...p, name: _w_runtime_.t(17)}
             }
-            e.default = [f, wuchaleRuntime.t(18), e]
+            e.default = [f, _w_runtime_.t(18), e]
         }
         console.log("Don't translate this.")
         $inspect('Not this either')
         return {
-            [wuchaleRuntime.t(18)]: f,
-            butNotThis: wuchaleRuntime.t(19),
+            [_w_runtime_.t(18)]: f,
+            butNotThis: _w_runtime_.t(19),
             e
         }
     })
 </script>
 
-<div>{someFunction('foo', wuchaleRuntime.t(0))}</div>
+<div>{someFunction('foo', _w_runtime_.t(0))}</div>
 
 <p>
     {#snippet wuchaleSnippet4(ctx)}
-        <i class="not-extracted" title={wuchaleRuntime.t(2)}
+        <i class="not-extracted" title={_w_runtime_.t(2)}
         >
             {#snippet wuchaleSnippet1(ctx)}
                 <b>
                     {#snippet wuchaleSnippet0(ctx)}
-                        <u>{wuchaleRuntime.tx(ctx)}</u>
+                        <u>{_w_runtime_.tx(ctx)}</u>
                     {/snippet}
                     <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} nest args={[`with ${someJSEven}` + "foo"]} />
                 </b>
@@ -74,22 +74,22 @@
         >
     {/snippet}<!-- foo bar -->
     {#snippet wuchaleSnippet5()}
-        {#if someFunction(wuchaleRuntime.t(3), normalParam, [/* @wc-include */ wuchaleRuntime.t(4)])}
+        {#if someFunction(_w_runtime_.t(3), normalParam, [/* @wc-include */ _w_runtime_.t(4)])}
             {#snippet wuchaleSnippet3()}
                 {#each collection.members as member}
                     <!-- What not -->
                     {#snippet wuchaleSnippet2()}
                         {#await someFunctionAsync(derive) then json}
-                            <b>{wuchaleRuntime.t(5, [json.title])}</b>
+                            <b>{_w_runtime_.t(5, [json.title])}</b>
                         {/await}
                     {/snippet}
-                    <WuchaleTrans tags={[wuchaleSnippet2]} ctx={wuchaleRuntime.cx(6)} args={[member]} />
+                    <WuchaleTrans tags={[wuchaleSnippet2]} ctx={_w_runtime_.cx(6)} args={[member]} />
                 {/each}
             {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet3]} ctx={wuchaleRuntime.cx(7)} />
+            <WuchaleTrans tags={[wuchaleSnippet3]} ctx={_w_runtime_.cx(7)} />
         {/if}
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet4, wuchaleSnippet5]} ctx={wuchaleRuntime.cx(8)} args={[obj.property["non-extracted text"][wuchaleRuntime.t(1)]]} />
+    <WuchaleTrans tags={[wuchaleSnippet4, wuchaleSnippet5]} ctx={_w_runtime_.cx(8)} args={[obj.property["non-extracted text"][_w_runtime_.t(1)]]} />
 </p>
 
 <!-- @wc-ignore -->

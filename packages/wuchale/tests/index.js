@@ -1,9 +1,10 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
+import { Runtime } from 'wuchale/runtime'
+import { registerLoader, runWithLocale, _w_rt_ } from 'wuchale/run-server'
 import { compileTranslation } from '../dist/src/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
-import { setCatalog, _wre_, initRegistry } from '../dist/src/runtime.js'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -33,14 +34,14 @@ test('Inside function definitions', async function(t) {
         }
         const bar: (a: string) => string = (a) => \`Hello \${a\}\`
     `, typescript`
-        import { _wre_ } from "wuchale/runtime"
-        const wuchaleRuntime = _wre_("basic")
+        import _wload_ from "./locales/loader.js"
+        const _w_runtime_ = _wload_('basic')
 
         function foo(): string {
-            const varName = wuchaleRuntime.t(0)
+            const varName = _w_runtime_.t(0)
             return varName
         }
-        const bar: (a: string) => string = (a) => wuchaleRuntime.t(1, [a])
+        const bar: (a: string) => string = (a) => _w_runtime_.t(1, [a])
     `, `
     msgid ""
     msgstr ""
@@ -56,9 +57,8 @@ test('Inside function definitions', async function(t) {
 })
 
 const testCatalog = {
-    key: 'test',
-    pluralsRule: n => n == 1 ? 0 : 1,
-    default: [
+    plural: (/** @type {number} */ n) => n == 1 ? 0 : 1,
+    data: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // compound message
         ['One item', '# items'], // plurals
@@ -67,19 +67,21 @@ const testCatalog = {
 }
 
 test('Runtime', t => {
-    setCatalog(testCatalog)
-    t.assert.equal(_wre_('test').t(0), 'Hello')
-    t.assert.equal(_wre_('test').t(1, ['User']), 'Hello User!')
-    t.assert.deepEqual(_wre_('test').tp(2), ['One item', '# items'])
-    t.assert.equal(_wre_('test').t(42), '[i18n-404:42]')
-    t.assert.equal(_wre_('test').t(3), '[i18n-400:3(400)]')
+    // @ts-expect-error
+    const rt = new Runtime(testCatalog)
+    t.assert.equal(rt.t(0), 'Hello')
+    t.assert.equal(rt.t(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
+    t.assert.equal(rt.t(42), '[i18n-404:42]')
+    t.assert.equal(rt.t(3), '[i18n-400:3(400)]')
 })
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
-    const runWithCatalog = await initRegistry()
-    const msg = runWithCatalog(testCatalog, () => {
-        return _wre_().t(1, ['server user'])
+    // @ts-expect-error
+    registerLoader('main', _ => testCatalog)
+    const msg = runWithLocale('en', () => {
+        return _w_rt_('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })

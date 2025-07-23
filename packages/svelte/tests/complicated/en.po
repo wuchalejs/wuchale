@@ -6,6 +6,7 @@ msgid "Bar"
 msgstr "Bar"
 
 #: src/test.svelte
+#: src/test.svelte
 msgid "Extracted text"
 msgstr "Extracted text"
 
@@ -73,6 +74,7 @@ msgstr "Check extracted"
 msgid "That"
 msgstr "That"
 
+#: src/test.svelte
 #: src/test.svelte
 msgid "And this"
 msgstr "And this"

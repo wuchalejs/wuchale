@@ -4,6 +4,8 @@
     "include": [],
     "references": [
         { "path": "./packages/wuchale" },
-        { "path": "./packages/svelte" }
+        { "path": "./packages/wuchale/tests" },
+        { "path": "./packages/svelte" },
+        { "path": "./packages/svelte/tests" }
     ]
 }

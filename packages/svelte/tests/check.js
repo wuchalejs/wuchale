@@ -1,5 +1,6 @@
 // $$ node %f
 
+// @ts-ignore
 import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
 import { adapter } from '@wuchale/svelte'
 

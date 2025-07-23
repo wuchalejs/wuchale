@@ -1,6 +1,5 @@
 // $$ node %f
 import { AdapterHandler } from 'wuchale/handler'
-import { IndexTracker } from 'wuchale/adapter'
 import { defaultConfig } from 'wuchale/config'
 import { adapter } from 'wuchale/adapter-vanilla'
 import { readFile } from 'fs/promises'
@@ -8,26 +7,26 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import PO from 'pofile'
 
-export const absDir = fileurl => dirname(fileURLToPath(fileurl))
+export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
 
 /**
  * @param {string} content
  * @param {import("wuchale/adapter").Adapter} adapter
  * @param {string} key
  */
-export async function getOutput(adapter, key, content, filename = 'src/test.svelte') {
+async function getOutput(adapter, key, content, filename = 'src/test.svelte') {
     const handler = new AdapterHandler(
         adapter,
         key,
         defaultConfig,
-        new IndexTracker(),
         'test',
         process.cwd(),
     )
     await handler.init()
     const { code } = await handler.transform(content, filename)
+    // @ts-ignore
     const { catalogs, compiled } = handler
-    return { code, catalogs, compiled }
+    return { code, catalogs: catalogs, compiled }
 }
 
 /**
@@ -51,7 +50,7 @@ function trimLines(str) {
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {string[] | string[][]} expectedCompiled
+ * @param {(string | number | (string | number)[])[]} expectedCompiled
  * @param {import("wuchale/adapter").Adapter} adapter
  * @param {string} key
  */
@@ -63,7 +62,7 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
         po.items.push(catalogs.en[key])
     }
     t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
-    t.assert.deepEqual(compiled.en, expectedCompiled)
+    t.assert.deepEqual(compiled.en ?? [], expectedCompiled)
 }
 
 /**
@@ -87,7 +86,7 @@ const basic = adapter()
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {string[] | string[][]} expectedCompiled
+ * @param {(string | number | (string | number)[])[]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
     await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled)

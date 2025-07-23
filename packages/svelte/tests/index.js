@@ -6,11 +6,11 @@ import { testContent, testDir, svelte } from './check.js'
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+            import _w_load_ from "./locales/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = $derived(_wrs_("svelte"))
+            const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
-        {wuchaleRuntime.t(0)}
+        {_w_runtime_.t(0)}
     `, `
     msgid ""
     msgstr ""
@@ -29,12 +29,12 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+            import _w_load_ from "./locales/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = $derived(_wrs_("svelte"))
+            const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
         <p>
-            {wuchaleRuntime.t(0)}
+            {_w_runtime_.t(0)}
         </p>
     `, `
         msgid ""
@@ -62,9 +62,9 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+            import _w_load_ from "./locales/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-            const wuchaleRuntime = $derived(_wrs_("svelte"))
+            const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -72,7 +72,7 @@ test('Ignore and include', async function(t) {
             <!-- @wc-ignore -->
             <span>Ignore this</span>
             <!-- @wc-include -->
-            {wuchaleRuntime.t(0)}
+            {_w_runtime_.t(0)}
         </div>
     `, `
     msgid ""
@@ -96,16 +96,16 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-            import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+            import _w_load_ from "./locales/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-                const wuchaleRuntime = $derived(_wrs_("svelte"))
+                const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
-            <p>{/* @wc-context: music */ wuchaleRuntime.t(0)}</p>
-            <p>{/* @wc-context: programming */ wuchaleRuntime.t(1)}</p>
+            <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
+            <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
             <!-- @wc-context: door -->
-            <p>{wuchaleRuntime.t(2)}</p>
+            <p>{_w_runtime_.t(2)}</p>
             <!-- @wc-context: distance -->
-            <p>{wuchaleRuntime.t(3)}</p>
+            <p>{_w_runtime_.t(3)}</p>
     `, `
         msgid ""
         msgstr ""
@@ -137,11 +137,11 @@ test('Plural', async function(t) {
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
         svelte`
             <script>
-                import { _wrs_ } from "@wuchale/svelte/runtime.svelte.js"
+                import _w_load_ from "./locales/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
-                const wuchaleRuntime = $derived(_wrs_("svelte"))
+                const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
-            <p>{plural(items, wuchaleRuntime.tp(0), wuchaleRuntime.plr())}</p>
+            <p>{plural(items, _w_runtime_.tp(0), _w_runtime_.plr())}</p>
     `, `
     msgid ""
     msgstr ""
