@@ -1,8 +1,8 @@
 // $$ cd ../.. && npm run test
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
-import {dirname, relative} from 'node:path'
+import { dirname, relative } from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
-import { readFile, copyFile } from 'node:fs/promises'
+import { readFile, copyFile, mkdir } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -90,8 +90,8 @@ export class AdapterHandler {
     catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
     compiled: CompiledCatalog = {}
 
-    perFileState: {[filename: string]: PerFileState} = {}
-    perFileStateByID: {[id: string]: PerFileState} = {}
+    perFileState: { [filename: string]: PerFileState } = {}
+    perFileStateByID: { [id: string]: PerFileState } = {}
 
     #catalogsFname: { [loc: string]: string } = {}
     transFnamesToLocales: { [key: string]: string } = {}
@@ -127,6 +127,7 @@ export class AdapterHandler {
                 throw err
             }
         }
+        await mkdir(dirname(this.loaderPath), { recursive: true })
         if (this.#mode !== 'test') {
             await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
         }
@@ -277,7 +278,7 @@ export class AdapterHandler {
         if (this.#mode === 'dev') {
             const eventSend = this.virtModEvent(locale, fileID)
             const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.proxyModuleDev({fileID, eventSend, eventReceive, compiled, plural})
+            return this.#adapter.proxyModuleDev({ fileID, eventSend, eventReceive, compiled, plural })
         }
         return `
             export const plural = ${plural}
@@ -374,7 +375,7 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        const {txts, ...output} = this.#adapter.transform({
+        const { txts, ...output } = this.#adapter.transform({
             content,
             filename,
             index: indexTracker,
@@ -385,7 +386,7 @@ export class AdapterHandler {
         })
         for (const loc of this.#locales) {
             // clear references to this file first
-            let previousReferences: {[key: string]: number} = {}
+            let previousReferences: { [key: string]: number } = {}
             let fewerRefs = false
             for (const item of Object.values(this.catalogs[loc])) {
                 if (!item.references.includes(filename)) {
