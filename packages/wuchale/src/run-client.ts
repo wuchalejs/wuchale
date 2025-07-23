@@ -27,7 +27,7 @@ export class PerFileAsyncReg {
         }
     }
 
-    async setLocale(locale: string): Promise<LoadedRTByFile> {
+    async loadLocale(locale: string): Promise<LoadedRTByFile> {
         const data: LoadedRTByFile = {}
         const promises = []
         const entries = Object.entries(this.defaultState)
@@ -61,14 +61,17 @@ export function registerLoader(key: string, fileIDs: string[], load: LoaderFunc,
     return fileID => state[fileID].catalog ?? new Runtime()
 }
 
-/** Can be called anywhere you want to set the locale */
-export async function setLocale(locale: string, key?: string): Promise<LoadedRTByFile> {
+/** 
+ * Loads catalogs using registered loaders.
+ * Can be called anywhere you want to set the locale.
+*/
+export async function loadLocale(locale: string, key?: string): Promise<LoadedRTByFile> {
     const data: LoadedRTByFile = {}
     let promises: Promise<LoadedRTByFile>[]
     if (key) {
-        promises = [states[key].setLocale(locale)]
+        promises = [states[key].loadLocale(locale)]
     } else {
-        promises = Object.values(states).map(s => s.setLocale(locale))
+        promises = Object.values(states).map(s => s.loadLocale(locale))
     }
     // merge into one object
     for (const set of await Promise.all(promises)) {
