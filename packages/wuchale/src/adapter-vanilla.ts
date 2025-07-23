@@ -435,9 +435,8 @@ export const proxyModuleHotUpdate = (fileID: string | null, eventSend: string, e
 
 const proxyModuleDev: ProxyModuleFunc = (fileID, eventSend, eventReceive, compiled, plural) => `
     export const plural = ${plural}
-    const data = ${compiled}
+    export const data = ${compiled}
     ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
-    export default data
 `
 
 const defaultArgs: AdapterArgs = {

@@ -3,7 +3,7 @@ type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
 export type CatalogModule = {
-    default: CompiledData
+    data: CompiledData
     plural: PluralsRule
 }
 
@@ -16,7 +16,7 @@ export class Runtime {
         if (!module) { // for fallback
             return
         }
-        this.data = module.default
+        this.data = module.data
         this.pr = module.plural ?? this.pr
     }
 

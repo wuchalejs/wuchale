@@ -285,7 +285,7 @@ export class AdapterHandler {
         }
         return `
             export const plural = ${plural}
-            export default ${compiled}
+            export const data = ${compiled}
         `
     }
 
