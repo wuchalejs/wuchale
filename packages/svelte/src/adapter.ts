@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultHeuristic, NestText } from 'wuchale/adapter'
+import { defaultGenerateID, defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
 import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
 import type {
@@ -464,10 +464,11 @@ const defaultArgs: SvelteAdapterArgs = {
     heuristic: svelteHeuristic,
     perFile: false,
     perFileLoad: false,
+    generateID: defaultGenerateID,
 }
 
 export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, perFile, perFileLoad } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, perFile, perFileLoad, generateID, } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({content, filename, index, loaderPath, key, locales, fileID}) => {
             const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
@@ -476,6 +477,7 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         files,
         catalog,
         perFile,
+        generateID,
         loaderExt: '.svelte.js',
         proxyModuleDev,
         loaderTemplateFile: new URL('../../src/loader.svelte.js', import.meta.url).pathname,

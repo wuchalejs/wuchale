@@ -48,6 +48,10 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
     return defaultHeuristic(text, details) && details.topLevel === 'function'
 }
 
+export const defaultGenerateID = (filename: string) => {
+    return filename.replace('..', '__').replace(/[^a-zA-Z0-9-_]+/g, '_')
+}
+
 export class NestText {
 
     text: string[] // array for plurals
@@ -125,6 +129,7 @@ type AdapterPassThruOpts = {
     files: GlobConf[]
     catalog: string
     perFile: boolean
+    generateID: (filename: string) => string
 }
 
 export type Adapter = AdapterPassThruOpts & {

@@ -292,13 +292,18 @@ export class AdapterHandler {
     #getStatePerFile(filename: string): PerFileState {
         let state = this.perFileState[filename]
         if (state == null) {
-            state = {
-                id: Object.keys(this.perFileState).length.toString(),
-                compiled: Object.fromEntries(this.#locales.map(loc => [loc, []])),
-                indexTracker: new IndexTracker(),
+            const id = this.#adapter.generateID(filename)
+            if (id in this.perFileStateByID) {
+                state = this.perFileStateByID[id]
+            } else {
+                state = {
+                    id,
+                    compiled: Object.fromEntries(this.#locales.map(loc => [loc, []])),
+                    indexTracker: new IndexTracker(),
+                }
+                this.perFileStateByID[id] = state
             }
-            this.perFileState[filename] = state
-            this.perFileStateByID[state.id] = state
+            this.perFileState[filename] = this.perFileStateByID[id]
         }
         return state
     }

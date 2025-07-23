@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristicFuncOnly, NestText } from './adapter.js'
+import { defaultGenerateID, defaultHeuristicFuncOnly, NestText } from './adapter.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
@@ -444,11 +444,12 @@ const defaultArgs: AdapterArgs = {
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
+    generateID: defaultGenerateID,
     perFile: false,
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, perFile, generateID } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({content, filename, index, loaderPath, fileID}) => {
             return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
@@ -456,6 +457,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         files,
         catalog,
         perFile,
+        generateID,
         loaderExt: '.js',
         proxyModuleDev,
         loaderTemplateFile: new URL('../../src/loader.default.js', import.meta.url).pathname,
