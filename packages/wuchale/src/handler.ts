@@ -336,13 +336,21 @@ export class AdapterHandler {
     }
 
     #globOptsToArgs = (pattern: GlobConf): [string[], { ignore: string[] } | undefined] => {
-        let patt: string[]
-        let options: { ignore: string[] }
+        let patt: string[] = []
+        const options: { ignore: string[] } = { ignore: [] }
         if (typeof pattern === 'string') {
             patt = [pattern]
         } else {
-            patt = pattern.pattern
-            options = { ignore: pattern.ignore }
+            if (typeof pattern.pattern === 'string') {
+                patt.push(pattern.pattern)
+            } else {
+                patt = pattern.pattern
+            }
+            if (typeof pattern.ignore === 'string') {
+                options.ignore.push(pattern.ignore)
+            } else {
+                options.ignore = pattern.ignore
+            }
         }
         return [patt, options]
     }

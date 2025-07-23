@@ -99,8 +99,8 @@ export class IndexTracker {
 }
 
 export type GlobConf = string | {
-    pattern: string[],
-    ignore: string[],
+    pattern: string | string[],
+    ignore: string | string[],
 }
 
 type TransformCtx = {
