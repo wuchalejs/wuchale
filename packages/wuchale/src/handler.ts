@@ -82,7 +82,7 @@ export class AdapterHandler {
 
     #config: ConfigPartial
     #locales: string[]
-    patterns: Matcher[] = []
+    pattern: Matcher
     #projectRoot: string
 
     #adapter: Adapter
@@ -179,14 +179,12 @@ export class AdapterHandler {
     }
 
     init = async () => {
-        for (const pattern of this.#adapter.files) {
-            this.patterns.push(pm(...this.#globOptsToArgs(pattern)))
-        }
+        await this.#initLoader()
+        this.pattern = pm(...this.#globConfToArgs(this.#adapter.files))
         this.#locales = Object.keys(this.#config.locales)
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.transFnamesToLocales = {}
-        await this.#initLoader()
         for (const loc of this.#locales) {
             this.catalogs[loc] = {}
             const catalog = this.#adapter.catalog.replace('{locale}', loc)
@@ -237,11 +235,9 @@ export class AdapterHandler {
             const contents = await readFile(file)
             await this.transform(contents.toString(), file)
         }
-        for (const pattern of this.#adapter.files) {
-            for (const file of await glob(...this.#globOptsToArgs(pattern))) {
-                console.log('Extract from', file)
-                all.push(extract(file))
-            }
+        for (const file of await glob(...this.#globConfToArgs(this.#adapter.files))) {
+            console.log('Extract from', file)
+            all.push(extract(file))
         }
         await Promise.all(all)
     }
@@ -265,7 +261,7 @@ export class AdapterHandler {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            if (this.#mode === 'dev' || this.#mode === 'prod') {
+            if (['dev', 'prod'].includes(this.#mode)) {
                 await this.directExtract()
             }
         }
@@ -335,24 +331,26 @@ export class AdapterHandler {
         }
     }
 
-    #globOptsToArgs = (pattern: GlobConf): [string[], { ignore: string[] } | undefined] => {
-        let patt: string[] = []
-        const options: { ignore: string[] } = { ignore: [] }
-        if (typeof pattern === 'string') {
-            patt = [pattern]
+    #globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
+        let patterns: string[] = []
+        const options = { ignore: [this.loaderPath] }
+        if (typeof conf === 'string') {
+            patterns = [conf]
+        } else if (Array.isArray(conf)) {
+            patterns = conf
         } else {
-            if (typeof pattern.pattern === 'string') {
-                patt.push(pattern.pattern)
+            if (typeof conf.include === 'string') {
+                patterns.push(conf.include)
             } else {
-                patt = pattern.pattern
+                patterns = conf.include
             }
-            if (typeof pattern.ignore === 'string') {
-                options.ignore.push(pattern.ignore)
+            if (typeof conf.ignore === 'string') {
+                options.ignore.push(conf.ignore)
             } else {
-                options.ignore = pattern.ignore
+                options.ignore.push(...conf.ignore)
             }
         }
-        return [patt, options]
+        return [patterns, options]
     }
 
     savePoAndCompile = async (loc: string) => {

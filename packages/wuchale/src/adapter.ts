@@ -98,8 +98,8 @@ export class IndexTracker {
     }
 }
 
-export type GlobConf = string | {
-    pattern: string | string[],
+export type GlobConf = string | string[] | {
+    include: string | string[],
     ignore: string | string[],
 }
 
@@ -126,7 +126,7 @@ type ProxyModuleCtx = {
 export type ProxyModuleFunc = (ctx: ProxyModuleCtx) => string
 
 type AdapterPassThruOpts = {
-    files: GlobConf[]
+    files: GlobConf
     catalog: string
     perFile: boolean
     generateID: (filename: string) => string

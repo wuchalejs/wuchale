@@ -152,7 +152,7 @@ class Plugin {
         }
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
-            if (adapter.patterns.find(isMatch => isMatch(filename))) {
+            if (adapter.pattern(filename)) {
                 return await adapter.transform(code, filename)
             }
         }
