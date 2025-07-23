@@ -18,6 +18,8 @@ type ViteDevServer = {
     }
 }
 
+const transformOrder: 'pre' = 'pre'
+
 class Plugin {
 
     name = pluginName
@@ -102,7 +104,7 @@ class Plugin {
         }
     }
 
-    resolveId = (source: string, importer: string) => {
+    resolveId = (source: string, importer?: string) => {
         if (!source.startsWith(virtualPrefix)) {
             return null
         }
@@ -157,7 +159,7 @@ class Plugin {
         return {}
     }
 
-    transform = { order: 'pre', handler: this.#transformHandler }
+    transform = { order: transformOrder, handler: this.#transformHandler }
 }
 
 export default () => new Plugin()
