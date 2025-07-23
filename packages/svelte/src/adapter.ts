@@ -8,11 +8,12 @@ import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
-    AdapterFunc,
+    Adapter,
     AdapterArgs,
     CommentDirectives,
     ProxyModuleFunc
 } from 'wuchale/adapter'
+import { virtualPrefix } from "wuchale/handler"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
@@ -399,7 +400,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transform = (loaderPath: string, fileID: string): TransformOutput => {
+    transformSv = (loaderPath: string, fileID: string, key: string, locales: string[], perFileLoad: boolean): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -413,48 +414,64 @@ export class SvelteTransformer extends Transformer {
             return this.finalize(txts)
         }
         const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
-        const importStmt = `
-            import _wload_ from "${loaderPath}"
-            ${ast.type === 'Root' ? importComponent : ''}
-            const ${runtimeConst} = $derived(_wload_('${fileID}'))
-        `
+        let header = `
+            import _w_load_ from "${loaderPath}"
+            ${ast.type === 'Root' ? importComponent : ''}\n`
+        if (perFileLoad) {
+            header += `import {Runtime} from 'wuchale/runtime'`
+            const objProps = locales.map(loc => `${loc}: _l_${loc}_`)
+            const importStrs = locales.map(loc => `'${virtualPrefix}catalog/${key}/${fileID}/${loc}'`)
+            const imports = locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`)
+            header += `
+                ${imports.join('\n')}
+                const _w_data_ = {${objProps.join(',')}}
+                const ${runtimeConst} = $derived(new Runtime(_w_data_[_w_load_('${fileID}')]))\n`
+        } else {
+            header += `const ${runtimeConst} = $derived(_w_load_('${fileID}'))\n`
+        }
         if (ast.type === 'Program') {
-            this.mstr.appendRight(0, importStmt + '\n')
+            this.mstr.appendRight(0, header + '\n')
             return this.finalize(txts)
         }
         if (ast.module) {
             // @ts-ignore
-            this.mstr.appendRight(ast.module.content.start, importStmt)
+            this.mstr.appendRight(ast.module.content.start, header)
         } else if (ast.instance) {
             // @ts-ignore
-            this.mstr.appendRight(ast.instance.content.start, importStmt)
+            this.mstr.appendRight(ast.instance.content.start, header)
         } else {
-            this.mstr.prepend(`<script>${importStmt}</script>\n`)
+            this.mstr.prepend(`<script>${header}</script>\n`)
         }
         return this.finalize(txts)
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = (fileID, eventSend, eventReceive, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = ({fileID, eventSend, eventReceive, compiled, plural}) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     export const data = new ReactiveArray(...${compiled})
     ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
 `
 
-const defaultArgs: AdapterArgs = {
+type SvelteAdapterArgs = AdapterArgs & {
+    perFileLoad?: boolean,
+}
+
+const defaultArgs: SvelteAdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: svelteHeuristic,
     perFile: false,
+    perFileLoad: false,
 }
 
-export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
-    const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
+export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
+    const { heuristic, pluralsFunc, files, catalog, perFile, perFileLoad } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, loaderPath, fileID) => {
-            return new SvelteTransformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
+        transform: ({content, filename, index, loaderPath, key, locales, fileID}) => {
+            const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
+            return transformer.transformSv(loaderPath, fileID, key, locales, perFile && perFileLoad)
         },
         files,
         catalog,

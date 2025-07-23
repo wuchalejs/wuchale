@@ -99,9 +99,27 @@ export type GlobConf = string | {
     ignore: string[],
 }
 
-export type TransformFunc = (content: string, filename: string, index: IndexTracker, loaderPath: string, fileID: string) => TransformOutput
+type TransformCtx = {
+    content: string
+    filename: string
+    index: IndexTracker
+    loaderPath: string
+    fileID: string
+    key: string
+    locales: string[]
+}
 
-export type ProxyModuleFunc = (fileID: string | null, eventSend: string, eventReceive: string, compiled: string, plural: string) => string
+export type TransformFunc = (ctx: TransformCtx) => TransformOutput
+
+type ProxyModuleCtx = {
+    fileID: string | null
+    eventSend: string
+    eventReceive: string
+    compiled: string
+    plural: string
+}
+
+export type ProxyModuleFunc = (ctx: ProxyModuleCtx) => string
 
 type AdapterPassThruOpts = {
     files: GlobConf[]
@@ -121,5 +139,3 @@ export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
     pluralsFunc?: string
 }
-
-export type AdapterFunc = (args?: AdapterArgs) => Adapter

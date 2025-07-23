@@ -281,7 +281,7 @@ export class AdapterHandler {
         if (this.#mode === 'dev') {
             const eventSend = this.virtModEvent(locale, fileID)
             const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.proxyModuleDev(fileID, eventSend, eventReceive, compiled, plural)
+            return this.#adapter.proxyModuleDev({fileID, eventSend, eventReceive, compiled, plural})
         }
         return `
             export const plural = ${plural}
@@ -363,7 +363,15 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        const {txts, ...output} = this.#adapter.transform(content, filename, indexTracker, loaderPath, fileID)
+        const {txts, ...output} = this.#adapter.transform({
+            content,
+            filename,
+            index: indexTracker,
+            loaderPath,
+            fileID,
+            key: this.key,
+            locales: this.#locales,
+        })
         for (const loc of this.#locales) {
             // clear references to this file first
             let previousReferences: {[key: string]: number} = {}

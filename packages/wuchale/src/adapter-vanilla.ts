@@ -9,7 +9,7 @@ import { defaultHeuristicFuncOnly, NestText } from './adapter.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
-    AdapterFunc,
+    Adapter,
     CommentDirectives,
     HeuristicDetailsBase,
     HeuristicFunc,
@@ -31,7 +31,7 @@ export function parseScript(content: string) {
     return ScriptParser.parse(content, scriptParseOptions)
 }
 
-export const runtimeConst = 'wuchaleRuntime'
+export const runtimeConst = '_w_runtime_'
 
 export class Transformer {
 
@@ -433,7 +433,7 @@ export const proxyModuleHotUpdate = (fileID: string | null, eventSend: string, e
     }
 `
 
-const proxyModuleDev: ProxyModuleFunc = (fileID, eventSend, eventReceive, compiled, plural) => `
+const proxyModuleDev: ProxyModuleFunc = ({fileID, eventSend, eventReceive, compiled, plural}) => `
     export const plural = ${plural}
     export const data = ${compiled}
     ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
@@ -447,10 +447,10 @@ const defaultArgs: AdapterArgs = {
     perFile: false,
 }
 
-export const adapter: AdapterFunc = (args: AdapterArgs = defaultArgs) => {
+export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const { heuristic, pluralsFunc, files, catalog, perFile } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: (content, filename, index, loaderPath, fileID) => {
+        transform: ({content, filename, index, loaderPath, fileID}) => {
             return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
         },
         files,
