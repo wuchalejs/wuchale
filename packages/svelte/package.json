@@ -1,7 +1,7 @@
 {
     "name": "@wuchale/svelte",
     "version": "0.8.3",
-    "description": "i18n for svelte without turning your codebase upside down",
+    "description": "i18n from normal svelte code",
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
@@ -37,13 +37,11 @@
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",
-            "import": "./dist/src/index.js",
-            "source": "./src/index.ts"
+            "import": "./dist/src/index.js"
         },
         "./reactive": {
             "types": "./dist/src/reactive.d.ts",
-            "import": "./dist/src/reactive.js",
-            "source": "./src/reactive.ts"
+            "import": "./dist/src/reactive.js"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },

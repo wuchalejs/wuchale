@@ -1,7 +1,7 @@
 {
     "name": "wuchale",
     "version": "0.8.3",
-    "description": "i18n for svelte without turning your codebase upside down",
+    "description": "i18n from normal code",
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
@@ -41,38 +41,31 @@
         },
         "./config": {
             "types": "./dist/src/config.d.ts",
-            "import": "./dist/src/config.js",
-            "source": "./src/config.ts"
+            "import": "./dist/src/config.js"
         },
         "./handler": {
             "types": "./dist/src/handler.d.ts",
-            "import": "./dist/src/handler.js",
-            "source": "./src/handler.ts"
+            "import": "./dist/src/handler.js"
         },
         "./adapter": {
             "types": "./dist/src/adapter.d.ts",
-            "import": "./dist/src/adapter.js",
-            "source": "./src/adapter.ts"
+            "import": "./dist/src/adapter.js"
         },
         "./adapter-vanilla": {
             "types": "./dist/src/adapter-vanilla.d.ts",
-            "import": "./dist/src/adapter-vanilla.js",
-            "source": "./src/adapter-vanilla.ts"
+            "import": "./dist/src/adapter-vanilla.js"
         },
         "./runtime": {
             "types": "./dist/src/runtime.d.ts",
-            "import": "./dist/src/runtime.js",
-            "source": "./src/runtime.ts"
+            "import": "./dist/src/runtime.js"
         },
         "./run-client": {
             "types": "./dist/src/run-client.d.ts",
-            "import": "./dist/src/run-client.js",
-            "source": "./src/run-client.ts"
+            "import": "./dist/src/run-client.js"
         },
         "./run-server": {
             "types": "./dist/src/run-server.d.ts",
-            "import": "./dist/src/run-server.js",
-            "source": "./src/run-server.ts"
+            "import": "./dist/src/run-server.js"
         }
     },
     "bin": {
