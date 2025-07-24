@@ -11,7 +11,7 @@ export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(f
 const dirBase = absDir(import.meta.url)
 const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
 
-export const adapterOpts = {
+const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
     catalog: `${dirBase}/test-tmp/{locale}`
 }
@@ -23,9 +23,6 @@ export const adapterOpts = {
  * @param {string} filename
  */
 async function getOutput(adapter, key, content, filename) {
-    try {
-        await rm(adapterOpts.catalog.replace('{locale}', ''), {recursive: true})
-    } catch {}
     adapter.catalog
     const handler = new AdapterHandler(
         adapter,
@@ -104,6 +101,9 @@ const basic = adapter(adapterOpts)
  * @param {(string | number | (string | number)[])[]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
+    try {
+        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+    } catch {}
     await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled, testFile)
 }
 
@@ -112,6 +112,9 @@ export async function testContent(t, content, expectedContent, expectedTranslati
  * @param {string} dir
  */
 export async function testDir(t, dir) {
+    try {
+        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+    } catch {}
     await testDirSetup(t, basic, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }
 

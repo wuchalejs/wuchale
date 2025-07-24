@@ -1,7 +1,6 @@
 node_modules
 rnd
-packages/*/src/locales/*
-test-tmp
+packages/*/tests/test-tmp/*.po
 dist
 examples/*/package-lock.json
 .svelte-kit

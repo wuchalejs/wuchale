@@ -6,7 +6,7 @@ import { testContent, testDir, svelte } from './check.js'
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
+            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -29,7 +29,7 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
+            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -62,7 +62,7 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
+            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -96,7 +96,7 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
+            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
@@ -137,7 +137,7 @@ test('Plural', async function(t) {
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
         svelte`
             <script>
-                import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
+                import _w_load_ from "../tests/test-tmp/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
