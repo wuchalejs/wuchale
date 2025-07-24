@@ -231,9 +231,7 @@ export class AdapterHandler {
             await this.transform(contents.toString(), file)
         }
         for (const file of await glob(...this.#globConfToArgs(this.#adapter.files))) {
-            if (this.#config.messages) {
-                this.#log.info(`Extract from ${file}`)
-            }
+            this.#log.info(`Extract from ${file}`)
             all.push(extract(file))
         }
         await Promise.all(all)
@@ -245,17 +243,13 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            if (this.#config.messages) {
-                this.#log.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
-            }
+            this.#log.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            if (this.#config.messages) {
-                this.#log.warn(`${this.key}: Catalog for ${loc} not found.`)
-            }
+            this.#log.warn(`${this.key}: Catalog for ${loc} not found.`)
         }
     }
 
@@ -466,9 +460,7 @@ export class AdapterHandler {
             const newRequest = this.#geminiQueue[loc].add(newTxts)
             const opType = `(${newRequest ? 'new request' : 'add to request'})`
             const locName = this.#config.locales[loc].name
-            if (this.#config.messages) {
-                this.#log.info(`Gemini translate ${newTxts.length} items to ${locName} ${opType}`)
-            }
+            this.#log.info(`Gemini translate ${newTxts.length} items to ${locName} ${opType}`)
             await this.#geminiQueue[loc].running
         }
         if (!txts.length) {

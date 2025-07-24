@@ -49,7 +49,7 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
 }
 
 export const defaultGenerateLoadID = (filename: string) => {
-    return filename.replace('..', '__').replace(/[^a-zA-Z0-9-_]+/g, '_')
+    return filename.replace('..', '__').replace(/[^a-zA-Z0-9_]+/g, '_')
 }
 
 export class NestText {
