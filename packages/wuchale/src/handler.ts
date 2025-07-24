@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
-import { IndexTracker, NestText, type Catalog } from "./adapter.js"
+import { IndexTracker, NestText, type Catalog } from "./adapters.js"
 import { dirname, relative } from 'node:path'
-import type { Adapter, GlobConf } from "./adapter.js"
+import type { Adapter, GlobConf } from "./adapters.js"
 import { readFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"

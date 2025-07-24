@@ -47,9 +47,9 @@
             "types": "./dist/src/handler.d.ts",
             "import": "./dist/src/handler.js"
         },
-        "./adapter": {
-            "types": "./dist/src/adapter.d.ts",
-            "import": "./dist/src/adapter.js"
+        "./adapters": {
+            "types": "./dist/src/adapters.d.ts",
+            "import": "./dist/src/adapters.js"
         },
         "./adapter-vanilla": {
             "types": "./dist/src/adapter-vanilla.d.ts",

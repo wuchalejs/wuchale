@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultGenerateLoadID, defaultHeuristicFuncOnly, NestText } from './adapter.js'
+import { defaultGenerateLoadID, defaultHeuristicFuncOnly, NestText } from './adapters.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
@@ -17,7 +17,7 @@ import type {
     ProxyModuleFunc,
     ScriptTopLevel,
     TransformOutput
-} from "./adapter.js"
+} from "./adapters.js"
 
 const scriptParseOptions: ParserOptions = {
     sourceType: 'module',

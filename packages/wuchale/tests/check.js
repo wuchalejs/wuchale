@@ -18,7 +18,7 @@ const adapterOpts = {
 
 /**
  * @param {string} content
- * @param {import("wuchale/adapter").Adapter} adapter
+ * @param {import("wuchale/adapters").Adapter} adapter
  * @param {string} key
  * @param {string} filename
  */
@@ -61,7 +61,7 @@ function trimLines(str) {
  * @param {string} expectedTranslations
  * @param {(string | number | (string | number)[])[]} expectedCompiled
  * @param {string} testFile
- * @param {import("wuchale/adapter").Adapter} adapter
+ * @param {import("wuchale/adapters").Adapter} adapter
  * @param {string} key
  */
 export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile) {
@@ -78,7 +78,7 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
 /**
  * @param {any} t
  * @param {string} dir
- * @param {import("wuchale/adapter").Adapter} adapter
+ * @param {import("wuchale/adapters").Adapter} adapter
  * @param {string} key
  * @param {string} testFile
  * @param {string} testFileOut

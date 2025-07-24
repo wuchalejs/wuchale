@@ -1,4 +1,4 @@
-import { type Adapter } from "./adapter.js"
+import { type Adapter } from "./adapters.js"
 
 export type LocaleConf = {
     name: string

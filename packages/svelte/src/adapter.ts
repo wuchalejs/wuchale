@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapter'
+import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
 import { statfs } from 'node:fs/promises'
 import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
@@ -13,7 +13,7 @@ import type {
     AdapterArgs,
     CommentDirectives,
     ProxyModuleFunc
-} from 'wuchale/adapter'
+} from 'wuchale/adapters'
 import { virtualPrefix } from "wuchale/handler"
 
 const nodesWithChildren = ['RegularElement', 'Component']
