@@ -100,6 +100,7 @@ if (cmd === 'help') {
             '\n(Optional):',
             '  Set the GEMINI_API_KEY environment variable before starting the server',
             '  to enable live translation!',
+            '\nYou can always run `npx wuchale extract`'
         )
     }
     console.info(msgs.join('\n'))
