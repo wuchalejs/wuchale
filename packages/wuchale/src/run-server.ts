@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import type { LoaderFunc } from './run-client.js'
 import { Runtime, type CatalogModule } from './runtime.js'
-
-type LoaderFunc = (locale: string) => CatalogModule
 
 const catalogCtx: AsyncLocalStorage<{[key: string]: Runtime}> = new AsyncLocalStorage()
 
@@ -12,12 +11,16 @@ export function registerLoader(key: string, load: LoaderFunc): () => Runtime {
     return () => catalogCtx.getStore()[key] ?? new Runtime()
 }
 
-export function runWithLocale<T>(locale: string, func: () => T): T {
+export async function runWithLocale<T>(locale: string, func: () => T): Promise<T> {
     const catalogs: {[key: string]: Runtime} = {}
+    const promises: [string, CatalogModule | Promise<CatalogModule>][] = []
     for (const [key, load] of Object.entries(catalogModuleLoaders)) {
-        catalogs[key] = new Runtime(load(locale))
+        promises.push([key, load(key, locale)])
     }
-    return catalogCtx.run(catalogs, func)
+    for (const [key, loaded] of (await Promise.all(promises))) {
+        catalogs[key] = new Runtime(<CatalogModule>loaded)
+    }
+    return await catalogCtx.run(catalogs, func)
 }
 
 export const _w_rt_ = (key: string) => catalogCtx.getStore()?.[key] ?? new Runtime()

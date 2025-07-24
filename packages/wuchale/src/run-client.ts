@@ -1,6 +1,6 @@
 import { type CatalogModule, Runtime } from './runtime.js'
 
-type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
+export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 type LoaderState = {[loadID: string]: {catalog: Runtime, load: LoaderFunc}}
 
 type LoadedRTByFile = {[loadID: string]: Runtime}

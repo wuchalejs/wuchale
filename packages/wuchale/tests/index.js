@@ -37,8 +37,8 @@ test('Inside function definitions', async function(t) {
         }
         const bar: (a: string) => string = (a) => \`Hello \${a\}\`
     `, typescript`
-        import _wload_ from "../tests/test-tmp/loader.js"
-        const _w_runtime_ = _wload_('basic')
+        import _w_load_ from "../tests/test-tmp/loader.js"
+        const _w_runtime_ = _w_load_('basic')
 
         function foo(): string {
             const varName = _w_runtime_.t(0)
@@ -87,7 +87,7 @@ test('Runtime', t => {
 test('Runtime server side', async t => {
     // @ts-expect-error
     registerLoader('main', _ => testCatalog)
-    const msg = runWithLocale('en', () => {
+    const msg = await runWithLocale('en', () => {
         return _w_rt_('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')

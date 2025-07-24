@@ -49,9 +49,7 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
     return defaultHeuristic(text, details) && details.insideFuncDef
 }
 
-export const defaultGenerateLoadID = (filename: string) => {
-    return filename.replace('..', '__').replace(/[^a-zA-Z0-9_]+/g, '_')
-}
+export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
 
 export class NestText {
 
@@ -125,22 +123,22 @@ type ProxyModuleCtx = {
 }
 
 export class Logger {
-    showMsgs = true
+    #showMsgs = true
 
     constructor (showMsgs: boolean) {
-        this.showMsgs = showMsgs
+        this.#showMsgs = showMsgs
     }
 
-    show = (message: string, type: 'info' | 'warn' | 'error') => {
-        if (!this.showMsgs) {
+    #show = (message: string, type: 'info' | 'warn' | 'error') => {
+        if (!this.#showMsgs) {
             return
         }
         console[type](message)
     }
 
-    info = (msg: string) => this.show(msg, 'info')
-    warn = (msg: string) => this.show(msg, 'warn')
-    error = (msg: string) => this.show(msg, 'error')
+    info = (msg: string) => this.#show(msg, 'info')
+    warn = (msg: string) => this.#show(msg, 'warn')
+    error = (msg: string) => this.#show(msg, 'error')
 
 }
 

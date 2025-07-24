@@ -420,9 +420,10 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
+            const rtFunc = '_w_load_'
             const importModule = `
-                import _wload_ from "${loaderPath}"
-                const ${runtimeConst} = _wload_('${loadID}')
+                import ${rtFunc} from "${loaderPath}"
+                const ${runtimeConst} = ${rtFunc}('${loadID}')
             `
             this.mstr.appendRight(0, importModule)
         }
