@@ -240,14 +240,7 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            let catPath = this.#adapter.catalog.replace('{locale}', locName)
-            if (catPath.startsWith('./')) {
-                catPath = catPath.slice(2)
-            }
-            if (catPath.endsWith('/')) {
-                catPath = catPath.slice(0, -1)
-            }
-            console.info(`i18n stats (${catPath}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
+            console.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
