@@ -69,7 +69,7 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
 export type Mode = 'dev' | 'prod' | 'extract'
 type CompiledItems = (CompiledFragment | number)[]
 type CompiledCatalog = { [loc: string]: CompiledItems }
-type PerFileState = {
+type GranularState = {
     id: string,
     compiled: CompiledCatalog,
     indexTracker: IndexTracker,
@@ -90,8 +90,8 @@ export class AdapterHandler {
     catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
     compiled: CompiledCatalog = {}
 
-    perFileState: { [filename: string]: PerFileState } = {}
-    perFileStateByID: { [id: string]: PerFileState } = {}
+    granularStateByFile: { [filename: string]: GranularState } = {}
+    granularStateByID: { [id: string]: GranularState } = {}
 
     #catalogsFname: { [loc: string]: string } = {}
     catalogPathsToLocales: { [key: string]: string } = {}
@@ -147,21 +147,21 @@ export class AdapterHandler {
     }
 
     /** Get both catalog virtual module names AND HMR event names */
-    virtModEvent = (locale: string, fileID: string | null) => `${virtualPrefix}catalog/${this.key}/${fileID ?? this.key}/${locale}`
+    virtModEvent = (locale: string, loadID: string | null) => `${virtualPrefix}catalog/${this.key}/${loadID ?? this.key}/${locale}`
 
     #getFileIDs() {
-        if (!this.#adapter.perFile) {
+        if (!this.#adapter.granularLoad) {
             return [this.key]
         }
-        return Object.values(this.perFileState)
+        return Object.values(this.granularStateByFile)
             .filter(f => f.compiled[this.#config.sourceLocale].length > 0)
             .map(f => f.id)
     }
 
     getLoader() {
         const imports = []
-        const fileIDs = this.#getFileIDs()
-        for (const id of fileIDs) {
+        const loadIDs = this.#getFileIDs()
+        for (const id of loadIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
                 importsByLocale.push(`${loc}: () => import('${this.virtModEvent(loc, id)}')`)
@@ -170,16 +170,16 @@ export class AdapterHandler {
         }
         return `
             const catalogs = {${imports.join(',')}}
-            export const fileIDs = ['${fileIDs.join("', '")}']
-            export const loadCatalog = (fileID, locale) => catalogs[fileID][locale]()
+            export const loadIDs = ['${loadIDs.join("', '")}']
+            export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]()
         `
     }
 
     getLoaderSync() {
-        const fileIDs = this.#getFileIDs()
+        const loadIDs = this.#getFileIDs()
         const imports = []
         const object = []
-        for (const id of fileIDs) {
+        for (const id of loadIDs) {
             const importedByLocale = []
             for (const loc of this.#locales) {
                 imports.push(`import * as ${loc}Of${id} from '${this.virtModEvent(loc, id)}'`)
@@ -190,8 +190,8 @@ export class AdapterHandler {
         return `
             ${imports.join('\n')}
             const catalogs = {${object.join(',')}}
-            export const fileIDs = ['${fileIDs.join("', '")}']
-            export const loadCatalog = (fileID, locale) => catalogs[fileID][locale]
+            export const loadIDs = ['${loadIDs.join("', '")}']
+            export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]
         `
     }
 
@@ -250,17 +250,17 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string, fileID: string) => {
+    loadDataModule = (locale: string, loadID: string) => {
         let compiledItems = this.compiled[locale]
-        if (this.#adapter.perFile) {
-            compiledItems = this.perFileStateByID[fileID]?.compiled?.[locale] ?? []
+        if (this.#adapter.granularLoad) {
+            compiledItems = this.granularStateByID[loadID]?.compiled?.[locale] ?? []
         }
         const compiled = JSON.stringify(compiledItems)
         const plural = `n => ${this.#config.locales[locale].plural}`
         if (this.#mode === 'dev') {
-            const eventSend = this.virtModEvent(locale, fileID)
+            const eventSend = this.virtModEvent(locale, loadID)
             const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.proxyModuleDev({ fileID, eventSend, eventReceive, compiled, plural })
+            return this.#adapter.proxyModuleDev({ loadID: loadID, eventSend, eventReceive, compiled, plural })
         }
         return `
             export const plural = ${plural}
@@ -268,21 +268,21 @@ export class AdapterHandler {
         `
     }
 
-    #getStatePerFile(filename: string): PerFileState {
-        let state = this.perFileState[filename]
+    #getGranularState(filename: string): GranularState {
+        let state = this.granularStateByFile[filename]
         if (state == null) {
-            const id = this.#adapter.generateID(filename)
-            if (id in this.perFileStateByID) {
-                state = this.perFileStateByID[id]
+            const id = this.#adapter.generateLoadID(filename)
+            if (id in this.granularStateByID) {
+                state = this.granularStateByID[id]
             } else {
                 state = {
                     id,
                     compiled: Object.fromEntries(this.#locales.map(loc => [loc, []])),
                     indexTracker: new IndexTracker(),
                 }
-                this.perFileStateByID[id] = state
+                this.granularStateByID[id] = state
             }
-            this.perFileState[filename] = this.perFileStateByID[id]
+            this.granularStateByFile[filename] = this.granularStateByID[id]
         }
         return state
     }
@@ -304,11 +304,11 @@ export class AdapterHandler {
                 compiled = compileTranslation(poItem.msgstr[0], fallback)
             }
             this.compiled[loc][index] = compiled
-            if (!this.#adapter.perFile) {
+            if (!this.#adapter.granularLoad) {
                 continue
             }
             for (const fname of poItem.references) {
-                const state = this.#getStatePerFile(fname)
+                const state = this.#getGranularState(fname)
                 state.compiled[loc][state.indexTracker.get(key)] = compiled
             }
         }
@@ -366,11 +366,11 @@ export class AdapterHandler {
 
     transform = async (content: string, filename: string) => {
         let indexTracker = this.#indexTracker
-        let fileID = this.key
-        if (this.#adapter.perFile) {
-            const state = this.#getStatePerFile(filename)
+        let loadID = this.key
+        if (this.#adapter.granularLoad) {
+            const state = this.#getGranularState(filename)
             indexTracker = state.indexTracker
-            fileID = state.id
+            loadID = state.id
         }
         let loaderPath = relative(dirname(filename), this.loaderPath)
         if (!loaderPath.startsWith('.')) {
@@ -381,7 +381,7 @@ export class AdapterHandler {
             filename,
             index: indexTracker,
             loaderPath,
-            fileID,
+            loadID: loadID,
             key: this.key,
             locales: this.#locales,
         })

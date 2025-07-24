@@ -14,7 +14,7 @@ type HMRClient = {
 type ViteDevServer = {
     ws: {
         send: (event: string, data: CompiledFragment[]) => void,
-        on: (event: string, cb: (msg: {fileID: string | null}, client: HMRClient) => void) => void,
+        on: (event: string, cb: (msg: {loadID: string | null}, client: HMRClient) => void) => void,
     }
 }
 
@@ -73,12 +73,12 @@ class Plugin {
             for (const loc of Object.keys(this.#config.locales)) {
                 const event = adapter.virtModEvent(loc, null)
                 server.ws.on(event, (payload, client) => {
-                    const eventSend = adapter.virtModEvent(loc, payload.fileID)
-                    if (!this.#config.adapters[key].perFile) {
+                    const eventSend = adapter.virtModEvent(loc, payload.loadID)
+                    if (!this.#config.adapters[key].granularLoad) {
                         client.send(eventSend, adapter.compiled[loc])
                         return
                     }
-                    const compiled = adapter.perFileStateByID[payload.fileID].compiled[loc]
+                    const compiled = adapter.granularStateByID[payload.loadID].compiled[loc]
                     client.send(eventSend, compiled)
                 })
             }
@@ -92,12 +92,12 @@ class Plugin {
         const adapter = this.#adaptersByCatalogPath[ctx.file]
         const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
-        if (!this.#config.adapters[adapter.key].perFile) {
+        if (!this.#config.adapters[adapter.key].granularLoad) {
             this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])
             return
         }
-        for (const [fileID, state] of Object.entries(adapter.perFileStateByID)) {
-            const eventName = adapter.virtModEvent(loc, fileID)
+        for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
+            const eventName = adapter.virtModEvent(loc, loadID)
             this.#server.ws.send(eventName, state.compiled[loc])
         }
     }
@@ -117,13 +117,13 @@ class Plugin {
         const [path, importer] = id.slice(prefix.length).split('?')
         const [part, ...rest] = path.split('/')
         if (part === 'catalog') {
-            const [adapterKey, fileID, locale] = rest
+            const [adapterKey, loadID, locale] = rest
             const adapter = this.#adapters[adapterKey]
             if (adapter == null) {
                 console.error('Adapter not found for key:', adapterKey)
                 return null
             }
-            return adapter.loadDataModule(locale, fileID)
+            return adapter.loadDataModule(locale, loadID)
         }
         if (part === 'locales') {
             return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`

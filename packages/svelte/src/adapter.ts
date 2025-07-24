@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { defaultGenerateID, defaultHeuristic, NestText } from 'wuchale/adapter'
+import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
 import { statfs } from 'node:fs/promises'
 import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
@@ -401,7 +401,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transformSv = (loaderPath: string, fileID: string, key: string, locales: string[], perFileLoad: boolean): TransformOutput => {
+    transformSv = (loaderPath: string, loadID: string, key: string, locales: string[], bundleLoad: boolean): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -418,17 +418,17 @@ export class SvelteTransformer extends Transformer {
         let header = `
             import _w_load_ from "${loaderPath}"
             ${ast.type === 'Root' ? importComponent : ''}\n`
-        if (perFileLoad) {
+        if (bundleLoad) {
             header += `import {Runtime} from 'wuchale/runtime'`
             const objProps = locales.map(loc => `${loc}: _l_${loc}_`)
-            const importStrs = locales.map(loc => `'${virtualPrefix}catalog/${key}/${fileID}/${loc}'`)
+            const importStrs = locales.map(loc => `'${virtualPrefix}catalog/${key}/${loadID}/${loc}'`)
             const imports = locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`)
             header += `
                 ${imports.join('\n')}
                 const _w_data_ = {${objProps.join(',')}}
-                const ${runtimeConst} = $derived(new Runtime(_w_data_[_w_load_('${fileID}')]))\n`
+                const ${runtimeConst} = $derived(new Runtime(_w_data_[_w_load_('${loadID}')]))\n`
         } else {
-            header += `const ${runtimeConst} = $derived(_w_load_('${fileID}'))\n`
+            header += `const ${runtimeConst} = $derived(_w_load_('${loadID}'))\n`
         }
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, header + '\n')
@@ -447,15 +447,15 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = ({ fileID, eventSend, eventReceive, compiled, plural }) => `
+const proxyModuleDev: ProxyModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     export const data = new ReactiveArray(...${compiled})
-    ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
+    ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
 type SvelteAdapterArgs = AdapterArgs & {
-    perFileLoad?: boolean,
+    bundleLoad?: boolean,
 }
 
 const defaultArgs: SvelteAdapterArgs = {
@@ -463,22 +463,22 @@ const defaultArgs: SvelteAdapterArgs = {
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: svelteHeuristic,
-    perFile: false,
-    perFileLoad: false,
-    generateID: defaultGenerateID,
+    granularLoad: false,
+    bundleLoad: false,
+    generateLoadID: defaultGenerateLoadID,
 }
 
 export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, perFile, perFileLoad, generateID, } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, granularLoad, bundleLoad, generateLoadID, } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, loaderPath, key, locales, fileID }) => {
+        transform: ({ content, filename, index, loaderPath, key, locales, loadID }) => {
             const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
-            return transformer.transformSv(loaderPath, fileID, key, locales, perFile && perFileLoad)
+            return transformer.transformSv(loaderPath, loadID, key, locales, granularLoad && bundleLoad)
         },
         files,
         catalog,
-        perFile,
-        generateID,
+        granularLoad,
+        generateLoadID,
         loaderExts: ['.svelte.js', '.svelte.ts'],
         proxyModuleDev,
         defaultLoaderPath: async () => {

@@ -1,9 +1,9 @@
 import { type CatalogModule, Runtime } from './runtime.js'
 
-type LoaderFunc = (fileID: string, locale: string) => CatalogModule | Promise<CatalogModule>
-type LoaderState = {[fileID: string]: {catalog: Runtime, load: LoaderFunc}}
+type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
+type LoaderState = {[loadID: string]: {catalog: Runtime, load: LoaderFunc}}
 
-type LoadedRTByFile = {[fileID: string]: Runtime}
+type LoadedRTByFile = {[loadID: string]: Runtime}
 
 /** per-group states synchronizer */
 export class PerFileAsyncReg {
@@ -11,18 +11,18 @@ export class PerFileAsyncReg {
     locale: string | null = null
     defaultState: LoaderState = {}
 
-    async registerLoader(fileID: string, load: LoaderFunc, state?: LoaderState) {
+    async registerLoader(loadID: string, load: LoaderFunc, state?: LoaderState) {
         if (!state) {
             state = this.defaultState
         } else {
             this.defaultState = state
         }
-        if (fileID in state) {
+        if (loadID in state) {
             return
         }
-        state[fileID] = {catalog: new Runtime(), load}
+        state[loadID] = {catalog: new Runtime(), load}
         if (this.locale) {
-            state[fileID].catalog = new Runtime(await load(fileID, this.locale))
+            state[loadID].catalog = new Runtime(await load(loadID, this.locale))
             return
         }
     }
@@ -31,13 +31,13 @@ export class PerFileAsyncReg {
         const data: LoadedRTByFile = {}
         const promises = []
         const entries = Object.entries(this.defaultState)
-        for (const [fileID, statesVal] of entries) {
-            promises.push(statesVal.load(fileID, locale))
+        for (const [loadID, statesVal] of entries) {
+            promises.push(statesVal.load(loadID, locale))
         }
         for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-            const [fileID, statesVal] = entries[i]
+            const [loadID, statesVal] = entries[i]
             statesVal.catalog = new Runtime(loaded)
-            data[fileID] = statesVal.catalog
+            data[loadID] = statesVal.catalog
         }
         this.locale = locale
         return data
@@ -49,16 +49,16 @@ const states: {[key: string]: PerFileAsyncReg} = {}
 
 /**
  * - `key` is a unique identifier for the group
- * - `fileIDs` and `load` MUST be imported from the loader virtual modules.
+ * - `loadIDs` and `load` MUST be imported from the loader virtual modules.
 */
-export function registerLoader(key: string, fileIDs: string[], load: LoaderFunc, state?: LoaderState): (fileID: string) => Runtime {
+export function registerLoader(key: string, loadIDs: string[], load: LoaderFunc, state?: LoaderState): (fileID: string) => Runtime {
     if (!(key in states)) {
         states[key] = new PerFileAsyncReg()
     }
-    for (const id of fileIDs) {
+    for (const id of loadIDs) {
         states[key].registerLoader(id, load, state)
     }
-    return fileID => state[fileID].catalog ?? new Runtime()
+    return loadID => state[loadID].catalog ?? new Runtime()
 }
 
 /** 
@@ -81,12 +81,12 @@ export async function loadLocale(locale: string, key?: string): Promise<LoadedRT
 }
 
 /** No-side effect way to load catalogs. Can be used for multiple file IDs. */
-export async function loadCatalogs(locale: string, fileIDs: string[], loadCatalog: LoaderFunc): Promise<LoadedRTByFile> {
+export async function loadCatalogs(locale: string, loadIDs: string[], loadCatalog: LoaderFunc): Promise<LoadedRTByFile> {
     const data: LoadedRTByFile = {}
-    const promises = fileIDs.map(id => loadCatalog(id, locale))
+    const promises = loadIDs.map(id => loadCatalog(id, locale))
     // merge into one object
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        data[fileIDs[i]] = new Runtime(loaded)
+        data[loadIDs[i]] = new Runtime(loaded)
     }
     return data
 }

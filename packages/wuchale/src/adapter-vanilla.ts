@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultGenerateID, defaultHeuristicFuncOnly, NestText } from './adapter.js'
+import { defaultGenerateLoadID, defaultHeuristicFuncOnly, NestText } from './adapter.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
@@ -405,14 +405,14 @@ export class Transformer {
         }
     }
 
-    transform = (loaderPath: string, fileID: string): TransformOutput => {
+    transform = (loaderPath: string, loadID: string): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
             const importModule = `
                 import _wload_ from "${loaderPath}"
-                const ${runtimeConst} = _wload_('${fileID}')
+                const ${runtimeConst} = _wload_('${loadID}')
             `
             this.mstr.appendRight(0, importModule)
         }
@@ -420,7 +420,7 @@ export class Transformer {
     }
 }
 
-export const proxyModuleHotUpdate = (fileID: string | null, eventSend: string, eventReceive: string, targetVar = 'data') => `
+export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'data') => `
     if (import.meta.hot) {
         import.meta.hot.on('${eventSend}', newData => {
             for (let i = 0; i < newData.length; i++) {
@@ -429,14 +429,14 @@ export const proxyModuleHotUpdate = (fileID: string | null, eventSend: string, e
                 }
             }
         })
-        import.meta.hot.send('${eventReceive}'${fileID == null ? '' : `, {fileID: '${fileID}'}`})
+        import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
     }
 `
 
-const proxyModuleDev: ProxyModuleFunc = ({fileID, eventSend, eventReceive, compiled, plural}) => `
+const proxyModuleDev: ProxyModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
     export const plural = ${plural}
     export const data = ${compiled}
-    ${proxyModuleHotUpdate(fileID, eventSend, eventReceive)}
+    ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
 const defaultArgs: AdapterArgs = {
@@ -444,20 +444,20 @@ const defaultArgs: AdapterArgs = {
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
-    generateID: defaultGenerateID,
-    perFile: false,
+    generateLoadID: defaultGenerateLoadID,
+    granularLoad: false,
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, perFile, generateID } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, pluralsFunc, files, catalog, granularLoad, generateLoadID: generateID } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({content, filename, index, loaderPath, fileID}) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, fileID)
+        transform: ({content, filename, index, loaderPath, loadID}) => {
+            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, loadID)
         },
         files,
         catalog,
-        perFile,
-        generateID,
+        granularLoad,
+        generateLoadID: generateID,
         loaderExts: ['.js', '.ts'],
         proxyModuleDev,
         defaultLoaderPath: () => new URL('../../src/loader.default.js', import.meta.url).pathname,

@@ -48,7 +48,7 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
     return defaultHeuristic(text, details) && details.topLevel === 'function'
 }
 
-export const defaultGenerateID = (filename: string) => {
+export const defaultGenerateLoadID = (filename: string) => {
     return filename.replace('..', '__').replace(/[^a-zA-Z0-9-_]+/g, '_')
 }
 
@@ -108,7 +108,7 @@ type TransformCtx = {
     filename: string
     index: IndexTracker
     loaderPath: string
-    fileID: string
+    loadID: string
     key: string
     locales: string[]
 }
@@ -116,7 +116,7 @@ type TransformCtx = {
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
 type ProxyModuleCtx = {
-    fileID: string | null
+    loadID: string | null
     eventSend: string
     eventReceive: string
     compiled: string
@@ -128,8 +128,8 @@ export type ProxyModuleFunc = (ctx: ProxyModuleCtx) => string
 type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
-    perFile: boolean
-    generateID: (filename: string) => string
+    granularLoad: boolean
+    generateLoadID: (filename: string) => string
 }
 
 export type Adapter = AdapterPassThruOpts & {
