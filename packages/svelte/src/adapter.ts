@@ -3,6 +3,7 @@ import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { defaultGenerateID, defaultHeuristic, NestText } from 'wuchale/adapter'
 import { deepMergeObjects } from 'wuchale/config'
+import { statfs } from 'node:fs/promises'
 import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
@@ -446,7 +447,7 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = ({fileID, eventSend, eventReceive, compiled, plural}) => `
+const proxyModuleDev: ProxyModuleFunc = ({ fileID, eventSend, eventReceive, compiled, plural }) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     export const data = new ReactiveArray(...${compiled})
@@ -470,7 +471,7 @@ const defaultArgs: SvelteAdapterArgs = {
 export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
     const { heuristic, pluralsFunc, files, catalog, perFile, perFileLoad, generateID, } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({content, filename, index, loaderPath, key, locales, fileID}) => {
+        transform: ({ content, filename, index, loaderPath, key, locales, fileID }) => {
             const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
             return transformer.transformSv(loaderPath, fileID, key, locales, perFile && perFileLoad)
         },
@@ -478,8 +479,19 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         catalog,
         perFile,
         generateID,
-        loaderExt: '.svelte.js',
+        loaderExts: ['.svelte.js', '.svelte.ts'],
         proxyModuleDev,
-        loaderTemplateFile: new URL('../../src/loader.default.svelte.js', import.meta.url).pathname,
+        defaultLoaderPath: async () => {
+            let loader = '../../src/loader.default.svelte.js'
+            try {
+                await statfs('svelte.config.js')
+                loader = '../../src/loader.default.kit.svelte.js'
+            } catch (err) {
+                if (err.code !== 'ENOENT') {
+                    throw err
+                }
+            }
+            return new URL(loader, import.meta.url).pathname
+        },
     }
 }

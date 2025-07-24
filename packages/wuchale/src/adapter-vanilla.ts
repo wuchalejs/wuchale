@@ -458,8 +458,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         catalog,
         perFile,
         generateID,
-        loaderExt: '.js',
+        loaderExts: ['.js', '.ts'],
         proxyModuleDev,
-        loaderTemplateFile: new URL('../../src/loader.default.js', import.meta.url).pathname,
+        defaultLoaderPath: () => new URL('../../src/loader.default.js', import.meta.url).pathname,
     }
 }

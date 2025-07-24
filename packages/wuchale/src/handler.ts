@@ -2,7 +2,7 @@
 import { IndexTracker, NestText, type Catalog } from "./adapter.js"
 import { dirname, relative } from 'node:path'
 import type { Adapter, GlobConf } from "./adapter.js"
-import { readFile, copyFile, mkdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -110,25 +110,40 @@ export class AdapterHandler {
         this.#config = config
     }
 
-    async #initLoader() {
-        // write the initial loader, but not if it already exists
+    getLoaderPaths(): string[] {
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
-        this.loaderPath = catalogToLoader + this.#adapter.loaderExt
-        if (this.loaderPath.startsWith('./')) {
-            this.loaderPath = this.loaderPath.slice(2)
-        }
-        try {
-            const contents = await readFile(this.loaderPath)
-            if (contents.toString().trim() !== '') {
-                return
+        const paths: string[] = []
+        for (const ext of this.#adapter.loaderExts) {
+            let path = catalogToLoader + ext
+            if (path.startsWith('./')) {
+                path = path.slice(2)
             }
-        } catch (err: any) {
-            if (err.code !== 'ENOENT') {
-                throw err
+            paths.push(path)
+        }
+        return paths
+    }
+
+    async getLoaderPath(): Promise<string | null> {
+        for (const path of this.getLoaderPaths()) {
+            try {
+                const contents = await readFile(path)
+                if (contents.toString().trim() !== '') {
+                    return path
+                }
+            } catch (err: any) {
+                if (err.code !== 'ENOENT') {
+                    throw err
+                }
+                continue
             }
         }
-        await mkdir(dirname(this.loaderPath), { recursive: true })
-        await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
+    }
+
+    async #initLoader() {
+        this.loaderPath = await this.getLoaderPath()
+        if (!this.loaderPath) {
+            throw new Error('No valid loader file found.')
+        }
     }
 
     /** Get both catalog virtual module names AND HMR event names */
@@ -238,9 +253,7 @@ export class AdapterHandler {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            if (['dev', 'prod'].includes(this.#mode)) {
-                await this.directExtract()
-            }
+            console.warn(`Catalog for ${loc} not found.`)
         }
     }
 

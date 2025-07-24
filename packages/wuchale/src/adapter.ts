@@ -134,10 +134,11 @@ type AdapterPassThruOpts = {
 
 export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc
-    /** filename extension for loader. E.g. `.js` */
-    loaderExt: string
+    /** possible filename extensions for loader. E.g. `.js` */
+    loaderExts: string[]
     proxyModuleDev: ProxyModuleFunc
-    loaderTemplateFile: string
+    /* Can return different file paths based on conditions */
+    defaultLoaderPath: () => string | Promise<string>
 }
 
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
