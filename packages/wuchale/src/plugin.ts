@@ -49,8 +49,8 @@ class Plugin {
             await handler.init()
             this.#adapters[key] = handler
             this.#adaptersByLoaderPath[resolve(handler.loaderPath)] = handler
-            for (const loc of Object.keys(this.#config.locales)) {
-                this.#adaptersByCatalogPath[handler.transFnamesToLocales[loc]] = handler
+            for (const fname of Object.keys(handler.catalogPathsToLocales)) {
+                this.#adaptersByCatalogPath[fname] = handler
             }
         }
     }
@@ -90,7 +90,7 @@ class Plugin {
             return
         }
         const adapter = this.#adaptersByCatalogPath[ctx.file]
-        const loc = adapter.transFnamesToLocales[ctx.file]
+        const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
         if (!this.#config.adapters[adapter.key].perFile) {
             this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])

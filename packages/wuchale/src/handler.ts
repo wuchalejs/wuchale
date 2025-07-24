@@ -94,7 +94,7 @@ export class AdapterHandler {
     perFileStateByID: { [id: string]: PerFileState } = {}
 
     #catalogsFname: { [loc: string]: string } = {}
-    transFnamesToLocales: { [key: string]: string } = {}
+    catalogPathsToLocales: { [key: string]: string } = {}
 
     #poHeaders: { [loc: string]: { [key: string]: string } } = {}
 
@@ -201,14 +201,14 @@ export class AdapterHandler {
         this.#locales = Object.keys(this.#config.locales)
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
-        this.transFnamesToLocales = {}
+        this.catalogPathsToLocales = {}
         for (const loc of this.#locales) {
             this.catalogs[loc] = {}
             const catalog = this.#adapter.catalog.replace('{locale}', loc)
             const catalogFname = `${catalog}.po`
             this.#catalogsFname[loc] = catalogFname
             // for handleHotUpdate
-            this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
+            this.catalogPathsToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
             if (loc !== this.#config.sourceLocale) {
                 this.#geminiQueue[loc] = new GeminiQueue(
                     sourceLocaleName,
