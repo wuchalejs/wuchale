@@ -10,6 +10,7 @@ export type ConfigPartial = {
     sourceLocale?: string
     locales?: {[locale: string]: LocaleConf}
     geminiAPIKey?: string,
+    messages?: boolean,
 }
 
 export type Config = ConfigPartial & {
@@ -29,6 +30,7 @@ export const defaultConfig: Config = {
     adapters: {},
     hmr: true,
     geminiAPIKey: 'env',
+    messages: true,
 }
 
 // dynamicKeysInside is mainly to fill plural rules for other languages with English

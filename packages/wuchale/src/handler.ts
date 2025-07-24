@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
-import { IndexTracker, NestText, type Catalog } from "./adapters.js"
 import { dirname, relative } from 'node:path'
-import type { Adapter, GlobConf } from "./adapters.js"
+import { IndexTracker, NestText } from "./adapters.js"
+import type { Adapter, GlobConf, Catalog, Logger } from "./adapters.js"
 import { readFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -82,7 +82,7 @@ export class AdapterHandler {
 
     #config: ConfigPartial
     #locales: string[]
-    pattern: Matcher
+    fileMatches: Matcher
     #projectRoot: string
 
     #adapter: Adapter
@@ -102,12 +102,15 @@ export class AdapterHandler {
     #indexTracker: IndexTracker = new IndexTracker()
     #geminiQueue: { [loc: string]: GeminiQueue } = {}
 
-    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, projectRoot: string) {
+    #log: Logger
+
+    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
         this.#adapter = adapter
         this.key = key.toString()
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
+        this.#log = log
     }
 
     getLoaderPaths(): string[] {
@@ -197,7 +200,7 @@ export class AdapterHandler {
 
     init = async () => {
         await this.#initLoader()
-        this.pattern = pm(...this.#globConfToArgs(this.#adapter.files))
+        this.fileMatches = pm(...this.#globConfToArgs(this.#adapter.files))
         this.#locales = Object.keys(this.#config.locales)
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
@@ -228,7 +231,9 @@ export class AdapterHandler {
             await this.transform(contents.toString(), file)
         }
         for (const file of await glob(...this.#globConfToArgs(this.#adapter.files))) {
-            console.log('Extract from', file)
+            if (this.#config.messages) {
+                this.#log.info(`Extract from ${file}`)
+            }
             all.push(extract(file))
         }
         await Promise.all(all)
@@ -240,13 +245,17 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            console.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
+            if (this.#config.messages) {
+                this.#log.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
+            }
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            console.warn(`Catalog for ${loc} not found.`)
+            if (this.#config.messages) {
+                this.#log.warn(`${this.key}: Catalog for ${loc} not found.`)
+            }
         }
     }
 
@@ -457,7 +466,9 @@ export class AdapterHandler {
             const newRequest = this.#geminiQueue[loc].add(newTxts)
             const opType = `(${newRequest ? 'new request' : 'add to request'})`
             const locName = this.#config.locales[loc].name
-            console.info('Gemini translate', newTxts.length, 'items to', locName, opType)
+            if (this.#config.messages) {
+                this.#log.info(`Gemini translate ${newTxts.length} items to ${locName} ${opType}`)
+            }
             await this.#geminiQueue[loc].running
         }
         if (!txts.length) {

@@ -5,6 +5,7 @@ import { getConfig } from "./config.js"
 import { AdapterHandler } from "./handler.js"
 import { parseArgs } from 'node:util'
 import { dirname } from "node:path"
+import { Logger } from "./adapters.js"
 
 const { positionals, values } = parseArgs({
     options: {
@@ -62,7 +63,7 @@ if (cmd === 'help') {
     const config = await getConfig()
     const locales = Object.keys(config.locales)
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd())
+        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
         await extract(handler, locales)
     }
     console.info('Extraction finished.')
@@ -71,7 +72,7 @@ if (cmd === 'help') {
     const config = await getConfig()
     let extractedNew = false
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd())
+        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
         let loaderPath = await handler.getLoaderPath()
         if (loaderPath != null) {
             console.info('Loader already exists for', key, 'at', loaderPath)

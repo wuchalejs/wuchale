@@ -6,6 +6,7 @@ import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
+import { Logger } from 'wuchale/adapters'
 
 export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
 const dirBase = absDir(import.meta.url)
@@ -30,6 +31,7 @@ async function getOutput(adapter, key, content, filename) {
         defaultConfig,
         'prod',
         process.cwd(),
+        new Logger(false),
     )
     await handler.init()
     const { code } = await handler.transform(content, filename)

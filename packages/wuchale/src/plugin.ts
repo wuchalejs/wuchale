@@ -4,6 +4,7 @@ import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {Mode} from './handler.js'
+import { Logger } from "./adapters.js"
 
 const virtualResolvedPrefix = '\0'
 
@@ -33,8 +34,11 @@ class Plugin {
     #adaptersByLoaderPath: {[loader: string]: AdapterHandler} = {}
     #adaptersByCatalogPath: {[path: string]: AdapterHandler} = {}
 
+    #log: Logger
+
     #init = async (mode: Mode) => {
         this.#config = await getConfig()
+        this.#log = new Logger(this.#config.messages)
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
@@ -45,6 +49,7 @@ class Plugin {
                 this.#config,
                 mode,
                 this.#projectRoot,
+                this.#log,
             )
             await handler.init()
             this.#adapters[key] = handler
@@ -120,7 +125,7 @@ class Plugin {
             const [adapterKey, loadID, locale] = rest
             const adapter = this.#adapters[adapterKey]
             if (adapter == null) {
-                console.error('Adapter not found for key:', adapterKey)
+                this.#log.error(`Adapter not found for key: ${adapterKey}`)
                 return null
             }
             return adapter.loadDataModule(locale, loadID)
@@ -129,13 +134,13 @@ class Plugin {
             return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`
         }
         if (part !== 'loader') {
-            console.error('Unknown virtual request:', id)
+            this.#log.error(`Unknown virtual request: ${id}`)
             return null
         }
         // data loader
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
-            console.error('Adapter not found for filename:', importer)
+            this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
         if (rest[0] === 'sync') {
@@ -150,7 +155,7 @@ class Plugin {
         }
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
-            if (adapter.pattern(filename)) {
+            if (adapter.fileMatches(filename)) {
                 return await adapter.transform(code, filename)
             }
         }
