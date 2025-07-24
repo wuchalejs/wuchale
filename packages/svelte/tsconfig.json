@@ -8,5 +8,5 @@
         { "path": "../wuchale" }
     ],
     "include": ["./src/**/*"],
-    "exclude": ["./src/loader.svelte.js"]
+    "exclude": ["./src/loader.default.svelte.js", "src/locales"]
 }

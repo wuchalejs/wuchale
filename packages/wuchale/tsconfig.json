@@ -7,5 +7,5 @@
     "references": [
     ],
     "include": ["./src/**/*"],
-    "exclude": ["./src/loader.js"]
+    "exclude": ["./src/loader.default.js", "tests/test-tmp", "src/locales"]
 }
