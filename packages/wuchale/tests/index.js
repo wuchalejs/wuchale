@@ -32,6 +32,9 @@ test('Inside function definitions', async function(t) {
             const varName = 'Hello'
             return varName
         }
+        const insideObj = {
+            method: () => 'Hello',
+        }
         const bar: (a: string) => string = (a) => \`Hello \${a\}\`
     `, typescript`
         import _wload_ from "../tests/test-tmp/loader.js"
@@ -41,11 +44,15 @@ test('Inside function definitions', async function(t) {
             const varName = _w_runtime_.t(0)
             return varName
         }
+        const insideObj = {
+            method: () => _w_runtime_.t(0),
+        }
         const bar: (a: string) => string = (a) => _w_runtime_.t(1, [a])
     `, `
     msgid ""
     msgstr ""
 
+    #: test-tmp/test.js
     #: test-tmp/test.js
     msgid "Hello"
     msgstr "Hello"

@@ -30,7 +30,7 @@ const svelteHeuristic: HeuristicFunc = (text, details) => {
     if (details.scope !== 'script') {
         return true
     }
-    if (details.topLevel === 'variable' && !topLevelDeclarationsInside.includes(details.topLevelCall)) {
+    if (details.declaring === 'variable' && !topLevelDeclarationsInside.includes(details.topLevelCall)) {
         return false
     }
     if (details.call === '$inspect') {

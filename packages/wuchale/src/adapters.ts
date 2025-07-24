@@ -3,24 +3,25 @@ import type { ItemType } from "./gemini.js"
 type TxtScope = "script" | "markup" | "attribute"
 
 export type HeuristicDetailsBase = {
-    scope: TxtScope,
-    element?: string,
-    attribute?: string,
+    scope: TxtScope
+    element?: string
+    attribute?: string
 }
 
-export type ScriptTopLevel = "variable" | "function" | "expression"
+export type ScriptDeclType = "variable" | "function" | "expression"
 
 type HeuristicDetails = HeuristicDetailsBase & {
-    file: string,
-    topLevel?: ScriptTopLevel,
-    topLevelCall?: string,
-    call?: string,
+    file: string
+    declaring?: ScriptDeclType
+    insideFuncDef?: boolean
+    topLevelCall?: string
+    call?: string
 }
 
 export type TransformOutput = {
-    code?: string,
-    map?: any,
-    txts: NestText[],
+    code?: string
+    map?: any
+    txts: NestText[]
 }
 
 export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
@@ -45,7 +46,7 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
 
 // only allow inside function definitions
 export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
-    return defaultHeuristic(text, details) && details.topLevel === 'function'
+    return defaultHeuristic(text, details) && details.insideFuncDef
 }
 
 export const defaultGenerateLoadID = (filename: string) => {

@@ -125,7 +125,12 @@ export const typescript = (/** @type {TemplateStringsArray} */ foo) => foo.join(
 export const javascript = typescript
 
 // const code = typescript`
-//     const t = 'Hello'
+//     const t = {
+//         f: () => 'Hello',
+//         g: function() {
+//             return 'Hello'
+//         },
+//     }
 // `
 // const p = await getOutput(basic, 'basic', code, testFile)
 // console.log(p.code)
