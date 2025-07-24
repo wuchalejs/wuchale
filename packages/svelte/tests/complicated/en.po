@@ -1,84 +1,84 @@
 msgid ""
 msgstr ""
 
-#: src/test.svelte
+#: app.svelte
 msgid "Bar"
 msgstr "Bar"
 
-#: src/test.svelte
-#: src/test.svelte
+#: app.svelte
+#: app.svelte
 msgid "Extracted text"
 msgstr "Extracted text"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Extracted"
 msgstr "Extracted"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Extracted Text"
 msgstr "Extracted Text"
 
-#: src/test.svelte
+#: app.svelte
 msgid "extracted anyway"
 msgstr "extracted anyway"
 
-#: src/test.svelte
+#: app.svelte
 msgid "{0} other blocks"
 msgstr "{0} other blocks"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Loops and {0} <0/> Supported"
 msgstr "Loops and {0} <0/> Supported"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Conditionals, <0/>"
 msgstr "Conditionals, <0/>"
 
-#: src/test.svelte
+#: app.svelte
 msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Extract"
 msgstr "Extract"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Interpolate {0} {1}"
 msgstr "Interpolate {0} {1}"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Extracted name"
 msgstr "Extracted name"
 
-#: src/test.svelte
+#: app.svelte
 msgid "This page says: {0}"
 msgstr "This page says: {0}"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Extract this"
 msgstr "Extract this"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Variable"
 msgstr "Variable"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Add to Variable"
 msgstr "Add to Variable"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Check extracted"
 msgstr "Check extracted"
 
-#: src/test.svelte
+#: app.svelte
 msgid "That"
 msgstr "That"
 
-#: src/test.svelte
-#: src/test.svelte
+#: app.svelte
+#: app.svelte
 msgid "And this"
 msgstr "And this"
 
-#: src/test.svelte
+#: app.svelte
 msgid "Okay?"
 msgstr "Okay?"

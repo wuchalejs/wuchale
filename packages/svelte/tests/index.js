@@ -6,7 +6,7 @@ import { testContent, testDir, svelte } from './check.js'
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import _w_load_ from "./locales/loader.svelte.js"
+            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -15,7 +15,7 @@ test('Simple text', async function(t) {
     msgid ""
     msgstr ""
 
-    #: src/test.svelte
+    #: test-tmp/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -29,7 +29,7 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import _w_load_ from "./locales/loader.svelte.js"
+            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -40,7 +40,7 @@ test('Simple element with new lines', async function(t) {
         msgid ""
         msgstr ""
 
-        #: src/test.svelte
+        #: test-tmp/test.svelte
         msgid ""
         "Hello\\n"
         "            There"
@@ -62,7 +62,7 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import _w_load_ from "./locales/loader.svelte.js"
+            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_('svelte'))
         </script>
@@ -78,7 +78,7 @@ test('Ignore and include', async function(t) {
     msgid ""
     msgstr ""
 
-    #: src/test.svelte
+    #: test-tmp/test.svelte
     msgid "include this"
     msgstr "include this"
     `, ['include this'])
@@ -96,7 +96,7 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-            import _w_load_ from "./locales/loader.svelte.js"
+            import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
@@ -110,22 +110,22 @@ test('Context', async function(t) {
         msgid ""
         msgstr ""
 
-        #: src/test.svelte
+        #: test-tmp/test.svelte
         msgctxt "music"
         msgid "String"
         msgstr "String"
 
-        #: src/test.svelte
+        #: test-tmp/test.svelte
         msgctxt "programming"
         msgid "String"
         msgstr "String"
 
-        #: src/test.svelte
+        #: test-tmp/test.svelte
         msgctxt "door"
         msgid "Close"
         msgstr "Close"
 
-        #: src/test.svelte
+        #: test-tmp/test.svelte
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"
@@ -137,7 +137,7 @@ test('Plural', async function(t) {
         svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
         svelte`
             <script>
-                import _w_load_ from "./locales/loader.svelte.js"
+                import _w_load_ from "../../wuchale/tests/test-tmp/loader.svelte.js"
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
@@ -146,7 +146,7 @@ test('Plural', async function(t) {
     msgid ""
     msgstr ""
 
-    #: src/test.svelte
+    #: test-tmp/test.svelte
     msgid "One item"
     msgid_plural "# items"
     msgstr[0] "One item"

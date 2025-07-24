@@ -1,5 +1,5 @@
 <script>
-    import _w_load_ from "./locales/loader.svelte.js"
+    import _w_load_ from "../wuchale/tests/test-tmp/loader.svelte.js"
     import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
     const _w_runtime_ = $derived(_w_load_('svelte'))
 

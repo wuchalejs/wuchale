@@ -66,7 +66,7 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
     })
 }
 
-export type Mode = 'dev' | 'prod' | 'extract' | 'test'
+export type Mode = 'dev' | 'prod' | 'extract'
 type CompiledItems = (CompiledFragment | number)[]
 type CompiledCatalog = { [loc: string]: CompiledItems }
 type PerFileState = {
@@ -128,20 +128,24 @@ export class AdapterHandler {
             }
         }
         await mkdir(dirname(this.loaderPath), { recursive: true })
-        if (this.#mode !== 'test') {
-            await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
-        }
+        await copyFile(this.#adapter.loaderTemplateFile, this.loaderPath)
     }
 
     /** Get both catalog virtual module names AND HMR event names */
     virtModEvent = (locale: string, fileID: string | null) => `${virtualPrefix}catalog/${this.key}/${fileID ?? this.key}/${locale}`
 
-    getLoader() {
-        let fileIDs = [this.key]
-        if (this.#adapter.perFile) {
-            fileIDs = Object.values(this.perFileState).filter(f => f.compiled[this.#config.sourceLocale].length > 0).map(f => f.id)
+    #getFileIDs() {
+        if (!this.#adapter.perFile) {
+            return [this.key]
         }
+        return Object.values(this.perFileState)
+            .filter(f => f.compiled[this.#config.sourceLocale].length > 0)
+            .map(f => f.id)
+    }
+
+    getLoader() {
         const imports = []
+        const fileIDs = this.#getFileIDs()
         for (const id of fileIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
@@ -157,10 +161,7 @@ export class AdapterHandler {
     }
 
     getLoaderSync() {
-        let fileIDs = [this.key]
-        if (this.#adapter.perFile) {
-            fileIDs = Object.values(this.perFileState).filter(f => f.compiled[this.#config.sourceLocale].length > 0).map(f => f.id)
-        }
+        const fileIDs = this.#getFileIDs()
         const imports = []
         const object = []
         for (const id of fileIDs) {
@@ -193,7 +194,7 @@ export class AdapterHandler {
             this.#catalogsFname[loc] = catalogFname
             // for handleHotUpdate
             this.transFnamesToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
-            if (loc !== this.#config.sourceLocale && this.#mode !== 'test') {
+            if (loc !== this.#config.sourceLocale) {
                 this.#geminiQueue[loc] = new GeminiQueue(
                     sourceLocaleName,
                     this.#config.locales[loc].name,
@@ -203,31 +204,6 @@ export class AdapterHandler {
             }
             await this.loadCatalogNCompile(loc)
         }
-    }
-
-    #fullHeaders = (loc: string) => {
-        const localeConf = this.#config.locales[loc]
-        const fullHead = { ...this.#poHeaders[loc] ?? {} }
-        const updateHeaders = [
-            ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.plural};`],
-            ['Language', this.#config.locales[loc].name],
-            ['MIME-Version', '1.0'],
-            ['Content-Type', 'text/plain; charset=utf-8'],
-            ['Content-Transfer-Encoding', '8bit'],
-            ['PO-Revision-Date', new Date().toISOString()],
-        ]
-        for (const [key, val] of updateHeaders) {
-            fullHead[key] = val
-        }
-        const defaultHeaders = [
-            ['POT-Creation-Date', new Date().toISOString()],
-        ]
-        for (const [key, val] of defaultHeaders) {
-            if (!fullHead[key]) {
-                fullHead[key] = val
-            }
-        }
-        return fullHead
     }
 
     directExtract = async () => {
@@ -355,10 +331,29 @@ export class AdapterHandler {
     }
 
     savePoAndCompile = async (loc: string) => {
-        if (this.#mode !== 'test') {
-            await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], this.#fullHeaders(loc))
+        const localeConf = this.#config.locales[loc]
+        const fullHead = { ...this.#poHeaders[loc] ?? {} }
+        const updateHeaders = [
+            ['Plural-Forms', `nplurals=${localeConf.nPlurals}; plural=${localeConf.plural};`],
+            ['Language', this.#config.locales[loc].name],
+            ['MIME-Version', '1.0'],
+            ['Content-Type', 'text/plain; charset=utf-8'],
+            ['Content-Transfer-Encoding', '8bit'],
+            ['PO-Revision-Date', new Date().toISOString()],
+        ]
+        for (const [key, val] of updateHeaders) {
+            fullHead[key] = val
         }
-        if (this.#mode !== 'extract') {
+        const defaultHeaders = [
+            ['POT-Creation-Date', new Date().toISOString()],
+        ]
+        for (const [key, val] of defaultHeaders) {
+            if (!fullHead[key]) {
+                fullHead[key] = val
+            }
+        }
+        await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], fullHead)
+        if (this.#mode !== 'extract') { // save for the end
             this.compile(loc)
         }
     }

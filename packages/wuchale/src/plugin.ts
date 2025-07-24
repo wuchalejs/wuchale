@@ -59,8 +59,6 @@ class Plugin {
         let mode: Mode
         if (config.env.DEV) {
             mode = 'dev'
-        } else if (config.env.DEV == null) {
-            mode = 'test'
         } else {
             mode = 'prod'
         }

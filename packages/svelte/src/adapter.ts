@@ -480,6 +480,6 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         generateID,
         loaderExt: '.svelte.js',
         proxyModuleDev,
-        loaderTemplateFile: new URL('../../src/loader.svelte.js', import.meta.url).pathname,
+        loaderTemplateFile: new URL('../../src/loader.default.svelte.js', import.meta.url).pathname,
     }
 }

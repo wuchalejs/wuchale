@@ -2,24 +2,36 @@
 import { AdapterHandler } from 'wuchale/handler'
 import { defaultConfig } from 'wuchale/config'
 import { adapter } from 'wuchale/adapter-vanilla'
-import { readFile } from 'fs/promises'
+import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
-import { dirname } from 'path'
+import { dirname, relative } from 'path'
 import PO from 'pofile'
 
 export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
+const dirBase = absDir(import.meta.url)
+const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
+
+export const adapterOpts = {
+    files: `${dirBase}/test-tmp/*`,
+    catalog: `${dirBase}/test-tmp/{locale}`
+}
 
 /**
  * @param {string} content
  * @param {import("wuchale/adapter").Adapter} adapter
  * @param {string} key
+ * @param {string} filename
  */
-async function getOutput(adapter, key, content, filename = 'src/test.svelte') {
+async function getOutput(adapter, key, content, filename) {
+    try {
+        await rm(adapterOpts.catalog.replace('{locale}', ''), {recursive: true})
+    } catch {}
+    adapter.catalog
     const handler = new AdapterHandler(
         adapter,
         key,
         defaultConfig,
-        'test',
+        'prod',
         process.cwd(),
     )
     await handler.init()
@@ -51,11 +63,12 @@ function trimLines(str) {
  * @param {string} expectedContent
  * @param {string} expectedTranslations
  * @param {(string | number | (string | number)[])[]} expectedCompiled
+ * @param {string} testFile
  * @param {import("wuchale/adapter").Adapter} adapter
  * @param {string} key
  */
-export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled) {
-    const { code, catalogs, compiled } = await getOutput(adapter, key, content)
+export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile) {
+    const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
     for (const key in catalogs.en) {
@@ -70,16 +83,18 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
  * @param {string} dir
  * @param {import("wuchale/adapter").Adapter} adapter
  * @param {string} key
+ * @param {string} testFile
+ * @param {string} testFileOut
  */
-export async function testDirSetup(t, adapter, key, dir) {
-    const content = (await readFile(`${dir}/app.svelte`)).toString()
-    const contentOut = (await readFile(`${dir}/app.out.svelte`)).toString()
+export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) {
+    const content = (await readFile(`${dir}/${testFile}`)).toString()
+    const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
     const poContents = (await readFile(`${dir}/en.po`)).toString()
     const compiledContents = JSON.parse((await readFile(`${dir}/en.json`)).toString())
-    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents)
+    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, testFile)
 }
 
-const basic = adapter()
+const basic = adapter(adapterOpts)
 
 /**
  * @param {any} t
@@ -89,17 +104,15 @@ const basic = adapter()
  * @param {(string | number | (string | number)[])[]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
-    await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled)
+    await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled, testFile)
 }
-
-const dirBase = absDir(import.meta.url)
 
 /**
  * @param {any} t
  * @param {string} dir
  */
 export async function testDir(t, dir) {
-    await testDirSetup(t, basic, 'basic',`${dirBase}/${dir}`)
+    await testDirSetup(t, basic, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }
 
 // only for syntax highlighting
@@ -109,7 +122,7 @@ export const javascript = typescript
 // const code = typescript`
 //     const t = 'Hello'
 // `
-// const p = await getOutput(basic, 'basic', code, 'src/test.ts')
+// const p = await getOutput(basic, 'basic', code, testFile)
 // console.log(p.code)
 // console.log(Object.values(p.catalogs.en))
 // console.log(p.compiled.en)

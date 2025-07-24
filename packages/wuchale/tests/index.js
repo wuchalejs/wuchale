@@ -34,7 +34,7 @@ test('Inside function definitions', async function(t) {
         }
         const bar: (a: string) => string = (a) => \`Hello \${a\}\`
     `, typescript`
-        import _wload_ from "./locales/loader.js"
+        import _wload_ from "../tests/test-tmp/loader.js"
         const _w_runtime_ = _wload_('basic')
 
         function foo(): string {
@@ -46,11 +46,11 @@ test('Inside function definitions', async function(t) {
     msgid ""
     msgstr ""
 
-    #: src/test.svelte
+    #: test-tmp/test.js
     msgid "Hello"
     msgstr "Hello"
 
-    #: src/test.svelte
+    #: test-tmp/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
     `, ['Hello', ['Hello ', 0]])

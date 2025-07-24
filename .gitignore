@@ -1,7 +1,7 @@
 node_modules
 rnd
-**/locales/*.svelte.js
-**/locales/*.js
+packages/*/src/locales/*
+test-tmp
 dist
 examples/*/package-lock.json
 .svelte-kit
