@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.9.1
+
+### Patch Changes
+
+- cd3513a: Fix wrong contents of default loader for svelte
+
 ## 0.9.0
 
 ### Minor Changes
