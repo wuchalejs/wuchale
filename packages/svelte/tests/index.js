@@ -2,6 +2,7 @@
 
 import { test } from 'node:test'
 import { testContent, testDir, svelte } from './check.js'
+import { javascript } from '../../wuchale/tests/check.js'
 
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
@@ -19,6 +20,18 @@ test('Simple text', async function(t) {
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
+})
+
+test('JS no extract', async function(t) {
+    await testContent(t, javascript`
+        // 'Not translation!' // simple expression
+        // const varName = 'No extraction' // simple assignment
+        const noExtract = call('Foo')
+        noExtract('Foo')
+    `, undefined, `
+        msgid ""
+        msgstr ""
+    `, [], 'test.svelte.js')
 })
 
 test('Simple element with new lines', async function(t) {

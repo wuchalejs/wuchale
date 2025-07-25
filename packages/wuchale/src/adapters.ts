@@ -41,6 +41,9 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (details.scope !== 'script') {
         return true
     }
+    if (details.declaring === 'expression') {
+        return false
+    }
     return !details.call?.startsWith('console.')
 }
 

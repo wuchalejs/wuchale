@@ -76,13 +76,13 @@ export class Transformer {
             const details = {
                 file: this.filename,
                 call: this.currentCall,
-                topLevel: this.declaring,
+                declaring: this.declaring,
                 insideFuncDef: this.insideFuncDef,
                 topLevelCall: this.currentTopLevelCall,
                 ...detailsBase,
             }
-            if (details.topLevel == null && this.insideProgram) {
-                details.topLevel = 'expression'
+            if (details.declaring == null && this.insideProgram) {
+                details.declaring = 'expression'
             }
             extract = this.heuristic(text, details)
                 ?? defaultHeuristicFuncOnly(text, details)

@@ -22,12 +22,13 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.svelte`)
  * @param {string} expectedContent
  * @param {string} expectedTranslations
  * @param {string[] | string[][]} expectedCompiled
+ * @param {string} [filename]
  */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
+export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename) {
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testContentSetup(t, sv, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, testFile)
+    await testContentSetup(t, sv, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
 
 /**

@@ -20,6 +20,7 @@ test('Simple expression and assignment', async function(t) {
     await testContent(t, typescript`
         'Not translation!' // simple expression
         const varName = 'No extraction' // simple assignment
+        const noExtract = call('Foo')
     `, undefined, `
     msgid ""
     msgstr ""
