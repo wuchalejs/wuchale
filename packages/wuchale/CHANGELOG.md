@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.2
+
+### Patch Changes
+
+- 7ef6ea5: Fix bare strings in the top level being extracted
+
 ## 0.9.1
 
 ### Patch Changes
