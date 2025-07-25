@@ -4,8 +4,8 @@
 /// <reference types="wuchale/virtual" />
 
 import { loadCatalog, loadIDs } from 'virtual:wuchale/loader' // or /loader/sync
-import { registerLoader } from 'wuchale/run-client'
+import { registerLoaders } from 'wuchale/run-client'
 
 const catalogs = $state({})
 
-export default registerLoader('main', loadIDs, loadCatalog, catalogs)
+export default registerLoaders('main', loadCatalog, loadIDs, catalogs)
