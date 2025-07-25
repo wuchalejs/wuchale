@@ -7,5 +7,10 @@
         "build": "tsc --build",
         "test": "npm run test --workspaces"
     },
-    "workspaces": [ "packages/*" ]
+    "workspaces": [
+        "packages/*"
+    ],
+    "devDependencies": {
+        "@changesets/cli": "^2.29.5"
+    }
 }
