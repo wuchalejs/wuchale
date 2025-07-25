@@ -1,0 +1,4 @@
+{
+    "extends": "./tsconfig.json",
+    "exclude": ["./src/loader.default.js", "tests/test-tmp", "src/locales"]
+}

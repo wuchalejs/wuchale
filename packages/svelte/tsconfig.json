@@ -7,10 +7,5 @@
     "references": [
         { "path": "../wuchale" }
     ],
-    "include": ["./src/**/*"],
-    "exclude": [
-        "./src/loader.default.svelte.js",
-        "./src/loader.default.kit.svelte.js",
-        "./src/locales/*"
-    ]
+    "include": ["./src/**/*"]
 }
