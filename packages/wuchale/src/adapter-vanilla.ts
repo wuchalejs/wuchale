@@ -14,7 +14,7 @@ import type {
     HeuristicDetailsBase,
     HeuristicFunc,
     IndexTracker,
-    ProxyModuleFunc,
+    DataModuleFunc,
     ScriptDeclType,
     TransformOutput
 } from "./adapters.js"
@@ -32,6 +32,7 @@ export function parseScript(content: string) {
 }
 
 export const runtimeConst = '_w_runtime_'
+const rtFuncInit = '_w_load_'
 
 export class Transformer {
 
@@ -41,6 +42,7 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
+    initInsideFuncLoadID: string | null
 
     // for runtime
     rtFunc = `${runtimeConst}.t`
@@ -55,12 +57,13 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncLoadID?: string) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
+        this.initInsideFuncLoadID = initInsideFuncLoadID
     }
 
     checkHeuristic = (text: string, detailsBase: HeuristicDetailsBase): [boolean, NestText] => {
@@ -273,6 +276,10 @@ export class Transformer {
         const insideFuncDef = this.insideFuncDef
         this.insideFuncDef = true
         const txts = this.visit(node)
+        if (this.initInsideFuncLoadID && node.type === 'BlockStatement') {
+            // @ts-expect-error
+            this.mstr.prependLeft(node.start + 1, `const ${runtimeConst} = ${rtFuncInit}('${this.initInsideFuncLoadID}')\n`)
+        }
         this.insideFuncDef = insideFuncDef
         return txts
     }
@@ -420,10 +427,9 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            const rtFunc = '_w_load_'
             const importModule = `
-                import ${rtFunc} from "${loaderPath}"
-                const ${runtimeConst} = ${rtFunc}('${loadID}')
+                import ${rtFuncInit} from "${loaderPath}"
+                const ${runtimeConst} = ${rtFuncInit}('${loadID}')
             `
             this.mstr.appendRight(0, importModule)
         }
@@ -444,33 +450,48 @@ export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, e
     }
 `
 
-const proxyModuleDev: ProxyModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
+const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
     export const plural = ${plural}
     export const data = ${compiled}
     ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
-const defaultArgs: AdapterArgs = {
+type VanillaAdapArgs = AdapterArgs & {initInsideFunc?: boolean}
+
+const defaultArgs: VanillaAdapArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
     generateLoadID: defaultGenerateLoadID,
     granularLoad: false,
+    writeFiles: {},
+    initInsideFunc: false,
 }
 
-export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, granularLoad, generateLoadID: generateID } = deepMergeObjects(args, defaultArgs)
+export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
+    const {
+        heuristic,
+        pluralsFunc,
+        files,
+        catalog,
+        granularLoad,
+        generateLoadID:
+        generateID,
+        writeFiles,
+        initInsideFunc,
+    } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({content, filename, index, loaderPath, loadID}) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc).transform(loaderPath, loadID)
+            return new Transformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? loadID : null).transform(loaderPath, loadID)
         },
         files,
         catalog,
         granularLoad,
         generateLoadID: generateID,
         loaderExts: ['.js', '.ts'],
-        proxyModuleDev,
+        dataModuleDev,
+        writeFiles,
         defaultLoaderPath: () => new URL('../../src/loader.default.js', import.meta.url).pathname,
     }
 }

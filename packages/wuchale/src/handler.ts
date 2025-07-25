@@ -1,8 +1,8 @@
 // $$ cd ../.. && npm run test
-import { dirname, relative } from 'node:path'
+import { basename, dirname, relative, resolve } from 'node:path'
 import { IndexTracker, NestText } from "./adapters.js"
 import type { Adapter, GlobConf, Catalog, Logger } from "./adapters.js"
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import { glob } from "tinyglobby"
@@ -161,13 +161,25 @@ export class AdapterHandler {
             .map(f => f.id)
     }
 
-    getLoader() {
+    #getCompiledFilePath(loc: string, id: string | null) {
+        const fnameBase = this.#adapter.catalog.replace('{locale}', loc) + '.compiled'
+        return fnameBase + '.' + (id ?? this.key) + this.#adapter.loaderExts[0]
+    }
+
+    #getCompiledImport(loc: string, id: string | null, proxyFilePath?: string) {
+        if (proxyFilePath) {
+            return './' + basename(this.#getCompiledFilePath(loc, id))
+        }
+        return this.virtModEvent(loc, id)
+    }
+
+    getLoader(proxyFilePath?: string) {
         const imports = []
         const loadIDs = this.#getFileIDs()
         for (const id of loadIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
-                importsByLocale.push(`${loc}: () => import('${this.virtModEvent(loc, id)}')`)
+                importsByLocale.push(`${loc}: () => import('${this.#getCompiledImport(loc, id, proxyFilePath)}')`)
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
@@ -178,15 +190,15 @@ export class AdapterHandler {
         `
     }
 
-    getLoaderSync() {
+    getLoaderSync(proxyFilePath?: string) {
         const loadIDs = this.#getFileIDs()
         const imports = []
         const object = []
         for (const id of loadIDs) {
             const importedByLocale = []
             for (const loc of this.#locales) {
-                imports.push(`import * as ${loc}Of${id} from '${this.virtModEvent(loc, id)}'`)
-                importedByLocale.push(this.#locales.map(loc => `${loc}: ${loc}Of${id}`))
+                imports.push(`import * as ${loc}Of${id} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
+                importedByLocale.push(`${loc}: ${loc}Of${id}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
@@ -222,6 +234,7 @@ export class AdapterHandler {
             }
             await this.loadCatalogNCompile(loc)
         }
+        await this.writeProxy()
     }
 
     directExtract = async () => {
@@ -263,7 +276,7 @@ export class AdapterHandler {
         if (this.#mode === 'dev') {
             const eventSend = this.virtModEvent(locale, loadID)
             const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.proxyModuleDev({ loadID: loadID, eventSend, eventReceive, compiled, plural })
+            return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled, plural })
         }
         return `
             export const plural = ${plural}
@@ -290,7 +303,7 @@ export class AdapterHandler {
         return state
     }
 
-    compile = (loc: string) => {
+    compile = async (loc: string) => {
         this.compiled[loc] = []
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
@@ -315,6 +328,41 @@ export class AdapterHandler {
                 state.compiled[loc][state.indexTracker.get(key)] = compiled
             }
         }
+        await this.writeCompiled(loc)
+    }
+
+    writeCompiled = async (loc: string) => {
+        if (!this.#adapter.writeFiles.compiled) {
+            return
+        }
+        await writeFile(this.#getCompiledFilePath(loc, null), this.loadDataModule(loc, null))
+        if (!this.#adapter.granularLoad) {
+            return
+        }
+        for (const state of Object.values(this.granularStateByID)) {
+            await writeFile(this.#getCompiledFilePath(loc, state.id), this.loadDataModule(loc, state.id))
+        }
+    }
+
+    writeProxy = async () => {
+        if (!this.#adapter.writeFiles.proxy) {
+            return
+        }
+        const fname = this.#adapter.catalog.replace('{locale}', 'proxy') + this.#adapter.loaderExts[0]
+        await writeFile(fname, this.getLoaderSync(fname))
+    }
+
+    writeTransformed = async (filename: string, content: string) => {
+        if (!this.#adapter.writeFiles.transformed) {
+            return
+        }
+        let outDir = this.#adapter.writeFiles.outDir
+        if (!outDir) {
+            outDir = this.#adapter.catalog.replace('{locale}', '.output')
+        }
+        const fname = resolve(outDir + '/' + filename)
+        await mkdir(dirname(fname), {recursive: true})
+        await writeFile(fname, content)
     }
 
     #globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
@@ -363,7 +411,7 @@ export class AdapterHandler {
         }
         await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], fullHead)
         if (this.#mode !== 'extract') { // save for the end
-            this.compile(loc)
+            await this.compile(loc)
         }
     }
 
@@ -463,6 +511,7 @@ export class AdapterHandler {
             this.#log.info(`Gemini translate ${newTxts.length} items to ${locName} ${opType}`)
             await this.#geminiQueue[loc].running
         }
+        await this.writeTransformed(filename, output.code ?? content)
         if (!txts.length) {
             return {}
         }

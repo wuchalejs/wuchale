@@ -114,7 +114,7 @@ type TransformCtx = {
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
-type ProxyModuleCtx = {
+type DataModuleCtx = {
     loadID: string | null
     eventSend: string
     eventReceive: string
@@ -142,20 +142,26 @@ export class Logger {
 
 }
 
-export type ProxyModuleFunc = (ctx: ProxyModuleCtx) => string
+export type DataModuleFunc = (ctx: DataModuleCtx) => string
 
 type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
     granularLoad: boolean
     generateLoadID: (filename: string) => string
+    writeFiles: {
+        compiled?: boolean
+        proxy?: boolean
+        transformed?: boolean
+        outDir?: string
+    }
 }
 
 export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
-    proxyModuleDev: ProxyModuleFunc
+    dataModuleDev: DataModuleFunc
     /* Can return different file paths based on conditions */
     defaultLoaderPath: () => string | Promise<string>
 }

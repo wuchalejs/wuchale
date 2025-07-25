@@ -12,7 +12,7 @@ import type {
     Adapter,
     AdapterArgs,
     CommentDirectives,
-    ProxyModuleFunc
+    DataModuleFunc
 } from 'wuchale/adapters'
 import { virtualPrefix } from "wuchale/handler"
 
@@ -447,7 +447,7 @@ export class SvelteTransformer extends Transformer {
     }
 }
 
-const proxyModuleDev: ProxyModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
+const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const plural = ${plural}
     export const data = new ReactiveArray(...${compiled})
@@ -466,10 +466,20 @@ const defaultArgs: SvelteAdapterArgs = {
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
+    writeFiles: {},
 }
 
 export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
-    const { heuristic, pluralsFunc, files, catalog, granularLoad, bundleLoad, generateLoadID, } = deepMergeObjects(args, defaultArgs)
+    const {
+        heuristic,
+        pluralsFunc,
+        files,
+        catalog,
+        granularLoad,
+        bundleLoad,
+        generateLoadID,
+        writeFiles,
+    } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({ content, filename, index, loaderPath, key, locales, loadID }) => {
             const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
@@ -480,7 +490,8 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         granularLoad,
         generateLoadID,
         loaderExts: ['.svelte.js', '.svelte.ts'],
-        proxyModuleDev,
+        dataModuleDev,
+        writeFiles,
         defaultLoaderPath: async () => {
             let loader = '../../src/loader.default.svelte.js'
             try {

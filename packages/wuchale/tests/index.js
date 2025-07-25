@@ -2,7 +2,7 @@
 
 import { test } from 'node:test'
 import { Runtime } from 'wuchale/runtime'
-import { registerLoader, runWithLocale, _w_rt_ } from 'wuchale/run-server'
+import { loadLocales, runWithLocale } from 'wuchale/run-server'
 import { compileTranslation } from '../dist/src/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
 
@@ -86,9 +86,9 @@ test('Runtime', t => {
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
     // @ts-expect-error
-    registerLoader('main', _ => testCatalog)
+    const getRt = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return _w_rt_('main').t(1, ['server user'])
+        return getRt('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })

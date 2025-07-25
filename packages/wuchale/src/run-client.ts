@@ -1,7 +1,7 @@
 import { type CatalogModule, Runtime } from './runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
-type LoaderState = {[loadID: string]: {catalog: Runtime, load: LoaderFunc}}
+export type LoaderState = {[loadID: string]: {catalog: Runtime, load: LoaderFunc}}
 
 type LoadedRTByFile = {[loadID: string]: Runtime}
 
@@ -51,7 +51,7 @@ const states: {[key: string]: PerFileAsyncReg} = {}
  * - `key` is a unique identifier for the group
  * - `loadIDs` and `load` MUST be imported from the loader virtual modules.
 */
-export function registerLoader(key: string, loadIDs: string[], load: LoaderFunc, state?: LoaderState): (fileID: string) => Runtime {
+export function registerLoader(key: string, load: LoaderFunc, loadIDs: string[], state?: LoaderState): (fileID: string) => Runtime {
     if (!(key in states)) {
         states[key] = new PerFileAsyncReg()
     }
