@@ -4,8 +4,6 @@
         "outDir": "./dist",
         "composite": true
     },
-    "references": [
-    ],
-    "include": ["./src/**/*"],
-    "exclude": ["./src/loader.default.js", "tests/test-tmp", "src/locales"]
+    "references": [],
+    "include": ["./src/**/*"]
 }
