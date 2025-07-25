@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.1
+
+### Patch Changes
+
+- 3cb0541: Fix wrong default loader contents for vanilla adapter
+
 ## 0.9.0
 
 ### Minor Changes
