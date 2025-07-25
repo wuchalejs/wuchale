@@ -9,15 +9,19 @@
 </p>
 <br/>
 
-# `wuchale`
+# 📜`wuchale`🪶
 
-A non-invasive compile-time internationalization (i18n) toolkit.
-Inspired by Lingui, built from scratch with performance, clarity, and
-simplicity in mind.
+**`wuchale`** is a non-invasive, normal code based compile-time internationalization (i18n) toolkit.
 
-> 🎯 **Smart translations, tiny runtime, full HMR.** Extract strings at build
-> time, generate optimized translation catalogs, support live translations
-> (even with Gemini AI), and ship minimal code to production.
+- **🔤 No extra syntax!** - your normal code is enough
+- **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary
+- **🔧 Zero-effort integration** - Add i18n to existing projects without rewriting code
+- **🚀 Compile-time optimization** - All transformations happen during build, minimal runtime overhead
+- **🔄 Full, granular HMR support** - Live updates during development, including AI auto-translation
+- **📦 Tiny footprint** - Only 2 or 3 additional dependencies (`wuchale` + `pofile`), no bloated `node_modules`
+- **🎯 Smart extraction** - Uses AST analysis: handles nested markup, conditionals, loops, and complex interpolations
+- **🌍 Standard .po files** - Compatible with existing translation tools and workflows
+- **🤖 Optional AI translation** - Gemini integration for automatic translations during development
 
 ## Why `wuchale`?
 
@@ -37,77 +41,16 @@ function calls or components. `wuchale` doesn't.
 Write your code naturally. No imports, no wrappers, no annotations.
 `wuchale` handles everything at compile time.
 
-Try live examples in your browser, no setup required:
+Checkout examples to see how it can be used at **[`wuchalejs/examples`](https://github.com/wuchalejs/examples)**.
 
-- Vanilla TS: [![Vanilla TS example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/vanilla)
-- Svelte: [![Svelte example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/svelte)
-- SvelteKit: [![SvelteKit example on StackBlitz](https://img.shields.io/badge/StackBlitz-Demo-blue?logo=stackblitz)](https://stackblitz.com/github/K1DV5/wuchale/tree/main/examples/sveltekit)
+This repo houses these packages:
 
-## ✨ Key Features
+- [`wuchale`](https://npmjs.com/package/wuchale): Core + CLI + Vanilla adapter
+- [`@wuchale/svelte`](https://npmjs.com/package/@wuchale/svelte): Svelte adapter
 
-- **🔧 Zero-effort integration** - Add i18n to existing projects without rewriting code
-- **🚀 Compile-time optimization** - All transformations happen during build, minimal runtime overhead
-- **🔄 Full, granular HMR support** - Live updates during development, including auto-translation
-- **📦 Tiny footprint** - Only 2 additional dependencies (`wuchale` + `pofile`), no bloated `node_modules`
-- **🎯 Smart extraction** - Uses AST analysis: handles nested markup, conditionals, loops, and complex interpolations
-- **🌍 Standard .po files** - Compatible with existing translation tools and workflows
-- **🤖 Optional AI translation** - Gemini integration for automatic translations during development
+## 📚 Documentation
 
-## 🚀 Quick Start
-
-This repo currently contains these packages:
-
-- [Core + CLI + Vanilla JS/TS adapter](https://github.com/K1DV5/wuchale/tree/main/packages/wuchale)
-- [Svelte/SvelteKit adapter](https://github.com/K1DV5/wuchale/tree/main/packages/svelte)
-
-For full usage examples, look inside the **[examples directory](https://github.com/K1DV5/wuchale/tree/main/examples)**.
-
-## 📖 How It Works
-
-![Diagram](https://raw.githubusercontent.com/K1DV5/wuchale/main/images/diagram.svg)
-
-### Compilation Process
-
-1. **Extract** - AST traversal identifies translatable text
-2. **Transform** - Text nodes replaced with `wuchaleTrans.t(n)` calls
-3. **Catalog** - Updates .po files with new/changed messages
-4. **Translate** - Optional Gemini AI translation for new messages
-5. **Compile** - Generates optimized JavaScript modules
-6. **Bundle** - Vite handles HMR in dev, optimized builds for production
-
-### What Gets Extracted?
-
-There are three possible `scope`s for text to be extracted.
-
-- Markup: all text inside elements, always meant to be translated
-- Attribute: text inside attribute values of elements
-- Script: normal and template strings
-
-How these are handled depends on the specific adapter.
-
-### AI Translation
-
-Enable Gemini translations by setting `GEMINI_API_KEY`:
-
-```bash
-GEMINI_API_KEY=your-key npm run dev
-```
-
-## 📁 File Structure
-
-`wuchale` creates two files per locale per adapter. Taking Svelte as an example,
-
-```
-src/
-├── locales/
-│   ├── en.po         # Source catalog (commit this)
-│   ├── en.svelte.js  # Compiled data module (gitignore)
-│   ├── es.po         # Translation catalog (commit this)
-│   └── es.svelte.js  # Compiled data module (gitignore)
-└── App.svelte        # Your components
-```
-
-The `.js` file suffix depends on the specific adapter.
+See the full guide at: [wuchale.dev](https://wuchale.dev/).
 
 ## 🤝 Contributing
 
