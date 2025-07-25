@@ -1,11 +1,11 @@
 <p align="center">
-    <img width="180" src="https://raw.githubusercontent.com/K1DV5/wuchale/main/images/logo.svg" alt="Vite logo">
+    <img width="180" src="https://raw.githubusercontent.com/wuchalejs/wuchale/main/images/logo.svg" alt="Vite logo">
 </p>
 <br/>
 <p align="center">
   <a href="https://npmjs.com/package/wuchale"><img src="https://img.shields.io/npm/v/wuchale.svg" alt="npm package"></a>
-  <a href="https://github.com/K1DV5/wuchale/actions/workflows/node.js.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/node.js.yml/badge.svg?branch=main" alt="build status"></a>
-  <a href="https://pr.new/K1DV5/wuchale"><img src="https://developer.stackblitz.com/img/start_pr_dark_small.svg" alt="Start new PR in StackBlitz Codeflow"></a>
+  <a href="https://github.com/wuchalejs/wuchale/actions/workflows/node.js.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/node.js.yml/badge.svg?branch=main" alt="build status"></a>
+  <a href="https://pr.new/wuchalejs/wuchale"><img src="https://developer.stackblitz.com/img/start_pr_dark_small.svg" alt="Start new PR in StackBlitz Codeflow"></a>
 </p>
 <br/>
 
