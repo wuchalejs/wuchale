@@ -18,7 +18,7 @@ import { virtualPrefix } from "wuchale/handler"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
-const ignoreElements = ['path']
+const ignoreElements = ['style', 'path']
 
 const svelteHeuristic: HeuristicFunc = (text, details) => {
     if (!defaultHeuristic(text, details)) {
@@ -254,7 +254,10 @@ export class SvelteTransformer extends Transformer {
 
     visitText = (node: AST.Text): NestText[] => {
         const [startWh, trimmed, endWh] = this.nonWhitespaceText(node)
-        const [pass, txt] = this.checkHeuristic(trimmed, { scope: 'markup' })
+        const [pass, txt] = this.checkHeuristic(trimmed, {
+            scope: 'markup',
+            element: this.currentElement,
+        })
         if (!pass) {
             return []
         }

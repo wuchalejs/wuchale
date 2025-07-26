@@ -44,3 +44,16 @@ export async function testDir(t, dir) {
 
 // only for syntax highlighting
 export const svelte = typescript
+
+// import { getOutput } from '../../wuchale/tests/check.js'
+// const code = svelte`
+//   <main>
+//     <p class="read-the-docs">
+//       Click on the Vite and Svelte logos to learn more
+//     </p>
+//   </main>
+// `
+// const p = await getOutput(sv, 'svelte', code, testFile)
+// console.log(p.code)
+// console.log(Object.values(p.catalogs.en))
+// console.log(p.compiled.en)

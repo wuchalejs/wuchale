@@ -22,8 +22,9 @@ const adapterOpts = {
  * @param {import("wuchale/adapters").Adapter} adapter
  * @param {string} key
  * @param {string} filename
+ * @returns {Promise<object>}
  */
-async function getOutput(adapter, key, content, filename) {
+export async function getOutput(adapter, key, content, filename) {
     adapter.catalog
     const handler = new AdapterHandler(
         adapter,
@@ -35,7 +36,6 @@ async function getOutput(adapter, key, content, filename) {
     )
     await handler.init()
     const { code } = await handler.transform(content, filename)
-    // @ts-ignore
     const { catalogs, compiled } = handler
     return { code, catalogs: catalogs, compiled }
 }
