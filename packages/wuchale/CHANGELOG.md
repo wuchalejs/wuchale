@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.3
+
+### Patch Changes
+
+- 209fb51: Fix locale changes not being reactive in .svelte.js/ts files
+
 ## 0.9.2
 
 ### Patch Changes
