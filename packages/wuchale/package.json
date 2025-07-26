@@ -75,7 +75,7 @@
         "type": "git",
         "url": "git+https://github.com/wuchalejs/wuchale.git"
     },
-    "homepage": "https://github.com/wuchalejs/wuchale",
+    "homepage": "https://wuchale.dev",
     "bugs": "https://github.com/wuchalejs/wuchale/issues",
     "author": "K1DV5",
     "license": "MIT",
