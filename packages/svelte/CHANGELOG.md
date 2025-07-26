@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.9.2
+
+### Patch Changes
+
+- 2ab4798: Fix `style` tag contents being extracted
+
 ## 0.9.1
 
 ### Patch Changes
