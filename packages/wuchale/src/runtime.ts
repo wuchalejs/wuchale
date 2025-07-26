@@ -7,10 +7,12 @@ export type CatalogModule = {
     plural: PluralsRule
 }
 
+export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
+
 export class Runtime {
 
     data: CompiledData = []
-    pr: PluralsRule = n => n === 1 ? 0 : 1
+    pr: PluralsRule = defaultPluralsRule
 
     constructor(module?: CatalogModule) {
         if (!module) { // for fallback
