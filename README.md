@@ -1,5 +1,5 @@
 <p align="center">
-    <img width="180" src="https://raw.githubusercontent.com/wuchalejs/wuchale/main/images/logo.svg" alt="Vite logo">
+    <img width="180" src="https://raw.githubusercontent.com/wuchalejs/wuchalejs.github.io/main/public/favicon.svg" alt="wuchale logo">
 </p>
 <br/>
 <p align="center">
