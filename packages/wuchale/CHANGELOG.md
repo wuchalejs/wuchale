@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.4
+
+### Patch Changes
+
+- a86f197: fix header rev date updated even when no changes
+
 ## 0.9.3
 
 ### Patch Changes
