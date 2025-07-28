@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import { Runtime } from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/run-server'
-import { compileTranslation } from '../dist/src/compile.js'
+import { compileTranslation } from '../dist/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
 
 test('Compile nested', function(t) {

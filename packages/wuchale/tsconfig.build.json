@@ -1,4 +1,8 @@
 {
     "extends": "./tsconfig.json",
-    "exclude": ["./src/loader.default.js", "tests/test-tmp", "src/locales"]
+    "compilerOptions": {
+        "rootDir": "src"
+    },
+    "include": ["src"],
+    "exclude": ["src/loader.default.js"]
 }

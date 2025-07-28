@@ -3,9 +3,7 @@
     "files": [],
     "include": [],
     "references": [
-        { "path": "./packages/wuchale/tsconfig.build.json" },
-        { "path": "./packages/wuchale/tests" },
-        { "path": "./packages/svelte/tsconfig.build.json" },
-        { "path": "./packages/svelte/tests" }
+        { "path": "./packages/wuchale/tsconfig.json" },
+        { "path": "./packages/svelte/tsconfig.json" }
     ]
 }

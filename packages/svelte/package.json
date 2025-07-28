@@ -36,12 +36,12 @@
     ],
     "exports": {
         ".": {
-            "types": "./dist/src/index.d.ts",
-            "default": "./dist/src/index.js"
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
         },
         "./reactive": {
-            "types": "./dist/src/reactive.d.ts",
-            "default": "./dist/src/reactive.js"
+            "types": "./dist/reactive.d.ts",
+            "default": "./dist/reactive.js"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },

@@ -2,5 +2,4 @@ node_modules
 rnd
 packages/*/tests/test-tmp/*.po
 dist
-examples/*/package-lock.json
-.svelte-kit
+tsconfig.build.tsbuildinfo

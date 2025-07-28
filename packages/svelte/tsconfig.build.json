@@ -1,8 +1,8 @@
 {
     "extends": "./tsconfig.json",
-    "exclude": [
-        "./src/loader.default.svelte.js",
-        "./src/loader.default.kit.svelte.js",
-        "./src/locales/*"
-    ]
+    "compilerOptions": {
+        "rootDir": "src"
+    },
+    "include": ["src"],
+    "exclude": ["src/loader.default.svelte.js", "src/loader.default.kit.svelte.js"]
 }
