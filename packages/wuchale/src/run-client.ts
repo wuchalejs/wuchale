@@ -3,6 +3,8 @@ import { type CatalogModule, defaultPluralsRule, Runtime } from './runtime.js'
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 
 type CatalogsByID = {[loadID: string]: CatalogModule}
+type RuntimesByID = {[loadID: string]: Runtime}
+
 export type LoaderState = {catalogs: CatalogsByID, load: LoaderFunc}
 
 /** Global catalog states registry */
@@ -26,8 +28,7 @@ export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[]
  * Loads catalogs using registered loaders.
  * Can be called anywhere you want to set the locale.
 */
-export async function loadLocale(locale: string, key?: string): Promise<CatalogsByID> {
-    const data: CatalogsByID = {}
+export async function loadLocale(locale: string, key?: string): Promise<void> {
     let statesToLoad: LoaderState[]
     if (key) {
         statesToLoad = [states[key]]
@@ -47,16 +48,15 @@ export async function loadLocale(locale: string, key?: string): Promise<Catalogs
         rt.data = loaded.data
         rt.plural = loaded.plural
     }
-    return data
 }
 
 /** No-side effect way to load catalogs. Can be used for multiple file IDs. */
-export async function loadCatalogs(locale: string, loadIDs: string[], loadCatalog: LoaderFunc): Promise<CatalogsByID> {
-    const data: CatalogsByID = {}
+export async function loadCatalogs(locale: string, loadIDs: string[], loadCatalog: LoaderFunc): Promise<RuntimesByID> {
+    const data: RuntimesByID = {}
     const promises = loadIDs.map(id => loadCatalog(id, locale))
     // merge into one object
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        data[loadIDs[i]] = loaded
+        data[loadIDs[i]] = new Runtime(loaded)
     }
     return data
 }
