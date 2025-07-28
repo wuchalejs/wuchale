@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.5
+
+### Patch Changes
+
+- a109011: Fix error on sveltekit projects, \*.t not function
+
 ## 0.9.4
 
 ### Patch Changes
