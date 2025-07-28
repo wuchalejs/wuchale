@@ -457,7 +457,8 @@ export class AdapterHandler {
                 }
                 continue
             }
-            const newTxts: ItemType[] = []
+            let newItems: boolean = false
+            const untranslated: ItemType[] = []
             let newRefs = false
             for (const nTxt of txts) {
                 let key = nTxt.toKey()
@@ -470,6 +471,7 @@ export class AdapterHandler {
                         poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
                     }
                     this.catalogs[loc][key] = poItem
+                    newItems = true
                 }
                 if (nTxt.context) {
                     poItem.msgctxt = nTxt.context
@@ -489,26 +491,28 @@ export class AdapterHandler {
                     const txt = nTxt.text.join('\n')
                     if (poItem.msgstr.join('\n') !== txt) {
                         poItem.msgstr = nTxt.text
-                        newTxts.push(poItem)
+                        untranslated.push(poItem)
                     }
                 } else if (!poItem.msgstr[0]) {
-                    newTxts.push(poItem)
+                    untranslated.push(poItem)
                 }
             }
-            if (newTxts.length === 0) {
+            if (untranslated.length === 0) {
                 if (newRefs || Object.keys(previousReferences).length) { // or unused refs
                     await this.savePoAndCompile(loc)
                 }
                 continue
             }
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
-                await this.savePoAndCompile(loc)
+                if (newItems) {
+                    await this.savePoAndCompile(loc)
+                }
                 continue
             }
-            const newRequest = this.#geminiQueue[loc].add(newTxts)
+            const newRequest = this.#geminiQueue[loc].add(untranslated)
             const opType = `(${newRequest ? 'new request' : 'add to request'})`
             const locName = this.#config.locales[loc].name
-            this.#log.info(`Gemini translate ${newTxts.length} items to ${locName} ${opType}`)
+            this.#log.info(`Gemini translate ${untranslated.length} items to ${locName} ${opType}`)
             await this.#geminiQueue[loc].running
         }
         await this.writeTransformed(filename, output.code ?? content)
