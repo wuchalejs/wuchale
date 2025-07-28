@@ -68,7 +68,7 @@
         }
     },
     "bin": {
-        "wuchale": "./dist/src/cli.js"
+        "wuchale": "./dist/cli.js"
     },
     "repository": {
         "type": "git",
