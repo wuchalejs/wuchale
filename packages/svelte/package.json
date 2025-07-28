@@ -37,11 +37,11 @@
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",
-            "import": "./dist/src/index.js"
+            "default": "./dist/src/index.js"
         },
         "./reactive": {
             "types": "./dist/src/reactive.d.ts",
-            "import": "./dist/src/reactive.js"
+            "default": "./dist/src/reactive.js"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },

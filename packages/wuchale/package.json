@@ -33,39 +33,38 @@
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",
-            "import": "./dist/src/index.js",
-            "source": "./src/index.ts"
+            "default": "./dist/src/index.js"
         },
         "./virtual": {
             "types": "./src/virtual.d.ts"
         },
         "./config": {
             "types": "./dist/src/config.d.ts",
-            "import": "./dist/src/config.js"
+            "default": "./dist/src/config.js"
         },
         "./handler": {
             "types": "./dist/src/handler.d.ts",
-            "import": "./dist/src/handler.js"
+            "default": "./dist/src/handler.js"
         },
         "./adapters": {
             "types": "./dist/src/adapters.d.ts",
-            "import": "./dist/src/adapters.js"
+            "default": "./dist/src/adapters.js"
         },
         "./adapter-vanilla": {
             "types": "./dist/src/adapter-vanilla.d.ts",
-            "import": "./dist/src/adapter-vanilla.js"
+            "default": "./dist/src/adapter-vanilla.js"
         },
         "./runtime": {
             "types": "./dist/src/runtime.d.ts",
-            "import": "./dist/src/runtime.js"
+            "default": "./dist/src/runtime.js"
         },
         "./run-client": {
             "types": "./dist/src/run-client.d.ts",
-            "import": "./dist/src/run-client.js"
+            "default": "./dist/src/run-client.js"
         },
         "./run-server": {
             "types": "./dist/src/run-server.d.ts",
-            "import": "./dist/src/run-server.js"
+            "default": "./dist/src/run-server.js"
         }
     },
     "bin": {
