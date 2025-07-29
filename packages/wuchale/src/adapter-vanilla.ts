@@ -322,7 +322,6 @@ export class Transformer {
     }
 
     visitTemplateLiteral = (node: Estree.TemplateLiteral): NestText[] => {
-        const txts = []
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -333,8 +332,9 @@ export class Transformer {
         heurTxt = heurTxt.trim()
         const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
         if (!pass) {
-            return txts
+            return node.expressions.map(this.visit).flat()
         }
+        const txts = []
         const quasi0 = node.quasis[0]
         // @ts-ignore
         const { start: start0, end: end0 } = quasi0
