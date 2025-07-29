@@ -1,5 +1,16 @@
 # wuchale
 
+## 0.9.6
+
+### Patch Changes
+
+- 74f50c8: Extract from exprs inside non eligible template strings
+- 79fb374: Default heuri: extract non top level expression strings
+- b350b49: Fix cli init failing with ENOENT
+- 613f6e7: - Make vanilla adapter loader conditional on vite for init
+  - Import from loader on disk when writing transformed files to disk
+- 2312975: Ignore all generated files for extract
+
 ## 0.9.5
 
 ### Patch Changes
