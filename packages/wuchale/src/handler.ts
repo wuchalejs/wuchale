@@ -78,7 +78,12 @@ type GranularState = {
 export class AdapterHandler {
 
     key: string
+
+    // paths
     loaderPath: string
+    proxyPath: string
+    outDir: string
+    compiledHead: {[loc: string]: string} = {}
 
     #config: ConfigPartial
     #locales: string[]
@@ -142,10 +147,18 @@ export class AdapterHandler {
         }
     }
 
-    async #initLoader() {
+    async #initPaths() {
         this.loaderPath = await this.getLoaderPath()
         if (!this.loaderPath) {
             throw new Error('No valid loader file found.')
+        }
+        this.proxyPath = this.#adapter.catalog.replace('{locale}', 'proxy') + this.#adapter.loaderExts[0]
+        this.outDir = this.#adapter.writeFiles.outDir
+        if (!this.outDir) {
+            this.outDir = this.#adapter.catalog.replace('{locale}', '.output')
+        }
+        for (const loc of this.#locales) {
+            this.compiledHead[loc] = this.#adapter.catalog.replace('{locale}', loc) + '.compiled.' // + id + ext
         }
     }
 
@@ -162,8 +175,7 @@ export class AdapterHandler {
     }
 
     #getCompiledFilePath(loc: string, id: string | null) {
-        const fnameBase = this.#adapter.catalog.replace('{locale}', loc) + '.compiled'
-        return fnameBase + '.' + (id ?? this.key) + this.#adapter.loaderExts[0]
+        return this.compiledHead[loc] + (id ?? this.key) + this.#adapter.loaderExts[0]
     }
 
     #getCompiledImport(loc: string, id: string | null, proxyFilePath?: string) {
@@ -211,10 +223,10 @@ export class AdapterHandler {
     }
 
     init = async () => {
-        await this.#initLoader()
-        this.fileMatches = pm(...this.#globConfToArgs(this.#adapter.files))
         this.#locales = Object.keys(this.#config.locales)
             .sort(loc => loc === this.#config.sourceLocale ? -1 : 1)
+        await this.#initPaths()
+        this.fileMatches = pm(...this.#globConfToArgs(this.#adapter.files))
         const sourceLocaleName = this.#config.locales[this.#config.sourceLocale].name
         this.catalogPathsToLocales = {}
         for (const loc of this.#locales) {
@@ -348,26 +360,33 @@ export class AdapterHandler {
         if (!this.#adapter.writeFiles.proxy) {
             return
         }
-        const fname = this.#adapter.catalog.replace('{locale}', 'proxy') + this.#adapter.loaderExts[0]
-        await writeFile(fname, this.getLoaderSync(fname))
+        await writeFile(this.proxyPath, this.getLoaderSync(this.proxyPath))
     }
 
     writeTransformed = async (filename: string, content: string) => {
         if (!this.#adapter.writeFiles.transformed) {
             return
         }
-        let outDir = this.#adapter.writeFiles.outDir
-        if (!outDir) {
-            outDir = this.#adapter.catalog.replace('{locale}', '.output')
-        }
-        const fname = resolve(outDir + '/' + filename)
+        const fname = resolve(this.outDir + '/' + filename)
         await mkdir(dirname(fname), {recursive: true})
         await writeFile(fname, content)
     }
 
     #globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
+        // ignore generated files
         const options = { ignore: [this.loaderPath] }
+        if (this.#adapter.writeFiles.proxy) {
+            options.ignore.push(this.proxyPath)
+        }
+        if (this.#adapter.writeFiles.outDir) {
+            options.ignore.push(this.outDir + '*')
+        }
+        if (this.#adapter.writeFiles.compiled) {
+            for (const loc of this.#locales) {
+                options.ignore.push(this.compiledHead[loc] + '*')
+            }
+        }
         if (typeof conf === 'string') {
             patterns = [conf]
         } else if (Array.isArray(conf)) {
