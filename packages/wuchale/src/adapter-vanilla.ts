@@ -492,6 +492,6 @@ export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         dataModuleDev,
         writeFiles,
-        defaultLoaderPath: () => new URL('../../src/loader.default.js', import.meta.url).pathname,
+        defaultLoaderPath: () => new URL('../src/loader.default.js', import.meta.url).pathname,
     }
 }

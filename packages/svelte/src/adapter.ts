@@ -496,10 +496,10 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         dataModuleDev,
         writeFiles,
         defaultLoaderPath: async () => {
-            let loader = '../../src/loader.default.svelte.js'
+            let loader = '../src/loader.default.svelte.js'
             try {
                 await statfs('svelte.config.js')
-                loader = '../../src/loader.default.kit.svelte.js'
+                loader = '../src/loader.default.kit.svelte.js'
             } catch (err) {
                 if (err.code !== 'ENOENT') {
                     throw err
