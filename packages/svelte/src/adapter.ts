@@ -1,9 +1,9 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
+import { glob } from "tinyglobby"
 import { parse, type AST } from "svelte/compiler"
 import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
-import { statfs } from 'node:fs/promises'
 import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
@@ -497,13 +497,8 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         writeFiles,
         defaultLoaderPath: async () => {
             let loader = '../src/loader.default.svelte.js'
-            try {
-                await statfs('svelte.config.js')
+            if ((await glob('svelte.config.js')).length) {
                 loader = '../src/loader.default.kit.svelte.js'
-            } catch (err) {
-                if (err.code !== 'ENOENT') {
-                    throw err
-                }
             }
             return new URL(loader, import.meta.url).pathname
         },

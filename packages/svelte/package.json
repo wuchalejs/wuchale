@@ -54,8 +54,9 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "wuchale": "^0.9.0",
-        "svelte": "^5.37.0"
+        "svelte": "^5.37.0",
+        "tinyglobby": "^0.2.14",
+        "wuchale": "^0.9.0"
     },
     "devDependencies": {
         "typescript": "^5.8.3"
