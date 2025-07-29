@@ -1,5 +1,17 @@
 # @wuchale/svelte
 
+## 0.9.3
+
+### Patch Changes
+
+- b350b49: Fix cli init failing with ENOENT
+- Updated dependencies [74f50c8]
+- Updated dependencies [79fb374]
+- Updated dependencies [b350b49]
+- Updated dependencies [613f6e7]
+- Updated dependencies [2312975]
+  - wuchale@0.9.6
+
 ## 0.9.2
 
 ### Patch Changes
