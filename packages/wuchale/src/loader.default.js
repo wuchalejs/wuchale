@@ -1,9 +1,7 @@
 // This is just the default loader.
 // You can customize it however you want, it will not be overwritten once it exists and is not empty.
 
-/// <reference types="wuchale/virtual" />
+import { loadCatalog, loadIDs } from './proxy.js' // or loader/sync
+import { loadLocales } from 'wuchale/run-server'
 
-import { loadCatalog, loadIDs } from 'virtual:wuchale/loader' // or loader/sync
-import { registerLoaders } from 'wuchale/run-client'
-
-export default registerLoaders('main', loadCatalog, loadIDs)
+export default await loadLocales('main', loadIDs, loadCatalog, ['en'])

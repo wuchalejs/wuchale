@@ -1,6 +1,7 @@
 // $$ cd .. && npm run test
 
 import MagicString from "magic-string"
+import { glob } from "tinyglobby"
 import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
@@ -492,6 +493,12 @@ export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         dataModuleDev,
         writeFiles,
-        defaultLoaderPath: () => new URL('../src/loader.default.js', import.meta.url).pathname,
+        defaultLoaderPath: async () => {
+            let loader = '../src/loader.default.js'
+            if ((await glob('vite.*')).length) {
+                loader = '../src/loader.default.vite.js'
+            }
+            return new URL(loader, import.meta.url).pathname
+        },
     }
 }

@@ -442,7 +442,11 @@ export class AdapterHandler {
             indexTracker = state.indexTracker
             loadID = state.id
         }
-        let loaderPath = relative(dirname(filename), this.loaderPath)
+        let loaderRelTo = filename
+        if (this.#adapter.writeFiles.transformed) {
+            loaderRelTo = resolve(this.outDir + '/' + filename)
+        }
+        let loaderPath = relative(dirname(loaderRelTo), this.loaderPath)
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
