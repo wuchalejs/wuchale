@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.9.4
+
+### Patch Changes
+
+- f16ea73: Fix loading not working in vanilla projects
+- Updated dependencies [f16ea73]
+  - wuchale@0.9.7
+
 ## 0.9.3
 
 ### Patch Changes

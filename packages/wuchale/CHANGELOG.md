@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.9.7
+
+### Patch Changes
+
+- f16ea73: Fix loading not working in vanilla projects
+
 ## 0.9.6
 
 ### Patch Changes
