@@ -48,7 +48,7 @@ export class Transformer {
     // for runtime
     rtFunc = `${runtimeConst}.t`
     rtFuncPlural = `${runtimeConst}.tp`
-    rtPluralsRule = `${runtimeConst}.plr`
+    rtPluralsRule = `${runtimeConst}._.p`
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -165,7 +165,7 @@ export class Transformer {
         const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
-        const pluralUpdate = `${this.rtFuncPlural}(${index}), ${this.rtPluralsRule}()`
+        const pluralUpdate = `${this.rtFuncPlural}(${index}), ${this.rtPluralsRule}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [nTxt]
@@ -438,11 +438,11 @@ export class Transformer {
     }
 }
 
-export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'data') => `
+export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
     if (import.meta.hot) {
         import.meta.hot.on('${eventSend}', newData => {
             for (let i = 0; i < newData.length; i++) {
-                if (JSON.stringify(data[i]) !== JSON.stringify(newData[i])) {
+                if (JSON.stringify(${targetVar}[i]) !== JSON.stringify(newData[i])) {
                     ${targetVar}[i] = newData[i]
                 }
             }
@@ -452,8 +452,8 @@ export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, e
 `
 
 const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
-    export const plural = ${plural}
-    export const data = ${compiled}
+    export const p = ${plural}
+    export const c = ${compiled}
     ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 

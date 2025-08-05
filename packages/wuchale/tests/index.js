@@ -65,8 +65,8 @@ test('Inside function definitions', async function(t) {
 })
 
 const testCatalog = {
-    plural: (/** @type {number} */ n) => n == 1 ? 0 : 1,
-    data: [
+    p: (/** @type {number} */ n) => n == 1 ? 0 : 1,
+    c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // compound message
         ['One item', '# items'], // plurals

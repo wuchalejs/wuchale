@@ -452,8 +452,8 @@ export class SvelteTransformer extends Transformer {
 
 const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
     import { ReactiveArray } from '@wuchale/svelte/reactive'
-    export const plural = ${plural}
-    export const data = new ReactiveArray(...${compiled})
+    export const p = ${plural}
+    export const c = new ReactiveArray(...${compiled})
     ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 

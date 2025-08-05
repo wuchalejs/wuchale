@@ -2,29 +2,24 @@ type Composite = (number | string | Composite)[]
 type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
-export type CatalogModule = {
-    data: CompiledData
-    plural: PluralsRule
-}
+export type CatalogModule = { c: CompiledData, p: PluralsRule }
 
 export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
 
 export class Runtime {
 
-    data: CompiledData = []
-    pr: PluralsRule = defaultPluralsRule
+    _: CatalogModule = { c: [], p: defaultPluralsRule }
 
     constructor(module?: CatalogModule) {
         if (!module) { // for fallback
             return
         }
-        this.data = module.data
-        this.pr = module.plural ?? this.pr
+        this._ = module
     }
 
     /** get composite context */
-    cx(id: number) {
-        const ctx = this.data[id]
+    cx = (id: number) => {
+        const ctx = this._.c[id]
         if (typeof ctx === 'string') {
             return [ctx]
         }
@@ -38,7 +33,7 @@ export class Runtime {
     }
 
     /** get translation using composite context */
-    tx(ctx: Composite, args: any[] = [], start = 1) {
+    tx = (ctx: Composite, args: any[] = [], start = 1) => {
         let txt = ''
         for (let i = start; i < ctx.length; i++) {
             const fragment = ctx[i]
@@ -55,12 +50,8 @@ export class Runtime {
     }
 
     /** get translation for plural */
-    tp(id: number) {
-        return this.data[id] ?? []
-    }
+    tp = (id: number) => this._.c[id] ?? []
 
     /** get translation */
-    t(id: number, args: any[] = []) {
-        return this.tx(this.cx(id), args, 0)
-    }
+    t = (id: number, args: any[] = []) => this.tx(this.cx(id), args, 0)
 }

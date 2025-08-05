@@ -19,34 +19,49 @@ export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[]
         states[key] = {load, catalogs: catalogs ?? {}}
     }
     for (const id of loadIDs) {
-        states[key].catalogs[id] = {data: [], plural: defaultPluralsRule}
+        states[key].catalogs[id] = {c: [], p: defaultPluralsRule}
     }
     return loadID => new Runtime(states[key].catalogs[loadID])
 }
 
+function statesToLoad(key?: string): LoaderState[] {
+    if (key) {
+        return [states[key]]
+    }
+    return Object.values(states)
+}
+
 /** 
- * Loads catalogs using registered loaders.
+ * Loads catalogs using registered async loaders.
  * Can be called anywhere you want to set the locale.
 */
 export async function loadLocale(locale: string, key?: string): Promise<void> {
-    let statesToLoad: LoaderState[]
-    if (key) {
-        statesToLoad = [states[key]]
-    } else {
-        statesToLoad = Object.values(states)
-    }
     const promises: Promise<CatalogModule>[] = []
     const catalogsArr: CatalogModule[] = []
-    for (const {catalogs, load} of statesToLoad) {
+    for (const {catalogs, load} of statesToLoad(key)) {
         for (const [loadID, catalog] of Object.entries(catalogs)) {
             promises.push(<Promise<CatalogModule>>load(loadID, locale))
             catalogsArr.push(catalog)
         }
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        const rt = catalogsArr[i]
-        rt.data = loaded.data
-        rt.plural = loaded.plural
+        const prev = catalogsArr[i]
+        prev.c = loaded.c
+        prev.p = loaded.p
+    }
+}
+
+/** 
+ * Loads catalogs using registered sync loaders.
+ * Can be called anywhere you want to set the locale.
+*/
+export function loadLocaleSync(locale: string, key?: string) {
+    for (const {catalogs, load} of statesToLoad(key)) {
+        for (const [loadID, prev] of Object.entries(catalogs)) {
+            const loaded = <CatalogModule>load(loadID, locale)
+            prev.c = loaded.c
+            prev.p = loaded.p
+        }
     }
 }
 

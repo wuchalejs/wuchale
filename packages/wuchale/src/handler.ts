@@ -291,8 +291,8 @@ export class AdapterHandler {
             return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled, plural })
         }
         return `
-            export const plural = ${plural}
-            export const data = ${compiled}
+            export const p = ${plural}
+            export const c = ${compiled}
         `
     }
 

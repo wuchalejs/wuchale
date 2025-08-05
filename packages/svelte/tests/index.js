@@ -154,7 +154,7 @@ test('Plural', async function(t) {
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_('svelte'))
             </script>
-            <p>{plural(items, _w_runtime_.tp(0), _w_runtime_.plr())}</p>
+            <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
     `, `
     msgid ""
     msgstr ""
