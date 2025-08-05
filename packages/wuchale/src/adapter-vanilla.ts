@@ -494,11 +494,11 @@ export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
         dataModuleDev,
         writeFiles,
         defaultLoaderPath: async () => {
-            let loader = '../src/loader.default.js'
+            let loader = 'default'
             if ((await glob('vite.*')).length) {
-                loader = '../src/loader.default.vite.js'
+                loader = 'vite'
             }
-            return new URL(loader, import.meta.url).pathname
+            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },
     }
 }

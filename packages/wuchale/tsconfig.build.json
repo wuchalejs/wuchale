@@ -4,5 +4,5 @@
         "rootDir": "src"
     },
     "include": ["src"],
-    "exclude": ["src/loader.default.js"]
+    "exclude": ["src/loaders"]
 }

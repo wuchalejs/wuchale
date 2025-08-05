@@ -496,11 +496,11 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         dataModuleDev,
         writeFiles,
         defaultLoaderPath: async () => {
-            let loader = '../src/loader.default.svelte.js'
+            let loader = 'default'
             if ((await glob('svelte.config.js')).length) {
-                loader = '../src/loader.default.kit.svelte.js'
+                loader = 'kit'
             }
-            return new URL(loader, import.meta.url).pathname
+            return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
     }
 }
