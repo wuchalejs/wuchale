@@ -450,7 +450,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string) => {
+    transform = async (content: string, filename: string): Promise<{code?: string, map?: any, catalogChanged?: boolean}> => {
         let indexTracker = this.#indexTracker
         let loadID = this.key
         if (this.#adapter.granularLoad) {
@@ -475,6 +475,7 @@ export class AdapterHandler {
             key: this.key,
             locales: this.#locales,
         })
+        let catalogChanged = false
         for (const loc of this.#locales) {
             // clear references to this file first
             let previousReferences: { [key: string]: number } = {}
@@ -542,6 +543,7 @@ export class AdapterHandler {
                 }
                 continue
             }
+            catalogChanged = true
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
                 if (newItems) {
                     await this.savePoAndCompile(loc)
@@ -558,6 +560,6 @@ export class AdapterHandler {
         if (!txts.length) {
             return {}
         }
-        return output
+        return {...output, catalogChanged}
     }
 }

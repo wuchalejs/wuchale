@@ -26,6 +26,7 @@ class Plugin {
     name = pluginName
 
     #config: Config
+    #locales: string[] = []
     #projectRoot: string = ''
 
     #server: ViteDevServer
@@ -38,6 +39,7 @@ class Plugin {
 
     #init = async (mode: Mode) => {
         this.#config = await getConfig()
+        this.#locales = Object.keys(this.#config.locales)
         this.#log = new Logger(this.#config.messages)
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
@@ -90,6 +92,19 @@ class Plugin {
         }
     }
 
+    #sendUpdateToClient = (adapter: AdapterHandler, locales: string[]) => {
+        for (const loc of locales) {
+            if (!this.#config.adapters[adapter.key].granularLoad) {
+                this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
+                return
+            }
+            for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
+                const eventName = adapter.virtModEvent(loc, loadID)
+                this.#server.ws.send(eventName, state.compiled[loc].items)
+            }
+        }
+    }
+
     handleHotUpdate = async (ctx: {file: string}) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             return
@@ -97,14 +112,7 @@ class Plugin {
         const adapter = this.#adaptersByCatalogPath[ctx.file]
         const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
-        if (!this.#config.adapters[adapter.key].granularLoad) {
-            this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
-            return
-        }
-        for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
-            const eventName = adapter.virtModEvent(loc, loadID)
-            this.#server.ws.send(eventName, state.compiled[loc].items)
-        }
+        this.#sendUpdateToClient(adapter, [loc])
     }
 
     resolveId = (source: string, importer?: string) => {
@@ -156,7 +164,11 @@ class Plugin {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                return await adapter.transform(code, filename)
+                const {catalogChanged, ...output} = await adapter.transform(code, filename)
+                if (catalogChanged) {
+                    this.#sendUpdateToClient(adapter, this.#locales)
+                }
+                return output
             }
         }
         return {}
