@@ -165,8 +165,10 @@ export type Adapter = AdapterPassThruOpts & {
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
     dataModuleDev: DataModuleFunc
+    /** available loader names, can do auto detection logic to sort */
+    defaultLoaders: () => string[] | Promise<string[]>
     /* Can return different file paths based on conditions */
-    defaultLoaderPath: () => string | Promise<string>
+    defaultLoaderPath: (loaderName: string) => string
 }
 
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {

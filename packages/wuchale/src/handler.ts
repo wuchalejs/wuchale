@@ -131,13 +131,11 @@ export class AdapterHandler {
         return paths
     }
 
-    async getLoaderPath(): Promise<string | null> {
+    async getLoaderPath(): Promise<{path: string | null, empty: boolean}> {
         for (const path of this.getLoaderPaths()) {
             try {
                 const contents = await readFile(path)
-                if (contents.toString().trim() !== '') {
-                    return path
-                }
+                return {path, empty: contents.toString().trim() === ''}
             } catch (err: any) {
                 if (err.code !== 'ENOENT') {
                     throw err
@@ -145,13 +143,15 @@ export class AdapterHandler {
                 continue
             }
         }
+        return {path: null, empty: true}
     }
 
     async #initPaths() {
-        this.loaderPath = await this.getLoaderPath()
-        if (!this.loaderPath) {
+        const {path: loaderPath, empty} = await this.getLoaderPath()
+        if (!loaderPath || empty) {
             throw new Error('No valid loader file found.')
         }
+        this.loaderPath = loaderPath
         this.proxyPath = this.#adapter.catalog.replace('{locale}', 'proxy') + this.#adapter.loaderExts[0]
         this.outDir = this.#adapter.writeFiles.outDir
         if (!this.outDir) {

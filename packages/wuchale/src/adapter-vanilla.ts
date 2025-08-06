@@ -493,11 +493,14 @@ export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         dataModuleDev,
         writeFiles,
-        defaultLoaderPath: async () => {
-            let loader = 'default'
+        defaultLoaders: async () => {
+            const available = ['default', 'vite']
             if ((await glob('vite.*')).length) {
-                loader = 'vite'
+                available.reverse()
             }
+            return available
+        },
+        defaultLoaderPath: (loader: string) => {
             return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },
     }

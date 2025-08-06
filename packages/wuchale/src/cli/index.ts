@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { copyFile, mkdir } from "node:fs/promises"
-import { getConfig } from "./config.js"
-import { AdapterHandler } from "./handler.js"
+import { getConfig } from "../config.js"
+import { AdapterHandler } from "../handler.js"
 import { parseArgs } from 'node:util'
 import { dirname } from "node:path"
-import { Logger } from "./adapters.js"
+import { Logger } from "../adapters.js"
+import { ask, setupInteractive } from "./input.js"
 
 const { positionals, values } = parseArgs({
     options: {
@@ -71,17 +72,22 @@ if (cmd === 'help') {
     console.info('Initializing...')
     const config = await getConfig()
     let extractedNew = false
+    setupInteractive()
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
-        let loaderPath = await handler.getLoaderPath()
-        if (loaderPath != null) {
+        let {path: loaderPath, empty} = await handler.getLoaderPath()
+        if (loaderPath && !empty) {
             console.info('Loader already exists for', key, 'at', loaderPath)
             continue
         }
-        loaderPath = handler.getLoaderPaths()[0]
+        if (!loaderPath) {
+            loaderPath = handler.getLoaderPaths()[0]
+        }
         console.info('Create loader for', key, 'at', loaderPath)
         await mkdir(dirname(loaderPath), { recursive: true })
-        await copyFile(await adapter.defaultLoaderPath(), loaderPath)
+        const loaders = await adapter.defaultLoaders()
+        const loader = await ask(loaders, `Select default loader for adapter: ${key}`)
+        await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         console.info('Initial extract for', key)
         await extract(handler, Object.keys(config.locales))
         extractedNew = true
