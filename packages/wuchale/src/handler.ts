@@ -10,7 +10,7 @@ import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize } from "node:path"
 import { type ConfigPartial } from "./config.js"
-import type { Logger } from './log.js'
+import type { LogArgs, Logger } from './log.js'
 
 export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`
@@ -280,7 +280,17 @@ export class AdapterHandler {
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             const locName = this.#config.locales[loc].name
-            this.#log.info(`i18n stats (${this.key}/${locName}): total: ${total}, untranslated: ${untranslated}, obsolete: ${obsolete}`)
+            const logArgs: LogArgs = [
+                `i18n stats (${this.key}/${locName}): `,
+                ['cyan', `total: ${total} `],
+            ]
+            if (untranslated > 0) {
+                logArgs.push(['red', `untranslated: ${untranslated} `])
+            }
+            if (obsolete) {
+                logArgs.push(['yellow', `obsolete: ${obsolete}`])
+            }
+            this.#log.log(...logArgs)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
