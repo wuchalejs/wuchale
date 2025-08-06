@@ -2,10 +2,12 @@
 import { type CompiledFragment } from "./compile.js"
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
-import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
+import { AdapterHandler } from "./handler.js"
 import type {Mode} from './handler.js'
 import { Logger } from "./log.js"
 
+const pluginName = 'wuchale'
+const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
 
 type HMRClient = {
@@ -50,6 +52,7 @@ class Plugin {
                 key,
                 this.#config,
                 mode,
+                virtualPrefix,
                 this.#projectRoot,
                 this.#log,
             )

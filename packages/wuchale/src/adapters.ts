@@ -18,12 +18,6 @@ type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
-export type TransformOutput = {
-    code?: string
-    map?: any
-    txts: NestText[]
-}
-
 export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
 
 export function defaultHeuristic(text: string, details: HeuristicDetails) {
@@ -105,14 +99,22 @@ export type GlobConf = string | string[] | {
     ignore: string | string[],
 }
 
+export type TransformHeader = {
+    head: string,
+    expr: string,
+}
+
 type TransformCtx = {
     content: string
     filename: string
     index: IndexTracker
-    loaderPath: string
-    loadID: string
-    key: string
-    locales: string[]
+    header: TransformHeader
+}
+
+export type TransformOutput = {
+    code?: string
+    map?: any
+    txts: NestText[]
 }
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
@@ -131,6 +133,7 @@ type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
     granularLoad: boolean
+    bundleLoad: boolean,
     generateLoadID: (filename: string) => string
     writeFiles: {
         compiled?: boolean
@@ -154,4 +157,6 @@ export type Adapter = AdapterPassThruOpts & {
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
     pluralsFunc?: string
+    /* initialize runtime instance inside functions */
+    initInsideFunc?: boolean
 }

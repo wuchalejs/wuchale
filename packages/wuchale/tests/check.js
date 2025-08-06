@@ -14,7 +14,8 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
 
 const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`
+    catalog: `${dirBase}/test-tmp/{locale}`,
+    initInsideFunc: false,
 }
 
 /**
@@ -31,6 +32,7 @@ export async function getOutput(adapter, key, content, filename) {
         key,
         defaultConfig,
         'prod',
+        'virtual',
         process.cwd(),
         new Logger(false),
     )

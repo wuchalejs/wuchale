@@ -1,7 +1,7 @@
 {
     "name": "@wuchale/svelte",
     "version": "0.9.4",
-    "description": "i18n from normal svelte code",
+    "description": "Protobuf-like i18n from normal code",
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",

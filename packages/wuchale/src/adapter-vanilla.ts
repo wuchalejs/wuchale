@@ -17,7 +17,8 @@ import type {
     IndexTracker,
     DataModuleFunc,
     ScriptDeclType,
-    TransformOutput
+    TransformOutput,
+    TransformHeader
 } from "./adapters.js"
 
 const scriptParseOptions: ParserOptions = {
@@ -33,7 +34,6 @@ export function parseScript(content: string) {
 }
 
 export const runtimeConst = '_w_runtime_'
-const rtFuncInit = '_w_load_'
 
 export class Transformer {
 
@@ -43,7 +43,7 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    initInsideFuncLoadID: string | null
+    initInsideFuncExpr: string | null
 
     // for runtime
     rtFunc = `${runtimeConst}.t`
@@ -58,13 +58,13 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncLoadID?: string) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initInsideFuncLoadID = initInsideFuncLoadID
+        this.initInsideFuncExpr = initInsideFuncExpr
     }
 
     checkHeuristic = (text: string, detailsBase: HeuristicDetailsBase): [boolean, NestText] => {
@@ -277,9 +277,12 @@ export class Transformer {
         const insideFuncDef = this.insideFuncDef
         this.insideFuncDef = true
         const txts = this.visit(node)
-        if (this.initInsideFuncLoadID && node.type === 'BlockStatement') {
-            // @ts-expect-error
-            this.mstr.prependLeft(node.start + 1, `const ${runtimeConst} = ${rtFuncInit}('${this.initInsideFuncLoadID}')\n`)
+        if (this.initInsideFuncExpr && node.type === 'BlockStatement') {
+            this.mstr.prependLeft(
+                // @ts-expect-error
+                node.start + 1,
+                `\nconst ${runtimeConst} = ${this.initInsideFuncExpr}\n`,
+            )
         }
         this.insideFuncDef = insideFuncDef
         return txts
@@ -423,22 +426,18 @@ export class Transformer {
         }
     }
 
-    transform = (loaderPath: string, loadID: string): TransformOutput => {
+    transform = (header: TransformHeader): TransformOutput => {
         const ast = parseScript(this.content)
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            const importModule = `
-                import ${rtFuncInit} from "${loaderPath}"
-                const ${runtimeConst} = ${rtFuncInit}('${loadID}')
-            `
-            this.mstr.appendRight(0, importModule)
+            this.mstr.appendRight(0, `${header.head}\nconst ${runtimeConst} = ${header.expr}\n`)
         }
         return this.finalize(txts)
     }
 }
 
-export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
+export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
     if (import.meta.hot) {
         import.meta.hot.on('${eventSend}', newData => {
             for (let i = 0; i < newData.length; i++) {
@@ -454,42 +453,42 @@ export const proxyModuleHotUpdate = (loadID: string | null, eventSend: string, e
 const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
     export const p = ${plural}
     export const c = ${compiled}
-    ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
+    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
-type VanillaAdapArgs = AdapterArgs & {initInsideFunc?: boolean}
-
-const defaultArgs: VanillaAdapArgs = {
+const defaultArgs: AdapterArgs = {
     files: ['src/**/*.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
-    generateLoadID: defaultGenerateLoadID,
     granularLoad: false,
+    bundleLoad: false,
+    generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    initInsideFunc: false,
+    initInsideFunc: true,
 }
 
-export const adapter = (args: VanillaAdapArgs = defaultArgs): Adapter => {
+export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
         files,
         catalog,
         granularLoad,
-        generateLoadID:
-        generateID,
+        bundleLoad,
+        generateLoadID,
         writeFiles,
         initInsideFunc,
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({content, filename, index, loaderPath, loadID}) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? loadID : null).transform(loaderPath, loadID)
+        transform: ({content, filename, index, header}) => {
+            return new Transformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null).transform(header)
         },
         files,
         catalog,
         granularLoad,
-        generateLoadID: generateID,
+        bundleLoad,
+        generateLoadID,
         loaderExts: ['.js', '.ts'],
         dataModuleDev,
         writeFiles,

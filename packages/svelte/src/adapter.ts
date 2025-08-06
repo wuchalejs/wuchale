@@ -4,7 +4,7 @@ import { glob } from "tinyglobby"
 import { parse, type AST } from "svelte/compiler"
 import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
-import { Transformer, parseScript, proxyModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
+import { Transformer, parseScript, dataModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -12,9 +12,9 @@ import type {
     Adapter,
     AdapterArgs,
     CommentDirectives,
-    DataModuleFunc
+    DataModuleFunc,
+    TransformHeader
 } from 'wuchale/adapters'
-import { virtualPrefix } from "wuchale/handler"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
@@ -53,8 +53,8 @@ export class SvelteTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(content, filename, index, heuristic, pluralsFunc)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
+        super(content, filename, index, heuristic, pluralsFunc, initInsideFuncExpr)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
@@ -404,7 +404,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transformSv = (loaderPath: string, loadID: string, key: string, locales: string[], bundleLoad: boolean): TransformOutput => {
+    transformSv = (header: TransformHeader): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -417,34 +417,23 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
-        const importComponent = `import ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
-        let header = `
-            import _w_load_ from "${loaderPath}"
-            ${ast.type === 'Root' ? importComponent : ''}\n`
-        if (bundleLoad) {
-            header += `import {Runtime} from 'wuchale/runtime'`
-            const objProps = locales.map(loc => `${loc}: _l_${loc}_`)
-            const importStrs = locales.map(loc => `'${virtualPrefix}catalog/${key}/${loadID}/${loc}'`)
-            const imports = locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`)
-            header += `
-                ${imports.join('\n')}
-                const _w_data_ = {${objProps.join(',')}}
-                const ${runtimeConst} = $derived(new Runtime(_w_data_[_w_load_('${loadID}')]))\n`
-        } else {
-            header += `const ${runtimeConst} = $derived(_w_load_('${loadID}'))\n`
-        }
+        const headerFin = [
+            `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
+            header.head,
+            `const ${runtimeConst} = $derived(${header.expr})\n`,
+        ].join('\n')
         if (ast.type === 'Program') {
-            this.mstr.appendRight(0, header + '\n')
+            this.mstr.appendRight(0, headerFin + '\n')
             return this.finalize(txts)
         }
         if (ast.module) {
             // @ts-ignore
-            this.mstr.appendRight(ast.module.content.start, header)
+            this.mstr.appendRight(ast.module.content.start, headerFin)
         } else if (ast.instance) {
             // @ts-ignore
-            this.mstr.appendRight(ast.instance.content.start, header)
+            this.mstr.appendRight(ast.instance.content.start, headerFin)
         } else {
-            this.mstr.prepend(`<script>${header}</script>\n`)
+            this.mstr.prepend(`<script>${headerFin}</script>\n`)
         }
         return this.finalize(txts)
     }
@@ -454,14 +443,10 @@ const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compil
     import { ReactiveArray } from '@wuchale/svelte/reactive'
     export const p = ${plural}
     export const c = new ReactiveArray(...${compiled})
-    ${proxyModuleHotUpdate(loadID, eventSend, eventReceive)}
+    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
-type SvelteAdapterArgs = AdapterArgs & {
-    bundleLoad?: boolean,
-}
-
-const defaultArgs: SvelteAdapterArgs = {
+const defaultArgs: AdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
@@ -470,9 +455,10 @@ const defaultArgs: SvelteAdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    initInsideFunc: false,
 }
 
-export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
+export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
@@ -482,15 +468,17 @@ export const adapter = (args: SvelteAdapterArgs = defaultArgs): Adapter => {
         bundleLoad,
         generateLoadID,
         writeFiles,
+        initInsideFunc,
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, loaderPath, key, locales, loadID }) => {
-            const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc)
-            return transformer.transformSv(loaderPath, loadID, key, locales, granularLoad && bundleLoad)
+        transform: ({ content, filename, index, header }) => {
+            const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
+            return transformer.transformSv(header)
         },
         files,
         catalog,
         granularLoad,
+        bundleLoad,
         generateLoadID,
         loaderExts: ['.svelte.js', '.svelte.ts'],
         dataModuleDev,

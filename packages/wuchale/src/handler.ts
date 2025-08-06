@@ -12,9 +12,6 @@ import { normalize } from "node:path"
 import { type ConfigPartial } from "./config.js"
 import { type Logger, color } from './log.js'
 
-export const pluginName = 'wuchale'
-export const virtualPrefix = `virtual:${pluginName}/`
-
 interface LoadedPO {
     catalog: Catalog,
     total: number,
@@ -90,6 +87,7 @@ export class AdapterHandler {
     outDir: string
     compiledHead: {[loc: string]: string} = {}
 
+    #virtualPrefix: string
     #config: ConfigPartial
     #locales: string[]
     fileMatches: Matcher
@@ -114,10 +112,11 @@ export class AdapterHandler {
 
     #log: Logger
 
-    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
+    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, virtualPrefix: string, projectRoot: string, log: Logger) {
         this.#adapter = adapter
         this.key = key.toString()
         this.#mode = mode
+        this.#virtualPrefix = virtualPrefix
         this.#projectRoot = projectRoot
         this.#config = config
         this.#log = log
@@ -168,7 +167,7 @@ export class AdapterHandler {
     }
 
     /** Get both catalog virtual module names AND HMR event names */
-    virtModEvent = (locale: string, loadID: string | null) => `${virtualPrefix}catalog/${this.key}/${loadID ?? this.key}/${locale}`
+    virtModEvent = (locale: string, loadID: string | null) => `${this.#virtualPrefix}catalog/${this.key}/${loadID ?? this.key}/${locale}`
 
     #getFileIDs() {
         if (!this.#adapter.granularLoad) {
@@ -458,14 +457,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string): Promise<{code?: string, map?: any, catalogChanged?: boolean}> => {
-        let indexTracker = this.#indexTracker
-        let loadID = this.key
-        if (this.#adapter.granularLoad) {
-            const state = this.#getGranularState(filename)
-            indexTracker = state.indexTracker
-            loadID = state.id
-        }
+    #prepareHeader = (filename: string, loadID: string): {head: string, expr: string} => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
@@ -474,14 +466,39 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
+        let importLoad = `import _w_load_ from "${loaderPath}"`
+        if (!this.#adapter.granularLoad || !this.#adapter.bundleLoad) {
+            return {
+                head: importLoad,
+                expr: `_w_load_('${loadID}')`,
+            }
+        }
+        const objProps = this.#locales.map(loc => `${loc}: _l_${loc}_`)
+        const importStrs = this.#locales.map(loc => `'${this.#virtualPrefix}catalog/${this.key}/${loadID}/${loc}'`)
+        return {
+            head: [
+                importLoad,
+                `import { Runtime } from 'wuchale/runtime'`,
+                ...this.#locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`),
+                `const _w_catalogs_ = {${objProps.join(',')}}`
+            ].join('\n'),
+            expr: `new Runtime(_w_catalogs_[_w_load_('${loadID}')])`,
+        }
+    }
+
+    transform = async (content: string, filename: string): Promise<{code?: string, map?: any, catalogChanged?: boolean}> => {
+        let indexTracker = this.#indexTracker
+        let loadID = this.key
+        if (this.#adapter.granularLoad) {
+            const state = this.#getGranularState(filename)
+            indexTracker = state.indexTracker
+            loadID = state.id
+        }
         const { txts, ...output } = this.#adapter.transform({
             content,
             filename,
             index: indexTracker,
-            loaderPath,
-            loadID: loadID,
-            key: this.key,
-            locales: this.#locales,
+            header: this.#prepareHeader(filename, loadID),
         })
         let catalogChanged = false
         for (const loc of this.#locales) {

@@ -72,7 +72,7 @@ if (values.help) {
     const config = await getConfig()
     const locales = Object.keys(config.locales)
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
+        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
         await extract(handler, locales)
     }
     logger.info('Extraction finished.')
@@ -83,7 +83,7 @@ if (values.help) {
     setupInteractive()
     const adapLogger = new Logger(config.messages)
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), adapLogger)
+        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
         if (loaderPath && !empty) {
             logger.log(`Loader already exists for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
@@ -122,7 +122,7 @@ if (values.help) {
 } else if (cmd === 'status') {
     const config = await getConfig()
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
+        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
         const {path: loaderPath, empty} = await handler.getLoaderPath()
         if (loaderPath && !empty) {
             await handler.init()
