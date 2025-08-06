@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, relative, resolve } from 'node:path'
 import { IndexTracker, NestText } from "./adapters.js"
-import type { Adapter, GlobConf, Catalog, Logger } from "./adapters.js"
+import type { Adapter, GlobConf, Catalog } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -10,6 +10,7 @@ import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize } from "node:path"
 import { type ConfigPartial } from "./config.js"
+import type { Logger } from './log.js'
 
 export const pluginName = 'wuchale'
 export const virtualPrefix = `virtual:${pluginName}/`

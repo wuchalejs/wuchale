@@ -4,7 +4,7 @@ import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "./config.js"
 import { AdapterHandler, pluginName, virtualPrefix } from "./handler.js"
 import type {Mode} from './handler.js'
-import { Logger } from "./adapters.js"
+import { Logger } from "./log.js"
 
 const virtualResolvedPrefix = '\0'
 

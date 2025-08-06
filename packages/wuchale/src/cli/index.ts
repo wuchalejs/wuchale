@@ -5,7 +5,7 @@ import { getConfig } from "../config.js"
 import { AdapterHandler } from "../handler.js"
 import { parseArgs } from 'node:util'
 import { dirname } from "node:path"
-import { Logger } from "../adapters.js"
+import { Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 
 const { positionals, values } = parseArgs({
