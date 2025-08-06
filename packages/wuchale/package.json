@@ -50,6 +50,10 @@
             "types": "./dist/adapters.d.ts",
             "default": "./dist/adapters.js"
         },
+        "./log": {
+            "types": "./dist/log.d.ts",
+            "default": "./dist/log.js"
+        },
         "./adapter-vanilla": {
             "types": "./dist/adapter-vanilla.d.ts",
             "default": "./dist/adapter-vanilla.js"

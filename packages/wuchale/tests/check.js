@@ -6,7 +6,7 @@ import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
-import { Logger } from 'wuchale/adapters'
+import { Logger } from 'wuchale/log'
 
 export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
 const dirBase = absDir(import.meta.url)
