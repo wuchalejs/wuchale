@@ -3,7 +3,7 @@
 
 /// <reference types="wuchale/virtual" />
 
-import { loadCatalog, loadIDs, key } from 'virtual:wuchale/loader' // or loader/sync
+import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
 import { registerLoaders } from 'wuchale/run-client'
 
 export default registerLoaders(key, loadCatalog, loadIDs)

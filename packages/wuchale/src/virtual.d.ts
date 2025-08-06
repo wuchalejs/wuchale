@@ -1,10 +1,10 @@
-declare module 'virtual:wuchale/loader' {
+declare module 'virtual:wuchale/proxy' {
     export function loadCatalog(loadID: string, locale: string): Promise<import('wuchale/runtime').CatalogModule>
     export const loadIDs: string[]
     export const key: string
 }
 
-declare module 'virtual:wuchale/loader/sync' {
+declare module 'virtual:wuchale/proxy/sync' {
     export function loadCatalog(loadID: string, locale: string): import('wuchale/runtime').CatalogModule
     export const loadIDs: string[]
     export const key: string

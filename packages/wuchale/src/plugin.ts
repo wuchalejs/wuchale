@@ -133,20 +133,20 @@ class Plugin {
         if (part === 'locales') {
             return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`
         }
-        if (part !== 'loader') {
+        if (part !== 'proxy') {
             this.#log.error(`Unknown virtual request: ${id}`)
             return null
         }
-        // data loader
+        // loader proxy
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
             this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
         if (rest[0] === 'sync') {
-            return adapter.getLoaderSync()
+            return adapter.getProxySync()
         }
-        return adapter.getLoader()
+        return adapter.getProxy()
     }
 
     #transformHandler = async (code: string, id: string) => {

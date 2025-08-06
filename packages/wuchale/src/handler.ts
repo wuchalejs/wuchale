@@ -192,7 +192,7 @@ export class AdapterHandler {
         `
     }
 
-    getLoader(proxyFilePath?: string) {
+    getProxy(proxyFilePath?: string) {
         const imports = []
         const loadIDs = this.#getFileIDs()
         for (const id of loadIDs) {
@@ -209,7 +209,7 @@ export class AdapterHandler {
         `
     }
 
-    getLoaderSync(proxyFilePath?: string) {
+    getProxySync(proxyFilePath?: string) {
         const loadIDs = this.#getFileIDs()
         const imports = []
         const object = []
@@ -367,7 +367,7 @@ export class AdapterHandler {
         if (!this.#adapter.writeFiles.proxy) {
             return
         }
-        await writeFile(this.proxyPath, this.getLoaderSync(this.proxyPath))
+        await writeFile(this.proxyPath, this.getProxySync(this.proxyPath))
     }
 
     writeTransformed = async (filename: string, content: string) => {

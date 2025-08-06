@@ -3,7 +3,7 @@
 
 /// <reference types="wuchale/virtual" />
 
-import { loadCatalog, loadIDs } from 'virtual:wuchale/loader' // or /loader/sync
+import { loadCatalog, loadIDs } from 'virtual:wuchale/proxy' // or /proxy/sync
 import { page } from '$app/state'
 import { Runtime } from 'wuchale/runtime'
 
