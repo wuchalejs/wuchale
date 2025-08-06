@@ -18,8 +18,6 @@ const colorFuncsEntries = Object.entries(colors).map(([col, code]) => [
 
 export const color = <ColorFuncs>Object.fromEntries(colorFuncsEntries)
 
-export type LogArgs = (string | number | [keyof typeof colors, string | number])[]
-
 export class Logger {
     #showMsgs = true
 
@@ -34,18 +32,7 @@ export class Logger {
         console[type](message)
     }
 
-    log = (...msgs: LogArgs) => {
-        let mainMsg = ''
-        for (const msg of msgs) {
-            if (typeof msg === 'string' || typeof msg === 'number') {
-                mainMsg += msg
-            } else {
-                mainMsg += color[msg[0]](String(msg[1]))
-            }
-        }
-        this.#show(mainMsg, 'log')
-    }
-
+    log = (msg: string) => this.#show(msg, 'log')
     info = (msg: string) => this.#show(color.cyan(msg), 'info')
     warn = (msg: string) => this.#show(color.yellow(msg), 'warn')
     error = (msg: string) => this.#show(color.red(msg), 'error')
