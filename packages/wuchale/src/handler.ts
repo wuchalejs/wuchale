@@ -68,7 +68,11 @@ async function savePO(items: ItemType[], filename: string, headers = {}): Promis
 
 export type Mode = 'dev' | 'prod' | 'extract'
 type CompiledItems = (CompiledFragment | number)[]
-type CompiledCatalog = { [loc: string]: CompiledItems }
+type Compiled = {
+    hasPlurals: boolean
+    items: CompiledItems
+}
+type CompiledCatalog = { [loc: string]: Compiled }
 type GranularState = {
     id: string,
     compiled: CompiledCatalog,
@@ -170,7 +174,7 @@ export class AdapterHandler {
             return [this.key]
         }
         return Object.values(this.granularStateByFile)
-            .filter(f => f.compiled[this.#config.sourceLocale].length > 0)
+            .filter(f => f.compiled[this.#config.sourceLocale].items.length > 0)
             .map(f => f.id)
     }
 
@@ -286,20 +290,20 @@ export class AdapterHandler {
     }
 
     loadDataModule = (locale: string, loadID: string) => {
-        let compiledItems = this.compiled[locale]
+        let compiledData = this.compiled[locale]
         if (this.#adapter.granularLoad) {
-            compiledItems = this.granularStateByID[loadID]?.compiled?.[locale] ?? []
+            compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? {hasPlurals: false, items: []}
         }
-        const compiled = JSON.stringify(compiledItems)
+        const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.#config.locales[locale].plural}`
         if (this.#mode === 'dev') {
             const eventSend = this.virtModEvent(locale, loadID)
             const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled, plural })
+            return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled: compiledItems, plural })
         }
         return `
-            export const p = ${plural}
-            export const c = ${compiled}
+            export const c = ${compiledItems}
+            ${compiledData.hasPlurals && `export const p = ${plural}`}
         `
     }
 
@@ -312,7 +316,10 @@ export class AdapterHandler {
             } else {
                 state = {
                     id,
-                    compiled: Object.fromEntries(this.#locales.map(loc => [loc, []])),
+                    compiled: Object.fromEntries(this.#locales.map(loc => [loc, {
+                        hasPlurals: false,
+                        items: []
+                    }])),
                     indexTracker: new IndexTracker(),
                 }
                 this.granularStateByID[id] = state
@@ -323,13 +330,14 @@ export class AdapterHandler {
     }
 
     compile = async (loc: string) => {
-        this.compiled[loc] = []
+        this.compiled[loc] = {hasPlurals: false, items: []}
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
             let compiled: CompiledFragment
-            const fallback = this.compiled[this.#config.sourceLocale]?.[index] // ?. for sourceLocale itself
+            const fallback = this.compiled[this.#config.sourceLocale]?.items?.[index] // ?. for sourceLocale itself
             if (poItem.msgid_plural) {
+                this.compiled[loc].hasPlurals = true
                 if (poItem.msgstr.join('').trim()) {
                     compiled = poItem.msgstr
                 } else {
@@ -338,13 +346,14 @@ export class AdapterHandler {
             } else {
                 compiled = compileTranslation(poItem.msgstr[0], fallback)
             }
-            this.compiled[loc][index] = compiled
+            this.compiled[loc].items[index] = compiled
             if (!this.#adapter.granularLoad) {
                 continue
             }
             for (const fname of poItem.references) {
                 const state = this.#getGranularState(fname)
-                state.compiled[loc][state.indexTracker.get(key)] = compiled
+                state.compiled[loc].hasPlurals = this.compiled[loc].hasPlurals
+                state.compiled[loc].items[state.indexTracker.get(key)] = compiled
             }
         }
         await this.writeCompiled(loc)

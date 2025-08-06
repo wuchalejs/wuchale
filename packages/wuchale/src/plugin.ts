@@ -80,11 +80,11 @@ class Plugin {
                 server.ws.on(event, (payload, client) => {
                     const eventSend = adapter.virtModEvent(loc, payload.loadID)
                     if (!this.#config.adapters[key].granularLoad) {
-                        client.send(eventSend, adapter.compiled[loc])
+                        client.send(eventSend, adapter.compiled[loc].items)
                         return
                     }
                     const compiled = adapter.granularStateByID[payload.loadID].compiled[loc]
-                    client.send(eventSend, compiled)
+                    client.send(eventSend, compiled.items)
                 })
             }
         }
@@ -98,12 +98,12 @@ class Plugin {
         const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
         if (!this.#config.adapters[adapter.key].granularLoad) {
-            this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc])
+            this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
             return
         }
         for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
             const eventName = adapter.virtModEvent(loc, loadID)
-            this.#server.ws.send(eventName, state.compiled[loc])
+            this.#server.ws.send(eventName, state.compiled[loc].items)
         }
     }
 
