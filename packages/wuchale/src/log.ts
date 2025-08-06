@@ -4,6 +4,7 @@ const colors = {
     yellow: 33,
     magenta: 35,
     cyan: 36,
+    grey: 90,
     reset: 0,
 }
 

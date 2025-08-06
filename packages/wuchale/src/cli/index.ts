@@ -5,7 +5,7 @@ import { getConfig } from "../config.js"
 import { AdapterHandler } from "../handler.js"
 import { parseArgs } from 'node:util'
 import { dirname } from "node:path"
-import { Logger } from "../log.js"
+import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 
 const { positionals, values } = parseArgs({
@@ -22,15 +22,21 @@ const { positionals, values } = parseArgs({
     allowPositionals: true,
 })
 
-const cmd = positionals[0] ?? 'help'
+const cmd = positionals[0]
 
 const help = `
 Usage:
+    ${color.cyan('wuchale [command] {options}')}
 
-wuchale extract {--clean, -c}   Extract messages from the codebase into catalogs
-                                deleting unused messages if --clean is specified
-wuchale init                    Initialize on a codebase
-wuchale {--help, -h}            Show this help
+Commands:
+    ${color.grey('[none]')}  Extract/compile messages from the codebase into catalogs
+            deleting unused messages if --clean is specified
+    ${color.cyan('init')}    Initialize on a codebase
+    ${color.cyan('status')}  Show current status
+
+Options:
+    ${color.cyan('--clean')}, ${color.cyan('-c')}  (only when no commands) remove unused messages from catalogs
+    ${color.cyan('--help')}, ${color.cyan('-h')}   Show this help
 `
 
 async function extract(handler: AdapterHandler, locales: string[]) {
@@ -44,7 +50,7 @@ async function extract(handler: AdapterHandler, locales: string[]) {
     }
     await handler.directExtract()
     if (values.clean) {
-        console.info('Cleaning...')
+        logger.log('Cleaning...')
         for (const loc of locales) {
             for (const [key, item] of Object.entries(handler.catalogs[loc])) {
                 if (item.references.length === 0) {
@@ -56,39 +62,42 @@ async function extract(handler: AdapterHandler, locales: string[]) {
     }
 }
 
-if (cmd === 'help') {
-    console.info('wuchale cli')
-    console.info(help.trimEnd())
-} else if (cmd === 'extract') {
-    console.info('Extracting...')
+const logger = new Logger(true)
+
+if (values.help) {
+    logger.log('wuchale cli')
+    logger.log(help.trimEnd())
+} else if (cmd == null) {
+    logger.info('Extracting...')
     const config = await getConfig()
     const locales = Object.keys(config.locales)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
         await extract(handler, locales)
     }
-    console.info('Extraction finished.')
+    logger.info('Extraction finished.')
 } else if (cmd === 'init') {
-    console.info('Initializing...')
+    logger.info('Initializing...')
     const config = await getConfig()
     let extractedNew = false
     setupInteractive()
+    const adapLogger = new Logger(config.messages)
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
+        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
         if (loaderPath && !empty) {
-            console.info('Loader already exists for', key, 'at', loaderPath)
+            logger.log(`Loader already exists for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
             continue
         }
         if (!loaderPath) {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        console.info('Create loader for', key, 'at', loaderPath)
+        logger.log(`Create loader for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
         const loaders = await adapter.defaultLoaders()
         const loader = await ask(loaders, `Select default loader for adapter: ${key}`)
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
-        console.info('Initial extract for', key)
+        logger.log(`Initial extract for ${color.cyan(key)}`)
         await extract(handler, Object.keys(config.locales))
         extractedNew = true
     }
@@ -104,13 +113,30 @@ if (cmd === 'help') {
     if (config.geminiAPIKey === 'env') {
         msgs.push(
             '\n(Optional):',
-            '  Set the GEMINI_API_KEY environment variable before starting the server',
+            `  Set the ${color.cyan('GEMINI_API_KEY')} environment variable before starting the server`,
             '  to enable live translation!',
-            '\nYou can always run `npx wuchale extract`'
+            `\nYou can always run ${color.cyan('npx wuchale')}`
         )
     }
-    console.info(msgs.join('\n'))
+    logger.log(msgs.join('\n'))
+} else if (cmd === 'status') {
+    const config = await getConfig()
+    for (const [key, adapter] of Object.entries(config.adapters)) {
+        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.messages))
+        const {path: loaderPath, empty} = await handler.getLoaderPath()
+        if (loaderPath && !empty) {
+            await handler.init()
+        } else {
+            logger.info(`${key}:`)
+            if (loaderPath) {
+                logger.warn(`  Loader file empty at ${color.cyan(loaderPath)}`)
+            } else {
+                logger.warn('  No loader file found.')
+            }
+            logger.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
+        }
+    }
 } else {
-    console.warn(`Unknown command: ${cmd}`)
-    console.info(help)
+    logger.warn(`Unknown command: ${cmd}`)
+    logger.log(help)
 }
