@@ -1,11 +1,13 @@
 declare module 'virtual:wuchale/loader' {
-    export const loadIDs: string[]
     export function loadCatalog(loadID: string, locale: string): Promise<import('wuchale/runtime').CatalogModule>
+    export const loadIDs: string[]
+    export const key: string
 }
 
 declare module 'virtual:wuchale/loader/sync' {
     export function loadCatalog(loadID: string, locale: string): import('wuchale/runtime').CatalogModule
     export const loadIDs: string[]
+    export const key: string
 }
 
 declare module 'virtual:wuchale/locales' {

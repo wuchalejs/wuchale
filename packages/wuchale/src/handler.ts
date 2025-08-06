@@ -185,6 +185,13 @@ export class AdapterHandler {
         return this.virtModEvent(loc, id)
     }
 
+    #loaderLoadIDsNKey(loadIDs: string[]) {
+        return `
+            export const loadIDs = ['${loadIDs.join("', '")}']
+            export const key = '${this.key}'
+        `
+    }
+
     getLoader(proxyFilePath?: string) {
         const imports = []
         const loadIDs = this.#getFileIDs()
@@ -197,8 +204,8 @@ export class AdapterHandler {
         }
         return `
             const catalogs = {${imports.join(',')}}
-            export const loadIDs = ['${loadIDs.join("', '")}']
             export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]()
+            ${this.#loaderLoadIDsNKey(loadIDs)}
         `
     }
 
@@ -217,8 +224,8 @@ export class AdapterHandler {
         return `
             ${imports.join('\n')}
             const catalogs = {${object.join(',')}}
-            export const loadIDs = ['${loadIDs.join("', '")}']
             export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]
+            ${this.#loaderLoadIDsNKey(loadIDs)}
         `
     }
 
