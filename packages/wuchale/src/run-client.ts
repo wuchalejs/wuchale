@@ -54,6 +54,7 @@ export async function loadLocale(locale: string, key?: string): Promise<void> {
 /** 
  * Loads catalogs using registered sync loaders.
  * Can be called anywhere you want to set the locale.
+ * The loadCatalog function should be from a sync proxy.
 */
 export function loadLocaleSync(locale: string, key?: string) {
     for (const {catalogs, load} of statesToLoad(key)) {
