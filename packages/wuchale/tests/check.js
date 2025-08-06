@@ -74,7 +74,7 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
         po.items.push(catalogs.en[key])
     }
     t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
-    t.assert.deepEqual(compiled.en ?? [], expectedCompiled)
+    t.assert.deepEqual(compiled.en?.items ?? [], expectedCompiled)
 }
 
 /**
