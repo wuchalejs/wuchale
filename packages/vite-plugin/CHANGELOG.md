@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.10.1
+
+### Patch Changes
+
+- 9ef449e: Add readme for vite-plugin
+
 ## 0.10.0
 
 ### Minor Changes
