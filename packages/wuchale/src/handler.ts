@@ -570,7 +570,7 @@ export class AdapterHandler {
             }
             catalogChanged = true
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
-                if (newItems) {
+                if (newItems || newRefs) {
                     await this.savePoAndCompile(loc)
                 }
                 continue
