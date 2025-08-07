@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.9.4",
+    "version": "0.10.0",
     "description": "Protobuf-like i18n from normal code",
     "scripts": {
         "dev": "tsc --watch",
@@ -56,7 +56,7 @@
     "dependencies": {
         "svelte": "^5.37.0",
         "tinyglobby": "^0.2.14",
-        "wuchale": "^0.9.7"
+        "wuchale": "^0.10.0"
     },
     "devDependencies": {
         "typescript": "^5.8.3"
