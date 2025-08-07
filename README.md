@@ -51,6 +51,7 @@ This is a monorepo that houses these packages:
 
 - [`wuchale`](https://npmjs.com/package/wuchale): Core + CLI + Vanilla adapter
 - [`@wuchale/svelte`](https://npmjs.com/package/@wuchale/svelte): Svelte adapter
+- [`@wuchale/vite-plugin`](https://npmjs.com/package/@wuchale/vite-plugin): The Vite plugin
 
 ## 📚 Documentation
 
@@ -67,6 +68,5 @@ package for examples of supported scenarios.
 and using it in [Sylve](https://github.com/AlchemillaHQ/Sylve), and giving
 valuable feedback!
 
-`wuchale` is a solo-maintained project so far, built with care. If you find it
-valuable and you enjoy working with it, [supporting
+If you find `wuchale` valuable and you enjoy working with it, [supporting
 it](https://github.com/sponsors/K1DV5) would mean a lot.
