@@ -19,8 +19,6 @@ type ViteDevServer = {
     }
 }
 
-const transformOrder: 'pre' = 'pre'
-
 class Plugin {
 
     name = pluginName
@@ -45,7 +43,7 @@ class Plugin {
 
     #init = async (mode: Mode) => {
         this.#config = await getConfig(this.#configPath)
-        this.#locales = Object.keys(this.#config.locales)
+        this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         this.#log = new Logger(this.#config.messages)
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
@@ -84,7 +82,7 @@ class Plugin {
         this.#server = server
         // initial load
         for (const [key, adapter] of Object.entries(this.#adapters)) {
-            for (const loc of Object.keys(this.#config.locales)) {
+            for (const loc of this.#locales) {
                 const event = adapter.virtModEvent(loc, null)
                 server.ws.on(event, (payload, client) => {
                     const eventSend = adapter.virtModEvent(loc, payload.loadID)
@@ -146,7 +144,7 @@ class Plugin {
             return adapter.loadDataModule(locale, loadID)
         }
         if (part === 'locales') {
-            return `export const locales = {${Object.entries(this.#config.locales).map(([loc, {name}]) => `${loc}:'${name}'`).join(',')}}`
+            return `export const locales = ['${this.#locales.join("', '")}']`
         }
         if (part !== 'proxy') {
             this.#log.error(`Unknown virtual request: ${id}`)
@@ -181,7 +179,7 @@ class Plugin {
         return {}
     }
 
-    transform = { order: transformOrder, handler: this.#transformHandler }
+    transform = { order: <'pre'>'pre', handler: this.#transformHandler }
 }
 
 export const wuchale = (configPath?: string) => new Plugin(configPath)

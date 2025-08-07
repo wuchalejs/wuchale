@@ -74,7 +74,7 @@ if (values.help) {
 } else if (cmd == null) {
     logger.info('Extracting...')
     const config = await getConfig(values.config)
-    const locales = Object.keys(config.locales)
+    const locales = [config.sourceLocale, ...config.otherLocales]
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
         await extract(handler, locales)
@@ -83,6 +83,7 @@ if (values.help) {
 } else if (cmd === 'init') {
     logger.info('Initializing...')
     const config = await getConfig(values.config)
+    const locales = [config.sourceLocale, ...config.otherLocales]
     let extractedNew = false
     setupInteractive()
     const adapLogger = new Logger(config.messages)
@@ -102,7 +103,7 @@ if (values.help) {
         const loader = await ask(loaders, `Select default loader for adapter: ${key}`)
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         logger.log(`Initial extract for ${color.cyan(key)}`)
-        await extract(handler, Object.keys(config.locales))
+        await extract(handler, Object.keys(locales))
         extractedNew = true
     }
     const msgs = ['\nInitialization complete!\n']

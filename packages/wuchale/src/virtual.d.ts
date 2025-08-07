@@ -11,7 +11,7 @@ declare module 'virtual:wuchale/proxy/sync' {
 }
 
 declare module 'virtual:wuchale/locales' {
-    export const locales: {[locale: string]: string}
+    export const locales: string[]
 }
 
 declare module 'virtual:wuchale/catalog/*' {
