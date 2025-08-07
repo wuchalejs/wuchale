@@ -1,22 +1,20 @@
 // $$ cd ../.. && npm run test
-import { type CompiledFragment } from "./compile.js"
 import { relative, resolve } from "node:path"
-import { getConfig as getConfig, type Config } from "./config.js"
-import { AdapterHandler } from "./handler.js"
-import type {Mode} from './handler.js'
-import { Logger } from "./log.js"
+import { getConfig as getConfig, type Config } from "wuchale/config"
+import { AdapterHandler } from "wuchale/handler"
+import type {Mode} from 'wuchale/handler'
+import { Logger } from "wuchale/log"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
 
-type HMRClient = {
-    send: (event: string, data: CompiledFragment[]) => void
-}
+type SendFunc = (event: string, data: any[]) => void
+type HMRClient = { send: SendFunc }
 
 type ViteDevServer = {
     ws: {
-        send: (event: string, data: CompiledFragment[]) => void,
+        send: SendFunc,
         on: (event: string, cb: (msg: {loadID: string | null}, client: HMRClient) => void) => void,
     }
 }
@@ -180,4 +178,4 @@ class Plugin {
     transform = { order: transformOrder, handler: this.#transformHandler }
 }
 
-export default () => new Plugin()
+export const wuchale = () => new Plugin()

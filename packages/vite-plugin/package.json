@@ -1,0 +1,50 @@
+{
+    "name": "@wuchale/vite-plugin",
+    "version": "0.9.7",
+    "description": "Protobuf-like i18n from normal code",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node tests"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "vite",
+        "po",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight"
+    ],
+    "files": [
+        "dist",
+        "src"
+    ],
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "dependencies": {
+        "wuchale": "^0.9.7"
+    },
+    "devDependencies": {
+        "typescript": "^5.8.3"
+    },
+    "type": "module"
+}
