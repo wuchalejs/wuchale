@@ -1,6 +1,6 @@
 ---
-"@wuchale/vite-plugin": patch
-"wuchale": patch
+"@wuchale/vite-plugin": minor
+"wuchale": minor
 ---
 
 Move the storage of plural rules to PO files and simplify config
