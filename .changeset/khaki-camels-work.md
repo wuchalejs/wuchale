@@ -3,4 +3,4 @@
 "wuchale": minor
 ---
 
-Make bundleLoad and initInsideFunc common options for adapters
+Make `bundleLoad` and `initInsideFunc` common options for adapters
