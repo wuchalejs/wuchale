@@ -333,10 +333,11 @@ export class AdapterHandler {
             const eventReceive = this.virtModEvent(locale, null)
             return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled: compiledItems, plural })
         }
-        return `
-            export const c = ${compiledItems}
-            ${compiledData.hasPlurals && `export const p = ${plural}`}
-        `
+        const compiled = `export const c = ${compiledItems}`
+        if (!compiledData.hasPlurals) {
+            return compiled
+        }
+        return `${compiled}\nexport const p = ${plural}`
     }
 
     #getGranularState(filename: string): GranularState {
