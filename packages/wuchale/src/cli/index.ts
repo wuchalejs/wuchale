@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { copyFile, mkdir } from "node:fs/promises"
-import { getConfig } from "../config.js"
+import { configName, getConfig } from "../config.js"
 import { AdapterHandler } from "../handler.js"
 import { parseArgs } from 'node:util'
 import { dirname } from "node:path"
@@ -10,6 +10,9 @@ import { ask, setupInteractive } from "./input.js"
 
 const { positionals, values } = parseArgs({
     options: {
+        config: {
+            type: 'string',
+        },
         clean: {
             type: 'boolean',
             short: 'c',
@@ -30,11 +33,12 @@ Usage:
 
 Commands:
     ${color.grey('[none]')}  Extract/compile messages from the codebase into catalogs
-            deleting unused messages if --clean is specified
+            deleting unused messages if ${color.cyan('--clean')} is specified
     ${color.cyan('init')}    Initialize on a codebase
     ${color.cyan('status')}  Show current status
 
 Options:
+    ${color.cyan('--config')}     use another config file instead of ${color.cyan(configName)}
     ${color.cyan('--clean')}, ${color.cyan('-c')}  (only when no commands) remove unused messages from catalogs
     ${color.cyan('--help')}, ${color.cyan('-h')}   Show this help
 `
@@ -69,7 +73,7 @@ if (values.help) {
     logger.log(help.trimEnd())
 } else if (cmd == null) {
     logger.info('Extracting...')
-    const config = await getConfig()
+    const config = await getConfig(values.config)
     const locales = Object.keys(config.locales)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
@@ -78,7 +82,7 @@ if (values.help) {
     logger.info('Extraction finished.')
 } else if (cmd === 'init') {
     logger.info('Initializing...')
-    const config = await getConfig()
+    const config = await getConfig(values.config)
     let extractedNew = false
     setupInteractive()
     const adapLogger = new Logger(config.messages)
@@ -120,7 +124,7 @@ if (values.help) {
     }
     logger.log(msgs.join('\n'))
 } else if (cmd === 'status') {
-    const config = await getConfig()
+    const config = await getConfig(values.config)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
         const {path: loaderPath, empty} = await handler.getLoaderPath()

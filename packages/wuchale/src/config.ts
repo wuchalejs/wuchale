@@ -1,3 +1,4 @@
+import { resolve } from "node:path"
 import { type Adapter } from "./adapters.js"
 
 export type LocaleConf = {
@@ -77,9 +78,10 @@ export function deepMergeObjects<Type>(source: Type, target: Type, dynamicKeysIn
     return full
 }
 
-const configName = 'wuchale.config.js'
+export const configName = 'wuchale.config.js'
 
-export async function getConfig(): Promise<Config> {
-    const module = await import(`${process.cwd()}/${configName}`)
+export async function getConfig(configPath?: string): Promise<Config> {
+    const importPath = (configPath && resolve(configPath)) ?? `${process.cwd()}/${configName}`
+    const module = await import(importPath)
     return deepMergeObjects(module.default, defaultConfig, ['locales'])
 }

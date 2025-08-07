@@ -37,8 +37,14 @@ class Plugin {
 
     #log: Logger
 
+    #configPath: string
+
+    constructor(configPath: string) {
+        this.#configPath = configPath
+    }
+
     #init = async (mode: Mode) => {
-        this.#config = await getConfig()
+        this.#config = await getConfig(this.#configPath)
         this.#locales = Object.keys(this.#config.locales)
         this.#log = new Logger(this.#config.messages)
         if (Object.keys(this.#config.adapters).length === 0) {
@@ -178,4 +184,4 @@ class Plugin {
     transform = { order: transformOrder, handler: this.#transformHandler }
 }
 
-export const wuchale = () => new Plugin()
+export const wuchale = (configPath?: string) => new Plugin(configPath)
