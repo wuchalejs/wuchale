@@ -9,7 +9,7 @@ import { glob } from "tinyglobby"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize } from "node:path"
-import { type ConfigPartial } from "./config.js"
+import { type ConfigPartial, getLanguageName } from "./config.js"
 import { type Logger, color } from './log.js'
 
 type PluralRule = {
@@ -31,13 +31,8 @@ type LoadedPO = {
     pluralRule: PluralRule
 }
 
-function getLanguageName(code: string) {
-    code = code.replaceAll('_', '-') // Intl doesn't accept en_US but we do
-    try {
-        return new Intl.DisplayNames(['en'], {type: 'language'}).of(code)
-    } catch {}
-    return `code:${code}`
-}
+const keyWordizeLocale = (locale: string) => locale.replaceAll('-', '_')
+const objKeyLocale = (locale: string) => locale.includes('-') ? `['${locale}']` : locale
 
 async function loadPOFile(filename: string): Promise<LoadedPO> {
     return new Promise((res, rej) => {
@@ -231,7 +226,7 @@ export class AdapterHandler {
         for (const id of loadIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
-                importsByLocale.push(`${loc}: () => import('${this.#getCompiledImport(loc, id, proxyFilePath)}')`)
+                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getCompiledImport(loc, id, proxyFilePath)}')`)
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
@@ -249,8 +244,9 @@ export class AdapterHandler {
         for (const id of loadIDs) {
             const importedByLocale = []
             for (const loc of this.#locales) {
-                imports.push(`import * as ${loc}Of${id} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
-                importedByLocale.push(`${loc}: ${loc}Of${id}`)
+                const locKW = keyWordizeLocale(loc)
+                imports.push(`import * as ${locKW}Of${id} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
+                importedByLocale.push(`${objKeyLocale(loc)}: ${locKW}Of${id}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
@@ -465,7 +461,7 @@ export class AdapterHandler {
                 `nplurals=${this.#pluralRules[loc]?.nplurals ?? 2}`,
                 `plural=${this.#pluralRules[loc]?.plural ?? defaultPluralRule.plural};`,
             ].join('; ')],
-            ['Language', getLanguageName(loc)],
+            ['Language', loc],
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
             ['Content-Transfer-Encoding', '8bit'],

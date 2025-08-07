@@ -51,8 +51,24 @@ export function deepMergeObjects<Type>(source: Type, target: Type): Type {
 
 export const configName = 'wuchale.config.js'
 
+const displayName = new Intl.DisplayNames(['en'], {type: 'language'})
+export const getLanguageName = (code: string) => displayName.of(code)
+
+function checkValidLocale(locale: string) {
+    try {
+        getLanguageName(locale)
+    } catch {
+        throw new Error(`Invalid locale identifier: ${locale}`)
+    }
+}
+
 export async function getConfig(configPath?: string): Promise<Config> {
     const importPath = (configPath && resolve(configPath)) ?? `${process.cwd()}/${configName}`
     const module = await import(importPath)
-    return deepMergeObjects(module.default, defaultConfig)
+    const config = deepMergeObjects(<Config>module.default, defaultConfig)
+    checkValidLocale(config.sourceLocale)
+    for (const loc of config.otherLocales) {
+        checkValidLocale(loc)
+    }
+    return config
 }
