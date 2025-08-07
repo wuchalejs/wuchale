@@ -1,5 +1,101 @@
 # wuchale
 
+## 0.10.0
+
+### Minor Changes
+
+- 830aa1e: Add status command, shorten default command to just wuchale
+
+  You can get the new usage by running `npx wuchale --help`.
+
+- 84452f2: Omit plural rules from compiled catalogs if not used
+- 6d37525: Show messages in color, improve stats message
+- dd4c602: Use consistent name for proxy modules
+
+  You will have to update the imports in your loaders from:
+
+  ```js
+  import ... from 'virtual:wuchale/loader'
+  // or
+  import ... from 'virtual:wuchale/loader/sync'
+  ```
+
+  To:
+
+  ```js
+  import ... from 'virtual:wuchale/proxy'
+  // or
+  import ... from 'virtual:wuchale/proxy/sync'
+  ```
+
+- 3533ac1: Separate vite plugin into `@wuchale/vite-plugin`
+
+  You have install the new plugin package:
+
+  ```bash
+  npm install -D @wuchale/vite-plugin
+  ```
+
+  And import the vite plugin from the new package in your `vite.config.*`
+
+- d35224f: Allow manually selecting loaders on `wuchale init`
+
+  You can now select which default loader you want on init.
+  Moreover, it will put the detected one as the first option.
+
+- 1d565b4: Make `bundleLoad` and `initInsideFunc` common options for adapters
+- a240836: Enforce BCP 47 standard locale identifiers
+
+  If you use simple two-letter identifiers like `en`, this shouldn't make any difference.
+  But if you want to use more specific identifiers, you now have to use [BCP 47 standard](https://en.wikipedia.org/wiki/IETF_language_tag).
+  That means, `en-US` and `zh-Hant` are valid while `en_US` and `cn-simplified` are not valid.
+  The validation is done using Intl.DisplayNames.
+
+- a6012be: Export adapter key for use in loaders
+
+  You can now import the adapter key you set in the config from the proxies
+  so that you don't have to manually update them if you change them in the config
+
+  ```js
+  import { key } from "virtual:wuchale/proxy";
+  ```
+
+- e9d1817: Move the storage of plural rules to PO files and simplify config
+
+  This makes sure that the po files are the single source
+  of truth for translations as well as plural rules. The
+  translator can update the rules as well. And for the language
+  names, Intl.DisplayNames can be used and is more versatile.
+  Then the only thing that needs to be specified in the config
+  is the codes of the locales, nothing else. This makes the config
+  simpler. To update your config, you have to have an array of the
+  other locales' codes instead of an object for all locales. English
+  will continue to be the `sourceLocale`.
+
+  ```js
+  export default {
+    otherLocales: ['es', 'fr'],
+    adapters: ...
+  }
+  ```
+
+- 3847bc1: Add `loadLocaleSync` to run-client
+
+  In addition to `loadLocale`, there is now `loadLocaleSync` that can be used with synchronous loaders avoiding `await`.
+
+- c0a307d: Make config path configurable at plugin and cli
+
+  You can now specify another config file you want to use instead of `wuchale.config.js`.
+  It still has to be a JavaScript module, but it can be in another directory too.
+
+  And the relative paths specified in the config are relative to the directory
+  you run the command from, NOT relative to the file.
+
+### Patch Changes
+
+- 1d565b4: Fix new references not triggering catalog write
+- 9a9aad7: Fix errors on immediate access translations after extract during dev
+
 ## 0.9.7
 
 ### Patch Changes
