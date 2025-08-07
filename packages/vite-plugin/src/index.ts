@@ -98,6 +98,10 @@ class Plugin {
     }
 
     #sendUpdateToClient = (adapter: AdapterHandler, locales: string[]) => {
+        if (!this.#server) {
+            // maybe not in dev mode
+            return
+        }
         for (const loc of locales) {
             if (!this.#config.adapters[adapter.key].granularLoad) {
                 this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
