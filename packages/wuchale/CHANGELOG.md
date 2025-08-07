@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.10.1
+
+### Patch Changes
+
+- 0de92c4: Fix unnecessary 'false' in compiled catalogs when plural rule not included
+
 ## 0.10.0
 
 ### Minor Changes
