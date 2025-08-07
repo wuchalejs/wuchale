@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.10.2
+
+### Patch Changes
+
+- 4d28c2f: Fix error when building caused by no dev server during build
+
 ## 0.10.1
 
 ### Patch Changes
