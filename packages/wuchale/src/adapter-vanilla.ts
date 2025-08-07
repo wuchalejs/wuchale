@@ -6,7 +6,7 @@ import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultGenerateLoadID, defaultHeuristicFuncOnly, NestText } from './adapters.js'
+import { defaultGenerateLoadID, defaultHeuristicFuncOnly, defaultHeuristic, NestText } from './adapters.js'
 import { deepMergeObjects } from "./config.js"
 import type {
     AdapterArgs,
@@ -86,7 +86,7 @@ export class Transformer {
                 details.declaring = 'expression'
             }
             extract = this.heuristic(text, details)
-                ?? defaultHeuristicFuncOnly(text, details)
+                ?? (this.initInsideFuncExpr == null ? defaultHeuristic : defaultHeuristicFuncOnly)(text, details)
                 ?? true
         }
         return [extract, new NestText(text, detailsBase.scope, this.commentDirectives.context)]

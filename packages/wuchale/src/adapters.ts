@@ -18,7 +18,7 @@ type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
-export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null
+export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null | undefined
 
 export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (text.search(/\p{L}/u) === -1) {
@@ -41,9 +41,9 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     return !details.call?.startsWith('console.')
 }
 
-// only allow inside function definitions
+// only allow inside function definitions for script scope
 export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
-    return defaultHeuristic(text, details) && details.insideFuncDef
+    return defaultHeuristic(text, details) && (details.scope !== 'script' || details.insideFuncDef)
 }
 
 export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
