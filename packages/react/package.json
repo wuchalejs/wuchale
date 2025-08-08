@@ -1,0 +1,60 @@
+{
+    "name": "@wuchale/react",
+    "version": "0.1.0",
+    "description": "Protobuf-like i18n from normal code for React",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node tests"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "react",
+        "nextjs",
+        "vite",
+        "po",
+        "react-i18n",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight"
+    ],
+    "files": [
+        "dist"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "dependencies": {
+        "@sveltejs/acorn-typescript": "^1.0.5",
+        "acorn": "^8.15.0",
+        "acorn-jsx": "^5.3.2",
+        "tinyglobby": "^0.2.14",
+        "wuchale": "^0.11.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.8.3"
+    },
+    "type": "module"
+}
