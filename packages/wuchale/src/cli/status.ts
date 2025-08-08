@@ -28,7 +28,7 @@ export async function status(config: Config, locales: string[], logger: Logger) 
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
         const {path: loaderPath, empty} = await handler.getLoaderPath()
-        logger.info(`${key}:`)
+        logger.log(`${color.magenta(key)}:`)
         for (const locale of locales) {
             let stats: POStats
             try {
