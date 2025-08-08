@@ -1,5 +1,13 @@
 # @wuchale/vite-plugin
 
+## 0.10.3
+
+### Patch Changes
+
+- Updated dependencies [6cbece0]
+- Updated dependencies [56a350f]
+  - wuchale@0.11.0
+
 ## 0.10.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies [6cbece0]
+- Updated dependencies [56a350f]
+  - wuchale@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
