@@ -2,13 +2,13 @@ import { type CatalogModule, defaultPluralsRule, Runtime } from './runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 
-type CatalogsByID = {[loadID: string]: CatalogModule}
-type RuntimesByID = {[loadID: string]: Runtime}
+type CatalogsByID = Record<string, CatalogModule>
+type RuntimesByID = Record<string, Runtime>
 
 export type LoaderState = {catalogs: CatalogsByID, load: LoaderFunc}
 
 /** Global catalog states registry */
-const states: {[key: string]: LoaderState} = {}
+const states: Record<string, LoaderState> = {}
 
 /**
  * - `key` is a unique identifier for the group

@@ -23,7 +23,7 @@ const defaultPluralRule: PluralRule = {
 
 type LoadedPO = {
     catalog: Catalog
-    headers: { [key: string]: string }
+    headers: Record<string, string>
     pluralRule: PluralRule
 }
 
@@ -83,7 +83,7 @@ type Compiled = {
     hasPlurals: boolean
     items: CompiledItems
 }
-type CompiledCatalog = { [loc: string]: Compiled }
+type CompiledCatalog = Record<string, Compiled>
 type GranularState = {
     id: string,
     compiled: CompiledCatalog,
@@ -98,7 +98,7 @@ export class AdapterHandler {
     loaderPath: string
     proxyPath: string
     outDir: string
-    compiledHead: {[loc: string]: string} = {}
+    compiledHead: Record<string, string> = {}
 
     #virtualPrefix: string
     #config: ConfigPartial
@@ -108,22 +108,22 @@ export class AdapterHandler {
 
     #adapter: Adapter
 
-    #pluralRules: { [loc: string]: PluralRule} = {}
+    #pluralRules: Record<string, PluralRule> = {}
 
-    catalogs: { [loc: string]: Catalog } = {}
+    catalogs: Record<string, Catalog> = {}
     compiled: CompiledCatalog = {}
 
-    granularStateByFile: { [filename: string]: GranularState } = {}
-    granularStateByID: { [id: string]: GranularState } = {}
+    granularStateByFile: Record<string, GranularState> = {}
+    granularStateByID: Record<string, GranularState> = {}
 
-    #catalogsFname: { [loc: string]: string } = {}
-    catalogPathsToLocales: { [key: string]: string } = {}
+    #catalogsFname: Record<string, string> = {}
+    catalogPathsToLocales: Record<string, string> = {}
 
-    #poHeaders: { [loc: string]: { [key: string]: string } } = {}
+    #poHeaders: Record<string, Record<string, string>> = {}
 
     #mode: Mode
     #indexTracker: IndexTracker = new IndexTracker()
-    #geminiQueue: { [loc: string]: GeminiQueue } = {}
+    #geminiQueue: Record<string, GeminiQueue> = {}
 
     #log: Logger
 
@@ -506,7 +506,7 @@ export class AdapterHandler {
         let catalogChanged = false
         for (const loc of this.#locales) {
             // clear references to this file first
-            let previousReferences: { [key: string]: number } = {}
+            let previousReferences: Record<string, number> = {}
             let fewerRefs = false
             for (const item of Object.values(this.catalogs[loc])) {
                 if (!item.references.includes(filename)) {

@@ -29,9 +29,9 @@ class Plugin {
 
     #server: ViteDevServer
 
-    #adapters: {[key: string]: AdapterHandler} = {}
-    #adaptersByLoaderPath: {[loader: string]: AdapterHandler} = {}
-    #adaptersByCatalogPath: {[path: string]: AdapterHandler} = {}
+    #adapters: Record<string, AdapterHandler> = {}
+    #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
+    #adaptersByCatalogPath: Record<string, AdapterHandler> = {}
 
     #log: Logger
 

@@ -9,7 +9,7 @@ export type ConfigPartial = {
 }
 
 export type Config = ConfigPartial & {
-    adapters?: {[key: string]: Adapter}
+    adapters?: Record<string, Adapter>
     hmr?: boolean
 }
 

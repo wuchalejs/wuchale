@@ -10,7 +10,7 @@ const colors = {
 
 const encode = (code: number) => `\x1b[${code}m`
 
-type ColorFuncs = {[col in keyof typeof colors]: (msg: string | number) => string}
+type ColorFuncs = Record<keyof typeof colors, (msg: string | number) => string>
 
 const colorFuncsEntries = Object.entries(colors).map(([col, code]) => [
     col,

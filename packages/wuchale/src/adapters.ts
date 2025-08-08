@@ -80,7 +80,7 @@ export type CommentDirectives = {
 
 export class IndexTracker {
 
-    indices: { [key: string]: number } = {}
+    indices: Record<string, number> = {}
     nextIndex: number = 0
 
     get = (txt: string) => {

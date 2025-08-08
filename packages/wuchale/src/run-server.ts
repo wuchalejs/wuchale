@@ -2,8 +2,8 @@ import type { LoaderFunc } from './run-client.js'
 import { Runtime } from './runtime.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-type LoadedCatalogs = { [key: string]: {[loadID: string]: Runtime} }
-const catalogs: {[locale: string]: LoadedCatalogs } = {}
+type LoadedCatalogs = Record<string, Record<string, Runtime>>
+const catalogs: Record<string, LoadedCatalogs> = {}
 const catalogCtx: AsyncLocalStorage<LoadedCatalogs> = new AsyncLocalStorage()
 
 export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => Runtime> {
