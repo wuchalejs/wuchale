@@ -55,8 +55,8 @@
             "default": "./dist/log.js"
         },
         "./adapter-vanilla": {
-            "types": "./dist/adapter-vanilla.d.ts",
-            "default": "./dist/adapter-vanilla.js"
+            "types": "./dist/adapter-vanilla/index.d.ts",
+            "default": "./dist/adapter-vanilla/index.js"
         },
         "./runtime": {
             "types": "./dist/runtime.d.ts",

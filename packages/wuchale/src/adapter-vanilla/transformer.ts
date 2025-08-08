@@ -1,25 +1,20 @@
 // $$ cd .. && npm run test
 
 import MagicString from "magic-string"
-import { glob } from "tinyglobby"
 import type Estree from 'estree'
 import type { Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultGenerateLoadID, defaultHeuristicFuncOnly, defaultHeuristic, NestText } from './adapters.js'
-import { deepMergeObjects } from "./config.js"
+import { defaultHeuristicFuncOnly, defaultHeuristic, NestText } from '../adapters.js'
 import type {
-    AdapterArgs,
-    Adapter,
     CommentDirectives,
     HeuristicDetailsBase,
     HeuristicFunc,
     IndexTracker,
-    DataModuleFunc,
     ScriptDeclType,
     TransformOutput,
     TransformHeader
-} from "./adapters.js"
+} from "../adapters.js"
 
 const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -434,73 +429,5 @@ export class Transformer {
             this.mstr.appendRight(0, `${header.head}\nconst ${runtimeConst} = ${header.expr}\n`)
         }
         return this.finalize(txts)
-    }
-}
-
-export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
-    if (import.meta.hot) {
-        import.meta.hot.on('${eventSend}', newData => {
-            for (let i = 0; i < newData.length; i++) {
-                if (JSON.stringify(${targetVar}[i]) !== JSON.stringify(newData[i])) {
-                    ${targetVar}[i] = newData[i]
-                }
-            }
-        })
-        import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
-    }
-`
-
-const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
-    export const p = ${plural}
-    export const c = ${compiled}
-    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
-`
-
-const defaultArgs: AdapterArgs = {
-    files: 'src/**/*.{js,ts}',
-    catalog: './src/locales/{locale}',
-    pluralsFunc: 'plural',
-    heuristic: defaultHeuristicFuncOnly,
-    granularLoad: false,
-    bundleLoad: false,
-    generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
-    initInsideFunc: true,
-}
-
-export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
-    const {
-        heuristic,
-        pluralsFunc,
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        writeFiles,
-        initInsideFunc,
-    } = deepMergeObjects(args, defaultArgs)
-    return {
-        transform: ({content, filename, index, header}) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null).transform(header)
-        },
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        loaderExts: ['.js', '.ts'],
-        dataModuleDev,
-        writeFiles,
-        defaultLoaders: async () => {
-            const available = ['default', 'vite']
-            if ((await glob('vite.*')).length) {
-                available.reverse()
-            }
-            return available
-        },
-        defaultLoaderPath: (loader: string) => {
-            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
-        },
     }
 }
