@@ -292,7 +292,7 @@ export class AdapterHandler {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            this.#log.warn(`${this.key}: Catalog for ${loc} not found.`)
+            this.#log.log(`${this.key}: Catalog not found for ${color.cyan(loc)}`)
         }
     }
 
