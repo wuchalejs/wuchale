@@ -1,16 +1,15 @@
 // $$ cd ../.. && npm run test
-import { basename, dirname, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, NestText } from "./adapters.js"
 import type { Adapter, GlobConf, Catalog } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledFragment } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
-import { glob } from "tinyglobby"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { normalize } from "node:path"
 import { type ConfigPartial, getLanguageName } from "./config.js"
-import { type Logger, color } from './log.js'
+import { color, type Logger } from './log.js'
 
 type PluralRule = {
     nplurals: number
@@ -24,9 +23,6 @@ const defaultPluralRule: PluralRule = {
 
 type LoadedPO = {
     catalog: Catalog
-    total: number
-    untranslated: number
-    obsolete: number
     headers: { [key: string]: string }
     pluralRule: PluralRule
 }
@@ -34,45 +30,40 @@ type LoadedPO = {
 const keyWordizeLocale = (locale: string) => locale.replaceAll('-', '_')
 const objKeyLocale = (locale: string) => locale.includes('-') ? `['${locale}']` : locale
 
-async function loadPOFile(filename: string): Promise<LoadedPO> {
+export async function loadPOFile(filename: string): Promise<PO> {
     return new Promise((res, rej) => {
         PO.load(filename, (err, po) => {
-            const catalog: Catalog = {}
-            let total = 0
-            let untranslated = 0
-            let obsolete = 0
             if (err) {
                 rej(err)
-                return
-            }
-            for (const item of po.items) {
-                total++
-                if (!item.msgstr[0]) {
-                    untranslated++
-                }
-                if (item.obsolete) {
-                    obsolete++
-                }
-                const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
-                catalog[nTxt.toKey()] = item
-            }
-            let pluralRule: PluralRule
-            const pluralHeader = po.headers['Plural-Forms']
-            if (pluralHeader) {
-                pluralRule = <PluralRule><unknown>PO.parsePluralForms(pluralHeader)
-                pluralRule.nplurals = Number(pluralRule.nplurals)
             } else {
-                pluralRule = defaultPluralRule
+                res(po)
             }
-            res({ catalog, total, untranslated, obsolete, headers: po.headers, pluralRule })
         })
     })
 }
 
-async function savePO(items: ItemType[], filename: string, headers = {}): Promise<void> {
+async function loadCatalogFromPO(filename: string): Promise<LoadedPO> {
+    const po = await loadPOFile(filename)
+    const catalog: Catalog = {}
+    for (const item of po.items) {
+        const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
+        catalog[nTxt.toKey()] = item
+    }
+    let pluralRule: PluralRule
+    const pluralHeader = po.headers['Plural-Forms']
+    if (pluralHeader) {
+        pluralRule = <PluralRule><unknown>PO.parsePluralForms(pluralHeader)
+        pluralRule.nplurals = Number(pluralRule.nplurals)
+    } else {
+        pluralRule = defaultPluralRule
+    }
+    return {catalog, pluralRule, headers: po.headers}
+}
+
+async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
     const po = new PO()
     po.headers = headers
-    for (const item of Object.values(items)) {
+    for (const item of Object.values(catalog)) {
         po.items.push(item)
     }
     return new Promise((res, rej) => {
@@ -119,7 +110,7 @@ export class AdapterHandler {
 
     #pluralRules: { [loc: string]: PluralRule} = {}
 
-    catalogs: { [loc: string]: { [key: string]: ItemType } } = {}
+    catalogs: { [loc: string]: Catalog } = {}
     compiled: CompiledCatalog = {}
 
     granularStateByFile: { [filename: string]: GranularState } = {}
@@ -258,19 +249,25 @@ export class AdapterHandler {
         `
     }
 
+    catalogFileName = (locale: string): string => {
+        let catalog = this.#adapter.catalog.replace('{locale}', locale)
+        if (!isAbsolute(catalog)) {
+            catalog = normalize(`${this.#projectRoot}/${catalog}`)
+        }
+        return `${catalog}.po`
+    }
+
     init = async () => {
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         await this.#initPaths()
-        this.fileMatches = pm(...this.#globConfToArgs(this.#adapter.files))
+        this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
         const sourceLocaleName = getLanguageName(this.#config.sourceLocale)
         this.catalogPathsToLocales = {}
         for (const loc of this.#locales) {
             this.catalogs[loc] = {}
-            const catalog = this.#adapter.catalog.replace('{locale}', loc)
-            const catalogFname = `${catalog}.po`
-            this.#catalogsFname[loc] = catalogFname
+            this.#catalogsFname[loc] = this.catalogFileName(loc)
             // for handleHotUpdate
-            this.catalogPathsToLocales[normalize(this.#projectRoot + '/' + catalogFname)] = loc
+            this.catalogPathsToLocales[this.#catalogsFname[loc]] = loc
             if (loc !== this.#config.sourceLocale) {
                 this.#geminiQueue[loc] = new GeminiQueue(
                     sourceLocaleName,
@@ -284,34 +281,12 @@ export class AdapterHandler {
         await this.writeProxy()
     }
 
-    directExtract = async () => {
-        const all = []
-        const extract = async (file: string) => {
-            const contents = await readFile(file)
-            await this.transform(contents.toString(), file)
-        }
-        for (const file of await glob(...this.#globConfToArgs(this.#adapter.files))) {
-            this.#log.info(`Extract from ${file}`)
-            all.push(extract(file))
-        }
-        await Promise.all(all)
-    }
-
-    loadCatalogNCompile = async (loc: string) => {
+    loadCatalogNCompile = async (loc: string): Promise<void> => {
         try {
-            const { catalog, total, untranslated, obsolete, headers, pluralRule } = await loadPOFile(this.#catalogsFname[loc])
+            const { catalog, headers, pluralRule } = await loadCatalogFromPO(this.#catalogsFname[loc])
             this.#poHeaders[loc] = headers
             this.catalogs[loc] = catalog
             this.#pluralRules[loc] = pluralRule
-            const locName = getLanguageName(loc)
-            let logArg = `i18n stats (${this.key}/${locName}): ${color.cyan(`total: ${total} `)}`
-            if (untranslated > 0) {
-                logArg += color.red(`untranslated: ${untranslated} `)
-            }
-            if (obsolete) {
-                logArg += color.yellow(`obsolete: ${obsolete}`)
-            }
-            this.#log.log(logArg)
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
@@ -421,7 +396,7 @@ export class AdapterHandler {
         await writeFile(fname, content)
     }
 
-    #globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
+    globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
         const options = { ignore: [this.loaderPath] }
@@ -479,7 +454,7 @@ export class AdapterHandler {
                 fullHead[key] = val
             }
         }
-        await savePO(Object.values(this.catalogs[loc]), this.#catalogsFname[loc], fullHead)
+        await saveCatalogToPO(this.catalogs[loc], this.#catalogsFname[loc], fullHead)
         if (this.#mode !== 'extract') { // save for the end
             await this.compile(loc)
         }
@@ -606,8 +581,8 @@ export class AdapterHandler {
                 continue
             }
             const newRequest = this.#geminiQueue[loc].add(untranslated)
-            const opType = `(${newRequest ? 'new request' : 'add to request'})`
-            this.#log.info(`Gemini translate ${untranslated.length} items to ${getLanguageName(loc)} ${opType}`)
+            const opType = `(${newRequest ? color.yellow('new request') : color.green('add to request')})`
+            this.#log.log(`Gemini translate ${color.cyan(untranslated.length)} items to ${color.cyan(getLanguageName(loc))} ${opType}`)
             await this.#geminiQueue[loc].running
         }
         await this.writeTransformed(filename, output.code ?? content)
