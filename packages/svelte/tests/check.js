@@ -44,6 +44,7 @@ export async function testDir(t, dir) {
 
 // only for syntax highlighting
 export const svelte = typescript
+export const javascript = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = svelte`

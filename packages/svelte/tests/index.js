@@ -1,8 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, svelte } from './check.js'
-import { javascript } from '../../wuchale/tests/check.js'
+import { testContent, testDir, svelte, javascript } from './check.js'
 
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`

@@ -1,43 +1,17 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
-import { glob } from "tinyglobby"
 import { parse, type AST } from "svelte/compiler"
-import { defaultGenerateLoadID, defaultHeuristic, NestText } from 'wuchale/adapters'
-import { deepMergeObjects } from 'wuchale/config'
-import { Transformer, parseScript, dataModuleHotUpdate, runtimeConst } from 'wuchale/adapter-vanilla'
+import { NestText } from 'wuchale/adapters'
+import { Transformer, parseScript, runtimeConst } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
-    Adapter,
-    AdapterArgs,
     CommentDirectives,
-    DataModuleFunc,
     TransformHeader
 } from 'wuchale/adapters'
 
 const nodesWithChildren = ['RegularElement', 'Component']
-const topLevelDeclarationsInside = ['$derived', '$derived.by']
-const ignoreElements = ['style', 'path']
-
-const svelteHeuristic: HeuristicFunc = (text, details) => {
-    if (!defaultHeuristic(text, details)) {
-        return false
-    }
-    if (ignoreElements.includes(details.element)) {
-        return false
-    }
-    if (details.scope !== 'script') {
-        return true
-    }
-    if (details.declaring === 'variable' && !topLevelDeclarationsInside.includes(details.topLevelCall)) {
-        return false
-    }
-    if (details.call === '$inspect') {
-        return false
-    }
-    return true
-}
 
 const rtComponent = 'WuchaleTrans'
 const snipPrefix = 'wuchaleSnippet'
@@ -436,62 +410,5 @@ export class SvelteTransformer extends Transformer {
             this.mstr.prepend(`<script>${headerFin}</script>\n`)
         }
         return this.finalize(txts)
-    }
-}
-
-const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
-    import { ReactiveArray } from '@wuchale/svelte/reactive'
-    export const p = ${plural}
-    export const c = new ReactiveArray(...${compiled})
-    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
-`
-
-const defaultArgs: AdapterArgs = {
-    files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-    catalog: './src/locales/{locale}',
-    pluralsFunc: 'plural',
-    heuristic: svelteHeuristic,
-    granularLoad: false,
-    bundleLoad: false,
-    generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
-    initInsideFunc: false,
-}
-
-export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
-    const {
-        heuristic,
-        pluralsFunc,
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        writeFiles,
-        initInsideFunc,
-    } = deepMergeObjects(args, defaultArgs)
-    return {
-        transform: ({ content, filename, index, header }) => {
-            const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
-            return transformer.transformSv(header)
-        },
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        loaderExts: ['.svelte.js', '.svelte.ts'],
-        dataModuleDev,
-        writeFiles,
-        defaultLoaders: async () => {
-            const available = ['default', 'kit']
-            if ((await glob('svelte.config.js')).length) {
-                available.reverse()
-            }
-            return available
-        },
-        defaultLoaderPath: (loader: string) => {
-            return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
-        },
     }
 }
