@@ -28,7 +28,7 @@
     ],
     "files": [
         "dist",
-        "src"
+        "src/virtual.d.ts"
     ],
     "exports": {
         ".": {

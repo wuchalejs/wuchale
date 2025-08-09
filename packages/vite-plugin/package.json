@@ -27,8 +27,7 @@
         "lightweight"
     ],
     "files": [
-        "dist",
-        "src"
+        "dist"
     ],
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
