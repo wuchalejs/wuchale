@@ -46,14 +46,8 @@ export async function testDir(t, dir) {
 export const jsx = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
-// const code = jsx`
-//   const m = <main>
-//     <p class="read-the-docs">
-//       Click on the Vite and Svelte logos to learn more
-//     </p>
-//   </main>
-// `
+// const code = jsx`const m = <main> Hello <i>dear</i></main>`
 // const p = await getOutput(sv, 'react', code, testFile)
 // console.log(p.code)
-// console.log(Object.values(p.catalogs.en))
-// console.log(p.compiled.en)
+// // console.log(Object.values(p.catalogs.en))
+// console.log(p.compiled.en?.items)

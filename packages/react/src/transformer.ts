@@ -1,16 +1,19 @@
 import MagicString from "magic-string"
-import { Parser, type AnyNode } from "acorn"
+import { Parser, type Program } from "acorn"
 import { NestText } from 'wuchale/adapters'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
+import type * as EJX from 'estree-jsx'
 import jsx from 'acorn-jsx'
-import { Transformer, runtimeConst, scriptParseOptions } from 'wuchale/adapter-vanilla'
+import { Transformer, scriptParseOptions } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
-    TransformHeader
+    TransformHeader,
 } from 'wuchale/adapters'
+import { nonWhitespaceText, varNames } from "wuchale/adapter-utils/utils.js"
+import { visitMixedContent, type VisitForNested, type WrapNestedFunc } from "wuchale/adapter-utils/mixed-element.js"
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
@@ -18,12 +21,10 @@ export function parseScript(content: string) {
     return JsxParser.parse(content, scriptParseOptions)
 }
 
-const nodesWithChildren = ['RegularElement', 'Component']
-
+const nodesWithChildren = ['JSXElement']
 const rtComponent = 'WuchaleTrans'
-const snipPrefix = 'wuchaleSnippet'
-const rtFuncCtx = `${runtimeConst}.cx`
-const rtFuncCtxTrans = `${runtimeConst}.tx`
+
+type MixedNodesTypes = EJX.JSXElement | EJX.JSXFragment | EJX.JSXText | EJX.JSXExpressionContainer | EJX.JSXSpreadChild
 
 export class ReactTransformer extends Transformer {
 
@@ -32,13 +33,186 @@ export class ReactTransformer extends Transformer {
     inCompoundText: boolean = false
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
-    currentSnippet: number = 0
 
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
         super(content, filename, index, heuristic, pluralsFunc, initInsideFuncExpr)
     }
 
-    visitRe = (node: AnyNode): NestText[] => {
+    visitChildrenJd = (node: EJX.JSXElement | EJX.JSXFragment): NestText[] => {
+        const txt = []
+        for (const child of node.children) {
+            txt.push(...this.visitRe(child))
+        }
+        return txt
+    }
+
+    visitForNested: VisitForNested<MixedNodesTypes> = (child, inCompoundText) => {
+        const inCompoundTextPrev = this.inCompoundText
+        this.inCompoundText = inCompoundText
+        const childTxts = this.visitRe(child)
+        this.inCompoundText = inCompoundTextPrev // restore
+        return childTxts
+    }
+
+    wrapNested: WrapNestedFunc = (txt, hasExprs, nestedRanges, lastChildEnd) => {
+        for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
+            let toAppend: string
+            if (i === 0) {
+                toAppend = `<${rtComponent} tags={[`
+            } else {
+                toAppend = ', '
+            }
+            this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? varNames.nestCtx: '()'} => `)
+        }
+        let begin = `]} ctx=`
+        if (this.inCompoundText) {
+            begin += `{${varNames.nestCtx}} nest`
+        } else {
+            const index = this.index.get(txt.toKey())
+            begin += `{${varNames.rtTransCtx}(${index})}`
+        }
+        let end = ' />'
+        if (hasExprs) {
+            begin += ' args={['
+            end = ']}' + end
+        }
+        this.mstr.appendLeft(lastChildEnd, begin)
+        this.mstr.appendRight(lastChildEnd, end)
+    }
+
+    visitChildrenJ = (node: EJX.JSXElement | EJX.JSXFragment): NestText[] => visitMixedContent<MixedNodesTypes>({
+        children: node.children,
+        mstr: this.mstr,
+        getRange: node => ({
+            // @ts-expect-error
+            start: node.start,
+            // @ts-expect-error
+            end: node.end
+        }),
+        isComment: child => child.type === 'JSXExpressionContainer'
+            && child.expression.type === 'JSXEmptyExpression'
+            // @ts-expect-error
+            && child.expression.end > child.expression.start,
+        isText: child => child.type === 'JSXText',
+        isExpression: child => child.type === 'JSXExpressionContainer',
+        getTextContent: (child: EJX.JSXText) => child.value,
+        getCommentData: (child: EJX.JSXExpressionContainer) => this.content.slice(
+            // @ts-expect-error
+            child.expression.start,
+            // @ts-expect-error
+            child.expression.end,
+        ),
+        canHaveChildren: node => nodesWithChildren.includes(node.type),
+        commentDirectives: this.commentDirectives,
+        inCompoundText: this.inCompoundText,
+        visit: this.visitForNested,
+        visitExpressionTag: this.visitJSXExpressionContainer,
+        checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
+        index: this.index,
+        wrapNested: this.wrapNested,
+    })
+
+    visitNameJSXNamespacedName = (node: EJX.JSXNamespacedName): string => {
+        return `${this.visitName(node.namespace)}:${this.visitName(node.name)}`
+    }
+
+    visitNameJSXMemberExpression = (node: EJX.JSXMemberExpression): string => {
+        return `${this.visitName(node.object)}.${this.visitName(node.property)}`
+    }
+
+    visitName = (node: EJX.JSXIdentifier | EJX.JSXMemberExpression | EJX.JSXNamespacedName): string => {
+        return this['visitName' + node.type]?.(node)
+    }
+
+    visitJSXElement = (node: EJX.JSXElement): NestText[] => {
+        const currentElement = this.currentElement
+        this.currentElement = this.visitName(node.openingElement.name)
+        const txts = this.visitChildrenJ(node)
+        for (const attr of node.openingElement.attributes) {
+            txts.push(...this.visitRe(attr))
+        }
+        this.currentElement = currentElement
+        return txts
+    }
+
+    visitJSXText = (node: EJX.JSXText): NestText[] => {
+        const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
+        const [pass, txt] = this.checkHeuristic(trimmed, {
+            scope: 'markup',
+            element: this.currentElement,
+        })
+        if (!pass) {
+            return []
+        }
+        this.mstr.update(
+            // @ts-expect-error
+            node.start + startWh,
+            // @ts-expect-error
+            node.end - endWh,
+            `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`,
+        )
+        return [txt]
+    }
+
+    visitJSXFragment = (node: EJX.JSXFragment): NestText[] => this.visitChildrenJ(node)
+
+    visitJSXEmptyExpression = (node: EJX.JSXEmptyExpression): NestText[] => {
+        // @ts-expect-error
+        const comment = this.content.slice(node.start, node.end).trim()
+        if (!comment) {
+            return
+        }
+        const commentContents = comment.slice(2, -2).trim()
+        if (!commentContents) {
+            return
+        }
+        const directives = this.processCommentDirectives(commentContents)
+        if (this.lastVisitIsComment) {
+            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = directives
+        } else {
+            this.commentDirectivesStack.push(directives)
+        }
+        this.lastVisitIsComment = true
+        return []
+    }
+
+    visitJSXExpressionContainer = (node: EJX.JSXExpressionContainer): NestText[] => this.visitRe(node.expression)
+
+    visitJSXAttribute = (node: EJX.JSXAttribute): NestText[] => {
+        if (node.value.type !== 'Literal') {
+            return this.visitRe(node.value)
+        }
+        if (typeof node.value.value !== 'string') {
+            return []
+        }
+        const value = node.value
+        let name: string
+        if (node.name.type === 'JSXIdentifier') {
+            name = node.name.name
+        } else {
+            name = node.name.name.name
+        }
+        const [pass, txt] = this.checkHeuristic(node.value.value, {
+            scope: 'attribute',
+            element: this.currentElement,
+            attribute: name,
+        })
+        if (!pass) {
+            return []
+        }
+        this.mstr.update(
+            // @ts-expect-error
+            value.start,
+            // @ts-expect-error
+            value.end,
+            `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`,
+        )
+        return [txt]
+    }
+
+    visitJSXSpreadAttribute = (node: EJX.JSXSpreadAttribute): NestText[] => this.visit(node.argument)
+
+    visitRe = (node: EJX.Node | EJX.JSXSpreadChild | Program): NestText[] => {
         let txts = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
@@ -60,9 +234,8 @@ export class ReactTransformer extends Transformer {
             return this.finalize(txts)
         }
         const headerFin = [
-            `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
             header.head,
-            `const ${runtimeConst} = ${header.expr}\n`,
+            `const ${varNames.rtConst} = ${header.expr}\n`,
         ].join('\n')
         this.mstr.appendRight(0, headerFin + '\n')
         return this.finalize(txts)
