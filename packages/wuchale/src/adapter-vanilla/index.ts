@@ -49,7 +49,7 @@ const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive,
 `
 
 const defaultArgs: AdapterArgs = {
-    files: 'src/**/*.{js,ts}',
+    files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
     heuristic: defaultHeuristicFuncOnly,
