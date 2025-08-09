@@ -15,6 +15,7 @@ import type {
     TransformOutput,
     TransformHeader
 } from "../adapters.js"
+import { varNames } from "../adapter-utils/utils.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -28,8 +29,6 @@ export function parseScript(content: string) {
     return ScriptParser.parse(content, scriptParseOptions)
 }
 
-export const runtimeConst = '_w_runtime_'
-
 export class Transformer {
 
     index: IndexTracker
@@ -39,11 +38,6 @@ export class Transformer {
     mstr: MagicString
     pluralFunc: string
     initInsideFuncExpr: string | null
-
-    // for runtime
-    rtFunc = `${runtimeConst}.t`
-    rtFuncPlural = `${runtimeConst}.tp`
-    rtPluralsRule = `${runtimeConst}._.p`
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -96,7 +90,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${this.rtFunc}(${this.index.get(txt.toKey())})`)
+        this.mstr.update(start, end, `${varNames.rtTrans}(${this.index.get(txt.toKey())})`)
         return [txt]
     }
 
@@ -160,7 +154,7 @@ export class Transformer {
         const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
-        const pluralUpdate = `${this.rtFuncPlural}(${index}), ${this.rtPluralsRule}`
+        const pluralUpdate = `${varNames.rtTPlural}(${index}), ${varNames.rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [nTxt]
@@ -276,7 +270,7 @@ export class Transformer {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\nconst ${runtimeConst} = ${this.initInsideFuncExpr}\n`,
+                `\nconst ${varNames.rtConst} = ${this.initInsideFuncExpr}\n`,
             )
         }
         this.insideFuncDef = insideFuncDef
@@ -350,7 +344,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const nTxt = new NestText(txt, 'script', this.commentDirectives.context)
-        let begin = `${this.rtFunc}(${this.index.get(nTxt.toKey())}`
+        let begin = `${varNames.rtTrans}(${this.index.get(nTxt.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -426,7 +420,7 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            this.mstr.appendRight(0, `${header.head}\nconst ${runtimeConst} = ${header.expr}\n`)
+            this.mstr.appendRight(0, `${header.head}\nconst ${varNames.rtConst} = ${header.expr}\n`)
         }
         return this.finalize(txts)
     }

@@ -6,14 +6,14 @@
 <h1>{_w_runtime_.t(0)}</h1>
 <p>{_w_runtime_.t(1)}</p>
 <p>
-    {#snippet wuchaleSnippet0(ctx)}
-        <b>{_w_runtime_.tx(ctx)}</b>
+    {#snippet wuchaleSnippet0(_w_ctx_)}
+        <b>{_w_runtime_.tx(_w_ctx_)}</b>
     {/snippet}
     <WuchaleTrans tags={[wuchaleSnippet0]} ctx={_w_runtime_.cx(2)} />
 </p>
 <p>
-    {#snippet wuchaleSnippet1(ctx)}
-        <b>{_w_runtime_.tx(ctx, ['text'])}</b>
+    {#snippet wuchaleSnippet1(_w_ctx_)}
+        <b>{_w_runtime_.tx(_w_ctx_, ['text'])}</b>
     {/snippet}
     <WuchaleTrans tags={[wuchaleSnippet1]} ctx={_w_runtime_.cx(3)} />
 </p>

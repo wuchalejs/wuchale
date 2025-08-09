@@ -8,9 +8,9 @@ import type {
     Adapter,
     DataModuleFunc,
 } from "../adapters.js"
-import { Transformer, parseScript, scriptParseOptions, runtimeConst } from "./transformer.js"
+import { Transformer, parseScript, scriptParseOptions } from "./transformer.js"
 
-export { Transformer, parseScript, scriptParseOptions, runtimeConst }
+export { Transformer, parseScript, scriptParseOptions }
 
 export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
     if (import.meta.hot) {
