@@ -1,5 +1,10 @@
-type Composite = (number | string | Composite)[]
-type CompiledData = (string | Composite)[]
+// for template literals and simple mixed markup
+type Mixed = (number | string)[]
+// for nested markup. first number indicates the tag index, rest are arguments
+export type Composite = [number, ...(string | number | Composite)[]]
+
+type CompiledData = (string | Mixed | Composite)[]
+
 type PluralsRule = (n: number) => number
 
 export const catalogVarName = 'c' as 'c'
@@ -35,17 +40,14 @@ export class Runtime {
     }
 
     /** get translation using composite context */
-    tx = (ctx: Composite, args: any[] = [], start = 1) => {
+    tx = (ctx: Mixed, args: any[] = [], start = 1) => {
         let txt = ''
         for (let i = start; i < ctx.length; i++) {
             const fragment = ctx[i]
             if (typeof fragment === 'string') {
                 txt += fragment
-            } else if (typeof fragment === 'number') { // index of non-text children
+            } else { // index of non-text children
                 txt += args[fragment]
-            } else {
-                // shouldn't happen
-                console.error('Unknown item in compiled catalog: ', fragment)
             }
         }
         return txt
@@ -55,5 +57,5 @@ export class Runtime {
     tp = (id: number) => this._.c[id] ?? []
 
     /** get translation */
-    t = (id: number, args: any[] = []) => this.tx(this.cx(id), args, 0)
+    t = (id: number, args: any[] = []) => this.tx(this.cx(id) as Mixed, args, 0)
 }
