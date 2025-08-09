@@ -16,7 +16,7 @@ import type {
     TransformHeader
 } from "../adapters.js"
 
-const scriptParseOptions: ParserOptions = {
+export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
     ecmaVersion: 'latest',
     locations: true

@@ -1,9 +1,6 @@
 // $$ cd .. && npm run test
 
 import { glob } from "tinyglobby"
-import type { Options as ParserOptions } from "acorn"
-import { Parser } from 'acorn'
-import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
 import { deepMergeObjects } from "../config.js"
 import type {
@@ -11,23 +8,9 @@ import type {
     Adapter,
     DataModuleFunc,
 } from "../adapters.js"
-import { Transformer } from "./transformer.js"
+import { Transformer, parseScript, scriptParseOptions, runtimeConst } from "./transformer.js"
 
-export { Transformer }
-
-const scriptParseOptions: ParserOptions = {
-    sourceType: 'module',
-    ecmaVersion: 'latest',
-    locations: true
-}
-
-const ScriptParser = Parser.extend(tsPlugin())
-
-export function parseScript(content: string) {
-    return ScriptParser.parse(content, scriptParseOptions)
-}
-
-export const runtimeConst = '_w_runtime_'
+export { Transformer, parseScript, scriptParseOptions, runtimeConst }
 
 export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
     if (import.meta.hot) {
