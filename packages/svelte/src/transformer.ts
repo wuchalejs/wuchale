@@ -2,7 +2,7 @@ import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { NestText } from 'wuchale/adapters'
-import { Transformer, parseScript, runtimeConst } from 'wuchale/adapter-vanilla'
+import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -10,13 +10,15 @@ import type {
     CommentDirectives,
     TransformHeader
 } from 'wuchale/adapters'
+import { visitMixedContent, type VisitForNested, type WrapNestedFunc } from "wuchale/adapter-utils/mixed-element.js"
+import { nonWhitespaceText, varNames } from "wuchale/adapter-utils/utils.js"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
 const rtComponent = 'WuchaleTrans'
 const snipPrefix = 'wuchaleSnippet'
-const rtFuncCtx = `${runtimeConst}.cx`
-const rtFuncCtxTrans = `${runtimeConst}.tx`
+
+type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
 
 export class SvelteTransformer extends Transformer {
 
@@ -33,184 +35,59 @@ export class SvelteTransformer extends Transformer {
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
-    nonWhitespaceText = (node: AST.Text): [number, string, number] => {
-        let trimmedS = node.data.trimStart()
-        const startWh = node.data.length - trimmedS.length
-        let trimmed = trimmedS.trimEnd()
-        const endWh = trimmedS.length - trimmed.length
-        return [startWh, trimmed, endWh]
-    }
-
-    separatelyVisitChildren = (node: AST.Fragment): [boolean, boolean, boolean, NestText[]] => {
-        let hasTextChild = false
-        let hasNonTextChild = false
-        let heurTxt = ''
-        let hasCommentDirectives = false
-        for (const child of node.nodes) {
-            if (child.type === 'Text') {
-                const txt = child.data.trim()
-                if (!txt) {
-                    continue
-                }
-                hasTextChild = true
-                heurTxt += child.data + ' '
-            } else if (child.type === 'Comment') {
-                if (child.data.trim().startsWith('@wc-')) {
-                    hasCommentDirectives = true
-                }
-            } else {
-                hasNonTextChild = true
-                heurTxt += `# `
-            }
+    wrapNested: WrapNestedFunc = (txt, hasExprs, nestedRanges, lastChildEnd) => {
+        const snippets = []
+        // create and reference snippets
+        for (const [childStart, childEnd, haveCtx] of nestedRanges) {
+            const snippetName = `${snipPrefix}${this.currentSnippet}`
+            snippets.push(snippetName)
+            this.currentSnippet++
+            const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? varNames.nestCtx : ''})}\n`
+            this.mstr.appendRight(childStart, snippetBegin)
+            this.mstr.prependLeft(childEnd, '\n{/snippet}')
         }
-        heurTxt = heurTxt.trimEnd()
-        const [passHeuristic] = this.checkHeuristic(heurTxt, { scope: 'markup', element: this.currentElement })
-        let hasCompoundText = hasTextChild && hasNonTextChild
-        const visitAsOne = passHeuristic && !hasCommentDirectives
-        if (this.inCompoundText || hasCompoundText && visitAsOne) {
-            return [false, hasTextChild, hasCompoundText, []]
-        }
-        const txts = []
-        // can't be extracted as one; visitSv each separately
-        for (const child of node.nodes) {
-            txts.push(...this.visitSv(child))
-        }
-        return [true, false, false, txts]
-    }
-
-    visitFragment = (node: AST.Fragment): NestText[] => {
-        if (node.nodes.length === 0) {
-            return []
-        }
-        const [visitedSeparately, hasTextChild, hasCompoundText, separateTxts] = this.separatelyVisitChildren(node)
-        if (visitedSeparately) {
-            return separateTxts
-        }
-        let txt = ''
-        let iArg = 0
-        let iTag = 0
-        const lastChildEnd = node.nodes.slice(-1)[0].end
-        const childrenForSnippets: [number, number, boolean][] = []
-        let hasTextDescendants = false
-        const txts = []
-        for (const child of node.nodes) {
-            if (child.type === 'Comment') {
-                continue
-            }
-            if (child.type === 'Text') {
-                const [startWh, trimmed, endWh] = this.nonWhitespaceText(child)
-                const nTxt = new NestText(trimmed, 'markup', this.commentDirectives.context)
-                if (startWh && !txt.endsWith(' ')) {
-                    txt += ' '
-                }
-                if (!trimmed) { // whitespace
-                    continue
-                }
-                txt += nTxt.text
-                if (endWh) {
-                    txt += ' '
-                }
-                this.mstr.remove(child.start, child.end)
-                continue
-            }
-            if (child.type === 'ExpressionTag') {
-                txts.push(...this.visitExpressionTag(child))
-                if (!hasCompoundText) {
-                    continue
-                }
-                txt += `{${iArg}}`
-                let moveStart = child.start
-                if (iArg > 0) {
-                    this.mstr.update(child.start, child.start + 1, ', ')
-                } else {
-                    moveStart++
-                    this.mstr.remove(child.start, child.start + 1)
-                }
-                this.mstr.move(moveStart, child.end - 1, lastChildEnd)
-                this.mstr.remove(child.end - 1, child.end)
-                iArg++
-                continue
-            }
-            // elements, components and other things as well
-            const nestedTextSupported = nodesWithChildren.includes(child.type)
-            const inCompoundTextPrev = this.inCompoundText
-            this.inCompoundText = nestedTextSupported
-            const childTxts = this.visitSv(child)
-            this.inCompoundText = inCompoundTextPrev // restore
-            let snippNeedsCtx = false
-            let chTxt = ''
-            for (const txt of childTxts) {
-                if (nodesWithChildren.includes(child.type) && txt.scope === 'markup') {
-                    chTxt += txt.text[0]
-                    hasTextDescendants = true
-                    snippNeedsCtx = true
-                } else { // attributes, blocks
-                    txts.push(txt)
-                }
-            }
-            childrenForSnippets.push([child.start, child.end, snippNeedsCtx])
-            if (nodesWithChildren.includes(child.type) && chTxt) {
-                chTxt = `<${iTag}>${chTxt}</${iTag}>`
-            } else {
-                // childless elements and everything else
-                chTxt = `<${iTag}/>`
-            }
-            iTag++
-            txt += chTxt
-        }
-        txt = txt.trim()
-        if (!txt) {
-            return txts
-        }
-        const nTxt = new NestText(txt, 'markup', this.commentDirectives.context)
-        if (hasTextChild || hasTextDescendants) {
-            txts.push(nTxt)
+        let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
+        if (this.inCompoundText) {
+            begin += `{${varNames.nestCtx}} nest`
         } else {
-            return txts
+            const index = this.index.get(txt.toKey())
+            begin += `{${varNames.rtCtx}(${index})}`
         }
-        if (childrenForSnippets.length) {
-            const snippets = []
-            // create and reference snippets
-            for (const [childStart, childEnd, haveCtx] of childrenForSnippets) {
-                const snippetName = `${snipPrefix}${this.currentSnippet}`
-                snippets.push(snippetName)
-                this.currentSnippet++
-                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? 'ctx' : ''})}\n`
-                this.mstr.appendRight(childStart, snippetBegin)
-                this.mstr.prependLeft(childEnd, '\n{/snippet}')
-            }
-            let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
-            if (this.inCompoundText) {
-                begin += `{ctx} nest`
-            } else {
-                const index = this.index.get(nTxt.toKey())
-                begin += `{${rtFuncCtx}(${index})}`
-            }
-            let end = ' />\n'
-            if (iArg > 0) {
-                begin += ' args={['
-                end = ']}' + end
-            }
-            this.mstr.appendLeft(lastChildEnd, begin)
-            this.mstr.appendRight(lastChildEnd, end)
-        } else if (hasTextChild) {
-            // no need for component use
-            let begin = '{'
-            let end = ')}'
-            if (this.inCompoundText) {
-                begin += `${rtFuncCtxTrans}(ctx`
-            } else {
-                begin += `${this.rtFunc}(${this.index.get(nTxt.toKey())}`
-            }
-            if (iArg) {
-                begin += ', ['
-                end = ']' + end
-            }
-            this.mstr.appendLeft(lastChildEnd, begin)
-            this.mstr.appendRight(lastChildEnd, end)
+        let end = ' />\n'
+        if (hasExprs) {
+            begin += ' args={['
+            end = ']}' + end
         }
-        return txts
+        this.mstr.appendLeft(lastChildEnd, begin)
+        this.mstr.appendRight(lastChildEnd, end)
     }
+
+    visitForNested: VisitForNested<MixedNodesTypes> = (child, inCompoundText) => {
+        const inCompoundTextPrev = this.inCompoundText
+        this.inCompoundText = inCompoundText
+        const childTxts = this.visitSv(child)
+        this.inCompoundText = inCompoundTextPrev // restore
+        return childTxts
+    }
+
+    visitFragment = (node: AST.Fragment): NestText[] => visitMixedContent<MixedNodesTypes>({
+        children: node.nodes,
+        mstr: this.mstr,
+        getRange: node => ({ start: node.start, end: node.end }),
+        isText: child => child.type === 'Text',
+        isComment: child => child.type === 'Comment',
+        isExpression: child => child.type === 'ExpressionTag',
+        getTextContent: (child: AST.Text) => child.data,
+        getCommentData: (child: AST.Comment) => child.data,
+        canHaveChildren: (child: AST.BaseNode) => nodesWithChildren.includes(child.type),
+        commentDirectives: this.commentDirectives,
+        inCompoundText: this.inCompoundText,
+        visit: this.visitForNested,
+        visitExpressionTag: this.visitExpressionTag,
+        checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
+        index: this.index,
+        wrapNested: this.wrapNested,
+    })
 
     visitRegularElement = (node: AST.ElementLike): NestText[] => {
         const currentElement = this.currentElement
@@ -227,7 +104,7 @@ export class SvelteTransformer extends Transformer {
     visitComponent = this.visitRegularElement
 
     visitText = (node: AST.Text): NestText[] => {
-        const [startWh, trimmed, endWh] = this.nonWhitespaceText(node)
+        const [startWh, trimmed, endWh] = nonWhitespaceText(node.data)
         const [pass, txt] = this.checkHeuristic(trimmed, {
             scope: 'markup',
             element: this.currentElement,
@@ -235,7 +112,7 @@ export class SvelteTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.rtFunc}(${this.index.get(txt.toKey())})}`)
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
 
@@ -268,7 +145,7 @@ export class SvelteTransformer extends Transformer {
                 continue
             }
             txts.push(txt)
-            this.mstr.update(value.start, value.end, `{${this.rtFunc}(${this.index.get(txt.toKey())})}`)
+            this.mstr.update(value.start, value.end, `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
@@ -396,7 +273,7 @@ export class SvelteTransformer extends Transformer {
         const headerFin = [
             `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
             header.head,
-            `const ${runtimeConst} = $derived(${header.expr})\n`,
+            `const ${varNames.rtConst} = $derived(${header.expr})\n`,
         ].join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')
