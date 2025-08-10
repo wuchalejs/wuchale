@@ -2,7 +2,7 @@
 
 import MagicString from "magic-string"
 import type Estree from 'estree'
-import type { Options as ParserOptions } from "acorn"
+import type { Program, Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultHeuristicFuncOnly, defaultHeuristic, NestText } from '../adapters.js'
@@ -24,8 +24,28 @@ export const scriptParseOptions: ParserOptions = {
 
 const ScriptParser = Parser.extend(tsPlugin())
 
-export function parseScript(content: string) {
-    return ScriptParser.parse(content, scriptParseOptions)
+export function parseScript(content: string): [Program, Estree.Comment[][]] {
+    let accumulateComments: Estree.Comment[] = []
+    const comments: Estree.Comment[][] = []
+    return [
+        ScriptParser.parse(content, {
+            ...scriptParseOptions,
+            // parse comments for when they are not part of the AST
+            onToken: token => {
+                if (accumulateComments.length) {
+                    comments[token.start] = accumulateComments
+                }
+                accumulateComments = []
+            },
+            onComment: (block, comment) => {
+                accumulateComments.push({
+                    type: block ? 'Block' : 'Line',
+                    value: comment,
+                })
+            }
+        }),
+        comments,
+    ]
 }
 
 export const runtimeConst = '_w_runtime_'
@@ -35,6 +55,8 @@ export class Transformer {
     index: IndexTracker
     heuristic: HeuristicFunc
     content: string
+    /* for when the comments are not parsed as part of the AST */
+    comments: Estree.Comment[][] = []
     filename: string
     mstr: MagicString
     pluralFunc: string
@@ -393,7 +415,9 @@ export class Transformer {
     visit = (node: Estree.BaseNode): NestText[] => {
         // for estree
         const commentDirectives = this.commentDirectives
-        for (const comment of node.leadingComments ?? []) {
+        // @ts-expect-error
+        const comments = this.comments[node.start]
+        for (const comment of node.leadingComments ?? comments ?? []) {
             this.commentDirectives = this.processCommentDirectives(comment.value.trim())
         }
         let txts = []
@@ -422,7 +446,8 @@ export class Transformer {
     }
 
     transform = (header: TransformHeader): TransformOutput => {
-        const ast = parseScript(this.content)
+        const [ast, comments] = parseScript(this.content)
+        this.comments = comments
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {

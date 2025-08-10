@@ -384,7 +384,9 @@ export class SvelteTransformer extends Transformer {
         if (isComponent) {
             ast = parse(this.content, { modern: true })
         } else {
-            ast = parseScript(this.content)
+            const [pAst, comments] = parseScript(this.content)
+            ast = pAst
+            this.comments = comments
         }
         this.mstr = new MagicString(this.content)
         const txts = this.visitSv(ast)
