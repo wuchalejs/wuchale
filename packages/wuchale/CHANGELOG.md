@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.11.2
+
+### Patch Changes
+
+- 3f4ca05: Fix comments sticking once set
+
 ## 0.11.1
 
 ### Patch Changes
