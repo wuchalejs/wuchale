@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.10.2
+
+### Patch Changes
+
+- e2eb7f4: Fix comments in script not processed correctly
+- Updated dependencies [e2eb7f4]
+  - wuchale@0.11.1
+
 ## 0.10.1
 
 ### Patch Changes
