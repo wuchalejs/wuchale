@@ -414,7 +414,7 @@ export class Transformer {
 
     visit = (node: Estree.BaseNode): NestText[] => {
         // for estree
-        const commentDirectives = this.commentDirectives
+        const commentDirectives = { ...this.commentDirectives }
         // @ts-expect-error
         const comments = this.comments[node.start]
         for (const comment of node.leadingComments ?? comments ?? []) {
