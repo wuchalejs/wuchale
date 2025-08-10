@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.11.1
+
+### Patch Changes
+
+- e2eb7f4: Fix comments in script not processed correctly
+
 ## 0.11.0
 
 ### Minor Changes
