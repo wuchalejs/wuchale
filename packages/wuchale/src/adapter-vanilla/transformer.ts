@@ -25,11 +25,11 @@ export const scriptParseOptions: ParserOptions = {
 
 const ScriptParser = Parser.extend(tsPlugin())
 
-export function parseScript(content: string): [Program, Estree.Comment[][]] {
+export function scriptParseOptionsWithComments(): [ParserOptions, Estree.Comment[][]] {
     let accumulateComments: Estree.Comment[] = []
     const comments: Estree.Comment[][] = []
     return [
-        ScriptParser.parse(content, {
+        {
             ...scriptParseOptions,
             // parse comments for when they are not part of the AST
             onToken: token => {
@@ -44,9 +44,14 @@ export function parseScript(content: string): [Program, Estree.Comment[][]] {
                     value: comment,
                 })
             }
-        }),
+        },
         comments,
     ]
+}
+
+export function parseScript(content: string): [Program, Estree.Comment[][]] {
+    const [opts, comments] = scriptParseOptionsWithComments()
+    return [ScriptParser.parse(content, opts), comments]
 }
 
 export class Transformer {

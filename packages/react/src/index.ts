@@ -1,21 +1,13 @@
 import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
-import { dataModuleHotUpdate } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
-    DataModuleFunc,
 } from 'wuchale/adapters'
 import { ReactTransformer } from "./transformer.js"
 
 const ignoreElements = ['style', 'path']
-
-const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
-    export const p = ${plural}
-    export const c = ${compiled}
-    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
-`
 
 const reactHeuristic: HeuristicFunc = (text, details) => {
     if (!defaultHeuristic(text, details)) {
@@ -60,7 +52,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     return {
         transform: ({ content, filename, index, header }) => {
             const transformer = new ReactTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
-            return transformer.transformRe(header)
+            return transformer.transformJx(header)
         },
         files,
         catalog,
@@ -68,7 +60,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         bundleLoad,
         generateLoadID,
         loaderExts: ['.js', '.ts'],
-        dataModuleDev,
         writeFiles,
         defaultLoaders: async () => {
             const available = ['default']
