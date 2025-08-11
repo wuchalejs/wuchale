@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.11.4
+
+### Patch Changes
+
+- a773137: Read package.json to accurately suggest default loaders
+
 ## 0.11.3
 
 ### Patch Changes
