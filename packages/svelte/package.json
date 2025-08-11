@@ -54,7 +54,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "svelte": "^5.37.0",
+        "svelte": "^5.38.0",
         "tinyglobby": "^0.2.14",
         "wuchale": "^0.11.1"
     },
