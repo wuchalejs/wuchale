@@ -6,7 +6,6 @@ import { deepMergeObjects } from "../config.js"
 import type {
     AdapterArgs,
     Adapter,
-    DataModuleFunc,
 } from "../adapters.js"
 import { Transformer, parseScript, scriptParseOptions, runtimeConst } from "./transformer.js"
 
@@ -23,12 +22,6 @@ export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, ev
         })
         import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
     }
-`
-
-const dataModuleDev: DataModuleFunc = ({loadID: loadID, eventSend, eventReceive, compiled, plural}) => `
-    export const p = ${plural}
-    export const c = ${compiled}
-    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
 `
 
 const defaultArgs: AdapterArgs = {
@@ -65,7 +58,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         bundleLoad,
         generateLoadID,
         loaderExts: ['.js', '.ts'],
-        dataModuleDev,
         writeFiles,
         defaultLoaders: async () => {
             const available = ['default', 'vite']

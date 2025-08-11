@@ -1,24 +1,15 @@
 import { glob } from "tinyglobby"
 import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
-import { dataModuleHotUpdate } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
-    DataModuleFunc,
 } from 'wuchale/adapters'
 import { SvelteTransformer } from "./transformer.js"
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']
-
-const dataModuleDev: DataModuleFunc = ({ loadID, eventSend, eventReceive, compiled, plural }) => `
-    import { ReactiveArray } from '@wuchale/svelte/reactive'
-    export const p = ${plural}
-    export const c = new ReactiveArray(...${compiled})
-    ${dataModuleHotUpdate(loadID, eventSend, eventReceive)}
-`
 
 const svelteHeuristic: HeuristicFunc = (text, details) => {
     if (!defaultHeuristic(text, details)) {
@@ -74,7 +65,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         bundleLoad,
         generateLoadID,
         loaderExts: ['.svelte.js', '.svelte.ts'],
-        dataModuleDev,
         writeFiles,
         defaultLoaders: async () => {
             const available = ['default', 'kit']

@@ -10,6 +10,7 @@ import PO from "pofile"
 import { normalize } from "node:path"
 import { type ConfigPartial, getLanguageName } from "./config.js"
 import { color, type Logger } from './log.js'
+import { catalogVarName } from './runtime.js'
 
 type PluralRule = {
     nplurals: number
@@ -57,7 +58,7 @@ async function loadCatalogFromPO(filename: string): Promise<LoadedPO> {
     } else {
         pluralRule = defaultPluralRule
     }
-    return {catalog, pluralRule, headers: po.headers}
+    return { catalog, pluralRule, headers: po.headers }
 }
 
 async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
@@ -150,11 +151,11 @@ export class AdapterHandler {
         return paths
     }
 
-    async getLoaderPath(): Promise<{path: string | null, empty: boolean}> {
+    async getLoaderPath(): Promise<{ path: string | null, empty: boolean }> {
         for (const path of this.getLoaderPaths()) {
             try {
                 const contents = await readFile(path)
-                return {path, empty: contents.toString().trim() === ''}
+                return { path, empty: contents.toString().trim() === '' }
             } catch (err: any) {
                 if (err.code !== 'ENOENT') {
                     throw err
@@ -162,11 +163,11 @@ export class AdapterHandler {
                 continue
             }
         }
-        return {path: null, empty: true}
+        return { path: null, empty: true }
     }
 
     async #initPaths() {
-        const {path: loaderPath, empty} = await this.getLoaderPath()
+        const { path: loaderPath, empty } = await this.getLoaderPath()
         if (!loaderPath || empty) {
             throw new Error('No valid loader file found.')
         }
@@ -299,16 +300,11 @@ export class AdapterHandler {
     loadDataModule = (locale: string, loadID: string) => {
         let compiledData = this.compiled[locale]
         if (this.#adapter.granularLoad) {
-            compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? {hasPlurals: false, items: []}
+            compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? { hasPlurals: false, items: [] }
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.#pluralRules[locale].plural}`
-        if (this.#mode === 'dev') {
-            const eventSend = this.virtModEvent(locale, loadID)
-            const eventReceive = this.virtModEvent(locale, null)
-            return this.#adapter.dataModuleDev({ loadID: loadID, eventSend, eventReceive, compiled: compiledItems, plural })
-        }
-        const compiled = `export const c = ${compiledItems}`
+        const compiled = `export const ${catalogVarName} = ${compiledItems}`
         if (!compiledData.hasPlurals) {
             return compiled
         }
@@ -338,7 +334,7 @@ export class AdapterHandler {
     }
 
     compile = async (loc: string) => {
-        this.compiled[loc] = {hasPlurals: false, items: []}
+        this.compiled[loc] = { hasPlurals: false, items: [] }
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
@@ -392,7 +388,7 @@ export class AdapterHandler {
             return
         }
         const fname = resolve(this.outDir + '/' + filename)
-        await mkdir(dirname(fname), {recursive: true})
+        await mkdir(dirname(fname), { recursive: true })
         await writeFile(fname, content)
     }
 
@@ -460,7 +456,7 @@ export class AdapterHandler {
         }
     }
 
-    #prepareHeader = (filename: string, loadID: string): {head: string, expr: string} => {
+    #prepareHeader = (filename: string, loadID: string): { head: string, expr: string } => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
@@ -489,7 +485,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string): Promise<{code?: string, map?: any, catalogChanged?: boolean}> => {
+    transform = async (content: string, filename: string): Promise<{ code?: string, map?: any, catalogChanged?: boolean }> => {
         let indexTracker = this.#indexTracker
         let loadID = this.key
         if (this.#adapter.granularLoad) {
@@ -589,6 +585,6 @@ export class AdapterHandler {
         if (!txts.length) {
             return {}
         }
-        return {...output, catalogChanged}
+        return { ...output, catalogChanged }
     }
 }

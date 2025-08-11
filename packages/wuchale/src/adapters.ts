@@ -119,16 +119,6 @@ export type TransformOutput = {
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
-type DataModuleCtx = {
-    loadID: string | null
-    eventSend: string
-    eventReceive: string
-    compiled: string
-    plural: string
-}
-
-export type DataModuleFunc = (ctx: DataModuleCtx) => string
-
 type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
@@ -147,7 +137,6 @@ export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
-    dataModuleDev: DataModuleFunc
     /** available loader names, can do auto detection logic to sort */
     defaultLoaders: () => string[] | Promise<string[]>
     /* Can return different file paths based on conditions */

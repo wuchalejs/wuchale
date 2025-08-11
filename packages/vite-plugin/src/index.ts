@@ -2,8 +2,9 @@
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, type Config } from "wuchale/config"
 import { AdapterHandler } from "wuchale/handler"
-import type {Mode} from 'wuchale/handler'
+import type { Mode } from 'wuchale/handler'
 import { Logger } from "wuchale/log"
+import { catalogVarName } from "wuchale/runtime"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
@@ -15,8 +16,9 @@ type HMRClient = { send: SendFunc }
 type ViteDevServer = {
     ws: {
         send: SendFunc,
-        on: (event: string, cb: (msg: {loadID: string | null}, client: HMRClient) => void) => void,
+        on: (event: string, cb: (msg: { loadID: string | null }, client: HMRClient) => void) => void,
     }
+    moduleGraph: any
 }
 
 class Plugin {
@@ -32,6 +34,8 @@ class Plugin {
     #adapters: Record<string, AdapterHandler> = {}
     #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
     #adaptersByCatalogPath: Record<string, AdapterHandler> = {}
+
+    #lastHMRTime: number = 0
 
     #log: Logger
 
@@ -114,21 +118,46 @@ class Plugin {
         }
     }
 
-    handleHotUpdate = async (ctx: {file: string}) => {
+    handleHotUpdate = async (ctx: { file: string, server: ViteDevServer, timestamp: number }) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
+            this.#lastHMRTime = performance.now()
             return
         }
+        if (performance.now() - this.#lastHMRTime < 1000) { // too soon
+            return
+        }
+        // PO file edit -> JS HMR
         const adapter = this.#adaptersByCatalogPath[ctx.file]
         const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
         this.#sendUpdateToClient(adapter, [loc])
+        let invalidatedLoadIDs = [null]
+        if (this.#config.adapters[adapter.key].granularLoad) {
+            invalidatedLoadIDs = Object.keys(adapter.granularStateByID)
+        }
+        const allModules = []
+        const invalidatedModules = new Set()
+        for (const loadID of invalidatedLoadIDs) {
+            const moduleID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
+            const modules = ctx.server.moduleGraph.getModulesByFile(moduleID)
+            for (const module of modules) {
+                ctx.server.moduleGraph.invalidateModule(
+                    module,
+                    invalidatedModules,
+                    ctx.timestamp,
+                    true
+                )
+                allModules.push(module)
+            }
+        }
+        return allModules
     }
 
     resolveId = (source: string, importer?: string) => {
         if (!source.startsWith(virtualPrefix)) {
             return null
         }
-        return `${virtualResolvedPrefix}${source}?${importer}`
+        return `${virtualResolvedPrefix}${source}?importer=${importer}`
     }
 
     load = (id: string) => {
@@ -136,7 +165,7 @@ class Plugin {
         if (!id.startsWith(prefix)) {
             return null
         }
-        const [path, importer] = id.slice(prefix.length).split('?')
+        const [path, importer] = id.slice(prefix.length).split('?importer=')
         const [part, ...rest] = path.split('/')
         if (part === 'catalog') {
             const [adapterKey, loadID, locale] = rest
@@ -145,7 +174,25 @@ class Plugin {
                 this.#log.error(`Adapter not found for key: ${adapterKey}`)
                 return null
             }
-            return adapter.loadDataModule(locale, loadID)
+            const module = adapter.loadDataModule(locale, loadID)
+            if (this.#server == null) { // prod build
+                return module
+            }
+            const eventSend = adapter.virtModEvent(locale, loadID)
+            const eventReceive = adapter.virtModEvent(locale, null)
+            return `
+                ${module}
+                if (import.meta.hot) {
+                    import.meta.hot.on('${eventSend}', newData => {
+                        for (let i = 0; i < newData.length; i++) {
+                            if (JSON.stringify(${catalogVarName}[i]) !== JSON.stringify(newData[i])) {
+                                ${catalogVarName}[i] = newData[i]
+                            }
+                        }
+                    })
+                    import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
+                }
+            `
         }
         if (part === 'locales') {
             return `export const locales = ['${this.#locales.join("', '")}']`
@@ -157,6 +204,7 @@ class Plugin {
         // loader proxy
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
+            console.log(id)
             this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
@@ -173,8 +221,8 @@ class Plugin {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                const {catalogChanged, ...output} = await adapter.transform(code, filename)
-                if (catalogChanged) {
+                const { catalogChanged, ...output } = await adapter.transform(code, filename)
+                if (catalogChanged && this.#lastHMRTime > 0) {
                     this.#sendUpdateToClient(adapter, this.#locales)
                 }
                 return output

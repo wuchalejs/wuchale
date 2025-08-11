@@ -2,7 +2,9 @@ type Composite = (number | string | Composite)[]
 type CompiledData = (string | Composite)[]
 type PluralsRule = (n: number) => number
 
-export type CatalogModule = { c: CompiledData, p: PluralsRule }
+export const catalogVarName = 'c' as 'c'
+
+export type CatalogModule = { [catalogVarName]: CompiledData, p: PluralsRule }
 
 export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
 
