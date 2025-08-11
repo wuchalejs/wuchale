@@ -50,6 +50,7 @@ Checkout examples to see how it can be used at **[`wuchalejs/examples`](https://
 This is a monorepo that houses these packages:
 
 - [`wuchale`](https://npmjs.com/package/wuchale): Core + CLI + Vanilla adapter
+- [`@wuchale/jsx`](https://npmjs.com/package/@wuchale/jsx): JSX adapter
 - [`@wuchale/svelte`](https://npmjs.com/package/@wuchale/svelte): Svelte adapter
 - [`@wuchale/vite-plugin`](https://npmjs.com/package/@wuchale/vite-plugin): The Vite plugin
 
