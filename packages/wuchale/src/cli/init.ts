@@ -28,21 +28,21 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
         if (loaderPath && !empty) {
-            logger.log(`Loader already exists for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
+            logger.log(`Loader already exists for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
             continue
         }
         if (!loaderPath) {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        logger.log(`Create loader for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
+        logger.log(`Create loader for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
         const loaders = await adapter.defaultLoaders(await getDependencies())
         let loader = loaders[0]
         if (loaders.length > 1) {
-            loader = await ask(loaders, `Select default loader for adapter: ${key}`)
+            loader = await ask(loaders, `Select default loader for adapter: ${color.magenta(key)}`, logger)
         }
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
-        logger.log(`Initial extract for ${color.cyan(key)}`)
+        logger.log(`Initial extract for ${color.magenta(key)}`)
         await extractAdap(handler, adapter.files, locales, false, logger)
         extractedNew = true
     }
