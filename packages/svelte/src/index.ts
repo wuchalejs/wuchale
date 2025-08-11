@@ -78,7 +78,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             if (loader === 'default') {
                 return vanillaAdapter().defaultLoaderPath('vite')
             }
-            return new URL(`../../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
+            return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
     }
 }
