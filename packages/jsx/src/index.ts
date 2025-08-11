@@ -5,11 +5,11 @@ import type {
     Adapter,
     AdapterArgs,
 } from 'wuchale/adapters'
-import { ReactTransformer } from "./transformer.js"
+import { JSXTransformer } from "./transformer.js"
 
 const ignoreElements = ['style', 'path']
 
-const reactHeuristic: HeuristicFunc = (text, details) => {
+const jsxHeuristic: HeuristicFunc = (text, details) => {
     if (!defaultHeuristic(text, details)) {
         return false
     }
@@ -29,7 +29,7 @@ const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
-    heuristic: reactHeuristic,
+    heuristic: jsxHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
@@ -51,7 +51,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({ content, filename, index, header }) => {
-            const transformer = new ReactTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
+            const transformer = new JSXTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
             return transformer.transformJx(header)
         },
         files,

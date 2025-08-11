@@ -1,7 +1,7 @@
 {
-    "name": "@wuchale/react",
+    "name": "@wuchale/jsx",
     "version": "0.1.0",
-    "description": "Protobuf-like i18n from normal code for React",
+    "description": "Protobuf-like i18n from normal code for JSX",
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
@@ -30,7 +30,8 @@
         "lightweight"
     ],
     "files": [
-        "dist"
+        "dist",
+        "src/loaders"
     ],
     "exports": {
         ".": {

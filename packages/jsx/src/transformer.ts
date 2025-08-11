@@ -27,7 +27,7 @@ const rtComponent = 'WuchaleTrans'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
 
-export class ReactTransformer extends Transformer {
+export class JSXTransformer extends Transformer {
 
     // state
     currentElement?: string
@@ -244,7 +244,7 @@ export class ReactTransformer extends Transformer {
             return this.finalize(txts)
         }
         const headerFin = [
-            `import ${rtComponent} from "@wuchale/react/runtime.jsx"`,
+            `import ${rtComponent} from "@wuchale/jsx/runtime.jsx"`,
             header.head,
             `const ${varNames.rtConst} = ${header.expr}\n`,
         ].join('\n')

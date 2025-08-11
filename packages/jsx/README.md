@@ -1,8 +1,8 @@
-# `@wuchale/react`
+# `@wuchale/jsx`
 
-[![npm version](https://img.shields.io/npm/v/@wuchale/react)](https://www.npmjs.com/package/@wuchale/react) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
+[![npm version](https://img.shields.io/npm/v/@wuchale/jsx)](https://www.npmjs.com/package/@wuchale/jsx) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
 
-An adapter to integrate `wuchale` in React projects.
+An adapter to integrate `wuchale` in JSX projects.
 
 **`wuchale`** is a non-invasive, normal code based compile-time internationalization (i18n) toolkit.
 
@@ -17,4 +17,4 @@ An adapter to integrate `wuchale` in React projects.
 
 ## 📚 Documentation
 
-See the full guide at: [wuchale.dev/adapter/react](https://wuchale.dev/adapters/react).
+See the full guide at: [wuchale.dev/adapter/jsx](https://wuchale.dev/adapters/jsx).
