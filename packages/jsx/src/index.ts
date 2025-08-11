@@ -1,5 +1,6 @@
 import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
+import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
@@ -61,12 +62,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         generateLoadID,
         loaderExts: ['.js', '.ts'],
         writeFiles,
-        defaultLoaders: async () => {
-            const available = ['default']
-            return available
+        defaultLoaders: () => {
+            return ['default']
         },
         defaultLoaderPath: (loader: string) => {
-            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
+            if (loader === 'default') {
+                return vanillaAdapter().defaultLoaderPath('vite')
+            }
         },
     }
 }
