@@ -58,18 +58,18 @@
 <div>{someFunction('foo', _w_runtime_.t(0))}</div>
 
 <p>
-    {#snippet wuchaleSnippet4(ctx)}
+    {#snippet wuchaleSnippet4(_w_ctx_)}
         <i class="not-extracted" title={_w_runtime_.t(2)}
         >
-            {#snippet wuchaleSnippet1(ctx)}
+            {#snippet wuchaleSnippet1(_w_ctx_)}
                 <b>
-                    {#snippet wuchaleSnippet0(ctx)}
-                        <u>{_w_runtime_.tx(ctx)}</u>
+                    {#snippet wuchaleSnippet0(_w_ctx_)}
+                        <u>{_w_runtime_.tx(_w_ctx_)}</u>
                     {/snippet}
-                    <WuchaleTrans tags={[wuchaleSnippet0]} ctx={ctx} nest args={[`with ${someJSEven}` + "foo"]} />
+                    <WuchaleTrans tags={[wuchaleSnippet0]} ctx={_w_ctx_} nest args={[`with ${someJSEven}` + "foo"]} />
                 </b>
             {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet1]} ctx={ctx} nest />
+            <WuchaleTrans tags={[wuchaleSnippet1]} ctx={_w_ctx_} nest />
         </i
         >
     {/snippet}<!-- foo bar -->

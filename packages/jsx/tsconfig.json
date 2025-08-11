@@ -1,0 +1,12 @@
+{
+    "extends": "../../tsconfig-base",
+    "compilerOptions": {
+        "jsx": "preserve",
+        "outDir": "dist",
+        "composite": true
+    },
+    "references": [
+        { "path": "../wuchale" }
+    ],
+    "include": ["src", "tests", "../wuchale/tests"]
+}

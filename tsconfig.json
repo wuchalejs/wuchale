@@ -5,6 +5,7 @@
     "references": [
         { "path": "./packages/wuchale/tsconfig.json" },
         { "path": "./packages/svelte/tsconfig.json" },
+        { "path": "./packages/jsx/tsconfig.json" },
         { "path": "./packages/vite-plugin/tsconfig.json" }
     ]
 }
