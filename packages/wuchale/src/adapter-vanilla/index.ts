@@ -67,7 +67,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
+            return new URL(`../../src/loaders/${loader}.js`, import.meta.url).pathname
         },
     }
 }

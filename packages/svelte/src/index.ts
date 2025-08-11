@@ -1,6 +1,7 @@
 import { glob } from "tinyglobby"
 import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
+import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
@@ -64,7 +65,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         granularLoad,
         bundleLoad,
         generateLoadID,
-        loaderExts: ['.svelte.js', '.svelte.ts'],
+        loaderExts: ['.js', '.ts', '.svelte.js', '.svelte.ts'],
         writeFiles,
         defaultLoaders: async () => {
             const available = ['default', 'kit']
@@ -74,7 +75,10 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
+            if (loader === 'default') {
+                return vanillaAdapter().defaultLoaderPath('vite')
+            }
+            return new URL(`../../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
     }
 }

@@ -28,6 +28,7 @@
     ],
     "files": [
         "dist",
+        "src/loaders",
         "src/virtual.d.ts"
     ],
     "exports": {

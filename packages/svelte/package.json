@@ -32,16 +32,13 @@
     ],
     "files": [
         "dist",
+        "src/loaders",
         "src/runtime.svelte"
     ],
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
-        },
-        "./reactive": {
-            "types": "./dist/reactive.d.ts",
-            "default": "./dist/reactive.js"
         },
         "./runtime.svelte": "./src/runtime.svelte"
     },
