@@ -98,12 +98,7 @@ export class JSXTransformer extends Transformer {
         isText: child => child.type === 'JSXText',
         isExpression: child => child.type === 'JSXExpressionContainer',
         getTextContent: (child: JX.JSXText) => child.value,
-        getCommentData: (child: JX.JSXExpressionContainer) => this.content.slice(
-            // @ts-expect-error
-            child.expression.start,
-            // @ts-expect-error
-            child.expression.end,
-        ),
+        getCommentData: (child: JX.JSXExpressionContainer) => this.getMarkupCommentBody(child.expression as JX.JSXEmptyExpression),
         canHaveChildren: node => nodesWithChildren.includes(node.type),
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
@@ -121,6 +116,8 @@ export class JSXTransformer extends Transformer {
     visitNameJSXMemberExpression = (node: JX.JSXMemberExpression): string => {
         return `${this.visitName(node.object)}.${this.visitName(node.property)}`
     }
+
+    visitNameJSXIdentifier = (node: JX.JSXIdentifier): string => node.name
 
     visitName = (node: JX.JSXIdentifier | JX.JSXMemberExpression | JX.JSXNamespacedName): string => {
         return this['visitName' + node.type]?.(node)
@@ -165,27 +162,18 @@ export class JSXTransformer extends Transformer {
 
     visitJSXFragment = (node: JX.JSXFragment): NestText[] => this.visitChildrenJ(node)
 
-    visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): NestText[] => {
+    getMarkupCommentBody = (node: JX.JSXEmptyExpression): string => {
         // @ts-expect-error
         const comment = this.content.slice(node.start, node.end).trim()
         if (!comment) {
-            return
+            return ''
         }
-        const commentContents = comment.slice(2, -2).trim()
-        if (!commentContents) {
-            return
-        }
-        const directives = this.processCommentDirectives(commentContents)
-        if (this.lastVisitIsComment) {
-            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = directives
-        } else {
-            this.commentDirectivesStack.push(directives)
-        }
-        this.lastVisitIsComment = true
-        return []
+        return comment.slice(2, -2).trim()
     }
 
-    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): NestText[] => this.visitJx(node.expression)
+    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): NestText[] => {
+        return this.visit(node.expression as JX.Expression)
+    }
 
     visitJSXAttribute = (node: JX.JSXAttribute): NestText[] => {
         if (node.value.type !== 'Literal') {
@@ -221,17 +209,38 @@ export class JSXTransformer extends Transformer {
 
     visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): NestText[] => this.visit(node.argument)
 
+    visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): NestText[] => {
+        const commentContents = this.getMarkupCommentBody(node)
+        if (!commentContents) {
+            return []
+        }
+        const directives = this.processCommentDirectives(commentContents)
+        if (this.lastVisitIsComment) {
+            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = directives
+        } else {
+            this.commentDirectivesStack.push(directives)
+        }
+        this.lastVisitIsComment = true
+        return []
+    }
+
     visitJx = (node: JX.Node | JX.JSXSpreadChild | Program): NestText[] => {
+        if (node.type === 'JSXText' && !node.value.trim()) {
+            return []
+        }
+        if (node.type === 'JSXExpressionContainer' && node.expression.type === 'JSXEmptyExpression') { // markup comment
+            return this.visitJSXEmptyExpression(node.expression)
+        }
         let txts = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
+            this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
             txts = this.visit(node)
         }
         this.commentDirectives = commentDirectivesPrev
-        this.lastVisitIsComment = false
         return txts
     }
 

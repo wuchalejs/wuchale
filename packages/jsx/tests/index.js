@@ -14,9 +14,116 @@ test('Simple text', async function(t) {
     `, `
     msgid ""
     msgstr ""
-
     #: test-tmp/test.jsx
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
+})
+
+test('Ignore and include', async function(t) {
+    await testContent(t, jsx`
+        function foo() {
+            return <div>
+                <svg><path d="M100 200" /></svg>
+                <p>{'hello there'}</p>
+                {/* @wc-ignore */}
+                <span>Ignore this</span>
+                {/* @wc-include */}
+                {'include this'}
+            </div>
+        }
+    `, jsx`
+        import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+        import _w_load_ from "../tests/test-tmp/loader.js"
+        const _w_runtime_ = _w_load_('jsx')
+        function foo() {
+            const _w_runtime_ = _w_load_('jsx')
+            return <div>
+                <svg><path d="M100 200" /></svg>
+                <p>{'hello there'}</p>
+                {/* @wc-ignore */}
+                <span>Ignore this</span>
+                {/* @wc-include */}
+                {_w_runtime_.t(0)}
+            </div>
+        }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.jsx
+    msgid "include this"
+    msgstr "include this"
+    `, ['include this'])
+})
+
+test('Context', async function(t) {
+    await testContent(t, jsx`
+        const m = () => {
+            return <>
+                <p>{/* @wc-context: music */ 'String'}</p>
+                <p>{/* @wc-context: programming */ 'String'}</p>
+                {/* @wc-context: door */}
+                <p>Close</p>
+                {/* @wc-context: distance */}
+                <p>Close</p>
+            </>
+        }`, jsx`
+            import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+            import _w_load_ from "../tests/test-tmp/loader.js"
+            const _w_runtime_ = _w_load_('jsx')
+            const m = () => {
+                const _w_runtime_ = _w_load_('jsx')
+                return <>
+                    <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
+                    <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
+                    {/* @wc-context: door */}
+                    <p>{_w_runtime_.t(2)}</p>
+                    {/* @wc-context: distance */}
+                    <p>{_w_runtime_.t(3)}</p>
+                </>
+            }`, `
+        msgid ""
+        msgstr ""
+
+        #: test-tmp/test.jsx
+        msgctxt "music"
+        msgid "String"
+        msgstr "String"
+
+        #: test-tmp/test.jsx
+        msgctxt "programming"
+        msgid "String"
+        msgstr "String"
+
+        #: test-tmp/test.jsx
+        msgctxt "door"
+        msgid "Close"
+        msgstr "Close"
+
+        #: test-tmp/test.jsx
+        msgctxt "distance"
+        msgid "Close"
+        msgstr "Close"
+    `, [ 'String', 'String', 'Close', 'Close',  ])
+})
+
+test('Plural', async function(t) {
+    await testContent(t,
+        jsx`const m = <p>{plural(items, ['One item', '# items'])}</p>`,
+        jsx`
+            import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+            import _w_load_ from "../tests/test-tmp/loader.js"
+            const _w_runtime_ = _w_load_('jsx')
+            const m = <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.jsx
+    msgid "One item"
+    msgid_plural "# items"
+    msgstr[0] "One item"
+    msgstr[1] "# items"
+    `, [ [ 'One item', '# items' ] ])
 })

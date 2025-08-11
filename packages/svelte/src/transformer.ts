@@ -242,16 +242,19 @@ export class SvelteTransformer extends Transformer {
             this.lastVisitIsComment = true
             return []
         }
+        if (node.type === 'Text' && !node.data.trim()) {
+            return []
+        }
         let txts = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
+            this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
             txts = this.visit(node)
         }
         this.commentDirectives = commentDirectivesPrev
-        this.lastVisitIsComment = false
         return txts
     }
 

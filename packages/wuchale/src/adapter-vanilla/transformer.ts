@@ -397,7 +397,7 @@ export class Transformer {
     }
 
     processCommentDirectives = (data: string): CommentDirectives => {
-        const directives: CommentDirectives = this.commentDirectives
+        const directives: CommentDirectives = { ...this.commentDirectives }
         if (data === '@wc-ignore') {
             directives.forceInclude = false
         }
