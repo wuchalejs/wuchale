@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.10.4
+
+### Patch Changes
+
+- 1dd1e78: Fix error on init with sveltekit default loader
+- a773137: Read package.json to accurately suggest default loaders
+- Updated dependencies [a773137]
+  - wuchale@0.11.4
+
 ## 0.10.3
 
 ### Patch Changes
