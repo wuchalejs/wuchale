@@ -5,7 +5,34 @@ import { dirname } from "node:path"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
+import { promisify } from 'node:util'
+import child_process from 'node:child_process'
 
+type DepsTree = {
+    dependencies?: {[name: string]: DepsTree}
+    [prop: string]: any,
+}
+
+function gatherDeps(deps: DepsTree): Set<string> {
+    const dependencies = new Set<string>()
+    if (deps.dependencies == null) {
+        return dependencies
+    }
+    for (const [key, val] of Object.entries(deps.dependencies)) {
+        dependencies.add(key)
+        for (const sub of gatherDeps(val)) {
+            dependencies.add(sub)
+        }
+    }
+    return dependencies
+}
+
+async function getDependencies() {
+    const exec = promisify(child_process.exec)
+    const output = await exec('npm list --json')
+    const json = JSON.parse(output.stdout.toString().trim()) as DepsTree
+    return gatherDeps(json)
+}
 
 export async function init(config: Config, locales: string[], logger: Logger) {
     logger.info('Initializing...')
@@ -24,7 +51,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         }
         logger.log(`Create loader for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
-        const loaders = await adapter.defaultLoaders()
+        const loaders = await adapter.defaultLoaders(await getDependencies())
         const loader = await ask(loaders, `Select default loader for adapter: ${key}`)
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         logger.log(`Initial extract for ${color.cyan(key)}`)

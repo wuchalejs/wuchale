@@ -1,4 +1,3 @@
-import { glob } from "tinyglobby"
 import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
 import { deepMergeObjects } from 'wuchale/config'
 import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
@@ -67,9 +66,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         generateLoadID,
         loaderExts: ['.js', '.ts', '.svelte.js', '.svelte.ts'],
         writeFiles,
-        defaultLoaders: async () => {
+        defaultLoaders: async dependencies => {
             const available = ['default', 'kit']
-            if ((await glob('svelte.config.js')).length) {
+            if (dependencies.has('@sveltejs/kit')) {
                 available.reverse()
             }
             return available

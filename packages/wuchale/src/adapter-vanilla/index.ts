@@ -1,6 +1,5 @@
 // $$ cd .. && npm run test
 
-import { glob } from "tinyglobby"
 import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
 import { deepMergeObjects } from "../config.js"
 import type {
@@ -59,9 +58,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         generateLoadID,
         loaderExts: ['.js', '.ts'],
         writeFiles,
-        defaultLoaders: async () => {
+        defaultLoaders: async dependencies => {
             const available = ['default', 'vite']
-            if ((await glob('vite.*')).length) {
+            if (dependencies.has('vite')) {
                 available.reverse()
             }
             return available
