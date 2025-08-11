@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.11.3
+
+### Patch Changes
+
+- a367485: Fix error on init loaders
+
 ## 0.11.2
 
 ### Patch Changes

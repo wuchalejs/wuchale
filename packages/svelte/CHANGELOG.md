@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.10.3
+
+### Patch Changes
+
+- a367485: Fix error on init loaders
+- Updated dependencies [a367485]
+  - wuchale@0.11.3
+
 ## 0.10.2
 
 ### Patch Changes
