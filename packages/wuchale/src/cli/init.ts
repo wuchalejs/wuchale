@@ -1,37 +1,22 @@
-import { copyFile, mkdir } from "node:fs/promises"
+import { copyFile, readFile, mkdir } from "node:fs/promises"
 import { type Config } from "../config.js"
 import { AdapterHandler } from "../handler.js"
 import { dirname } from "node:path"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
-import { promisify } from 'node:util'
-import child_process from 'node:child_process'
-
-type DepsTree = {
-    dependencies?: {[name: string]: DepsTree}
-    [prop: string]: any,
-}
-
-function gatherDeps(deps: DepsTree): Set<string> {
-    const dependencies = new Set<string>()
-    if (deps.dependencies == null) {
-        return dependencies
-    }
-    for (const [key, val] of Object.entries(deps.dependencies)) {
-        dependencies.add(key)
-        for (const sub of gatherDeps(val)) {
-            dependencies.add(sub)
-        }
-    }
-    return dependencies
-}
 
 async function getDependencies() {
-    const exec = promisify(child_process.exec)
-    const output = await exec('npm list --json')
-    const json = JSON.parse(output.stdout.toString().trim()) as DepsTree
-    return gatherDeps(json)
+    let json = { devDependencies: {}, dependencies: {} }
+    try {
+        const pkgJson = await readFile('package.json')
+        json = JSON.parse(pkgJson.toString())
+    } catch (err) {
+        if (err.code !== 'ENOENT') {
+            throw err
+        }
+    }
+    return new Set(Object.keys({ ...json.devDependencies, ...json.dependencies }))
 }
 
 export async function init(config: Config, locales: string[], logger: Logger) {
