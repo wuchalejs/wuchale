@@ -59,9 +59,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         writeFiles,
         defaultLoaders: async dependencies => {
-            const available = ['default', 'vite']
+            const available = ['server']
             if (dependencies.has('vite')) {
-                available.reverse()
+                available.unshift('vite')
             }
             return available
         },

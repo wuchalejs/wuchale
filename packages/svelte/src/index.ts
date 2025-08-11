@@ -64,17 +64,17 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         granularLoad,
         bundleLoad,
         generateLoadID,
-        loaderExts: ['.js', '.ts', '.svelte.js', '.svelte.ts'],
+        loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         writeFiles,
         defaultLoaders: async dependencies => {
-            const available = ['default', 'kit']
+            const available = ['reactive', 'vanilla']
             if (dependencies.has('@sveltejs/kit')) {
-                available.reverse()
+                available.unshift('sveltekit')
             }
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            if (loader === 'default') {
+            if (loader === 'vanilla') {
                 return vanillaAdapter().defaultLoaderPath('vite')
             }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname

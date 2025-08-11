@@ -52,7 +52,10 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         logger.log(`Create loader for ${color.cyan(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
         const loaders = await adapter.defaultLoaders(await getDependencies())
-        const loader = await ask(loaders, `Select default loader for adapter: ${key}`)
+        let loader = loaders[0]
+        if (loaders.length > 1) {
+            loader = await ask(loaders, `Select default loader for adapter: ${key}`)
+        }
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         logger.log(`Initial extract for ${color.cyan(key)}`)
         await extractAdap(handler, adapter.files, locales, false, logger)
