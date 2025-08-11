@@ -4,7 +4,7 @@
 import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
 import { rm } from 'fs/promises'
 import { relative } from 'path'
-import { adapter } from '@wuchale/react'
+import { adapter } from '@wuchale/jsx'
 
 const dirBase = absDir(import.meta.url)
 const adapterOpts = {
@@ -28,7 +28,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testContentSetup(t, sv, 'react', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
+    await testContentSetup(t, sv, 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
 
 /**
@@ -39,7 +39,7 @@ export async function testDir(t, dir) {
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testDirSetup(t, sv, 'react', `${dirBase}/${dir}`, 'app.jsx', 'app.out.jsx')
+    await testDirSetup(t, sv, 'jsx', `${dirBase}/${dir}`, 'app.jsx', 'app.out.jsx')
 }
 
 // only for syntax highlighting
@@ -47,7 +47,7 @@ export const jsx = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = jsx`const m = <main> Hello <i>dear</i></main>`
-// const p = await getOutput(sv, 'react', code, testFile)
+// const p = await getOutput(sv, 'jsx', code, testFile)
 // console.log(p.code)
 // // console.log(Object.values(p.catalogs.en))
 // console.log(p.compiled.en?.items)
