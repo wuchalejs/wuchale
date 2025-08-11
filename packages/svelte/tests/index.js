@@ -2,6 +2,15 @@
 
 import { test } from 'node:test'
 import { testContent, testDir, svelte, javascript } from './check.js'
+import { adapter } from '@wuchale/svelte'
+import { statfs } from 'fs/promises'
+
+test('Default loader file paths', async function(t){
+    const adap = adapter()
+    for (const loader of await adap.defaultLoaders()) {
+        await statfs(adap.defaultLoaderPath(loader)) // no error
+    }
+})
 
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`

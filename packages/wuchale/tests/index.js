@@ -5,6 +5,8 @@ import { Runtime } from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/run-server'
 import { compileTranslation } from '../dist/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
+import { adapter } from 'wuchale/adapter-vanilla'
+import { statfs } from 'fs/promises'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -14,6 +16,13 @@ test('Compile nested', function(t) {
         compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', 'foo'),
         ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
     )
+})
+
+test('Default loader file paths', async function(t){
+    const adap = adapter()
+    for (const loader of await adap.defaultLoaders()) {
+        await statfs(adap.defaultLoaderPath(loader)) // no error
+    }
 })
 
 test('Simple expression and assignment', async function(t) {
