@@ -7,6 +7,7 @@ test('Simple text', async function(t) {
     await testContent(t, jsx`
         const m = <p>Hello</p>
     `, jsx`
+        import WuchaleTrans from "@wuchale/react/runtime.jsx"
         import _w_load_ from "../tests/test-tmp/loader.js"
         const _w_runtime_ = _w_load_('react')
         const m = <p>{_w_runtime_.t(0)}</p>
