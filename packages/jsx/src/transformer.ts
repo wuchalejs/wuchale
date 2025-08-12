@@ -13,7 +13,7 @@ import type {
     TransformHeader,
 } from 'wuchale/adapters'
 import { nonWhitespaceText, varNames } from "wuchale/adapter-utils/utils.js"
-import { visitMixedContent, type VisitForNested, type WrapNestedFunc } from "wuchale/adapter-utils/mixed-element.js"
+import { MixedVisitor } from "wuchale/adapter-utils/mixed-visitor.js"
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
@@ -36,54 +36,13 @@ export class JSXTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentElementI = 0
 
+    mixedVisitor: MixedVisitor<MixedNodesTypes>
+
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
         super(content, filename, index, heuristic, pluralsFunc, initInsideFuncExpr)
     }
 
-    visitChildrenJd = (node: JX.JSXElement | JX.JSXFragment): NestText[] => {
-        const txt = []
-        for (const child of node.children) {
-            txt.push(...this.visitJx(child))
-        }
-        return txt
-    }
-
-    visitForNested: VisitForNested<MixedNodesTypes> = (child, inCompoundText) => {
-        const inCompoundTextPrev = this.inCompoundText
-        this.inCompoundText = inCompoundText
-        const childTxts = this.visitJx(child)
-        this.inCompoundText = inCompoundTextPrev // restore
-        return childTxts
-    }
-
-    wrapNested: WrapNestedFunc = (txt, hasExprs, nestedRanges, lastChildEnd) => {
-        for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
-            let toAppend: string
-            if (i === 0) {
-                toAppend = `<${rtComponent} tags={[`
-            } else {
-                toAppend = ', '
-            }
-            this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? varNames.nestCtx: '()'} => `)
-        }
-        let begin = `]} ctx=`
-        if (this.inCompoundText) {
-            begin += `{${varNames.nestCtx}} nest`
-        } else {
-            const index = this.index.get(txt.toKey())
-            begin += `{${varNames.rtCtx}(${index})}`
-        }
-        let end = ' />'
-        if (hasExprs) {
-            begin += ' args={['
-            end = ']}' + end
-        }
-        this.mstr.appendLeft(lastChildEnd, begin)
-        this.mstr.appendRight(lastChildEnd, end)
-    }
-
-    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): NestText[] => visitMixedContent<MixedNodesTypes>({
-        children: node.children,
+    initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
         getRange: node => ({
             // @ts-expect-error
@@ -91,22 +50,56 @@ export class JSXTransformer extends Transformer {
             // @ts-expect-error
             end: node.end
         }),
-        isComment: child => child.type === 'JSXExpressionContainer'
-            && child.expression.type === 'JSXEmptyExpression'
+        isComment: node => node.type === 'JSXExpressionContainer'
+            && node.expression.type === 'JSXEmptyExpression'
             // @ts-expect-error
-            && child.expression.end > child.expression.start,
-        isText: child => child.type === 'JSXText',
-        isExpression: child => child.type === 'JSXExpressionContainer',
-        getTextContent: (child: JX.JSXText) => child.value,
-        getCommentData: (child: JX.JSXExpressionContainer) => this.getMarkupCommentBody(child.expression as JX.JSXEmptyExpression),
+            && node.expression.end > node.expression.start,
+        isText: node => node.type === 'JSXText',
+        isExpression: node => node.type === 'JSXExpressionContainer',
+        getTextContent: (node: JX.JSXText) => node.value,
+        getCommentData: (node: JX.JSXExpressionContainer) => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
         canHaveChildren: node => nodesWithChildren.includes(node.type),
-        commentDirectives: this.commentDirectives,
-        inCompoundText: this.inCompoundText,
-        visit: this.visitForNested,
+        visitFunc: (child, inCompoundText) => {
+            const inCompoundTextPrev = this.inCompoundText
+            this.inCompoundText = inCompoundText
+            const childTxts = this.visitJx(child)
+            this.inCompoundText = inCompoundTextPrev // restore
+            return childTxts
+        },
         visitExpressionTag: this.visitJSXExpressionContainer,
         checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
         index: this.index,
-        wrapNested: this.wrapNested,
+        wrapNested: (txt, hasExprs, nestedRanges, lastChildEnd) => {
+            for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
+                let toAppend: string
+                if (i === 0) {
+                    toAppend = `<${rtComponent} tags={[`
+                } else {
+                    toAppend = ', '
+                }
+                this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? varNames.nestCtx : '()'} => `)
+            }
+            let begin = `]} ctx=`
+            if (this.inCompoundText) {
+                begin += `{${varNames.nestCtx}} nest`
+            } else {
+                const index = this.index.get(txt.toKey())
+                begin += `{${varNames.rtCtx}(${index})}`
+            }
+            let end = ' />'
+            if (hasExprs) {
+                begin += ' args={['
+                end = ']}' + end
+            }
+            this.mstr.appendLeft(lastChildEnd, begin)
+            this.mstr.appendRight(lastChildEnd, end)
+        },
+    })
+
+    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): NestText[] => this.mixedVisitor.visit({
+        children: node.children,
+        commentDirectives: this.commentDirectives,
+        inCompoundText: this.inCompoundText,
     })
 
     visitNameJSXNamespacedName = (node: JX.JSXNamespacedName): string => {
@@ -248,6 +241,7 @@ export class JSXTransformer extends Transformer {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
+        this.mixedVisitor = this.initMixedVisitor()
         const txts = this.visitJx(ast)
         if (!txts.length) {
             return this.finalize(txts)

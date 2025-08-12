@@ -10,7 +10,7 @@ import type {
     CommentDirectives,
     TransformHeader
 } from 'wuchale/adapters'
-import { visitMixedContent, type VisitForNested, type WrapNestedFunc } from "wuchale/adapter-utils/mixed-element.js"
+import { MixedVisitor } from "wuchale/adapter-utils/mixed-visitor.js"
 import { nonWhitespaceText, varNames } from "wuchale/adapter-utils/utils.js"
 
 const nodesWithChildren = ['RegularElement', 'Component']
@@ -29,64 +29,66 @@ export class SvelteTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
 
+    mixedVisitor: MixedVisitor<MixedNodesTypes>
+
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
         super(content, filename, index, heuristic, pluralsFunc, initInsideFuncExpr)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
-    wrapNested: WrapNestedFunc = (txt, hasExprs, nestedRanges, lastChildEnd) => {
-        const snippets = []
-        // create and reference snippets
-        for (const [childStart, childEnd, haveCtx] of nestedRanges) {
-            const snippetName = `${snipPrefix}${this.currentSnippet}`
-            snippets.push(snippetName)
-            this.currentSnippet++
-            const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? varNames.nestCtx : ''})}\n`
-            this.mstr.appendRight(childStart, snippetBegin)
-            this.mstr.prependLeft(childEnd, '\n{/snippet}')
-        }
-        let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
-        if (this.inCompoundText) {
-            begin += `{${varNames.nestCtx}} nest`
-        } else {
-            const index = this.index.get(txt.toKey())
-            begin += `{${varNames.rtCtx}(${index})}`
-        }
-        let end = ' />\n'
-        if (hasExprs) {
-            begin += ' args={['
-            end = ']}' + end
-        }
-        this.mstr.appendLeft(lastChildEnd, begin)
-        this.mstr.appendRight(lastChildEnd, end)
-    }
-
-    visitForNested: VisitForNested<MixedNodesTypes> = (child, inCompoundText) => {
-        const inCompoundTextPrev = this.inCompoundText
-        this.inCompoundText = inCompoundText
-        const childTxts = this.visitSv(child)
-        this.inCompoundText = inCompoundTextPrev // restore
-        return childTxts
-    }
-
-    visitFragment = (node: AST.Fragment): NestText[] => visitMixedContent<MixedNodesTypes>({
-        children: node.nodes,
+    initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
         getRange: node => ({ start: node.start, end: node.end }),
-        isText: child => child.type === 'Text',
-        isComment: child => child.type === 'Comment',
-        isExpression: child => child.type === 'ExpressionTag',
-        getTextContent: (child: AST.Text) => child.data,
-        getCommentData: (child: AST.Comment) => child.data,
-        canHaveChildren: (child: AST.BaseNode) => nodesWithChildren.includes(child.type),
-        commentDirectives: this.commentDirectives,
-        inCompoundText: this.inCompoundText,
-        visit: this.visitForNested,
+        isText: node => node.type === 'Text',
+        isComment: node => node.type === 'Comment',
+        isExpression: node => node.type === 'ExpressionTag',
+        getTextContent: (node: AST.Text) => node.data,
+        getCommentData: (node: AST.Comment) => node.data,
+        canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),
+        visitFunc: (child, inCompoundText) => {
+            const inCompoundTextPrev = this.inCompoundText
+            this.inCompoundText = inCompoundText
+            const childTxts = this.visitSv(child)
+            this.inCompoundText = inCompoundTextPrev // restore
+            return childTxts
+        },
         visitExpressionTag: this.visitExpressionTag,
         checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
         index: this.index,
-        wrapNested: this.wrapNested,
+        wrapNested: (txt, hasExprs, nestedRanges, lastChildEnd) => {
+            const snippets = []
+            // create and reference snippets
+            for (const [childStart, childEnd, haveCtx] of nestedRanges) {
+                const snippetName = `${snipPrefix}${this.currentSnippet}`
+                snippets.push(snippetName)
+                this.currentSnippet++
+                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? varNames.nestCtx : ''})}\n`
+                this.mstr.appendRight(childStart, snippetBegin)
+                this.mstr.prependLeft(childEnd, '\n{/snippet}')
+            }
+            let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
+            if (this.inCompoundText) {
+                begin += `{${varNames.nestCtx}} nest`
+            } else {
+                const index = this.index.get(txt.toKey())
+                begin += `{${varNames.rtCtx}(${index})}`
+            }
+            let end = ' />\n'
+            if (hasExprs) {
+                begin += ' args={['
+                end = ']}' + end
+            }
+            this.mstr.appendLeft(lastChildEnd, begin)
+            this.mstr.appendRight(lastChildEnd, end)
+        },
+    })
+
+
+    visitFragment = (node: AST.Fragment): NestText[] => this.mixedVisitor.visit({
+        children: node.nodes,
+        commentDirectives: this.commentDirectives,
+        inCompoundText: this.inCompoundText,
     })
 
     visitRegularElement = (node: AST.ElementLike): NestText[] => {
@@ -269,6 +271,7 @@ export class SvelteTransformer extends Transformer {
             this.comments = comments
         }
         this.mstr = new MagicString(this.content)
+        this.mixedVisitor = this.initMixedVisitor()
         const txts = this.visitSv(ast)
         if (!txts.length) {
             return this.finalize(txts)
