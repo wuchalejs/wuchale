@@ -1,5 +1,16 @@
 # @wuchale/jsx
 
+## 0.3.0
+
+### Minor Changes
+
+- dcabbe5: Make HMR and common logic universal across adapters
+
+### Patch Changes
+
+- Updated dependencies [dcabbe5]
+  - wuchale@0.12.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.12.0
+
+### Minor Changes
+
+- dcabbe5: Make HMR and common logic universal across adapters
+
 ## 0.11.5
 
 ### Patch Changes
