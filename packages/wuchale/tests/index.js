@@ -2,9 +2,9 @@
 
 import { test } from 'node:test'
 import { Runtime } from 'wuchale/runtime'
-import { loadLocales, runWithLocale } from 'wuchale/load-utils/server.js'
-import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils/client.js'
-import { loadCatalogs } from 'wuchale/load-utils/pure.js'
+import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
+import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils/client'
+import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
 import { adapter } from 'wuchale/adapter-vanilla'

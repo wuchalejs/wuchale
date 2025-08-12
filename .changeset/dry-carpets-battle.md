@@ -8,7 +8,7 @@ Improve loading utilities structure
 
 This is to allow more flexibility when using the provided loading utilities.
 
-1. They have moved to `wuchale/loading-utilities/{client,server,pure}.js` to
+1. They have moved to `wuchale/load-utils/{client,server,pure}` to
    collect them under one dir.
 2. The new `pure` module contains the side effect free loading function
    previously under the run-client module.

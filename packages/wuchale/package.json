@@ -63,7 +63,18 @@
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.js"
         },
-        "./load-utils/*": "./dist/load-utils/*",
+        "./load-utils/client": {
+            "types": "./dist/load-utils/client.d.ts",
+            "default": "./dist/load-utils/client.js"
+        },
+        "./load-utils/server": {
+            "types": "./dist/load-utils/server.d.ts",
+            "default": "./dist/load-utils/server.js"
+        },
+        "./load-utils/pure": {
+            "types": "./dist/load-utils/pure.d.ts",
+            "default": "./dist/load-utils/pure.js"
+        },
         "./adapter-utils/*": "./dist/adapter-utils/*"
     },
     "bin": {
