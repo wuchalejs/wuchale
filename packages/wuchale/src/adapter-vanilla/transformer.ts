@@ -13,9 +13,9 @@ import type {
     IndexTracker,
     ScriptDeclType,
     TransformOutput,
-    TransformHeader
+    RuntimeOptions
 } from "../adapters.js"
-import { varNames } from "../adapter-utils/utils.js"
+import { runtimeVars, type RuntimeVars } from "../adapter-utils/utils.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -64,7 +64,9 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    initInsideFuncExpr: string | null
+    vars: RuntimeVars
+    runtimeOpts: RuntimeOptions
+    initRuntimeExpr: string
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -74,13 +76,15 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, runtimeOpts: RuntimeOptions, initRuntimeExpr: string) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initInsideFuncExpr = initInsideFuncExpr
+        this.vars = runtimeVars(runtimeOpts.wrapExpr)
+        this.runtimeOpts = runtimeOpts
+        this.initRuntimeExpr = runtimeOpts.wrapInit(initRuntimeExpr)
     }
 
     checkHeuristic = (text: string, detailsBase: HeuristicDetailsBase): [boolean, NestText] => {
@@ -102,7 +106,7 @@ export class Transformer {
                 details.declaring = 'expression'
             }
             extract = this.heuristic(text, details)
-                ?? (this.initInsideFuncExpr == null ? defaultHeuristic : defaultHeuristicFuncOnly)(text, details)
+                ?? (this.runtimeOpts.initInsideFunc ? defaultHeuristicFuncOnly : defaultHeuristic)(text, details)
                 ?? true
         }
         return [extract, new NestText(text, detailsBase.scope, this.commentDirectives.context)]
@@ -117,7 +121,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${varNames.rtTrans}(${this.index.get(txt.toKey())})`)
+        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(txt.toKey())})`)
         return [txt]
     }
 
@@ -181,7 +185,7 @@ export class Transformer {
         const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
         nTxt.plural = true
         const index = this.index.get(nTxt.toKey())
-        const pluralUpdate = `${varNames.rtTPlural}(${index}), ${varNames.rtPlural}`
+        const pluralUpdate = `${this.vars.rtTPlural}(${index}), ${this.vars.rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [nTxt]
@@ -290,17 +294,17 @@ export class Transformer {
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression): NestText[] => {
-        const insideFuncDef = this.insideFuncDef
-        this.insideFuncDef = true
+        const insideFuncDefPrev = this.insideFuncDef
+        this.insideFuncDef = node.type === 'BlockStatement' || insideFuncDefPrev
         const txts = this.visit(node)
-        if (this.initInsideFuncExpr && node.type === 'BlockStatement') {
+        if ((!insideFuncDefPrev || !this.runtimeOpts.initOnce) && this.runtimeOpts.initInsideFunc && node.type === 'BlockStatement') {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\nconst ${varNames.rtConst} = ${this.initInsideFuncExpr}\n`,
+                `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`,
             )
         }
-        this.insideFuncDef = insideFuncDef
+        this.insideFuncDef = insideFuncDefPrev
         return txts
     }
 
@@ -371,7 +375,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const nTxt = new NestText(txt, 'script', this.commentDirectives.context)
-        let begin = `${varNames.rtTrans}(${this.index.get(nTxt.toKey())}`
+        let begin = `${this.vars.rtTrans}(${this.index.get(nTxt.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -444,13 +448,16 @@ export class Transformer {
         }
     }
 
-    transform = (header: TransformHeader): TransformOutput => {
+    transform = (headerHead: string): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            this.mstr.appendRight(0, `${header.head}\nconst ${varNames.rtConst} = ${header.expr}\n`)
+            if (!this.runtimeOpts.initInsideFunc) {
+                headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
+            }
+            this.mstr.appendRight(0, headerHead)
         }
         return this.finalize(txts)
     }

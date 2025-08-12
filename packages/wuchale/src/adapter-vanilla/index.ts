@@ -5,6 +5,8 @@ import { deepMergeObjects } from "../config.js"
 import type {
     AdapterArgs,
     Adapter,
+    RuntimeOptions,
+    AdapterPassThruOpts,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
 
@@ -33,32 +35,32 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    initInsideFunc: true,
+    runtime: {
+        initInsideFunc: true,
+        wrapInit: init => init,
+        wrapExpr: expr => expr,
+        initOnce: false,
+    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        writeFiles,
-        initInsideFunc,
+        runtime,
+        ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({content, filename, index, header}) => {
-            return new Transformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null).transform(header)
-        },
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
+        transform: ({ content, filename, index, header }) => new Transformer(
+            content,
+            filename,
+            index,
+            heuristic,
+            pluralsFunc,
+            runtime as RuntimeOptions,
+            header.expr,
+        ).transform(header.head),
         loaderExts: ['.js', '.ts'],
-        writeFiles,
         defaultLoaders: async dependencies => {
             const available = ['server']
             if (dependencies.has('vite')) {
@@ -69,5 +71,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         defaultLoaderPath: (loader: string) => {
             return new URL(`../../src/adapter-vanilla/loaders/${loader}.js`, import.meta.url).pathname
         },
+        ...rest as AdapterPassThruOpts,
     }
 }

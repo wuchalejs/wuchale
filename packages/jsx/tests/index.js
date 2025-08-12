@@ -14,12 +14,16 @@ test('Default loader file paths', async function(t){
 
 test('Simple text', async function(t) {
     await testContent(t, jsx`
-        const m = <p>Hello</p>
+        function m() {
+            return <p>Hello</p>
+        }
     `, jsx`
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
         import _w_load_ from "../tests/test-tmp/loader.js"
-        const _w_runtime_ = _w_load_('jsx')
-        const m = <p>{_w_runtime_.t(0)}</p>
+        function m() {
+            const _w_runtime_ = _w_load_('jsx')
+            return <p>{_w_runtime_.t(0)}</p>
+        }
     `, `
     msgid ""
     msgstr ""
@@ -44,7 +48,6 @@ test('Ignore and include', async function(t) {
     `, jsx`
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
         import _w_load_ from "../tests/test-tmp/loader.js"
-        const _w_runtime_ = _w_load_('jsx')
         function foo() {
             const _w_runtime_ = _w_load_('jsx')
             return <div>
@@ -80,7 +83,6 @@ test('Context', async function(t) {
         }`, jsx`
             import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
             import _w_load_ from "../tests/test-tmp/loader.js"
-            const _w_runtime_ = _w_load_('jsx')
             const m = () => {
                 const _w_runtime_ = _w_load_('jsx')
                 return <>
@@ -119,12 +121,17 @@ test('Context', async function(t) {
 
 test('Plural', async function(t) {
     await testContent(t,
-        jsx`const m = <p>{plural(items, ['One item', '# items'])}</p>`,
+        jsx`
+            function m() {
+                return <p>{plural(items, ['One item', '# items'])}</p>
+            }`,
         jsx`
             import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
             import _w_load_ from "../tests/test-tmp/loader.js"
-            const _w_runtime_ = _w_load_('jsx')
-            const m = <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
+            function m() {
+                const _w_runtime_ = _w_load_('jsx')
+                return <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
+            }
     `, `
     msgid ""
     msgstr ""

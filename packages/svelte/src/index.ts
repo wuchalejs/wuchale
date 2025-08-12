@@ -5,8 +5,10 @@ import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
+    RuntimeOptions,
 } from 'wuchale/adapters'
 import { SvelteTransformer } from "./transformer.js"
+import type { AdapterPassThruOpts } from 'wuchale/adapters'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']
@@ -39,33 +41,32 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    initInsideFunc: false,
+    runtime: {
+        initInsideFunc: false,
+        wrapInit: init => `$derived(${init})`,
+        wrapExpr: expr => expr,
+        initOnce: false,
+    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        writeFiles,
-        initInsideFunc,
+        runtime,
+        ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header }) => {
-            const transformer = new SvelteTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
-            return transformer.transformSv(header)
-        },
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
+        transform: ({ content, filename, index, header }) => new SvelteTransformer(
+            content,
+            filename,
+            index,
+            heuristic,
+            pluralsFunc,
+            runtime as RuntimeOptions,
+            header.expr
+        ).transformSv(header.head),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
-        writeFiles,
         defaultLoaders: async dependencies => {
             const available = ['reactive', 'vanilla']
             if (dependencies.has('@sveltejs/kit')) {
@@ -79,5 +80,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
+        ...rest as AdapterPassThruOpts
     }
 }

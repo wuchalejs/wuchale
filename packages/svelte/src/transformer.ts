@@ -8,10 +8,10 @@ import type {
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
-    TransformHeader
+    RuntimeOptions
 } from 'wuchale/adapters'
 import { MixedVisitor } from "wuchale/adapter-utils/mixed-visitor.js"
-import { nonWhitespaceText, varNames } from "wuchale/adapter-utils/utils.js"
+import { nonWhitespaceText } from "wuchale/adapter-utils/utils.js"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -31,14 +31,15 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initInsideFuncExpr: string | null) {
-        super(content, filename, index, heuristic, pluralsFunc, initInsideFuncExpr)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, runtimeOpts: RuntimeOptions, initExpr: string) {
+        super(content, filename, index, heuristic, pluralsFunc, runtimeOpts, initExpr)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
+        vars: this.vars,
         getRange: node => ({ start: node.start, end: node.end }),
         isText: node => node.type === 'Text',
         isComment: node => node.type === 'Comment',
@@ -63,16 +64,16 @@ export class SvelteTransformer extends Transformer {
                 const snippetName = `${snipPrefix}${this.currentSnippet}`
                 snippets.push(snippetName)
                 this.currentSnippet++
-                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? varNames.nestCtx : ''})}\n`
+                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars.nestCtx : ''})}\n`
                 this.mstr.appendRight(childStart, snippetBegin)
                 this.mstr.prependLeft(childEnd, '\n{/snippet}')
             }
             let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
             if (this.inCompoundText) {
-                begin += `{${varNames.nestCtx}} nest`
+                begin += `{${this.vars.nestCtx}} nest`
             } else {
                 const index = this.index.get(txt.toKey())
-                begin += `{${varNames.rtCtx}(${index})}`
+                begin += `{${this.vars.rtCtx}(${index})}`
             }
             let end = ' />\n'
             if (hasExprs) {
@@ -114,7 +115,7 @@ export class SvelteTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`)
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`)
         return [txt]
     }
 
@@ -147,7 +148,7 @@ export class SvelteTransformer extends Transformer {
                 continue
             }
             txts.push(txt)
-            this.mstr.update(value.start, value.end, `{${varNames.rtTrans}(${this.index.get(txt.toKey())})}`)
+            this.mstr.update(value.start, value.end, `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
@@ -260,7 +261,7 @@ export class SvelteTransformer extends Transformer {
         return txts
     }
 
-    transformSv = (header: TransformHeader): TransformOutput => {
+    transformSv = (headerHead: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -276,10 +277,14 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
+        let initRTTop =  `const ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
+        if (ast.type === 'Program' && this.runtimeOpts.initInsideFunc) {
+            initRTTop = ''
+        }
         const headerFin = [
             `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
-            header.head,
-            `const ${varNames.rtConst} = $derived(${header.expr})\n`,
+            headerHead,
+            initRTTop,
         ].join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')

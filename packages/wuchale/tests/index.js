@@ -43,26 +43,30 @@ test('Inside function definitions', async function(t) {
             return varName
         }
         const insideObj = {
-            method: () => 'Hello',
+            method: () => 'Not inside func def',
         }
-        const bar: (a: string) => string = (a) => \`Hello \${a\}\`
+        const bar: (a: string) => string = (a) => {
+            return \`Hello \${a\}\`
+        }
     `, typescript`
         import _w_load_ from "../tests/test-tmp/loader.js"
-        const _w_runtime_ = _w_load_('basic')
 
         function foo(): string {
+            const _w_runtime_ = _w_load_('basic')
             const varName = _w_runtime_.t(0)
             return varName
         }
         const insideObj = {
-            method: () => _w_runtime_.t(0),
+            method: () => 'Not inside func def',
         }
-        const bar: (a: string) => string = (a) => _w_runtime_.t(1, [a])
+        const bar: (a: string) => string = (a) => {
+            const _w_runtime_ = _w_load_('basic')
+            return _w_runtime_.t(1, [a])
+        }
     `, `
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.js
     #: test-tmp/test.js
     msgid "Hello"
     msgstr "Hello"

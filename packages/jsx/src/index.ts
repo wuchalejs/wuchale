@@ -5,6 +5,8 @@ import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
+    RuntimeOptions,
+    AdapterPassThruOpts,
 } from 'wuchale/adapters'
 import { JSXTransformer } from "./transformer.js"
 
@@ -35,33 +37,32 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    initInsideFunc: true,
+    runtime: {
+        initInsideFunc: true,
+        wrapInit: init => init,
+        wrapExpr: expr => expr,
+        initOnce: false,
+    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
-        writeFiles,
-        initInsideFunc,
+        runtime,
+        ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header }) => {
-            const transformer = new JSXTransformer(content, filename, index, heuristic, pluralsFunc, initInsideFunc ? header.expr : null)
-            return transformer.transformJx(header)
-        },
-        files,
-        catalog,
-        granularLoad,
-        bundleLoad,
-        generateLoadID,
+        transform: ({ content, filename, index, header }) => new JSXTransformer(
+            content,
+            filename,
+            index,
+            heuristic,
+            pluralsFunc,
+            runtime as RuntimeOptions,
+            header.expr
+        ).transformJx(header),
         loaderExts: ['.js', '.ts'],
-        writeFiles,
         defaultLoaders: () => {
             return ['default']
         },
@@ -70,5 +71,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 return vanillaAdapter().defaultLoaderPath('vite')
             }
         },
+        ...rest as AdapterPassThruOpts
     }
 }

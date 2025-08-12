@@ -119,7 +119,7 @@ export type TransformOutput = {
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
-type AdapterPassThruOpts = {
+export type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
     granularLoad: boolean
@@ -130,7 +130,7 @@ type AdapterPassThruOpts = {
         proxy?: boolean
         transformed?: boolean
         outDir?: string
-    }
+    },
 }
 
 export type Adapter = AdapterPassThruOpts & {
@@ -143,9 +143,20 @@ export type Adapter = AdapterPassThruOpts & {
     defaultLoaderPath: (loaderName: string) => string
 }
 
+export type RuntimeOptions = {
+    /* initialize inside function definition instead of the global scope */
+    initInsideFunc: boolean
+    /* wrap initialize expression, e.g. in $derived() for svelte */
+    wrapInit: (expr: string) => string
+    /* wrap use function, e.g. to change _w_runtime_ to _w_runtime_() for solid */
+    wrapExpr: (expr: string) => string
+    /* initialize only once instead of recursively in the case of nested functions */
+    initOnce: boolean
+}
+
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
     pluralsFunc?: string
-    /* initialize runtime instance inside functions */
-    initInsideFunc?: boolean
+    /* runtime instance options */
+    runtime?: Partial<RuntimeOptions>
 }
