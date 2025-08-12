@@ -63,13 +63,21 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             header.expr
         ).transformJx(header),
         loaderExts: ['.js', '.ts'],
-        defaultLoaders: () => {
-            return ['default']
+        defaultLoaders: dependencies => {
+            const loaders = ['default']
+            if (dependencies.has('react') || dependencies.has('preact')) {
+                loaders.unshift('react')
+            }
+            // if (dependencies.has('solid-js')) {
+            //     loaders.unshift('solidjs')
+            // }
+            return loaders
         },
         defaultLoaderPath: (loader: string) => {
             if (loader === 'default') {
                 return vanillaAdapter().defaultLoaderPath('vite')
             }
+            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },
         ...rest as AdapterPassThruOpts
     }
