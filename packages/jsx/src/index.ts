@@ -37,6 +37,7 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    importName: '_w_load_',
     runtime: {
         initInsideFunc: true,
         wrapInit: init => init,

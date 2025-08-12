@@ -41,6 +41,7 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    importName: '_w_load_',
     runtime: {
         initInsideFunc: false,
         wrapInit: init => `$derived(${init})`,

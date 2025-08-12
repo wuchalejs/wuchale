@@ -465,11 +465,11 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        let importLoad = `import _w_load_ from "${loaderPath}"`
+        let importLoad = `import ${this.#adapter.importName} from "${loaderPath}"`
         if (!this.#adapter.granularLoad || !this.#adapter.bundleLoad) {
             return {
                 head: importLoad,
-                expr: `_w_load_('${loadID}')`,
+                expr: `${this.#adapter.importName}('${loadID}')`,
             }
         }
         const objProps = this.#locales.map(loc => `${loc}: _l_${loc}_`)
@@ -481,7 +481,7 @@ export class AdapterHandler {
                 ...this.#locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`),
                 `const _w_catalogs_ = {${objProps.join(',')}}`
             ].join('\n'),
-            expr: `new Runtime(_w_catalogs_[_w_load_('${loadID}')])`,
+            expr: `new Runtime(_w_catalogs_[${this.#adapter.importName}('${loadID}')])`,
         }
     }
 

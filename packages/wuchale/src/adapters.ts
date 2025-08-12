@@ -130,7 +130,9 @@ export type AdapterPassThruOpts = {
         proxy?: boolean
         transformed?: boolean
         outDir?: string
-    },
+    }
+    /* the name of the function to import from the loader */
+    importName: string
 }
 
 export type Adapter = AdapterPassThruOpts & {
