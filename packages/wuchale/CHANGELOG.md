@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.12.1
+
+### Patch Changes
+
+- 430a801: Fix default loaders not included in package
+
 ## 0.12.0
 
 ### Minor Changes
