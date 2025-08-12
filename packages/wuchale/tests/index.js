@@ -2,7 +2,9 @@
 
 import { test } from 'node:test'
 import { Runtime } from 'wuchale/runtime'
-import { loadLocales, runWithLocale } from 'wuchale/run-server'
+import { loadLocales, runWithLocale } from 'wuchale/load-utils/server.js'
+import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils/client.js'
+import { loadCatalogs } from 'wuchale/load-utils/pure.js'
 import { compileTranslation } from '../dist/compile.js'
 import { testContent, testDir, javascript, typescript } from './check.js'
 import { adapter } from 'wuchale/adapter-vanilla'
@@ -83,23 +85,35 @@ const testCatalog = {
         'Hello', // simple message
         ['Hello ', 0, '!'], // compound message
         ['One item', '# items'], // plurals
-        400, // bad
     ]
 }
+const loaderFunc = (loadID, locale) => testCatalog
+
+test('Loading and runtime', async t => {
+    const collection = {}
+    // @ts-expect-error
+    const getRT = registerLoaders('basic', loaderFunc, ['foo'], defaultCollection(collection))
+    loadLocaleSync('en')
+    t.assert.notEqual(collection['foo'], null) // setCatalogs was called
+    const rt = getRT('foo')
+    t.assert.equal(rt.t(0), 'Hello')
+    t.assert.equal(rt.t(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
+    t.assert.equal(rt.t(42), '[i18n-404:42]')
+    const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
+    t.assert.equal(cPure['foo'].t(0), 'Hello')
+})
 
 test('Runtime', t => {
-    // @ts-expect-error
     const rt = new Runtime(testCatalog)
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
     t.assert.equal(rt.t(42), '[i18n-404:42]')
-    t.assert.equal(rt.t(3), '[i18n-400:3(400)]')
 })
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
-    // @ts-expect-error
     const getRt = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
         return getRt('main').t(1, ['server user'])

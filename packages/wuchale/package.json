@@ -63,14 +63,7 @@
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.js"
         },
-        "./run-client": {
-            "types": "./dist/run-client.d.ts",
-            "default": "./dist/run-client.js"
-        },
-        "./run-server": {
-            "types": "./dist/run-server.d.ts",
-            "default": "./dist/run-server.js"
-        },
+        "./load-utils/*": "./dist/load-utils/*",
         "./adapter-utils/*": "./dist/adapter-utils/*"
     },
     "bin": {

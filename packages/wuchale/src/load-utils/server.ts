@@ -1,5 +1,5 @@
-import type { LoaderFunc } from './run-client.js'
-import { Runtime } from './runtime.js'
+import type { LoaderFunc } from './client.js'
+import { Runtime } from '../runtime.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 type LoadedCatalogs = Record<string, Record<string, Runtime>>
