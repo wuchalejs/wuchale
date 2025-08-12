@@ -19,7 +19,7 @@ async function getDependencies() {
     return new Set(Object.keys({ ...json.devDependencies, ...json.dependencies }))
 }
 
-export async function init(config: Config, locales: string[], logger: Logger) {
+export async function init(config: Config, locales: string[], force: boolean, logger: Logger) {
     logger.info('Initializing...')
     let extractedNew = false
     setupInteractive()
@@ -27,7 +27,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
-        if (loaderPath && !empty) {
+        if (loaderPath && !empty && !force) {
             logger.log(`Loader already exists for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
             continue
         }

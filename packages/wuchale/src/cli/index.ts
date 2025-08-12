@@ -20,6 +20,10 @@ const { positionals, values } = parseArgs({
             type: 'boolean',
             short: 'w',
         },
+        force: {
+            type: 'boolean',
+            short: 'f',
+        },
         help: {
             type: 'boolean',
             short: 'h',
@@ -44,6 +48,7 @@ Options:
     ${color.cyan('--config')}     use another config file instead of ${color.cyan(configName)}
     ${color.cyan('--clean')}, ${color.cyan('-c')}  (only when no commands) remove unused messages from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}  (only when no commands) continuously watch for file changes
+    ${color.cyan('--force')}, ${color.cyan('-f')}  (only on ${color.cyan('init')}) overwrite loader file even if not empty
     ${color.cyan('--help')}, ${color.cyan('-h')}   Show this help
 `
 
@@ -61,7 +66,7 @@ if (values.help) {
 } else if (cmd == null) {
     await extract(...await getConfigNLocales(), logger, values.clean, values.watch)
 } else if (cmd === 'init') {
-    await init(...await getConfigNLocales(), logger)
+    await init(...await getConfigNLocales(), values.force, logger)
 } else if (cmd === 'status') {
     await status(...await getConfigNLocales(), logger)
 } else {
