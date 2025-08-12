@@ -2,6 +2,15 @@
 
 import { test } from 'node:test'
 import { testContent, testDir, jsx } from './check.js'
+import { adapter } from '@wuchale/jsx'
+import { statfs } from 'fs/promises'
+
+test('Default loader file paths', async function(t){
+    const adap = adapter()
+    for (const loader of await adap.defaultLoaders(new Set(['react']))) {
+        await statfs(adap.defaultLoaderPath(loader)) // no error
+    }
+})
 
 test('Simple text', async function(t) {
     await testContent(t, jsx`
