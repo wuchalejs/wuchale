@@ -251,7 +251,7 @@ export class JSXTransformer extends Transformer {
         const headerFin = [
             `import ${rtComponent} from "@wuchale/jsx/runtime.jsx"`,
             header.head,
-            this.runtimeOpts.initInsideFunc ? '' : `const ${this.vars.rtConst} = ${header.expr}\n`,
+            this.runtimeOpts.initInScope({ funcName: null, file: this.filename }) ? `const ${this.vars.rtConst} = ${header.expr}\n` : '',
         ].join('\n')
         this.mstr.appendRight(0, headerFin + '\n')
         return this.finalize(txts)

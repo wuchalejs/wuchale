@@ -37,10 +37,9 @@ const defaultArgs: AdapterArgs = {
     writeFiles: {},
     importName: '_w_load_',
     runtime: {
-        initInsideFunc: true,
+        initInScope: ({ funcName }) => funcName != null,
         wrapInit: init => init,
         wrapExpr: expr => expr,
-        initOnce: false,
     }
 }
 

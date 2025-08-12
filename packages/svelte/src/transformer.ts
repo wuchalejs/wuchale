@@ -277,8 +277,8 @@ export class SvelteTransformer extends Transformer {
         if (!txts.length) {
             return this.finalize(txts)
         }
-        let initRTTop =  `const ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
-        if (ast.type === 'Program' && this.runtimeOpts.initInsideFunc) {
+        let initRTTop = `const ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
+        if (ast.type === 'Program' && this.runtimeOpts.initInScope({ funcName: null, file: this.filename })) {
             initRTTop = ''
         }
         const headerFin = [

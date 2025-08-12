@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Program, Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristicFuncOnly, defaultHeuristic, NestText } from '../adapters.js'
+import { defaultHeuristicFuncOnly, NestText } from '../adapters.js'
 import type {
     CommentDirectives,
     HeuristicDetailsBase,
@@ -13,7 +13,8 @@ import type {
     IndexTracker,
     ScriptDeclType,
     TransformOutput,
-    RuntimeOptions
+    RuntimeOptions,
+    HeuristicDetails
 } from "../adapters.js"
 import { runtimeVars, type RuntimeVars } from "../adapter-utils/utils.js"
 
@@ -72,7 +73,7 @@ export class Transformer {
     commentDirectives: CommentDirectives = {}
     insideProgram: boolean = false
     declaring: ScriptDeclType = null
-    insideFuncDef: boolean = false
+    currentFuncDef: string | null = null
     currentCall: string
     currentTopLevelCall: string
 
@@ -94,20 +95,18 @@ export class Transformer {
         }
         let extract = this.commentDirectives.forceInclude
         if (extract == null) {
-            const details = {
+            const details: HeuristicDetails = {
                 file: this.filename,
                 call: this.currentCall,
                 declaring: this.declaring,
-                insideFuncDef: this.insideFuncDef,
+                funcName: this.currentFuncDef,
                 topLevelCall: this.currentTopLevelCall,
                 ...detailsBase,
             }
             if (details.declaring == null && this.insideProgram) {
                 details.declaring = 'expression'
             }
-            extract = this.heuristic(text, details)
-                ?? (this.runtimeOpts.initInsideFunc ? defaultHeuristicFuncOnly : defaultHeuristic)(text, details)
-                ?? true
+            extract = this.heuristic(text, details) ?? defaultHeuristicFuncOnly(text, details) ?? true
         }
         return [extract, new NestText(text, detailsBase.scope, this.commentDirectives.context)]
     }
@@ -293,32 +292,33 @@ export class Transformer {
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
-    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression): NestText[] => {
-        const insideFuncDefPrev = this.insideFuncDef
-        this.insideFuncDef = node.type === 'BlockStatement' || insideFuncDefPrev
+    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): NestText[] => {
+        const prevFuncDef = this.currentFuncDef
+        this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
         const txts = this.visit(node)
-        if ((!insideFuncDefPrev || !this.runtimeOpts.initOnce) && this.runtimeOpts.initInsideFunc && node.type === 'BlockStatement') {
+        let initRuntimeHere = this.runtimeOpts.initInScope({ funcName: this.currentFuncDef, parentFunc: prevFuncDef, file: this.filename })
+        if (txts.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
                 `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`,
             )
         }
-        this.insideFuncDef = insideFuncDefPrev
+        this.currentFuncDef = prevFuncDef
         return txts
     }
 
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
         const declaring = this.declaring
         this.declaring = 'function'
-        const txts = this.visitFunctionBody(node.body)
+        const txts = this.visitFunctionBody(node.body, node.id?.name ?? null)
         this.declaring = declaring
         return txts
     }
 
-    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): NestText[] => this.visitFunctionBody(node.body)
+    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): NestText[] => this.visitFunctionBody(node.body, '')
 
-    visitFunctionExpression = (node: Estree.FunctionExpression): NestText[] => this.visitFunctionBody(node.body)
+    visitFunctionExpression = (node: Estree.FunctionExpression): NestText[] => this.visitFunctionBody(node.body, '')
 
     visitBlockStatement = (node: Estree.BlockStatement): NestText[] => {
         const txts = []
@@ -428,8 +428,8 @@ export class Transformer {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 txts = this[methodName](node)
-            // } else {
-            //     console.log(node)
+                // } else {
+                //     console.log(node)
             }
         }
         this.commentDirectives = commentDirectives // restore
@@ -454,7 +454,7 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const txts = this.visit(ast)
         if (txts.length) {
-            if (!this.runtimeOpts.initInsideFunc) {
+            if (this.runtimeOpts.initInScope({ file: this.filename })) {
                 headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
             }
             this.mstr.appendRight(0, headerHead)

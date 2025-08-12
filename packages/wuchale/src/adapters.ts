@@ -10,11 +10,15 @@ export type HeuristicDetailsBase = {
 
 export type ScriptDeclType = "variable" | "function" | "expression"
 
-type HeuristicDetails = HeuristicDetailsBase & {
+export type HeuristicDetails = HeuristicDetailsBase & {
     file: string
+    /* the type of the top level declaration */
     declaring?: ScriptDeclType
-    insideFuncDef?: boolean
+    /* the name of the function being defined, '' for arrow or null for global */
+    funcName?: string | null
+    /* the name of the call at the top level */
     topLevelCall?: string
+    /* the name of the nearest call (for arguments) */
     call?: string
 }
 
@@ -35,7 +39,7 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     if (details.scope !== 'script') {
         return true
     }
-    if (details.declaring === 'expression' && !details.insideFuncDef) {
+    if (details.declaring === 'expression' && !details.funcName) {
         return false
     }
     return !details.call?.startsWith('console.')
@@ -43,7 +47,7 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
 
 // only allow inside function definitions for script scope
 export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
-    return defaultHeuristic(text, details) && (details.scope !== 'script' || details.insideFuncDef)
+    return defaultHeuristic(text, details) && (details.scope !== 'script' || details.funcName != null)
 }
 
 export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
@@ -146,14 +150,12 @@ export type Adapter = AdapterPassThruOpts & {
 }
 
 export type RuntimeOptions = {
-    /* initialize inside function definition instead of the global scope */
-    initInsideFunc: boolean
+    /* whether to initialize in funcName scope ('' for arrow, null for global) */
+    initInScope: (details: { funcName?: string, parentFunc?: string, file: string }) => boolean
     /* wrap initialize expression, e.g. in $derived() for svelte */
     wrapInit: (expr: string) => string
     /* wrap use function, e.g. to change _w_runtime_ to _w_runtime_() for solid */
     wrapExpr: (expr: string) => string
-    /* initialize only once instead of recursively in the case of nested functions */
-    initOnce: boolean
 }
 
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
