@@ -13,19 +13,6 @@ import { Transformer } from "./transformer.js"
 export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
 
-export const dataModuleHotUpdate = (loadID: string | null, eventSend: string, eventReceive: string, targetVar = 'c') => `
-    if (import.meta.hot) {
-        import.meta.hot.on('${eventSend}', newData => {
-            for (let i = 0; i < newData.length; i++) {
-                if (JSON.stringify(${targetVar}[i]) !== JSON.stringify(newData[i])) {
-                    ${targetVar}[i] = newData[i]
-                }
-            }
-        })
-        import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
-    }
-`
-
 const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
