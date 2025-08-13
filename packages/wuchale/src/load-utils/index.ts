@@ -50,7 +50,7 @@ export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[]
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyCatalog)
     }
-    return loadID => new Runtime(collection.get(loadID))
+    return loadID => new Runtime(states[key].collection.get(loadID))
 }
 
 function statesToLoad(key?: string): LoaderState[] {

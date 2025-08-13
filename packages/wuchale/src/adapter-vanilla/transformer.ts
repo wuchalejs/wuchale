@@ -455,9 +455,9 @@ export class Transformer {
         const txts = this.visit(ast)
         if (txts.length) {
             if (this.runtimeOpts.initInScope({ file: this.filename })) {
-                headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
+                headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}`
             }
-            this.mstr.appendRight(0, headerHead)
+            this.mstr.appendRight(0, headerHead + '\n')
         }
         return this.finalize(txts)
     }
