@@ -16,7 +16,7 @@ import type {
     RuntimeOptions,
     HeuristicDetails
 } from "../adapters.js"
-import { runtimeVars, type RuntimeVars } from "../adapter-utils/utils.js"
+import { runtimeVars, type RuntimeVars } from "../adapter-utils/index.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',

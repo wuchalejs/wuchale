@@ -36,25 +36,7 @@
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
-        "./virtual": {
-            "types": "./src/virtual.d.ts"
-        },
-        "./config": {
-            "types": "./dist/config.d.ts",
-            "default": "./dist/config.js"
-        },
-        "./handler": {
-            "types": "./dist/handler.d.ts",
-            "default": "./dist/handler.js"
-        },
-        "./adapters": {
-            "types": "./dist/adapters.d.ts",
-            "default": "./dist/adapters.js"
-        },
-        "./log": {
-            "types": "./dist/log.d.ts",
-            "default": "./dist/log.js"
-        },
+        "./virtual": "./src/virtual.d.ts",
         "./adapter-vanilla": {
             "types": "./dist/adapter-vanilla/index.d.ts",
             "default": "./dist/adapter-vanilla/index.js"
@@ -63,9 +45,9 @@
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.js"
         },
-        "./load-utils/client": {
-            "types": "./dist/load-utils/client.d.ts",
-            "default": "./dist/load-utils/client.js"
+        "./load-utils": {
+            "types": "./dist/load-utils/index.d.ts",
+            "default": "./dist/load-utils/index.js"
         },
         "./load-utils/server": {
             "types": "./dist/load-utils/server.d.ts",
@@ -75,7 +57,10 @@
             "types": "./dist/load-utils/pure.d.ts",
             "default": "./dist/load-utils/pure.js"
         },
-        "./adapter-utils/*": "./dist/adapter-utils/*"
+        "./adapter-utils": {
+            "types": "./dist/adapter-utils/index.d.ts",
+            "default": "./dist/adapter-utils/index.js"
+        }
     },
     "bin": {
         "wuchale": "./dist/cli/index.js"

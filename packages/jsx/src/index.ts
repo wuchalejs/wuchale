@@ -1,5 +1,4 @@
-import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
-import { deepMergeObjects } from 'wuchale/config'
+import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
 import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
@@ -7,7 +6,7 @@ import type {
     AdapterArgs,
     RuntimeOptions,
     AdapterPassThruOpts,
-} from 'wuchale/adapters'
+} from 'wuchale'
 import { JSXTransformer } from "./transformer.js"
 
 const ignoreElements = ['style', 'path']
@@ -28,7 +27,11 @@ const jsxHeuristic: HeuristicFunc = (text, details) => {
     return true
 }
 
-const defaultArgs: AdapterArgs = {
+type JSXArgs = AdapterArgs & {
+    variant?: "default" | "solidjs"
+}
+
+const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
     pluralsFunc: 'plural',
@@ -42,14 +45,16 @@ const defaultArgs: AdapterArgs = {
         initInScope: ({ funcName }) => funcName != null,
         wrapInit: init => init,
         wrapExpr: expr => expr,
-    }
+    },
+    variant: 'default',
 }
 
-export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
+export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
         runtime,
+        variant,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -61,7 +66,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             pluralsFunc,
             runtime as RuntimeOptions,
             header.expr
-        ).transformJx(header),
+        ).transformJx(header, variant === 'solidjs'),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: dependencies => {
             const loaders = ['default']

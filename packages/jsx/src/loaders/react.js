@@ -4,16 +4,16 @@
 /// <reference types="wuchale/virtual" />
 
 import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
-import { registerLoaders } from 'wuchale/load-utils/client'
+import { registerLoaders } from 'wuchale/load-utils'
 import { Runtime } from 'wuchale/runtime'
 import { useState, useEffect } from 'react'
 
-const listeners = {}
+const callbacks = {}
 
 const collection = {
     get: () => null, // not needed, using useState
     set: (loadID, catalog) => {
-        listeners[loadID]?.(catalog)
+        callbacks[loadID]?.(catalog)
     }
 }
 
@@ -22,7 +22,7 @@ registerLoaders(key, loadCatalog, loadIDs, collection)
 export default loadID => {
     const [runtime, setRuntime] = useState(new Runtime())
     useEffect(() => {
-        listeners[loadID] = catalog => setRuntime(new Runtime(catalog))
+        callbacks[loadID] = catalog => setRuntime(new Runtime(catalog))
     })
     return runtime
 }

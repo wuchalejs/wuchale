@@ -1,15 +1,14 @@
-// for template literals and simple mixed markup
-type Mixed = (number | string)[]
-// for nested markup. first number indicates the tag index, rest are arguments
-export type Composite = [number, ...(string | number | Composite)[]]
-
-type CompiledData = (string | Mixed | Composite)[]
+import type { Mixed, CompiledElement } from "./compile.js"
 
 type PluralsRule = (n: number) => number
 
 export const catalogVarName = 'c' as 'c'
 
-export type CatalogModule = { [catalogVarName]: CompiledData, p: PluralsRule }
+export type CatalogModule = {
+    [catalogVarName]: CompiledElement[],
+    p: PluralsRule,
+    onUpdate?: (callback: (newData: CompiledElement[]) => void) => void
+}
 
 export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
 

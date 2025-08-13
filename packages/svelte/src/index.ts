@@ -1,14 +1,13 @@
-import { defaultGenerateLoadID, defaultHeuristic } from 'wuchale/adapters'
-import { deepMergeObjects } from 'wuchale/config'
+import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
 import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
+    AdapterPassThruOpts,
     RuntimeOptions,
-} from 'wuchale/adapters'
+} from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
-import type { AdapterPassThruOpts } from 'wuchale/adapters'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']

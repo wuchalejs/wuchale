@@ -1,6 +1,6 @@
 import MagicString from "magic-string"
 import { Parser, type Program } from "acorn"
-import { NestText } from 'wuchale/adapters'
+import { NestText } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
 import jsx from 'acorn-jsx'
@@ -12,9 +12,8 @@ import type {
     CommentDirectives,
     TransformHeader,
     RuntimeOptions,
-} from 'wuchale/adapters'
-import { nonWhitespaceText } from "wuchale/adapter-utils/utils.js"
-import { MixedVisitor } from "wuchale/adapter-utils/mixed-visitor.js"
+} from 'wuchale'
+import { nonWhitespaceText, MixedVisitor } from "wuchale/adapter-utils"
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
@@ -239,7 +238,7 @@ export class JSXTransformer extends Transformer {
         return txts
     }
 
-    transformJx = (header: TransformHeader): TransformOutput => {
+    transformJx = (header: TransformHeader, solidVariant: boolean): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
@@ -249,7 +248,7 @@ export class JSXTransformer extends Transformer {
             return this.finalize(txts)
         }
         const headerFin = [
-            `import ${rtComponent} from "@wuchale/jsx/runtime.jsx"`,
+            `import ${rtComponent} from "@wuchale/jsx/runtime${solidVariant ? '.solid' : ''}.jsx"`,
             header.head,
             this.runtimeOpts.initInScope({ funcName: null, file: this.filename }) ? `const ${this.vars.rtConst} = ${header.expr}\n` : '',
         ].join('\n')

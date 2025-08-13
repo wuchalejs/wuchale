@@ -1,3 +1,4 @@
+export { MixedVisitor } from './mixed-visitor.js'
 
 // for runtime
 const rtConst = '_w_runtime_'

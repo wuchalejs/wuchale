@@ -1,12 +1,10 @@
 // $$ node %f
-import { AdapterHandler } from 'wuchale/handler'
-import { defaultConfig } from 'wuchale/config'
+import { AdapterHandler, defaultConfig, Logger } from 'wuchale'
 import { adapter } from 'wuchale/adapter-vanilla'
 import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
-import { Logger } from 'wuchale/log'
 
 export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
 const dirBase = absDir(import.meta.url)
@@ -20,7 +18,7 @@ const adapterOpts = {
 
 /**
  * @param {string} content
- * @param {import("wuchale/adapters").Adapter} adapter
+ * @param {import("wuchale").Adapter} adapter
  * @param {string} key
  * @param {string} filename
  * @returns {Promise<object>}
@@ -65,7 +63,7 @@ function trimLines(str) {
  * @param {string} expectedTranslations
  * @param {(string | number | (string | number)[])[]} expectedCompiled
  * @param {string} testFile
- * @param {import("wuchale/adapters").Adapter} adapter
+ * @param {import("wuchale").Adapter} adapter
  * @param {string} key
  */
 export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile) {
@@ -82,7 +80,7 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
 /**
  * @param {any} t
  * @param {string} dir
- * @param {import("wuchale/adapters").Adapter} adapter
+ * @param {import("wuchale").Adapter} adapter
  * @param {string} key
  * @param {string} testFile
  * @param {string} testFileOut

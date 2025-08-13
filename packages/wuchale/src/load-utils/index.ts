@@ -11,6 +11,7 @@ export type LoaderState = {
     load: LoaderFunc
     loadIDs: string[]
     collection: CatalogCollection
+    loadedLocale?: string
 }
 
 export function defaultCollection(store: Record<string, CatalogModule>): CatalogCollection {
@@ -28,6 +29,7 @@ export function defaultCollection(store: Record<string, CatalogModule>): Catalog
 
 /** Global catalog states registry */
 const states: Record<string, LoaderState> = {}
+const emptyCatalog: CatalogModule = { c: [], p: defaultPluralsRule }
 
 /**
  * - `key` is a unique identifier for the group
@@ -36,11 +38,19 @@ const states: Record<string, LoaderState> = {}
 export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: CatalogCollection): (fileID: string) => Runtime {
     if (!(key in states)) {
         states[key] = { load, loadIDs, collection: collection ?? defaultCollection({}) }
+        // @ts-expect-error
+    } else if (import.meta.env?.DEV) { // stripped from prod builds
+        // for when doing HMR for loader file
+        for (const id of loadIDs) {
+            collection.set(id, states[key].collection.get(id) ?? emptyCatalog)
+        }
+        states[key].collection = collection
+        return loadID => new Runtime(collection.get(loadID))
     }
     for (const id of loadIDs) {
-        states[key].collection.set(id, { c: [], p: defaultPluralsRule })
+        states[key].collection.set(id, emptyCatalog)
     }
-    return loadID => new Runtime(states[key].collection.get(loadID))
+    return loadID => new Runtime(collection.get(loadID))
 }
 
 function statesToLoad(key?: string): LoaderState[] {
@@ -56,16 +66,23 @@ function statesToLoad(key?: string): LoaderState[] {
 */
 export async function loadLocale(locale: string, key?: string): Promise<void> {
     const promises: Promise<CatalogModule>[] = []
-    const catalogsArr: [string, CatalogCollection][] = []
+    const statesArr: [string, LoaderState][] = []
     for (const state of statesToLoad(key)) {
         for (const loadID of state.loadIDs) {
             promises.push(<Promise<CatalogModule>>state.load(loadID, locale))
-            catalogsArr.push([loadID, state.collection])
+            statesArr.push([loadID, state])
         }
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        const [loadID, collection] = catalogsArr[i]
-        collection.set(loadID, loaded)
+        const [loadID, state] = statesArr[i]
+        state.collection.set(loadID, {...loaded})
+        // @ts-expect-error
+        if (import.meta.env?.DEV) {
+            state.loadedLocale = locale
+            loaded.onUpdate?.(newData => {
+                state.loadedLocale === locale && state.collection.set(loadID, {...loaded, c: newData})
+            })
+        }
     }
 }
 
@@ -79,6 +96,13 @@ export function loadLocaleSync(locale: string, key?: string) {
         for (const loadID of state.loadIDs) {
             const loaded = <CatalogModule>state.load(loadID, locale)
             state.collection.set(loadID, loaded)
+            // @ts-expect-error
+            if (import.meta.env?.DEV) {
+                state.loadedLocale = locale
+                loaded.onUpdate?.(c => {
+                    state.collection.set(loadID, {...loaded, c})
+                })
+            }
         }
     }
 }

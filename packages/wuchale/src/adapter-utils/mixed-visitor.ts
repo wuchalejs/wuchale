@@ -2,7 +2,7 @@
 
 import type MagicString from "magic-string"
 import { IndexTracker, NestText, type CommentDirectives } from "../adapters.js"
-import { nonWhitespaceText, type RuntimeVars } from "./utils.js"
+import { nonWhitespaceText, type RuntimeVars } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
 

@@ -1,7 +1,11 @@
-// $$ cd .. && npm run test
+// for template literals and simple mixed markup
+export type Mixed = (number | string)[]
+// for nested markup. first number indicates the tag index, rest are arguments
+export type CompositePayload = CompiledElement | number
+export type Composite = [number, ...CompositePayload[]]
 
-type CompiledNestedFragment = (string | number | CompiledNestedFragment)[]
-export type CompiledFragment = string | number | CompiledNestedFragment
+export type CompiledElement = string | Mixed | Composite
+
 type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
 
 const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
@@ -53,9 +57,9 @@ function extractSpecial(txt: string, start: number): [SpecialType | null, number
     return ['open', n, i + 1]
 }
 
-function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragment, number] {
+function compile(txt: string, start = 0, parentTag = null): [CompositePayload[], number] {
     let curTxt = ''
-    const ext: CompiledNestedFragment = []
+    const compiled: CompositePayload[] = []
     let i = start
     const len = txt.length
     let currentOpenTag = null
@@ -68,13 +72,13 @@ function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragm
             continue
         }
         if (curTxt) {
-            ext.push(curTxt)
+            compiled.push(curTxt)
             curTxt = ''
         }
         if (type === 'open') {
             currentOpenTag = n
             const [subExt, newIc] = compile(txt, newI, n)
-            ext.push([n, ...subExt])
+            compiled.push([n, ...subExt])
             i = newIc
             continue
         }
@@ -90,19 +94,19 @@ function compile(txt: string, start = 0, parentTag = null): [CompiledNestedFragm
                 throw Error('Closing a different tag')
             }
         } else if (type === 'selfclose') {
-            ext.push([n])
+            compiled.push([n])
         } else { // placeholder
-            ext.push(n)
+            compiled.push(n)
         }
         i = newI
     }
     if (curTxt) {
-        ext.push(curTxt)
+        compiled.push(curTxt)
     }
-    return [ext, i]
+    return [compiled, i]
 }
 
-export function compileTranslation(text: string, fallback: CompiledFragment): CompiledFragment {
+export function compileTranslation(text: string, fallback: CompiledElement): CompiledElement {
     if (!text) {
         return fallback
     }
@@ -111,7 +115,7 @@ export function compileTranslation(text: string, fallback: CompiledFragment): Co
         if (compiled.length === 1 && typeof compiled[0] === 'string') {
             return compiled[0]
         }
-        return compiled
+        return compiled as Composite
     } catch (err) {
         console.error(err)
         console.error(text)

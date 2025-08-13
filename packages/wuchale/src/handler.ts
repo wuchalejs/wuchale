@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, NestText } from "./adapters.js"
 import type { Adapter, GlobConf, Catalog } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { compileTranslation, type CompiledFragment } from "./compile.js"
+import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
@@ -79,10 +79,10 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
 }
 
 export type Mode = 'dev' | 'prod' | 'extract'
-type CompiledItems = (CompiledFragment | number)[]
+
 type Compiled = {
     hasPlurals: boolean
-    items: CompiledItems
+    items: CompiledElement[]
 }
 type CompiledCatalog = Record<string, Compiled>
 type GranularState = {
@@ -304,11 +304,11 @@ export class AdapterHandler {
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.#pluralRules[locale].plural}`
-        const compiled = `export const ${catalogVarName} = ${compiledItems}`
+        const compiled = `export let ${catalogVarName} = ${compiledItems}`
         if (!compiledData.hasPlurals) {
             return compiled
         }
-        return `${compiled}\nexport const p = ${plural}`
+        return `${compiled}\nexport let p = ${plural}`
     }
 
     #getGranularState(filename: string): GranularState {
@@ -338,7 +338,7 @@ export class AdapterHandler {
         for (const key in this.catalogs[loc]) {
             const poItem = this.catalogs[loc][key]
             const index = this.#indexTracker.get(key)
-            let compiled: CompiledFragment
+            let compiled: CompiledElement
             const fallback = this.compiled[this.#config.sourceLocale]?.items?.[index] // ?. for sourceLocale itself
             if (poItem.msgid_plural) {
                 this.compiled[loc].hasPlurals = true
@@ -485,7 +485,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string): Promise<{ code?: string, map?: any, catalogChanged?: boolean }> => {
+    transform = async (content: string, filename: string): Promise<{ code?: string, map?: any }> => {
         let indexTracker = this.#indexTracker
         let loadID = this.key
         if (this.#adapter.granularLoad) {
@@ -499,7 +499,6 @@ export class AdapterHandler {
             index: indexTracker,
             header: this.#prepareHeader(filename, loadID),
         })
-        let catalogChanged = false
         for (const loc of this.#locales) {
             // clear references to this file first
             let previousReferences: Record<string, number> = {}
@@ -569,7 +568,6 @@ export class AdapterHandler {
                 }
                 continue
             }
-            catalogChanged = true
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
                 if (newItems || newRefs) {
                     await this.savePoAndCompile(loc)
@@ -585,6 +583,6 @@ export class AdapterHandler {
         if (!txts.length) {
             return {}
         }
-        return { ...output, catalogChanged }
+        return output
     }
 }

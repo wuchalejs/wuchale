@@ -1,5 +1,5 @@
 import { Runtime } from "../runtime.js"
-import type { LoaderFunc } from "./client.js"
+import type { LoaderFunc } from "./index.js"
 
 export type RuntimesByID = Record<string, Runtime>
 

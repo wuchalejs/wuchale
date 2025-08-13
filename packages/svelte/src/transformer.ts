@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { NestText } from 'wuchale/adapters'
+import { NestText } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
@@ -9,9 +9,8 @@ import type {
     TransformOutput,
     CommentDirectives,
     RuntimeOptions
-} from 'wuchale/adapters'
-import { MixedVisitor } from "wuchale/adapter-utils/mixed-visitor.js"
-import { nonWhitespaceText } from "wuchale/adapter-utils/utils.js"
+} from 'wuchale'
+import { MixedVisitor, nonWhitespaceText } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 

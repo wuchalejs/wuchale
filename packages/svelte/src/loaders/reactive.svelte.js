@@ -4,7 +4,7 @@
 /// <reference types="wuchale/virtual" />
 
 import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
-import { registerLoaders, defaultCollection } from 'wuchale/load-utils/client'
+import { registerLoaders, defaultCollection } from 'wuchale/load-utils'
 
 const catalogs = $state({})
 

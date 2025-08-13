@@ -1,23 +1,15 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from "node:path"
-import { getConfig as getConfig, type Config } from "wuchale/config"
-import { AdapterHandler } from "wuchale/handler"
-import type { Mode } from 'wuchale/handler'
-import { Logger } from "wuchale/log"
+import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
+import type { Config, Mode, CompiledElement} from "wuchale"
 import { catalogVarName } from "wuchale/runtime"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
 
-type SendFunc = (event: string, data: any[]) => void
-type HMRClient = { send: SendFunc }
-
 type ViteDevServer = {
-    ws: {
-        send: SendFunc,
-        on: (event: string, cb: (msg: { loadID: string | null }, client: HMRClient) => void) => void,
-    }
+    ws: { send: (event: string, data: CompiledElement[]) => void }
     moduleGraph: any
 }
 
@@ -29,13 +21,11 @@ class Plugin {
     #locales: string[] = []
     #projectRoot: string = ''
 
-    #server: ViteDevServer
+    #mode: Mode
 
     #adapters: Record<string, AdapterHandler> = {}
     #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
     #adaptersByCatalogPath: Record<string, AdapterHandler> = {}
-
-    #lastHMRTime: number = 0
 
     #log: Logger
 
@@ -49,6 +39,7 @@ class Plugin {
         this.#config = await getConfig(this.#configPath)
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         this.#log = new Logger(this.#config.messages)
+        this.#mode = mode
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
@@ -82,75 +73,55 @@ class Plugin {
         await this.#init(mode)
     }
 
-    configureServer = (server: ViteDevServer) => {
-        this.#server = server
-        // initial load
-        for (const [key, adapter] of Object.entries(this.#adapters)) {
-            for (const loc of this.#locales) {
-                const event = adapter.virtModEvent(loc, null)
-                server.ws.on(event, (payload, client) => {
-                    const eventSend = adapter.virtModEvent(loc, payload.loadID)
-                    if (!this.#config.adapters[key].granularLoad) {
-                        client.send(eventSend, adapter.compiled[loc].items)
-                        return
-                    }
-                    const compiled = adapter.granularStateByID[payload.loadID].compiled[loc]
-                    client.send(eventSend, compiled.items)
+    #loadCatalog(adapter: AdapterHandler, locale: string, loadID: string | null) {
+        const module = adapter.loadDataModule(locale, loadID)
+        if (this.#mode !== 'dev') {
+            return module
+        }
+        return `
+            ${module}
+            let updateCallback
+            export const onUpdate = callback => { updateCallback = callback }
+            if (import.meta.hot) {
+                import.meta.hot.on('${adapter.virtModEvent(locale, loadID)}', newData => {
+                    ${catalogVarName} = newData
+                    updateCallback?.(newData)
                 })
             }
-        }
-    }
-
-    #sendUpdateToClient = (adapter: AdapterHandler, locales: string[]) => {
-        if (!this.#server) {
-            // maybe not in dev mode
-            return
-        }
-        for (const loc of locales) {
-            if (!this.#config.adapters[adapter.key].granularLoad) {
-                this.#server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
-                return
-            }
-            for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
-                const eventName = adapter.virtModEvent(loc, loadID)
-                this.#server.ws.send(eventName, state.compiled[loc].items)
-            }
-        }
+        `
     }
 
     handleHotUpdate = async (ctx: { file: string, server: ViteDevServer, timestamp: number }) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
-            this.#lastHMRTime = performance.now()
             return
         }
-        if (performance.now() - this.#lastHMRTime < 1000) { // too soon
-            return
-        }
-        // PO file edit -> JS HMR
         const adapter = this.#adaptersByCatalogPath[ctx.file]
         const loc = adapter.catalogPathsToLocales[ctx.file]
         await adapter.loadCatalogNCompile(loc)
-        this.#sendUpdateToClient(adapter, [loc])
-        let invalidatedLoadIDs = [null]
+        const loadIDsToInvalidate: string[] = []
         if (this.#config.adapters[adapter.key].granularLoad) {
-            invalidatedLoadIDs = Object.keys(adapter.granularStateByID)
+            for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
+                loadIDsToInvalidate.push(loadID)
+                const eventName = adapter.virtModEvent(loc, loadID)
+                ctx.server.ws.send(eventName, state.compiled[loc].items)
+            }
+        } else {
+            loadIDsToInvalidate.push(null)
+            ctx.server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
         }
-        const allModules = []
+        // invalidate for next reload
         const invalidatedModules = new Set()
-        for (const loadID of invalidatedLoadIDs) {
-            const moduleID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
-            const modules = ctx.server.moduleGraph.getModulesByFile(moduleID)
-            for (const module of modules) {
+        for (const loadID of loadIDsToInvalidate) {
+            const fileID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
+            for (const module of ctx.server.moduleGraph.getModulesByFile(fileID)) { 
                 ctx.server.moduleGraph.invalidateModule(
                     module,
                     invalidatedModules,
                     ctx.timestamp,
-                    true
+                    false // no hmr, already sent event
                 )
-                allModules.push(module)
             }
         }
-        return allModules
     }
 
     resolveId = (source: string, importer?: string) => {
@@ -174,25 +145,7 @@ class Plugin {
                 this.#log.error(`Adapter not found for key: ${adapterKey}`)
                 return null
             }
-            const module = adapter.loadDataModule(locale, loadID)
-            if (this.#server == null) { // prod build
-                return module
-            }
-            const eventSend = adapter.virtModEvent(locale, loadID)
-            const eventReceive = adapter.virtModEvent(locale, null)
-            return `
-                ${module}
-                if (import.meta.hot) {
-                    import.meta.hot.on('${eventSend}', newData => {
-                        for (let i = 0; i < newData.length; i++) {
-                            if (JSON.stringify(${catalogVarName}[i]) !== JSON.stringify(newData[i])) {
-                                ${catalogVarName}[i] = newData[i]
-                            }
-                        }
-                    })
-                    import.meta.hot.send('${eventReceive}'${loadID == null ? '' : `, {loadID: '${loadID}'}`})
-                }
-            `
+            return this.#loadCatalog(adapter, locale, loadID)
         }
         if (part === 'locales') {
             return `export const locales = ['${this.#locales.join("', '")}']`
@@ -204,7 +157,6 @@ class Plugin {
         // loader proxy
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
-            console.log(id)
             this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
@@ -221,11 +173,7 @@ class Plugin {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                const { catalogChanged, ...output } = await adapter.transform(code, filename)
-                if (catalogChanged && this.#lastHMRTime > 0) {
-                    this.#sendUpdateToClient(adapter, this.#locales)
-                }
-                return output
+                return await adapter.transform(code, filename)
             }
         }
         return {}

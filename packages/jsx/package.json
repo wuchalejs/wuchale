@@ -42,6 +42,10 @@
         "./runtime.jsx": {
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.jsx"
+        },
+        "./runtime.solid.jsx": {
+            "types": "./dist/runtime.solid.d.ts",
+            "default": "./dist/runtime.solid.jsx"
         }
     },
     "repository": {
@@ -52,6 +56,18 @@
     "bugs": "https://github.com/wuchalejs/wuchale/issues",
     "author": "K1DV5",
     "license": "MIT",
+    "peerDependencies": {
+        "react": "^19.1.1",
+        "solid-js": "^1.9.9"
+    },
+    "peerDependenciesMeta": {
+        "solid-js": {
+            "optional": true
+        },
+        "react": {
+            "optional": true
+        }
+    },
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.5",
         "acorn": "^8.15.0",
