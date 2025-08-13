@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.4.1
+
+### Patch Changes
+
+- 44ffac1: Fix some files not included
+
 ## 0.4.0
 
 ### Minor Changes
