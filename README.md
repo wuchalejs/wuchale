@@ -69,5 +69,6 @@ package for examples of supported scenarios.
 and using it in [Sylve](https://github.com/AlchemillaHQ/Sylve), and giving
 valuable feedback!
 
-If you find `wuchale` valuable and you enjoy working with it, [supporting
-it](https://github.com/sponsors/K1DV5) would mean a lot.
+If you find `wuchale` valuable and you enjoy working with it, supporting it on
+[Github Sponsors](https://github.com/sponsors/K1DV5) or [Open
+Collective](https://opencollective.com/wuchale) would mean a lot.
