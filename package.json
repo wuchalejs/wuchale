@@ -3,7 +3,8 @@
     "type": "module",
     "private": true,
     "scripts": {
-        "dev": "tsc --build tsconfig.build.json --watch",
+        "clean": "rm -r packages/*/dist packages/*/*.tsbuildinfo packages/*/*/*.tsbuildinfo",
+        "dev": "npm run clean && tsc --build tsconfig.build.json --watch",
         "build": "tsc --build tsconfig.build.json",
         "test": "npm run test --workspaces",
         "v": "npx @changesets/cli"
