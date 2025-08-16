@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.13.2
+
+### Patch Changes
+
+- 44b35ac: Fix error for svelte adapter not getting new currentRT
+
 ## 0.13.1
 
 ### Patch Changes
