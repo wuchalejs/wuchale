@@ -3,12 +3,22 @@
 
 /// <reference types="wuchale/virtual" />
 
-import { loadCatalog, loadIDs } from 'virtual:wuchale/proxy' // or /proxy/sync
+export { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy'
+import { key } from 'virtual:wuchale/proxy'
 import { page } from '$app/state'
 import { Runtime } from 'wuchale/runtime'
 
-export { loadIDs, loadCatalog }
-
-export default (/** @type {string} */ loadID) => {
+// for server to be set from hooks.server.js
+let loadC = (/** @type {string} */ loadID) => {
     return page.data.catalogs?.[loadID] ?? new Runtime()
 }
+
+if (import.meta.env.SSR) {
+    const { currentRT } = await import('wuchale/load-utils/server')
+    loadC = loadID => currentRT(key, loadID)
+}
+
+/**
+ * @param {string} loadID
+ */
+export default loadC
