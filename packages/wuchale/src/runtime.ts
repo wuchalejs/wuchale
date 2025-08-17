@@ -1,9 +1,7 @@
 import type { Mixed, CompiledElement } from "./compile.js"
 
-type PluralsRule = (n: number) => number
-
 export const catalogVarName = 'c' as 'c'
-
+type PluralsRule = (n: number) => number
 export type CatalogModule = {
     [catalogVarName]: CompiledElement[],
     p: PluralsRule,
@@ -11,13 +9,14 @@ export type CatalogModule = {
 }
 
 export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
-
-let err = (id: number, ctx: CompiledElement): string => {
+export function defaultErr(id: number, ctx: CompiledElement): string {
     if (ctx == null) {
         return `[i18n-404:${id}]`
     }
     return `[i18n-400:${id}(${ctx})]`
 }
+
+let err = defaultErr
 
 export class Runtime {
 
