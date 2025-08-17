@@ -73,9 +73,9 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             if (dependencies.has('react') || dependencies.has('preact')) {
                 loaders.unshift('react')
             }
-            // if (dependencies.has('solid-js')) {
-            //     loaders.unshift('solidjs')
-            // }
+            if (dependencies.has('solid-js')) {
+                loaders.unshift('solidjs')
+            }
             return loaders
         },
         defaultLoaderPath: (loader: string) => {
