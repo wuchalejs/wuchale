@@ -144,7 +144,7 @@ export type Adapter = AdapterPassThruOpts & {
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
     /** available loader names, can do auto detection logic to sort, dependencies given */
-    defaultLoaders: (dependencies: Set<string>) => string[] | Promise<string[]>
+    defaultLoaders: () => string[] | Promise<string[]>
     /* Can return different file paths based on conditions */
     defaultLoaderPath: (loaderName: string) => string
 }

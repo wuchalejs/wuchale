@@ -1,23 +1,10 @@
-import { copyFile, readFile, mkdir } from "node:fs/promises"
+import { copyFile, mkdir } from "node:fs/promises"
 import { type Config } from "../config.js"
 import { AdapterHandler } from "../handler.js"
 import { dirname } from "node:path"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
-
-async function getDependencies() {
-    let json = { devDependencies: {}, dependencies: {} }
-    try {
-        const pkgJson = await readFile('package.json')
-        json = JSON.parse(pkgJson.toString())
-    } catch (err) {
-        if (err.code !== 'ENOENT') {
-            throw err
-        }
-    }
-    return new Set(Object.keys({ ...json.devDependencies, ...json.dependencies }))
-}
 
 export async function init(config: Config, locales: string[], force: boolean, logger: Logger) {
     logger.info('Initializing...')
@@ -36,7 +23,7 @@ export async function init(config: Config, locales: string[], force: boolean, lo
         }
         logger.log(`Create loader for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
-        const loaders = await adapter.defaultLoaders(await getDependencies())
+        const loaders = await adapter.defaultLoaders()
         let loader = loaders[0]
         if (loaders.length > 1) {
             loader = await ask(loaders, `Select default loader for adapter: ${color.magenta(key)}`, logger)

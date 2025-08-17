@@ -8,6 +8,7 @@ import type {
     RuntimeOptions,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
+import { getDependencies } from 'wuchale/adapter-utils'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']
@@ -66,9 +67,10 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             header.expr
         ).transformSv(header.head),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
-        defaultLoaders: async dependencies => {
+        defaultLoaders: async () => {
+            const deps = await getDependencies()
             const available = ['reactive', 'vanilla']
-            if (dependencies.has('@sveltejs/kit')) {
+            if (deps.has('@sveltejs/kit')) {
                 available.unshift('sveltekit')
             }
             return available

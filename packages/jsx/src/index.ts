@@ -8,6 +8,7 @@ import type {
     AdapterPassThruOpts,
 } from 'wuchale'
 import { JSXTransformer } from "./transformer.js"
+import { getDependencies } from 'wuchale/adapter-utils'
 
 const ignoreElements = ['style', 'path']
 
@@ -68,12 +69,13 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             header.expr
         ).transformJx(header, variant === 'solidjs'),
         loaderExts: ['.js', '.ts'],
-        defaultLoaders: dependencies => {
+        defaultLoaders: async () => {
+            const deps = await getDependencies()
             const loaders = ['default']
-            if (dependencies.has('react') || dependencies.has('preact')) {
+            if (deps.has('react') || deps.has('preact')) {
                 loaders.unshift('react')
             }
-            if (dependencies.has('solid-js')) {
+            if (deps.has('solid-js')) {
                 loaders.unshift('solidjs')
             }
             return loaders

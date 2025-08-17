@@ -9,6 +9,7 @@ import type {
     AdapterPassThruOpts,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
+import { getDependencies } from '../adapter-utils/index.js'
 
 export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
@@ -48,9 +49,10 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             header.expr,
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
-        defaultLoaders: async dependencies => {
+        defaultLoaders: async () => {
+            const deps = await getDependencies()
             const available = ['server']
-            if (dependencies.has('vite')) {
+            if (deps.has('vite')) {
                 available.unshift('vite')
             }
             return available
