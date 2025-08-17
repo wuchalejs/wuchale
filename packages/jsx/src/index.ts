@@ -11,8 +11,8 @@ import { JSXTransformer } from "./transformer.js"
 
 const ignoreElements = ['style', 'path']
 
-const jsxHeuristic: HeuristicFunc = (text, details) => {
-    if (!defaultHeuristic(text, details)) {
+const jsxHeuristic: HeuristicFunc = (msgStr, details) => {
+    if (!defaultHeuristic(msgStr, details)) {
         return false
     }
     if (ignoreElements.includes(details.element)) {

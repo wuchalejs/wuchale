@@ -12,8 +12,8 @@ import { SvelteTransformer } from "./transformer.js"
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']
 
-const svelteHeuristic: HeuristicFunc = (text, details) => {
-    if (!defaultHeuristic(text, details)) {
+const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
+    if (!defaultHeuristic(msgStr, details)) {
         return false
     }
     if (ignoreElements.includes(details.element)) {

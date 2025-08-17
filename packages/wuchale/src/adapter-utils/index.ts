@@ -18,9 +18,9 @@ export function runtimeVars(wrapFunc: (expr: string) => string) {
 
 export type RuntimeVars = ReturnType<typeof runtimeVars>
 
-export function nonWhitespaceText(text: string): [number, string, number] {
-    let trimmedS = text.trimStart()
-    const startWh = text.length - trimmedS.length
+export function nonWhitespaceText(msgStr: string): [number, string, number] {
+    let trimmedS = msgStr.trimStart()
+    const startWh = msgStr.length - trimmedS.length
     let trimmed = trimmedS.trimEnd()
     const endWh = trimmedS.length - trimmed.length
     return [startWh, trimmed, endWh]

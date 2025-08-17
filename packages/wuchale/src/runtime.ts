@@ -40,16 +40,16 @@ export class Runtime {
 
     /** get translation using composite context */
     tx = (ctx: Mixed, args: any[] = [], start = 1) => {
-        let txt = ''
+        let msgStr = ''
         for (let i = start; i < ctx.length; i++) {
             const fragment = ctx[i]
             if (typeof fragment === 'string') {
-                txt += fragment
+                msgStr += fragment
             } else { // index of non-text children
-                txt += args[fragment]
+                msgStr += args[fragment]
             }
         }
-        return txt
+        return msgStr
     }
 
     /** get translation for plural */

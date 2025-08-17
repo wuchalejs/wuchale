@@ -1,6 +1,6 @@
 import MagicString from "magic-string"
 import { Parser, type Program } from "acorn"
-import { NestText } from 'wuchale'
+import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
 import jsx from 'acorn-jsx'
@@ -68,9 +68,9 @@ export class JSXTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitJSXExpressionContainer,
-        checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
+        checkHeuristic: msgStr => this.checkHeuristic(msgStr, { scope: 'markup', element: this.currentElement })[0],
         index: this.index,
-        wrapNested: (txt, hasExprs, nestedRanges, lastChildEnd) => {
+        wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
                 let toAppend: string
                 if (i === 0) {
@@ -84,7 +84,7 @@ export class JSXTransformer extends Transformer {
             if (this.inCompoundText) {
                 begin += `{${this.vars.nestCtx}} nest`
             } else {
-                const index = this.index.get(txt.toKey())
+                const index = this.index.get(msgInfo.toKey())
                 begin += `{${this.vars.rtCtx}(${index})}`
             }
             let end = ' />'
@@ -97,7 +97,7 @@ export class JSXTransformer extends Transformer {
         },
     })
 
-    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): NestText[] => this.mixedVisitor.visit({
+    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): Message[] => this.mixedVisitor.visit({
         children: node.children,
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
@@ -117,12 +117,12 @@ export class JSXTransformer extends Transformer {
         return this['visitName' + node.type]?.(node)
     }
 
-    visitJSXElement = (node: JX.JSXElement): NestText[] => {
+    visitJSXElement = (node: JX.JSXElement): Message[] => {
         const currentElement = this.currentElement
         this.currentElement = this.visitName(node.openingElement.name)
-        const txts = this.visitChildrenJ(node)
+        const msgs = this.visitChildrenJ(node)
         for (const attr of node.openingElement.attributes) {
-            txts.push(...this.visitJx(attr))
+            msgs.push(...this.visitJx(attr))
         }
         if (this.inCompoundText) {
             this.mstr.appendLeft(
@@ -132,12 +132,12 @@ export class JSXTransformer extends Transformer {
             )
         }
         this.currentElement = currentElement
-        return txts
+        return msgs
     }
 
-    visitJSXText = (node: JX.JSXText): NestText[] => {
+    visitJSXText = (node: JX.JSXText): Message[] => {
         const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
-        const [pass, txt] = this.checkHeuristic(trimmed, {
+        const [pass, msgInfo] = this.checkHeuristic(trimmed, {
             scope: 'markup',
             element: this.currentElement,
         })
@@ -149,12 +149,12 @@ export class JSXTransformer extends Transformer {
             node.start + startWh,
             // @ts-expect-error
             node.end - endWh,
-            `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`,
+            `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )
-        return [txt]
+        return [msgInfo]
     }
 
-    visitJSXFragment = (node: JX.JSXFragment): NestText[] => this.visitChildrenJ(node)
+    visitJSXFragment = (node: JX.JSXFragment): Message[] => this.visitChildrenJ(node)
 
     getMarkupCommentBody = (node: JX.JSXEmptyExpression): string => {
         // @ts-expect-error
@@ -165,11 +165,11 @@ export class JSXTransformer extends Transformer {
         return comment.slice(2, -2).trim()
     }
 
-    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): NestText[] => {
+    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => {
         return this.visit(node.expression as JX.Expression)
     }
 
-    visitJSXAttribute = (node: JX.JSXAttribute): NestText[] => {
+    visitJSXAttribute = (node: JX.JSXAttribute): Message[] => {
         if (node.value.type !== 'Literal') {
             return this.visitJx(node.value)
         }
@@ -183,7 +183,7 @@ export class JSXTransformer extends Transformer {
         } else {
             name = node.name.name.name
         }
-        const [pass, txt] = this.checkHeuristic(node.value.value, {
+        const [pass, msgInfo] = this.checkHeuristic(node.value.value, {
             scope: 'attribute',
             element: this.currentElement,
             attribute: name,
@@ -196,14 +196,14 @@ export class JSXTransformer extends Transformer {
             value.start,
             // @ts-expect-error
             value.end,
-            `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`,
+            `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )
-        return [txt]
+        return [msgInfo]
     }
 
-    visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): NestText[] => this.visit(node.argument)
+    visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): Message[] => this.visit(node.argument)
 
-    visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): NestText[] => {
+    visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): Message[] => {
         const commentContents = this.getMarkupCommentBody(node)
         if (!commentContents) {
             return []
@@ -218,24 +218,24 @@ export class JSXTransformer extends Transformer {
         return []
     }
 
-    visitJx = (node: JX.Node | JX.JSXSpreadChild | Program): NestText[] => {
+    visitJx = (node: JX.Node | JX.JSXSpreadChild | Program): Message[] => {
         if (node.type === 'JSXText' && !node.value.trim()) {
             return []
         }
         if (node.type === 'JSXExpressionContainer' && node.expression.type === 'JSXEmptyExpression') { // markup comment
             return this.visitJSXEmptyExpression(node.expression)
         }
-        let txts = []
+        let msgs = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
-            txts = this.visit(node)
+            msgs = this.visit(node)
         }
         this.commentDirectives = commentDirectivesPrev
-        return txts
+        return msgs
     }
 
     transformJx = (header: TransformHeader, solidVariant: boolean): TransformOutput => {
@@ -243,9 +243,9 @@ export class JSXTransformer extends Transformer {
         this.comments = comments
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
-        const txts = this.visitJx(ast)
-        if (!txts.length) {
-            return this.finalize(txts)
+        const msgs = this.visitJx(ast)
+        if (!msgs.length) {
+            return this.finalize(msgs)
         }
         const headerFin = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${solidVariant ? '.solid' : ''}.jsx"`,
@@ -253,6 +253,6 @@ export class JSXTransformer extends Transformer {
             this.runtimeOpts.initInScope({ funcName: null, file: this.filename }) ? `const ${this.vars.rtConst} = ${header.expr}\n` : '',
         ].join('\n')
         this.mstr.appendRight(0, headerFin + '\n')
-        return this.finalize(txts)
+        return this.finalize(msgs)
     }
 }

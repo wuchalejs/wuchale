@@ -5,7 +5,7 @@ import type Estree from 'estree'
 import type { Program, Options as ParserOptions } from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristicFuncOnly, NestText } from '../adapters.js'
+import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
 import type {
     CommentDirectives,
     HeuristicDetailsBase,
@@ -88,8 +88,8 @@ export class Transformer {
         this.initRuntimeExpr = runtimeOpts.wrapInit(initRuntimeExpr)
     }
 
-    checkHeuristic = (text: string, detailsBase: HeuristicDetailsBase): [boolean, NestText] => {
-        if (!text) {
+    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
+        if (!msgStr) {
             // nothing to ask
             return [false, null]
         }
@@ -106,66 +106,66 @@ export class Transformer {
             if (details.declaring == null && this.insideProgram) {
                 details.declaring = 'expression'
             }
-            extract = this.heuristic(text, details) ?? defaultHeuristicFuncOnly(text, details) ?? true
+            extract = this.heuristic(msgStr, details) ?? defaultHeuristicFuncOnly(msgStr, details) ?? true
         }
-        return [extract, new NestText(text, detailsBase.scope, this.commentDirectives.context)]
+        return [extract, new Message(msgStr, detailsBase.scope, this.commentDirectives.context)]
     }
 
-    visitLiteral = (node: Estree.Literal & { start: number; end: number }): NestText[] => {
+    visitLiteral = (node: Estree.Literal & { start: number; end: number }): Message[] => {
         if (typeof node.value !== 'string') {
             return []
         }
         const { start, end } = node
-        const [pass, txt] = this.checkHeuristic(node.value, { scope: 'script' })
+        const [pass, msgInfo] = this.checkHeuristic(node.value, { scope: 'script' })
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(txt.toKey())})`)
-        return [txt]
+        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
+        return [msgInfo]
     }
 
-    visitArrayExpression = (node: Estree.ArrayExpression): NestText[] => {
-        const txts = []
+    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => {
+        const msgs = []
         for (const elm of node.elements) {
-            txts.push(...this.visit(elm))
+            msgs.push(...this.visit(elm))
         }
-        return txts
+        return msgs
     }
 
-    visitObjectExpression = (node: Estree.ObjectExpression): NestText[] => {
-        const txts = []
+    visitObjectExpression = (node: Estree.ObjectExpression): Message[] => {
+        const msgs = []
         for (const prop of node.properties) {
-            txts.push(...this.visit(prop))
+            msgs.push(...this.visit(prop))
         }
-        return txts
+        return msgs
     }
 
-    visitProperty = (node: Estree.Property): NestText[] => [
+    visitProperty = (node: Estree.Property): Message[] => [
         ...this.visit(node.key),
         ...this.visit(node.value),
     ]
 
-    visitSpreadElement = (node: Estree.SpreadElement): NestText[] => this.visit(node.argument)
+    visitSpreadElement = (node: Estree.SpreadElement): Message[] => this.visit(node.argument)
 
-    visitMemberExpression = (node: Estree.MemberExpression): NestText[] => [
+    visitMemberExpression = (node: Estree.MemberExpression): Message[] => [
         ...this.visit(node.object),
         ...this.visit(node.property),
     ]
 
-    visitNewExpression = (node: Estree.NewExpression): NestText[] => node.arguments.map(this.visit).flat()
+    visitNewExpression = (node: Estree.NewExpression): Message[] => node.arguments.map(this.visit).flat()
 
-    defaultVisitCallExpression = (node: Estree.CallExpression): NestText[] => {
-        const txts = [...this.visit(node.callee)]
+    defaultVisitCallExpression = (node: Estree.CallExpression): Message[] => {
+        const msgs = [...this.visit(node.callee)]
         const currentCall = this.currentCall
         this.currentCall = this.getCalleeName(node.callee)
         for (const arg of node.arguments) {
-            txts.push(...this.visit(arg))
+            msgs.push(...this.visit(arg))
         }
         this.currentCall = currentCall // restore
-        return txts
+        return msgs
     }
 
-    visitCallExpression = (node: Estree.CallExpression): NestText[] => {
+    visitCallExpression = (node: Estree.CallExpression): Message[] => {
         if (node.callee.type !== 'Identifier' || node.callee.name !== this.pluralFunc) {
             return this.defaultVisitCallExpression(node)
         }
@@ -181,46 +181,46 @@ export class Transformer {
             }
             candidates.push(elm.value)
         }
-        const nTxt = new NestText(candidates, 'script', this.commentDirectives.context)
-        nTxt.plural = true
-        const index = this.index.get(nTxt.toKey())
+        const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
+        msgInfo.plural = true
+        const index = this.index.get(msgInfo.toKey())
         const pluralUpdate = `${this.vars.rtTPlural}(${index}), ${this.vars.rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
-        return [nTxt]
+        return [msgInfo]
     }
 
-    visitBinaryExpression = (node: Estree.BinaryExpression): NestText[] => [
+    visitBinaryExpression = (node: Estree.BinaryExpression): Message[] => [
         ...this.visit(node.left),
         ...this.visit(node.right),
     ]
 
-    visitUnaryExpression = (node: Estree.UnaryExpression): NestText[] => this.visit(node.argument)
+    visitUnaryExpression = (node: Estree.UnaryExpression): Message[] => this.visit(node.argument)
 
-    visitLogicalExpression = (node: Estree.LogicalExpression): NestText[] => [
+    visitLogicalExpression = (node: Estree.LogicalExpression): Message[] => [
         ...this.visit(node.left),
         ...this.visit(node.right),
     ]
 
-    visitAwaitExpression = (node: Estree.AwaitExpression): NestText[] => this.visit(node.argument)
+    visitAwaitExpression = (node: Estree.AwaitExpression): Message[] => this.visit(node.argument)
 
     visitAssignmentExpression = this.visitBinaryExpression
 
-    visitExpressionStatement = (node: Estree.ExpressionStatement): NestText[] => this.visit(node.expression)
+    visitExpressionStatement = (node: Estree.ExpressionStatement): Message[] => this.visit(node.expression)
 
-    visitForOfStatement = (node: Estree.ForOfStatement): NestText[] => [
+    visitForOfStatement = (node: Estree.ForOfStatement): Message[] => [
         ...this.visit(node.left),
         ...this.visit(node.right),
         ...this.visit(node.body),
     ]
 
-    visitForInStatement = (node: Estree.ForInStatement): NestText[] => [
+    visitForInStatement = (node: Estree.ForInStatement): Message[] => [
         ...this.visit(node.left),
         ...this.visit(node.right),
         ...this.visit(node.body),
     ]
 
-    visitForStatement = (node: Estree.ForStatement): NestText[] => [
+    visitForStatement = (node: Estree.ForStatement): Message[] => [
         ...this.visit(node.init),
         ...this.visit(node.test),
         ...this.visit(node.update),
@@ -257,8 +257,8 @@ export class Transformer {
         return `[${callee.type}]`
     }
 
-    visitVariableDeclaration = (node: Estree.VariableDeclaration): NestText[] => {
-        const txts = []
+    visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] => {
+        const msgs = []
         let atTopLevelDefn = this.insideProgram && !this.declaring
         for (const dec of node.declarations) {
             if (!dec.init) {
@@ -279,25 +279,25 @@ export class Transformer {
             if (!decVisit.length) {
                 continue
             }
-            txts.push(...decVisit)
+            msgs.push(...decVisit)
         }
         if (atTopLevelDefn) {
             this.currentTopLevelCall = null // reset
             this.declaring = null
         }
-        return txts
+        return msgs
     }
 
-    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): NestText[] => node.declaration ? this.visit(node.declaration) : []
+    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] => node.declaration ? this.visit(node.declaration) : []
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
-    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): NestText[] => {
+    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): Message[] => {
         const prevFuncDef = this.currentFuncDef
         this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
-        const txts = this.visit(node)
+        const msgs = this.visit(node)
         let initRuntimeHere = this.runtimeOpts.initInScope({ funcName: this.currentFuncDef, parentFunc: prevFuncDef, file: this.filename })
-        if (txts.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
+        if (msgs.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
@@ -305,46 +305,46 @@ export class Transformer {
             )
         }
         this.currentFuncDef = prevFuncDef
-        return txts
+        return msgs
     }
 
-    visitFunctionDeclaration = (node: Estree.FunctionDeclaration): NestText[] => {
+    visitFunctionDeclaration = (node: Estree.FunctionDeclaration): Message[] => {
         const declaring = this.declaring
         this.declaring = 'function'
-        const txts = this.visitFunctionBody(node.body, node.id?.name ?? null)
+        const msgs = this.visitFunctionBody(node.body, node.id?.name ?? null)
         this.declaring = declaring
-        return txts
+        return msgs
     }
 
-    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): NestText[] => this.visitFunctionBody(node.body, '')
+    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
-    visitFunctionExpression = (node: Estree.FunctionExpression): NestText[] => this.visitFunctionBody(node.body, '')
+    visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
-    visitBlockStatement = (node: Estree.BlockStatement): NestText[] => {
-        const txts = []
+    visitBlockStatement = (node: Estree.BlockStatement): Message[] => {
+        const msgs = []
         for (const statement of node.body) {
-            txts.push(...this.visit(statement))
+            msgs.push(...this.visit(statement))
         }
-        return txts
+        return msgs
     }
 
-    visitReturnStatement = (node: Estree.ReturnStatement): NestText[] => {
+    visitReturnStatement = (node: Estree.ReturnStatement): Message[] => {
         if (node.argument) {
             return this.visit(node.argument)
         }
         return []
     }
 
-    visitIfStatement = (node: Estree.IfStatement): NestText[] => {
-        const txts = this.visit(node.test)
-        txts.push(...this.visit(node.consequent))
+    visitIfStatement = (node: Estree.IfStatement): Message[] => {
+        const msgs = this.visit(node.test)
+        msgs.push(...this.visit(node.consequent))
         if (node.alternate) {
-            txts.push(...this.visit(node.alternate))
+            msgs.push(...this.visit(node.alternate))
         }
-        return txts
+        return msgs
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral): NestText[] => {
+    visitTemplateLiteral = (node: Estree.TemplateLiteral): Message[] => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -357,15 +357,15 @@ export class Transformer {
         if (!pass) {
             return node.expressions.map(this.visit).flat()
         }
-        const txts = []
+        const msgs = []
         const quasi0 = node.quasis[0]
         // @ts-ignore
         const { start: start0, end: end0 } = quasi0
-        let txt = quasi0.value?.cooked ?? ''
+        let msgStr = quasi0.value?.cooked ?? ''
         for (const [i, expr] of node.expressions.entries()) {
-            txts.push(...this.visit(expr))
+            msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
-            txt += `{${i}}${quasi.value.cooked}`
+            msgStr += `{${i}}${quasi.value.cooked}`
             // @ts-ignore
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
@@ -374,8 +374,8 @@ export class Transformer {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const nTxt = new NestText(txt, 'script', this.commentDirectives.context)
-        let begin = `${this.vars.rtTrans}(${this.index.get(nTxt.toKey())}`
+        const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
+        let begin = `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -386,18 +386,18 @@ export class Transformer {
         } else {
             this.mstr.update(start0 - 1, end0 + 1, begin + end)
         }
-        txts.push(nTxt)
-        return txts
+        msgs.push(msgInfo)
+        return msgs
     }
 
-    visitProgram = (node: Estree.Program): NestText[] => {
-        const txts = []
+    visitProgram = (node: Estree.Program): Message[] => {
+        const msgs = []
         this.insideProgram = true
         for (const child of node.body) {
-            txts.push(...this.visit(child))
+            msgs.push(...this.visit(child))
         }
         this.insideProgram = false
-        return txts
+        return msgs
     }
 
     processCommentDirectives = (data: string): CommentDirectives => {
@@ -415,7 +415,7 @@ export class Transformer {
         return directives
     }
 
-    visit = (node: Estree.BaseNode): NestText[] => {
+    visit = (node: Estree.BaseNode): Message[] => {
         // for estree
         const commentDirectives = { ...this.commentDirectives }
         // @ts-expect-error
@@ -423,26 +423,26 @@ export class Transformer {
         for (const comment of node.leadingComments ?? comments ?? []) {
             this.commentDirectives = this.processCommentDirectives(comment.value.trim())
         }
-        let txts = []
+        let msgs = []
         if (this.commentDirectives.forceInclude !== false) {
             const methodName = `visit${node.type}`
             if (methodName in this) {
-                txts = this[methodName](node)
+                msgs = this[methodName](node)
                 // } else {
                 //     console.log(node)
             }
         }
         this.commentDirectives = commentDirectives // restore
-        return txts
+        return msgs
     }
 
-    finalize = (txts: NestText[]): TransformOutput => {
-        const output = { txts }
-        if (txts.length === 0) {
+    finalize = (msgs: Message[]): TransformOutput => {
+        const output = { msgs }
+        if (msgs.length === 0) {
             return output
         }
         return {
-            txts,
+            msgs: msgs,
             code: this.mstr.toString(),
             map: this.mstr.generateMap(),
         }
@@ -452,13 +452,13 @@ export class Transformer {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
-        const txts = this.visit(ast)
-        if (txts.length) {
+        const msgs = this.visit(ast)
+        if (msgs.length) {
             if (this.runtimeOpts.initInScope({ file: this.filename })) {
                 headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}`
             }
             this.mstr.appendRight(0, headerHead + '\n')
         }
-        return this.finalize(txts)
+        return this.finalize(msgs)
     }
 }

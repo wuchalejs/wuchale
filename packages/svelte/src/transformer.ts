@@ -1,7 +1,7 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode } from "acorn"
 import { parse, type AST } from "svelte/compiler"
-import { NestText } from 'wuchale'
+import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
@@ -34,7 +34,7 @@ export class SvelteTransformer extends Transformer {
         super(content, filename, index, heuristic, pluralsFunc, runtimeOpts, initExpr)
     }
 
-    visitExpressionTag = (node: AST.ExpressionTag): NestText[] => this.visit(node.expression)
+    visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
@@ -54,9 +54,9 @@ export class SvelteTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitExpressionTag,
-        checkHeuristic: txt => this.checkHeuristic(txt, { scope: 'markup', element: this.currentElement })[0],
+        checkHeuristic: msgStr => this.checkHeuristic(msgStr, { scope: 'markup', element: this.currentElement })[0],
         index: this.index,
-        wrapNested: (txt, hasExprs, nestedRanges, lastChildEnd) => {
+        wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             const snippets = []
             // create and reference snippets
             for (const [childStart, childEnd, haveCtx] of nestedRanges) {
@@ -71,7 +71,7 @@ export class SvelteTransformer extends Transformer {
             if (this.inCompoundText) {
                 begin += `{${this.vars.nestCtx}} nest`
             } else {
-                const index = this.index.get(txt.toKey())
+                const index = this.index.get(msgInfo.toKey())
                 begin += `{${this.vars.rtCtx}(${index})}`
             }
             let end = ' />\n'
@@ -85,46 +85,46 @@ export class SvelteTransformer extends Transformer {
     })
 
 
-    visitFragment = (node: AST.Fragment): NestText[] => this.mixedVisitor.visit({
+    visitFragment = (node: AST.Fragment): Message[] => this.mixedVisitor.visit({
         children: node.nodes,
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
     })
 
-    visitRegularElement = (node: AST.ElementLike): NestText[] => {
+    visitRegularElement = (node: AST.ElementLike): Message[] => {
         const currentElement = this.currentElement
         this.currentElement = node.name
-        const txts: NestText[] = []
+        const msgs: Message[] = []
         for (const attrib of node.attributes) {
-            txts.push(...this.visitSv(attrib))
+            msgs.push(...this.visitSv(attrib))
         }
-        txts.push(...this.visitFragment(node.fragment))
+        msgs.push(...this.visitFragment(node.fragment))
         this.currentElement = currentElement
-        return txts
+        return msgs
     }
 
     visitComponent = this.visitRegularElement
 
-    visitText = (node: AST.Text): NestText[] => {
+    visitText = (node: AST.Text): Message[] => {
         const [startWh, trimmed, endWh] = nonWhitespaceText(node.data)
-        const [pass, txt] = this.checkHeuristic(trimmed, {
+        const [pass, msgInfo] = this.checkHeuristic(trimmed, {
             scope: 'markup',
             element: this.currentElement,
         })
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`)
-        return [txt]
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        return [msgInfo]
     }
 
-    visitSpreadAttribute = (node: AST.SpreadAttribute): NestText[] => this.visit(node.expression)
+    visitSpreadAttribute = (node: AST.SpreadAttribute): Message[] => this.visit(node.expression)
 
-    visitAttribute = (node: AST.Attribute): NestText[] => {
+    visitAttribute = (node: AST.Attribute): Message[] => {
         if (node.value === true) {
             return []
         }
-        const txts = []
+        const msgs = []
         let values: (AST.ExpressionTag | AST.Text)[]
         if (Array.isArray(node.value)) {
             values = node.value
@@ -133,12 +133,12 @@ export class SvelteTransformer extends Transformer {
         }
         for (const value of values) {
             if (value.type !== 'Text') { // ExpressionTag
-                txts.push(...this.visitSv(value))
+                msgs.push(...this.visitSv(value))
                 continue
             }
             // Text
             const { start, end } = value
-            const [pass, txt] = this.checkHeuristic(value.data, {
+            const [pass, msgInfo] = this.checkHeuristic(value.data, {
                 scope: 'attribute',
                 element: this.currentElement,
                 attribute: node.name,
@@ -146,94 +146,94 @@ export class SvelteTransformer extends Transformer {
             if (!pass) {
                 continue
             }
-            txts.push(txt)
-            this.mstr.update(value.start, value.end, `{${this.vars.rtTrans}(${this.index.get(txt.toKey())})}`)
+            msgs.push(msgInfo)
+            this.mstr.update(value.start, value.end, `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
             if (!`'"`.includes(this.content[start - 1])) {
                 continue
             }
             this.mstr.remove(start - 1, start)
             this.mstr.remove(end, end + 1)
         }
-        return txts
+        return msgs
     }
 
-    visitSnippetBlock = (node: AST.SnippetBlock): NestText[] => this.visitFragment(node.body)
+    visitSnippetBlock = (node: AST.SnippetBlock): Message[] => this.visitFragment(node.body)
 
-    visitIfBlock = (node: AST.IfBlock): NestText[] => {
-        const txts = this.visit(node.test)
-        txts.push(...this.visitSv(node.consequent))
+    visitIfBlock = (node: AST.IfBlock): Message[] => {
+        const msgs = this.visit(node.test)
+        msgs.push(...this.visitSv(node.consequent))
         if (node.alternate) {
-            txts.push(...this.visitSv(node.alternate))
+            msgs.push(...this.visitSv(node.alternate))
         }
-        return txts
+        return msgs
     }
 
-    visitEachBlock = (node: AST.EachBlock): NestText[] => {
-        const txts = [
+    visitEachBlock = (node: AST.EachBlock): Message[] => {
+        const msgs = [
             ...this.visit(node.expression),
             ...this.visitSv(node.body),
         ]
         if (node.key) {
-            txts.push(...this.visit(node.key))
+            msgs.push(...this.visit(node.key))
         }
         if (node.fallback) {
-            txts.push(...this.visitSv(node.fallback))
+            msgs.push(...this.visitSv(node.fallback))
         }
-        return txts
+        return msgs
     }
 
-    visitKeyBlock = (node: AST.KeyBlock): NestText[] => {
+    visitKeyBlock = (node: AST.KeyBlock): Message[] => {
         return [
             ...this.visit(node.expression),
             ...this.visitSv(node.fragment),
         ]
     }
 
-    visitAwaitBlock = (node: AST.AwaitBlock): NestText[] => {
-        const txts = [
+    visitAwaitBlock = (node: AST.AwaitBlock): Message[] => {
+        const msgs = [
             ...this.visit(node.expression),
             ...this.visitFragment(node.then),
         ]
         if (node.pending) {
-            txts.push(...this.visitFragment(node.pending),)
+            msgs.push(...this.visitFragment(node.pending),)
         }
         if (node.catch) {
-            txts.push(...this.visitFragment(node.catch),)
+            msgs.push(...this.visitFragment(node.catch),)
         }
-        return txts
+        return msgs
     }
 
-    visitSvelteBody = (node: AST.SvelteBody): NestText[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteBody = (node: AST.SvelteBody): Message[] => node.attributes.map(this.visitSv).flat()
 
-    visitSvelteDocument = (node: AST.SvelteDocument): NestText[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.map(this.visitSv).flat()
 
-    visitSvelteElement = (node: AST.SvelteElement): NestText[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteElement = (node: AST.SvelteElement): Message[] => node.attributes.map(this.visitSv).flat()
 
-    visitSvelteBoundary = (node: AST.SvelteBoundary): NestText[] => [
+    visitSvelteBoundary = (node: AST.SvelteBoundary): Message[] => [
         ...node.attributes.map(this.visitSv).flat(),
         ...this.visitSv(node.fragment),
     ]
 
-    visitSvelteHead = (node: AST.SvelteHead): NestText[] => this.visitSv(node.fragment)
+    visitSvelteHead = (node: AST.SvelteHead): Message[] => this.visitSv(node.fragment)
 
-    visitSvelteWindow = (node: AST.SvelteWindow): NestText[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
 
-    visitRoot = (node: AST.Root): NestText[] => {
-        const txts = this.visitFragment(node.fragment)
+    visitRoot = (node: AST.Root): Message[] => {
+        const msgs = this.visitFragment(node.fragment)
         if (node.instance) {
             this.commentDirectives = {} // reset
-            txts.push(...this.visitProgram(node.instance.content))
+            msgs.push(...this.visitProgram(node.instance.content))
         }
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
             this.commentDirectives = {} // reset
             // @ts-ignore
-            txts.push(...this.visitProgram(node.module.content))
+            msgs.push(...this.visitProgram(node.module.content))
         }
-        return txts
+        return msgs
     }
 
-    visitSv = (node: AST.SvelteNode | AnyNode): NestText[] => {
+    visitSv = (node: AST.SvelteNode | AnyNode): Message[] => {
         if (node.type === 'Comment') {
             const directives = this.processCommentDirectives(node.data.trim())
             if (this.lastVisitIsComment) {
@@ -247,17 +247,17 @@ export class SvelteTransformer extends Transformer {
         if (node.type === 'Text' && !node.data.trim()) {
             return []
         }
-        let txts = []
+        let msgs = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
-            txts = this.visit(node)
+            msgs = this.visit(node)
         }
         this.commentDirectives = commentDirectivesPrev
-        return txts
+        return msgs
     }
 
     transformSv = (headerHead: string): TransformOutput => {
@@ -272,9 +272,9 @@ export class SvelteTransformer extends Transformer {
         }
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
-        const txts = this.visitSv(ast)
-        if (!txts.length) {
-            return this.finalize(txts)
+        const msgs = this.visitSv(ast)
+        if (!msgs.length) {
+            return this.finalize(msgs)
         }
         let initRTTop = `const ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`
         if (ast.type === 'Program' && !this.runtimeOpts.initInScope({ funcName: null, file: this.filename })) {
@@ -287,7 +287,7 @@ export class SvelteTransformer extends Transformer {
         ].join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')
-            return this.finalize(txts)
+            return this.finalize(msgs)
         }
         if (ast.module) {
             // @ts-ignore
@@ -298,6 +298,6 @@ export class SvelteTransformer extends Transformer {
         } else {
             this.mstr.prepend(`<script>${headerFin}</script>\n`)
         }
-        return this.finalize(txts)
+        return this.finalize(msgs)
     }
 }

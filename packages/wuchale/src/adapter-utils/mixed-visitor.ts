@@ -1,7 +1,7 @@
 // Shared logic between adapters for handling nested / mixed elements within elements / fragments
 
 import type MagicString from "magic-string"
-import { IndexTracker, NestText, type CommentDirectives } from "../adapters.js"
+import { IndexTracker, Message, type CommentDirectives } from "../adapters.js"
 import { nonWhitespaceText, type RuntimeVars } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
@@ -15,10 +15,10 @@ type InitProps<NodeT> = {
     canHaveChildren: (node: NodeT) => boolean
     getTextContent: (node: NodeT) => string
     getCommentData: (node: NodeT) => string
-    visitFunc: (node: NodeT, inCompoundText: boolean) => NestText[]
-    visitExpressionTag: (node: NodeT) => NestText[]
-    checkHeuristic: (txt: string) => boolean
-    wrapNested: (txt: NestText, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
+    visitFunc: (node: NodeT, inCompoundText: boolean) => Message[]
+    visitExpressionTag: (node: NodeT) => Message[]
+    checkHeuristic: (msgStr: string) => boolean
+    wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
     index: IndexTracker
     vars: RuntimeVars
 }
@@ -37,45 +37,44 @@ export class MixedVisitor<NodeT> {
         Object.assign(this, props)
     }
 
-    separatelyVisitChildren = (props: VisitProps<NodeT>): [boolean, boolean, boolean, NestText[]] => {
+    separatelyVisitChildren = (props: VisitProps<NodeT>): [boolean, boolean, boolean, Message[]] => {
         let hasTextChild = false
         let hasNonTextChild = false
-        let heurTxt = ''
+        let heurStr = ''
         let hasCommentDirectives = false
         for (const child of props.children) {
             if (this.isText(child)) {
-                const text = this.getTextContent(child)
-                const txt = text.trim()
-                if (!txt) {
+                const strContent = this.getTextContent(child)
+                if (!strContent.trim()) {
                     continue
                 }
                 hasTextChild = true
-                heurTxt += text + ' '
+                heurStr += strContent + ' '
             } else if (this.isComment(child)) {
                 if (this.getCommentData(child).trim().startsWith('@wc-')) {
                     hasCommentDirectives = true
                 }
             } else {
                 hasNonTextChild = true
-                heurTxt += `# `
+                heurStr += `# `
             }
         }
-        heurTxt = heurTxt.trimEnd()
-        const passHeuristic = this.checkHeuristic(heurTxt)
+        heurStr = heurStr.trimEnd()
+        const passHeuristic = this.checkHeuristic(heurStr)
         let hasCompoundText = hasTextChild && hasNonTextChild
         const visitAsOne = passHeuristic && !hasCommentDirectives
         if (props.inCompoundText || hasCompoundText && visitAsOne) {
             return [false, hasTextChild, hasCompoundText, []]
         }
-        const txts = []
+        const msgs = []
         // can't be extracted as one; visitSv each separately
         for (const child of props.children) {
-            txts.push(...this.visitFunc(child, props.inCompoundText))
+            msgs.push(...this.visitFunc(child, props.inCompoundText))
         }
-        return [true, false, false, txts]
+        return [true, false, false, msgs]
     }
 
-    visit = (props: VisitProps<NodeT>): NestText[] => {
+    visit = (props: VisitProps<NodeT>): Message[] => {
         if (props.children.length === 0) {
             return []
         }
@@ -83,13 +82,13 @@ export class MixedVisitor<NodeT> {
         if (visitedSeparately) {
             return separateTxts
         }
-        let txt = ''
+        let msgStr = ''
         let iArg = 0
         let iTag = 0
         const lastChildEnd = this.getRange(props.children.slice(-1)[0]).end
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
-        const txts = []
+        const msgs = []
         for (const child of props.children) {
             if (this.isComment(child)) {
                 continue
@@ -97,26 +96,26 @@ export class MixedVisitor<NodeT> {
             const chRange = this.getRange(child)
             if (this.isText(child)) {
                 const [startWh, trimmed, endWh] = nonWhitespaceText(this.getTextContent(child))
-                const nTxt = new NestText(trimmed, 'markup', props.commentDirectives.context)
-                if (startWh && !txt.endsWith(' ')) {
-                    txt += ' '
+                const msgInfo = new Message(trimmed, 'markup', props.commentDirectives.context)
+                if (startWh && !msgStr.endsWith(' ')) {
+                    msgStr += ' '
                 }
                 if (!trimmed) { // whitespace
                     continue
                 }
-                txt += nTxt.text
+                msgStr += msgInfo.msgStr
                 if (endWh) {
-                    txt += ' '
+                    msgStr += ' '
                 }
                 this.mstr.remove(chRange.start, chRange.end)
                 continue
             }
             if (this.isExpression(child)) {
-                txts.push(...this.visitExpressionTag(child))
+                msgs.push(...this.visitExpressionTag(child))
                 if (!hasCompoundText) {
                     continue
                 }
-                txt += `{${iArg}}`
+                msgStr += `{${iArg}}`
                 let moveStart = chRange.start
                 if (iArg > 0) {
                     this.mstr.update(chRange.start, chRange.start + 1, ', ')
@@ -131,16 +130,16 @@ export class MixedVisitor<NodeT> {
             }
             // elements, components and other things as well
             const canHaveChildren = this.canHaveChildren(child)
-            const childTxts = this.visitFunc(child, canHaveChildren)
+            const childMsgs = this.visitFunc(child, canHaveChildren)
             let nestedNeedsCtx = false
             let chTxt = ''
-            for (const txt of childTxts) {
-                if (canHaveChildren && txt.scope === 'markup') {
-                    chTxt += txt.text[0]
+            for (const msgInfo of childMsgs) {
+                if (canHaveChildren && msgInfo.scope === 'markup') {
+                    chTxt += msgInfo.msgStr[0]
                     hasTextDescendants = true
                     nestedNeedsCtx = true
                 } else { // attributes, blocks
-                    txts.push(txt)
+                    msgs.push(msgInfo)
                 }
             }
             childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
@@ -151,20 +150,20 @@ export class MixedVisitor<NodeT> {
                 chTxt = `<${iTag}/>`
             }
             iTag++
-            txt += chTxt
+            msgStr += chTxt
         }
-        txt = txt.trim()
-        if (!txt) {
-            return txts
+        msgStr = msgStr.trim()
+        if (!msgStr) {
+            return msgs
         }
-        const nTxt = new NestText(txt, 'markup', props.commentDirectives.context)
+        const msgInfo = new Message(msgStr, 'markup', props.commentDirectives.context)
         if (hasTextChild || hasTextDescendants) {
-            txts.push(nTxt)
+            msgs.push(msgInfo)
         } else {
-            return txts
+            return msgs
         }
         if (childrenNestedRanges.length) {
-            this.wrapNested(nTxt, iArg > 0, childrenNestedRanges, lastChildEnd)
+            this.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
         } else if (hasTextChild) {
             // no need for component use
             let begin = '{'
@@ -172,7 +171,7 @@ export class MixedVisitor<NodeT> {
             if (props.inCompoundText) {
                 begin += `${this.vars.rtTransCtx}(${this.vars.nestCtx}`
             } else {
-                begin += `${this.vars.rtTrans}(${this.index.get(nTxt.toKey())}`
+                begin += `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
             }
             if (iArg > 0) {
                 begin += ', ['
@@ -181,6 +180,6 @@ export class MixedVisitor<NodeT> {
             this.mstr.appendLeft(lastChildEnd, begin)
             this.mstr.appendRight(lastChildEnd, end)
         }
-        return txts
+        return msgs
     }
 }

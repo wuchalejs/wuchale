@@ -22,10 +22,10 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
-export type HeuristicFunc = (text: string, details: HeuristicDetails) => boolean | null | undefined
+export type HeuristicFunc = (msgStr: string, details: HeuristicDetails) => boolean | null | undefined
 
-export function defaultHeuristic(text: string, details: HeuristicDetails) {
-    if (text.search(/\p{L}/u) === -1) {
+export function defaultHeuristic(msgStr: string, details: HeuristicDetails) {
+    if (msgStr.search(/\p{L}/u) === -1) {
         return false
     }
     if (details.scope === 'markup') {
@@ -33,7 +33,7 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
     }
     // script and attribute
     // only allow non lower-case English letter beginnings
-    if (!/\p{L}/u.test(text[0]) || /[a-z]/.test(text[0])) {
+    if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
         return false
     }
     if (details.scope !== 'script') {
@@ -46,30 +46,30 @@ export function defaultHeuristic(text: string, details: HeuristicDetails) {
 }
 
 // only allow inside function definitions for script scope
-export const defaultHeuristicFuncOnly: HeuristicFunc = (text, details) => {
-    return defaultHeuristic(text, details) && (details.scope !== 'script' || details.funcName != null)
+export const defaultHeuristicFuncOnly: HeuristicFunc = (msgStr, details) => {
+    return defaultHeuristic(msgStr, details) && (details.scope !== 'script' || details.funcName != null)
 }
 
 export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
 
-export class NestText {
+export class Message {
 
-    text: string[] // array for plurals
+    msgStr: string[] // array for plurals
     plural: boolean = false
     scope: TxtScope
     context: string
 
-    constructor(txt: string | string[], scope: TxtScope, context: string | null) {
-        if (typeof txt === 'string') {
-            this.text = [txt]
+    constructor(msgStr: string | string[], scope: TxtScope, context: string | null) {
+        if (typeof msgStr === 'string') {
+            this.msgStr = [msgStr]
         } else {
-            this.text = txt
+            this.msgStr = msgStr
         }
         this.scope = scope
         this.context = context ?? null
     }
 
-    toKey = () => `${this.text.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
+    toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
 
 }
 
@@ -87,12 +87,12 @@ export class IndexTracker {
     indices: Record<string, number> = {}
     nextIndex: number = 0
 
-    get = (txt: string) => {
-        if (txt in this.indices) {
-            return this.indices[txt]
+    get = (msgStr: string) => {
+        if (msgStr in this.indices) {
+            return this.indices[msgStr]
         }
         const index = this.nextIndex
-        this.indices[txt] = index
+        this.indices[msgStr] = index
         this.nextIndex++
         return index
     }
@@ -118,7 +118,7 @@ type TransformCtx = {
 export type TransformOutput = {
     code?: string
     map?: any
-    txts: NestText[]
+    msgs: Message[]
 }
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput

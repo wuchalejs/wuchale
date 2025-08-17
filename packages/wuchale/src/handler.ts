@@ -1,6 +1,6 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
-import { IndexTracker, NestText } from "./adapters.js"
+import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, GlobConf, Catalog } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
@@ -47,8 +47,8 @@ async function loadCatalogFromPO(filename: string): Promise<LoadedPO> {
     const po = await loadPOFile(filename)
     const catalog: Catalog = {}
     for (const item of po.items) {
-        const nTxt = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt)
-        catalog[nTxt.toKey()] = item
+        const msgInfo = new Message([item.msgid, item.msgid_plural], null, item.msgctxt)
+        catalog[msgInfo.toKey()] = item
     }
     let pluralRule: PluralRule
     const pluralHeader = po.headers['Plural-Forms']
@@ -493,7 +493,7 @@ export class AdapterHandler {
             indexTracker = state.indexTracker
             loadID = state.id
         }
-        const { txts, ...output } = this.#adapter.transform({
+        const { msgs, ...output } = this.#adapter.transform({
             content,
             filename,
             index: indexTracker,
@@ -507,14 +507,14 @@ export class AdapterHandler {
                 if (!item.references.includes(filename)) {
                     continue
                 }
-                const key = new NestText([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
+                const key = new Message([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
                 const prevRefs = item.references.length
                 item.references = item.references.filter(f => f !== filename)
                 previousReferences[key] = prevRefs - item.references.length
                 item.obsolete = item.references.length === 0
                 fewerRefs = true
             }
-            if (!txts.length) {
+            if (!msgs.length) {
                 if (fewerRefs) {
                     this.savePoAndCompile(loc)
                 }
@@ -523,23 +523,23 @@ export class AdapterHandler {
             let newItems: boolean = false
             const untranslated: ItemType[] = []
             let newRefs = false
-            for (const nTxt of txts) {
-                let key = nTxt.toKey()
+            for (const msgInfo of msgs) {
+                let key = msgInfo.toKey()
                 let poItem = this.catalogs[loc][key]
                 if (!poItem) {
                     // @ts-expect-error
                     poItem = new PO.Item({
                         nplurals: this.#pluralRules[loc]?.nplurals ?? 2,
                     })
-                    poItem.msgid = nTxt.text[0]
-                    if (nTxt.plural) {
-                        poItem.msgid_plural = nTxt.text[1] ?? nTxt.text[0]
+                    poItem.msgid = msgInfo.msgStr[0]
+                    if (msgInfo.plural) {
+                        poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
                     }
                     this.catalogs[loc][key] = poItem
                     newItems = true
                 }
-                if (nTxt.context) {
-                    poItem.msgctxt = nTxt.context
+                if (msgInfo.context) {
+                    poItem.msgctxt = msgInfo.context
                 }
                 if (previousReferences[key] > 0) {
                     if (previousReferences[key] === 1) {
@@ -553,9 +553,9 @@ export class AdapterHandler {
                 poItem.references.push(filename)
                 poItem.obsolete = false
                 if (loc === this.#config.sourceLocale) {
-                    const txt = nTxt.text.join('\n')
-                    if (poItem.msgstr.join('\n') !== txt) {
-                        poItem.msgstr = nTxt.text
+                    const msgStr = msgInfo.msgStr.join('\n')
+                    if (poItem.msgstr.join('\n') !== msgStr) {
+                        poItem.msgstr = msgInfo.msgStr
                         untranslated.push(poItem)
                     }
                 } else if (!poItem.msgstr[0]) {
@@ -580,7 +580,7 @@ export class AdapterHandler {
             await this.#geminiQueue[loc].running
         }
         await this.writeTransformed(filename, output.code ?? content)
-        if (!txts.length) {
+        if (!msgs.length) {
             return {}
         }
         return output

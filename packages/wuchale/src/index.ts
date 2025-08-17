@@ -14,7 +14,7 @@ export type {
 export { AdapterHandler, type Mode } from './handler.js'
 export { Logger } from './log.js'
 export {
-    NestText,
+    Message,
     IndexTracker,
     defaultGenerateLoadID,
     defaultHeuristic,
