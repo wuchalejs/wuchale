@@ -124,21 +124,9 @@ export class Transformer {
         return [msgInfo]
     }
 
-    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => {
-        const msgs = []
-        for (const elm of node.elements) {
-            msgs.push(...this.visit(elm))
-        }
-        return msgs
-    }
+    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => node.elements.map(this.visit).flat()
 
-    visitObjectExpression = (node: Estree.ObjectExpression): Message[] => {
-        const msgs = []
-        for (const prop of node.properties) {
-            msgs.push(...this.visit(prop))
-        }
-        return msgs
-    }
+    visitObjectExpression = (node: Estree.ObjectExpression): Message[] => node.properties.map(this.visit).flat()
 
     visitProperty = (node: Estree.Property): Message[] => [
         ...this.visit(node.key),
@@ -155,7 +143,7 @@ export class Transformer {
     visitNewExpression = (node: Estree.NewExpression): Message[] => node.arguments.map(this.visit).flat()
 
     defaultVisitCallExpression = (node: Estree.CallExpression): Message[] => {
-        const msgs = [...this.visit(node.callee)]
+        const msgs = this.visit(node.callee)
         const currentCall = this.currentCall
         this.currentCall = this.getCalleeName(node.callee)
         for (const arg of node.arguments) {
@@ -320,20 +308,9 @@ export class Transformer {
 
     visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
-    visitBlockStatement = (node: Estree.BlockStatement): Message[] => {
-        const msgs = []
-        for (const statement of node.body) {
-            msgs.push(...this.visit(statement))
-        }
-        return msgs
-    }
+    visitBlockStatement = (node: Estree.BlockStatement): Message[] => node.body.map(this.visit).flat()
 
-    visitReturnStatement = (node: Estree.ReturnStatement): Message[] => {
-        if (node.argument) {
-            return this.visit(node.argument)
-        }
-        return []
-    }
+    visitReturnStatement = (node: Estree.ReturnStatement): Message[] => node.argument ? this.visit(node.argument) : []
 
     visitIfStatement = (node: Estree.IfStatement): Message[] => {
         const msgs = this.visit(node.test)
