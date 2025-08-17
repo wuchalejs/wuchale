@@ -28,8 +28,7 @@ type LoadedPO = {
     pluralRule: PluralRule
 }
 
-const keyWordizeLocale = (locale: string) => locale.replaceAll('-', '_')
-const objKeyLocale = (locale: string) => locale.includes('-') ? `['${locale}']` : locale
+const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
 
 export async function loadPOFile(filename: string): Promise<PO> {
     return new Promise((res, rej) => {
@@ -235,10 +234,10 @@ export class AdapterHandler {
         const object = []
         for (const id of loadIDs) {
             const importedByLocale = []
-            for (const loc of this.#locales) {
-                const locKW = keyWordizeLocale(loc)
-                imports.push(`import * as ${locKW}Of${id} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
-                importedByLocale.push(`${objKeyLocale(loc)}: ${locKW}Of${id}`)
+            for (const [i, loc] of this.#locales) {
+                const locKey = `_w_c_${id}_${i}_`
+                imports.push(`import * as ${locKey} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
+                importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
