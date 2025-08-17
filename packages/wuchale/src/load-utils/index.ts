@@ -1,4 +1,4 @@
-import { type CatalogModule, defaultPluralsRule, Runtime } from '../runtime.js'
+import { type CatalogModule, Runtime } from '../runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 
@@ -29,7 +29,7 @@ export function defaultCollection(store: Record<string, CatalogModule>): Catalog
 
 /** Global catalog states registry */
 const states: Record<string, LoaderState> = {}
-const emptyCatalog: CatalogModule = { c: [], p: defaultPluralsRule }
+const emptyCatalog: CatalogModule = { c: [] }
 
 /**
  * - `key` is a unique identifier for the group
