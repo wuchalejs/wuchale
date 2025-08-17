@@ -12,9 +12,18 @@ export type CatalogModule = {
 
 export const defaultPluralsRule: PluralsRule = n => n === 1 ? 0 : 1
 
+let err = (id: number, ctx: CompiledElement): string => {
+    if (ctx == null) {
+        return `[i18n-404:${id}]`
+    }
+    return `[i18n-400:${id}(${ctx})]`
+}
+
 export class Runtime {
 
     _: CatalogModule = { c: [], p: defaultPluralsRule }
+
+    static setErrMsg = (e: typeof err) => { err = e }
 
     constructor(module?: CatalogModule) {
         if (!module) { // for fallback
@@ -32,10 +41,7 @@ export class Runtime {
         if (Array.isArray(ctx)) {
             return ctx
         }
-        if (ctx == null) {
-            return [`[i18n-404:${id}]`]
-        }
-        return [`[i18n-400:${id}(${ctx})]`]
+        return [err(id, ctx)]
     }
 
     /** get translation using composite context */
