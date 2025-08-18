@@ -22,7 +22,7 @@ test('Compile nested', function(t) {
 
 test('Default loader file paths', async function(t){
     const adap = adapter()
-    for (const loader of await adap.defaultLoaders()) {
+    for (const loader of ['server', 'vite']) {
         await statfs(adap.defaultLoaderPath(loader)) // no error
     }
 })

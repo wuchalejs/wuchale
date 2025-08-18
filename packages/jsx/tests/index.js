@@ -7,7 +7,7 @@ import { statfs } from 'fs/promises'
 
 test('Default loader file paths', async function(t){
     const adap = adapter()
-    for (const loader of await adap.defaultLoaders(new Set(['react']))) {
+    for (const loader of ['default', 'react', 'solidjs']) {
         await statfs(adap.defaultLoaderPath(loader)) // no error
     }
 })
