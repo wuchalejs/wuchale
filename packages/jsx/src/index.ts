@@ -82,7 +82,10 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         },
         defaultLoaderPath: (loader: string) => {
             if (loader === 'default') {
-                return vanillaAdapter().defaultLoaderPath('vite')
+                return vanillaAdapter({bundleLoad: rest.bundleLoad}).defaultLoaderPath('vite')
+            }
+            if (rest.bundleLoad) {
+                loader += '.bundle'
             }
             return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },

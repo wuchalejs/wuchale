@@ -50,6 +50,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
+            if (rest.bundleLoad) {
+                return ['bundle']
+            }
             const deps = await getDependencies()
             const available = ['server']
             if (deps.has('vite')) {

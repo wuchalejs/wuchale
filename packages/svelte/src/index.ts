@@ -68,6 +68,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         ).transformSv(header.head),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaders: async () => {
+            if (rest.bundleLoad) {
+                return ['bundle']
+            }
             const deps = await getDependencies()
             const available = ['reactive', 'vanilla']
             if (deps.has('@sveltejs/kit')) {
