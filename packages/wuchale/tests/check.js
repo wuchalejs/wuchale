@@ -34,10 +34,10 @@ export async function getOutput(adapter, key, content, filename) {
         process.cwd(),
         new Logger(false),
     )
-    await handler.init()
+    await handler.init({})
     const { code } = await handler.transform(content, filename)
-    const { catalogs, compiled } = handler
-    return { code, catalogs: catalogs, compiled }
+    const { poFilesByLoc, compiled } = handler.sharedState
+    return { code, catalogs: poFilesByLoc, compiled }
 }
 
 /**
@@ -70,8 +70,8 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
     const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
-    for (const key in catalogs.en) {
-        po.items.push(catalogs.en[key])
+    for (const key in catalogs.en.catalog) {
+        po.items.push(catalogs.en.catalog[key])
     }
     t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
     t.assert.deepEqual(compiled.en?.items ?? [], expectedCompiled)

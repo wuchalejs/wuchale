@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, GlobConf, Catalog } from "./adapters.js"
+import type { Adapter, GlobConf } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -22,10 +22,13 @@ const defaultPluralRule: PluralRule = {
     plural: 'n == 1 ? 0 : 1',
 }
 
-type LoadedPO = {
+type Catalog = Record<string, ItemType>
+
+type POFile = {
     catalog: Catalog
     headers: Record<string, string>
     pluralRule: PluralRule
+    loaded: boolean
 }
 
 const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
@@ -42,7 +45,7 @@ export async function loadPOFile(filename: string): Promise<PO> {
     })
 }
 
-async function loadCatalogFromPO(filename: string): Promise<LoadedPO> {
+async function loadCatalogFromPO(filename: string): Promise<POFile> {
     const po = await loadPOFile(filename)
     const catalog: Catalog = {}
     for (const item of po.items) {
@@ -57,7 +60,7 @@ async function loadCatalogFromPO(filename: string): Promise<LoadedPO> {
     } else {
         pluralRule = defaultPluralRule
     }
-    return { catalog, pluralRule, headers: po.headers }
+    return { catalog, pluralRule, headers: po.headers, loaded: true }
 }
 
 async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
@@ -83,10 +86,21 @@ type Compiled = {
     hasPlurals: boolean
     items: CompiledElement[]
 }
-type CompiledCatalog = Record<string, Compiled>
+
+type CompiledCatalogs = Record<string, Compiled>
+
+type SharedState = {
+    poFilesByLoc: Record<string, POFile>
+    compiled: CompiledCatalogs
+    indexTracker: IndexTracker
+}
+
+/* shared states among multiple adapters handlers */
+export type SharedStates = Record<string, SharedState>
+
 type GranularState = {
     id: string,
-    compiled: CompiledCatalog,
+    compiled: CompiledCatalogs,
     indexTracker: IndexTracker,
 }
 
@@ -108,10 +122,8 @@ export class AdapterHandler {
 
     #adapter: Adapter
 
-    #pluralRules: Record<string, PluralRule> = {}
-
-    catalogs: Record<string, Catalog> = {}
-    compiled: CompiledCatalog = {}
+    /* Shared state with other adapter handlers */
+    sharedState: SharedState
 
     granularStateByFile: Record<string, GranularState> = {}
     granularStateByID: Record<string, GranularState> = {}
@@ -119,10 +131,7 @@ export class AdapterHandler {
     #catalogsFname: Record<string, string> = {}
     catalogPathsToLocales: Record<string, string> = {}
 
-    #poHeaders: Record<string, Record<string, string>> = {}
-
     #mode: Mode
-    #indexTracker: IndexTracker = new IndexTracker()
     #geminiQueue: Record<string, GeminiQueue> = {}
 
     #log: Logger
@@ -138,6 +147,9 @@ export class AdapterHandler {
     }
 
     getLoaderPaths(): string[] {
+        if (this.#adapter.loaderPath != null) {
+            return [this.#adapter.loaderPath]
+        }
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
         const paths: string[] = []
         for (const ext of this.#adapter.loaderExts) {
@@ -257,14 +269,28 @@ export class AdapterHandler {
         return `${catalog}.po`
     }
 
-    init = async () => {
+    init = async (sharedStates: SharedStates) => {
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         await this.#initPaths()
         this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
         const sourceLocaleName = getLanguageName(this.#config.sourceLocale)
+        this.sharedState = sharedStates[this.#adapter.catalog]
+        if (this.sharedState == null) {
+            this.sharedState = {
+                poFilesByLoc: {},
+                indexTracker: new IndexTracker(),
+                compiled: {},
+            }
+            sharedStates[this.#adapter.catalog] = this.sharedState
+        }
         this.catalogPathsToLocales = {}
         for (const loc of this.#locales) {
-            this.catalogs[loc] = {}
+            this.sharedState.poFilesByLoc[loc] = {
+                catalog: {},
+                pluralRule: defaultPluralRule,
+                headers: {},
+                loaded: false,
+            }
             this.#catalogsFname[loc] = this.catalogFileName(loc)
             // for handleHotUpdate
             this.catalogPathsToLocales[this.#catalogsFname[loc]] = loc
@@ -283,10 +309,7 @@ export class AdapterHandler {
 
     loadCatalogNCompile = async (loc: string): Promise<void> => {
         try {
-            const { catalog, headers, pluralRule } = await loadCatalogFromPO(this.#catalogsFname[loc])
-            this.#poHeaders[loc] = headers
-            this.catalogs[loc] = catalog
-            this.#pluralRules[loc] = pluralRule
+            this.sharedState.poFilesByLoc[loc] = await loadCatalogFromPO(this.#catalogsFname[loc])
             this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
@@ -297,12 +320,12 @@ export class AdapterHandler {
     }
 
     loadDataModule = (locale: string, loadID: string) => {
-        let compiledData = this.compiled[locale]
+        let compiledData = this.sharedState.compiled[locale]
         if (this.#adapter.granularLoad) {
             compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? { hasPlurals: false, items: [] }
         }
         const compiledItems = JSON.stringify(compiledData.items)
-        const plural = `n => ${this.#pluralRules[locale].plural}`
+        const plural = `n => ${this.sharedState.poFilesByLoc[locale].pluralRule.plural}`
         const compiled = `export let ${catalogVarName} = ${compiledItems}`
         if (!compiledData.hasPlurals) {
             return compiled
@@ -333,14 +356,15 @@ export class AdapterHandler {
     }
 
     compile = async (loc: string) => {
-        this.compiled[loc] = { hasPlurals: false, items: [] }
-        for (const key in this.catalogs[loc]) {
-            const poItem = this.catalogs[loc][key]
-            const index = this.#indexTracker.get(key)
+        this.sharedState.compiled[loc] = { hasPlurals: false, items: [] }
+        const catalog = this.sharedState.poFilesByLoc[loc].catalog
+        for (const key in catalog) {
+            const poItem = catalog[key]
+            const index = this.sharedState.indexTracker.get(key)
             let compiled: CompiledElement
-            const fallback = this.compiled[this.#config.sourceLocale]?.items?.[index] // ?. for sourceLocale itself
+            const fallback = this.sharedState.compiled[this.#config.sourceLocale]?.items?.[index] // ?. for sourceLocale itself
             if (poItem.msgid_plural) {
-                this.compiled[loc].hasPlurals = true
+                this.sharedState.compiled[loc].hasPlurals = true
                 if (poItem.msgstr.join('').trim()) {
                     compiled = poItem.msgstr
                 } else {
@@ -349,13 +373,13 @@ export class AdapterHandler {
             } else {
                 compiled = compileTranslation(poItem.msgstr[0], fallback)
             }
-            this.compiled[loc].items[index] = compiled
+            this.sharedState.compiled[loc].items[index] = compiled
             if (!this.#adapter.granularLoad) {
                 continue
             }
             for (const fname of poItem.references) {
                 const state = this.#getGranularState(fname)
-                state.compiled[loc].hasPlurals = this.compiled[loc].hasPlurals
+                state.compiled[loc].hasPlurals = this.sharedState.compiled[loc].hasPlurals
                 state.compiled[loc].items[state.indexTracker.get(key)] = compiled
             }
         }
@@ -426,11 +450,12 @@ export class AdapterHandler {
     }
 
     savePoAndCompile = async (loc: string) => {
-        const fullHead = { ...this.#poHeaders[loc] ?? {} }
+        const poFile = this.sharedState.poFilesByLoc[loc]
+        const fullHead = { ...poFile.headers ?? {} }
         const updateHeaders = [
             ['Plural-Forms', [
-                `nplurals=${this.#pluralRules[loc]?.nplurals ?? 2}`,
-                `plural=${this.#pluralRules[loc]?.plural ?? defaultPluralRule.plural};`,
+                `nplurals=${poFile.pluralRule.nplurals}`,
+                `plural=${poFile.pluralRule.plural};`,
             ].join('; ')],
             ['Language', loc],
             ['MIME-Version', '1.0'],
@@ -449,7 +474,7 @@ export class AdapterHandler {
                 fullHead[key] = val
             }
         }
-        await saveCatalogToPO(this.catalogs[loc], this.#catalogsFname[loc], fullHead)
+        await saveCatalogToPO(poFile.catalog, this.#catalogsFname[loc], fullHead)
         if (this.#mode !== 'extract') { // save for the end
             await this.compile(loc)
         }
@@ -485,7 +510,7 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string): Promise<{ code?: string, map?: any }> => {
-        let indexTracker = this.#indexTracker
+        let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         if (this.#adapter.granularLoad) {
             const state = this.#getGranularState(filename)
@@ -502,7 +527,8 @@ export class AdapterHandler {
             // clear references to this file first
             let previousReferences: Record<string, number> = {}
             let fewerRefs = false
-            for (const item of Object.values(this.catalogs[loc])) {
+            const poFile = this.sharedState.poFilesByLoc[loc]
+            for (const item of Object.values(poFile.catalog)) {
                 if (!item.references.includes(filename)) {
                     continue
                 }
@@ -524,17 +550,17 @@ export class AdapterHandler {
             let newRefs = false
             for (const msgInfo of msgs) {
                 let key = msgInfo.toKey()
-                let poItem = this.catalogs[loc][key]
+                let poItem = poFile.catalog[key]
                 if (!poItem) {
                     // @ts-expect-error
                     poItem = new PO.Item({
-                        nplurals: this.#pluralRules[loc]?.nplurals ?? 2,
+                        nplurals: poFile.pluralRule.nplurals,
                     })
                     poItem.msgid = msgInfo.msgStr[0]
                     if (msgInfo.plural) {
                         poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
                     }
-                    this.catalogs[loc][key] = poItem
+                    poFile.catalog[key] = poItem
                     newItems = true
                 }
                 if (msgInfo.context) {

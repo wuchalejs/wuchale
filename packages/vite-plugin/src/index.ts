@@ -3,6 +3,7 @@ import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, CompiledElement} from "wuchale"
 import { catalogVarName } from "wuchale/runtime"
+import type { SharedStates } from "../../wuchale/dist/handler.js"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
@@ -25,7 +26,7 @@ class Plugin {
 
     #adapters: Record<string, AdapterHandler> = {}
     #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
-    #adaptersByCatalogPath: Record<string, AdapterHandler> = {}
+    #adaptersByCatalogPath: Record<string, AdapterHandler[]> = {}
 
     #log: Logger
 
@@ -43,6 +44,7 @@ class Plugin {
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
+        const sharedState: SharedStates = {}
         for (const [key, adapter] of Object.entries(this.#config.adapters)) {
             const handler = new AdapterHandler(
                 adapter,
@@ -53,11 +55,20 @@ class Plugin {
                 this.#projectRoot,
                 this.#log,
             )
-            await handler.init()
+            await handler.init(sharedState)
             this.#adapters[key] = handler
-            this.#adaptersByLoaderPath[resolve(handler.loaderPath)] = handler
+            const loaderPath = resolve(handler.loaderPath)
+            if (loaderPath in this.#adaptersByLoaderPath) {
+                throw new Error([
+                    'While catalogs can be shared, the same loader cannot be used by multiple adapters',
+                    `Conflicting: ${key} and ${this.#adaptersByLoaderPath[loaderPath].key}`,
+                    'Specify a different loaderPath for one of them.'
+                ].join('\n'))
+            }
+            this.#adaptersByLoaderPath[loaderPath] = handler
             for (const fname of Object.keys(handler.catalogPathsToLocales)) {
-                this.#adaptersByCatalogPath[fname] = handler
+                this.#adaptersByCatalogPath[fname] ??= []
+                this.#adaptersByCatalogPath[fname].push(handler)
             }
         }
     }
@@ -95,31 +106,33 @@ class Plugin {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             return
         }
-        const adapter = this.#adaptersByCatalogPath[ctx.file]
-        const loc = adapter.catalogPathsToLocales[ctx.file]
-        await adapter.loadCatalogNCompile(loc)
-        const loadIDsToInvalidate: string[] = []
-        if (this.#config.adapters[adapter.key].granularLoad) {
-            for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
-                loadIDsToInvalidate.push(loadID)
-                const eventName = adapter.virtModEvent(loc, loadID)
-                ctx.server.ws.send(eventName, state.compiled[loc].items)
+        const adapters = this.#adaptersByCatalogPath[ctx.file]
+        for (const adapter of adapters) {
+            const loc = adapter.catalogPathsToLocales[ctx.file]
+            await adapter.loadCatalogNCompile(loc)
+            const loadIDsToInvalidate: string[] = []
+            if (this.#config.adapters[adapter.key].granularLoad) {
+                for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
+                    loadIDsToInvalidate.push(loadID)
+                    const eventName = adapter.virtModEvent(loc, loadID)
+                    ctx.server.ws.send(eventName, state.compiled[loc].items)
+                }
+            } else {
+                loadIDsToInvalidate.push(null)
+                ctx.server.ws.send(adapter.virtModEvent(loc, null), adapter.sharedState.compiled[loc].items)
             }
-        } else {
-            loadIDsToInvalidate.push(null)
-            ctx.server.ws.send(adapter.virtModEvent(loc, null), adapter.compiled[loc].items)
-        }
-        // invalidate for next reload
-        const invalidatedModules = new Set()
-        for (const loadID of loadIDsToInvalidate) {
-            const fileID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
-            for (const module of ctx.server.moduleGraph.getModulesByFile(fileID)) { 
-                ctx.server.moduleGraph.invalidateModule(
-                    module,
-                    invalidatedModules,
-                    ctx.timestamp,
-                    false // no hmr, already sent event
-                )
+            // invalidate for next reload
+            const invalidatedModules = new Set()
+            for (const loadID of loadIDsToInvalidate) {
+                const fileID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
+                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID)) { 
+                    ctx.server.moduleGraph.invalidateModule(
+                        module,
+                        invalidatedModules,
+                        ctx.timestamp,
+                        false // no hmr, already sent event
+                    )
+                }
             }
         }
     }

@@ -1,5 +1,3 @@
-import type { ItemType } from "./gemini.js"
-
 type TxtScope = "script" | "markup" | "attribute"
 
 export type HeuristicDetailsBase = {
@@ -73,10 +71,6 @@ export class Message {
 
 }
 
-export interface Catalog {
-    [key: string]: ItemType
-}
-
 export type CommentDirectives = {
     forceInclude?: boolean
     context?: string
@@ -129,6 +123,7 @@ export type AdapterPassThruOpts = {
     granularLoad: boolean
     bundleLoad: boolean,
     generateLoadID: (filename: string) => string
+    loaderPath?: string
     writeFiles: {
         compiled?: boolean
         proxy?: boolean

@@ -1,6 +1,6 @@
 import { copyFile, mkdir } from "node:fs/promises"
 import { type Config } from "../config.js"
-import { AdapterHandler } from "../handler.js"
+import { AdapterHandler, type SharedStates } from "../handler.js"
 import { dirname } from "node:path"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
@@ -11,6 +11,8 @@ export async function init(config: Config, locales: string[], logger: Logger) {
     let extractedNew = false
     setupInteractive()
     const adapLogger = new Logger(config.messages)
+    const sharedState: SharedStates = {}
+    const keysByLoaderPath: Record<string, string> = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const adapterName = color.magenta(key)
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
@@ -37,7 +39,16 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         }
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         logger.log(`Initial extract for ${adapterName}`)
-        await extractAdap(handler, adapter.files, locales, false, logger)
+        await extractAdap(handler, sharedState, adapter.files, locales, false, logger)
+        if (handler.loaderPath in keysByLoaderPath) {
+            throw new Error([
+                'While catalogs can be shared, the same loader cannot be used by multiple adapters',
+                `Conflicting: ${adapterName} and ${color.cyan(keysByLoaderPath[handler.loaderPath])}`,
+                'Specify a different loaderPath for one of them.'
+            ].join('\n'))
+        } else {
+            keysByLoaderPath[handler.loaderPath] = key
+        }
         extractedNew = true
         logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }

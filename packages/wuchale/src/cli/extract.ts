@@ -1,6 +1,6 @@
 import type { Config } from "../config.js"
 import { glob } from "tinyglobby"
-import { AdapterHandler } from "../handler.js"
+import { AdapterHandler, type SharedStates } from "../handler.js"
 import { color, Logger } from "../log.js"
 import { readFile } from "node:fs/promises"
 import type { GlobConf } from "../adapters.js"
@@ -15,11 +15,11 @@ function extractor(handler: AdapterHandler, logger: Logger) {
     }
 }
 
-export async function extractAdap(handler: AdapterHandler, files: GlobConf, locales: string[], clean: boolean, logger: Logger) {
-    await handler.init()
+export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, logger: Logger) {
+    await handler.init(sharedState)
     if (clean) {
         for (const loc of locales) {
-            for (const item of Object.values(handler.catalogs[loc])) {
+            for (const item of Object.values(handler.sharedState.poFilesByLoc[loc].catalog)) {
                 item.references = []
             }
         }
@@ -28,9 +28,10 @@ export async function extractAdap(handler: AdapterHandler, files: GlobConf, loca
     if (clean) {
         logger.log('Cleaning...')
         for (const loc of locales) {
-            for (const [key, item] of Object.entries(handler.catalogs[loc])) {
+            const catalog = handler.sharedState.poFilesByLoc[loc].catalog
+            for (const [key, item] of Object.entries(catalog)) {
                 if (item.references.length === 0) {
-                    delete handler.catalogs[loc][key]
+                    delete catalog[key]
                 }
             }
             await handler.savePoAndCompile(loc)
@@ -41,9 +42,10 @@ export async function extractAdap(handler: AdapterHandler, files: GlobConf, loca
 export async function extract(config: Config, locales: string[], logger: Logger, clean: boolean, watch: boolean) {
     !watch && logger.info('Extracting...')
     const handlers = []
+    const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
-        await extractAdap(handler, adapter.files, locales, clean, logger)
+        await extractAdap(handler, sharedState, adapter.files, locales, clean, logger)
         handlers.push(handler)
     }
     if (!watch) {
