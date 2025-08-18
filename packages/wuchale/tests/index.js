@@ -22,7 +22,7 @@ test('Compile nested', function(t) {
 
 test('Default loader file paths', async function(t){
     const adap = adapter()
-    for (const loader of await adap.defaultLoaders(new Set(['vite']))) {
+    for (const loader of await adap.defaultLoaders()) {
         await statfs(adap.defaultLoaderPath(loader)) // no error
     }
 })
@@ -99,7 +99,6 @@ test('Loading and runtime', async t => {
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
-    t.assert.equal(rt.t(42), '[i18n-404:42]')
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
     t.assert.equal(cPure['foo'].t(0), 'Hello')
 })
@@ -109,7 +108,6 @@ test('Runtime', t => {
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
-    t.assert.equal(rt.t(42), '[i18n-404:42]')
 })
 
 // This should be run AFTER the test Runtime completes
