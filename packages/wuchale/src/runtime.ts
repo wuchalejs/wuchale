@@ -7,20 +7,24 @@ export type CatalogModule = {
     onUpdate?: (callback: (newData: CompiledElement[]) => void) => void
 }
 
-export function defaultErr(id: number, ctx: CompiledElement): string {
-    if (ctx == null) {
-        return `[i18n-404:${id}]`
-    }
-    return `[i18n-400:${id}(${ctx})]`
-}
+let onInvalid: (i: number, c: CompiledElement[]) => string = () => ''
 
-let err = defaultErr
+// @ts-expect-error
+if (import.meta.env?.DEV) {
+    onInvalid = (i, c) => {
+        const item = c[i]
+        if (item == null) {
+            return `[i18n-404:${i}]`
+        }
+        return `[i18n-400:${i}(${item})]`
+    }
+}
 
 export class Runtime {
 
     _: CatalogModule = { c: [] }
 
-    static setErrMsg = (e: typeof err) => { err = e }
+    static onInvalid = (newOnInvalid: typeof onInvalid) => { onInvalid = newOnInvalid }
 
     constructor(module?: CatalogModule) {
         if (!module) { // for fallback
@@ -31,14 +35,14 @@ export class Runtime {
 
     /** get composite context */
     cx = (id: number) => {
-        const ctx = this._.c[id]
+        const ctx: CompiledElement = this._.c[id]
         if (typeof ctx === 'string') {
             return [ctx]
         }
         if (Array.isArray(ctx)) {
             return ctx
         }
-        return [err(id, ctx)]
+        return [onInvalid(id, ctx)]
     }
 
     /** get translation using composite context */
