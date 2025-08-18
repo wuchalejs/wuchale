@@ -125,7 +125,7 @@ class Plugin {
             const invalidatedModules = new Set()
             for (const loadID of loadIDsToInvalidate) {
                 const fileID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
-                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID)) { 
+                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) { 
                     ctx.server.moduleGraph.invalidateModule(
                         module,
                         invalidatedModules,

@@ -246,7 +246,7 @@ export class AdapterHandler {
         const object = []
         for (const id of loadIDs) {
             const importedByLocale = []
-            for (const [i, loc] of this.#locales) {
+            for (const [i, loc] of this.#locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
                 imports.push(`import * as ${locKey} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
