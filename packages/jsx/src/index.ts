@@ -89,6 +89,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             }
             return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts
+        ...rest as AdapterPassThruOpts,
+        docsUrl: 'https://wuchale.dev/adapters/jsx'
     }
 }

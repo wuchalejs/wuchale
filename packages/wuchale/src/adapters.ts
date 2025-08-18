@@ -147,6 +147,8 @@ export type Adapter = AdapterPassThruOpts & {
     defaultLoaders: () => string[] | Promise<string[]>
     /* Can return different file paths based on conditions */
     defaultLoaderPath: (loaderName: string) => string
+    /* docs specific to the adapter */
+    docsUrl: string
 }
 
 export type RuntimeOptions = {

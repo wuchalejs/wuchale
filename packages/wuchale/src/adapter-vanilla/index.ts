@@ -64,5 +64,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             return new URL(`../../src/adapter-vanilla/loaders/${loader}.js`, import.meta.url).pathname
         },
         ...rest as AdapterPassThruOpts,
+        docsUrl: 'https://wuchale.dev/adapters/vanilla'
     }
 }

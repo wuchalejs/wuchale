@@ -84,6 +84,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts
+        ...rest as AdapterPassThruOpts,
+        docsUrl: 'https://wuchale.dev/adapters/svelte'
     }
 }

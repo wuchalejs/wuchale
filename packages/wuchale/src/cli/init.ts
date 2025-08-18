@@ -12,6 +12,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
     setupInteractive()
     const adapLogger = new Logger(config.messages)
     for (const [key, adapter] of Object.entries(config.adapters)) {
+        const adapterName = color.magenta(key)
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
         const loaders = await adapter.defaultLoaders()
@@ -24,28 +25,26 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         } else {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
+        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${adapterName} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
         let loader = loaders[0]
         if (loaders.length > 1) {
-            loader = await ask(loaders, `Select default loader for adapter: ${color.magenta(key)}`, logger)
+            loader = await ask(loaders, `Select default loader for adapter: ${adapterName}`, logger)
         }
         if (existing && loader === loaders[0]) {
             logger.log('Keep existing loader')
             continue
         }
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
-        logger.log(`Initial extract for ${color.magenta(key)}`)
+        logger.log(`Initial extract for ${adapterName}`)
         await extractAdap(handler, adapter.files, locales, false, logger)
         extractedNew = true
+        logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }
     const msgs = ['\nInitialization complete!\n']
-    if (extractedNew) {
-        msgs.push('Extracted current messages from your codebase.\n')
-    }
     msgs.push(
         'Next steps:',
-        '1. Edit the file that sets the current locale.',
+        '1. Finish the setup for each adapter following its docs URL above.',
         '2. Start the dev server and you\'re good to go!',
     )
     if (config.geminiAPIKey === 'env') {
