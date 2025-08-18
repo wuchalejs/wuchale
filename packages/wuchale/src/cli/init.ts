@@ -6,7 +6,7 @@ import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
 
-export async function init(config: Config, locales: string[], force: boolean, logger: Logger) {
+export async function init(config: Config, locales: string[], logger: Logger) {
     logger.info('Initializing...')
     let extractedNew = false
     setupInteractive()
@@ -14,19 +14,25 @@ export async function init(config: Config, locales: string[], force: boolean, lo
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), adapLogger)
         let {path: loaderPath, empty} = await handler.getLoaderPath()
-        if (loaderPath && !empty && !force) {
-            logger.log(`Loader already exists for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
-            continue
-        }
-        if (!loaderPath) {
+        const loaders = await adapter.defaultLoaders()
+        let existing = false
+        if (loaderPath) {
+            if (!empty) {
+                loaders.unshift('existing')
+                existing = true
+            }
+        } else {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        logger.log(`Create loader for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
+        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${color.magenta(key)} at ${color.cyan(loaderPath)}`)
         await mkdir(dirname(loaderPath), { recursive: true })
-        const loaders = await adapter.defaultLoaders()
         let loader = loaders[0]
         if (loaders.length > 1) {
             loader = await ask(loaders, `Select default loader for adapter: ${color.magenta(key)}`, logger)
+        }
+        if (existing && loader === loaders[0]) {
+            logger.log('Keep existing loader')
+            continue
         }
         await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
         logger.log(`Initial extract for ${color.magenta(key)}`)
