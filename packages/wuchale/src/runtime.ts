@@ -42,7 +42,7 @@ export class Runtime {
         if (Array.isArray(ctx)) {
             return ctx
         }
-        return [onInvalid(id, ctx)]
+        return [onInvalid(id, this._.c)]
     }
 
     /** get translation using composite context */
