@@ -4,7 +4,6 @@ import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
-    RuntimeOptions,
     AdapterPassThruOpts,
 } from 'wuchale'
 import { JSXTransformer } from "./transformer.js"
@@ -41,12 +40,6 @@ const defaultArgs: JSXArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    importName: '_w_load_',
-    runtime: {
-        initInScope: ({ funcName }) => funcName != null,
-        wrapInit: init => init,
-        wrapExpr: expr => expr,
-    },
     variant: 'default',
 }
 
@@ -54,7 +47,6 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        runtime,
         variant,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
@@ -65,7 +57,6 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             index,
             heuristic,
             pluralsFunc,
-            runtime as RuntimeOptions,
             header.expr
         ).transformJx(header, variant === 'solidjs'),
         loaderExts: ['.js', '.ts'],

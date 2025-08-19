@@ -489,11 +489,12 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        let importLoad = `import ${this.#adapter.importName} from "${loaderPath}"`
+        const importName = '_w_load_'
+        let importLoad = `import ${importName} from "${loaderPath}"`
         if (!this.#adapter.bundleLoad) {
             return {
                 head: importLoad,
-                expr: `${this.#adapter.importName}('${loadID}')`,
+                expr: `${importName}('${loadID}')`,
             }
         }
         const imports = []
@@ -503,14 +504,15 @@ export class AdapterHandler {
             imports.push(`import * as ${locKW} from '${this.virtModEvent(loc, loadID)}'`)
             objElms.push( `${objKeyLocale(loc)}: ${locKW}`)
         }
+        const catalogsVarName = '_w_catalogs_'
         return {
             head: [
                 importLoad,
                 `import { Runtime } from 'wuchale/runtime'`,
                 ...imports,
-                `const _w_catalogs_ = {${objElms.join(',')}}`
+                `const ${catalogsVarName} = {${objElms.join(',')}}`
             ].join('\n'),
-            expr: `new Runtime(_w_catalogs_[${this.#adapter.importName}('${loadID}')])`,
+            expr: `new Runtime(${catalogsVarName}[${importName}('${loadID}')])`,
         }
     }
 

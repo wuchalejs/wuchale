@@ -2,7 +2,7 @@
 
 import type MagicString from "magic-string"
 import { IndexTracker, Message, type CommentDirectives } from "../adapters.js"
-import { nonWhitespaceText, type RuntimeVars } from "./index.js"
+import { nonWhitespaceText, runtimeVars } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
 
@@ -20,7 +20,6 @@ type InitProps<NodeT> = {
     checkHeuristic: (msgStr: string) => boolean
     wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
     index: IndexTracker
-    vars: RuntimeVars
 }
 
 type VisitProps<NodeT> = {
@@ -169,9 +168,9 @@ export class MixedVisitor<NodeT> {
             let begin = '{'
             let end = ')}'
             if (props.inCompoundText) {
-                begin += `${this.vars.rtTransCtx}(${this.vars.nestCtx}`
+                begin += `${runtimeVars.rtTransCtx}(${runtimeVars.nestCtx}`
             } else {
-                begin += `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
+                begin += `${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())}`
             }
             if (iArg > 0) {
                 begin += ', ['

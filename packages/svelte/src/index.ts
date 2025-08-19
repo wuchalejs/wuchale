@@ -5,7 +5,6 @@ import type {
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
-    RuntimeOptions,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
@@ -41,19 +40,12 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    importName: '_w_load_',
-    runtime: {
-        initInScope: ({ funcName }) => funcName == null,
-        wrapInit: init => `$derived(${init})`,
-        wrapExpr: expr => expr,
-    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -63,9 +55,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             index,
             heuristic,
             pluralsFunc,
-            runtime as RuntimeOptions,
-            header.expr
-        ).transformSv(header.head),
+        ).transformSv(header.head, header.expr),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaders: async () => {
             if (rest.bundleLoad) {

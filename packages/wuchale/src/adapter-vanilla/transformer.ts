@@ -13,10 +13,9 @@ import type {
     IndexTracker,
     ScriptDeclType,
     TransformOutput,
-    RuntimeOptions,
     HeuristicDetails
 } from "../adapters.js"
-import { runtimeVars, type RuntimeVars } from "../adapter-utils/index.js"
+import { runtimeVars } from "../adapter-utils/index.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -65,9 +64,8 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    vars: RuntimeVars
-    runtimeOpts: RuntimeOptions
-    initRuntimeExpr: string
+    // null possible because subclasses may not want to init inside functions
+    initRuntimeExpr: string | null
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -77,15 +75,13 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, runtimeOpts: RuntimeOptions, initRuntimeExpr: string) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntimeExpr: string | null) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.vars = runtimeVars(runtimeOpts.wrapExpr)
-        this.runtimeOpts = runtimeOpts
-        this.initRuntimeExpr = runtimeOpts.wrapInit(initRuntimeExpr)
+        this.initRuntimeExpr = initRuntimeExpr
     }
 
     checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
@@ -120,7 +116,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
+        this.mstr.update(start, end, `${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
         return [msgInfo]
     }
 
@@ -172,7 +168,7 @@ export class Transformer {
         const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
         msgInfo.plural = true
         const index = this.index.get(msgInfo.toKey())
-        const pluralUpdate = `${this.vars.rtTPlural}(${index}), ${this.vars.rtPlural}`
+        const pluralUpdate = `${runtimeVars.rtTPlural}(${index}), ${runtimeVars.rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [msgInfo]
@@ -284,12 +280,12 @@ export class Transformer {
         const prevFuncDef = this.currentFuncDef
         this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
         const msgs = this.visit(node)
-        let initRuntimeHere = this.runtimeOpts.initInScope({ funcName: this.currentFuncDef, parentFunc: prevFuncDef, file: this.filename })
-        if (msgs.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
+        let initRuntimeHere = prevFuncDef == null && this.currentFuncDef != null
+        if (msgs.length > 0 && initRuntimeHere && this.initRuntimeExpr && node.type === 'BlockStatement') {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}\n`,
+                `\nconst ${runtimeVars.rtConst} = ${this.initRuntimeExpr}\n`,
             )
         }
         this.currentFuncDef = prevFuncDef
@@ -352,7 +348,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
-        let begin = `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
+        let begin = `${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -431,9 +427,6 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const msgs = this.visit(ast)
         if (msgs.length) {
-            if (this.runtimeOpts.initInScope({ file: this.filename })) {
-                headerHead += `\nconst ${this.vars.rtConst} = ${this.initRuntimeExpr}`
-            }
             this.mstr.appendRight(0, headerHead + '\n')
         }
         return this.finalize(msgs)

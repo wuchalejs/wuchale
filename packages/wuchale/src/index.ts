@@ -27,5 +27,4 @@ export type {
     TransformOutput,
     TransformHeader,
     CommentDirectives,
-    RuntimeOptions
 } from './adapters.js'

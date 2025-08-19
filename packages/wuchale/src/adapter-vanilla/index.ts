@@ -5,7 +5,6 @@ import { deepMergeObjects } from "../config.js"
 import type {
     AdapterArgs,
     Adapter,
-    RuntimeOptions,
     AdapterPassThruOpts,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
@@ -23,19 +22,12 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    importName: '_w_load_',
-    runtime: {
-        initInScope: ({ funcName }) => funcName != null,
-        wrapInit: init => init,
-        wrapExpr: expr => expr,
-    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -45,7 +37,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             index,
             heuristic,
             pluralsFunc,
-            runtime as RuntimeOptions,
             header.expr,
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],

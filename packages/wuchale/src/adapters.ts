@@ -130,8 +130,6 @@ export type AdapterPassThruOpts = {
         transformed?: boolean
         outDir?: string
     }
-    /* the name of the function to import from the loader */
-    importName: string
 }
 
 export type Adapter = AdapterPassThruOpts & {
@@ -146,18 +144,7 @@ export type Adapter = AdapterPassThruOpts & {
     docsUrl: string
 }
 
-export type RuntimeOptions = {
-    /* whether to initialize in funcName scope ('' for arrow, null for global) */
-    initInScope: (details: { funcName?: string, parentFunc?: string, file: string }) => boolean
-    /* wrap initialize expression, e.g. in $derived() for svelte */
-    wrapInit: (expr: string) => string
-    /* wrap use function, e.g. to change _w_runtime_ to _w_runtime_() for solid */
-    wrapExpr: (expr: string) => string
-}
-
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
     pluralsFunc?: string
-    /* runtime instance options */
-    runtime?: Partial<RuntimeOptions>
 }

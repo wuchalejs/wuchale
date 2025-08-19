@@ -11,9 +11,8 @@ import type {
     TransformOutput,
     CommentDirectives,
     TransformHeader,
-    RuntimeOptions,
 } from 'wuchale'
-import { nonWhitespaceText, MixedVisitor } from "wuchale/adapter-utils"
+import { nonWhitespaceText, MixedVisitor, runtimeVars } from "wuchale/adapter-utils"
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
@@ -38,13 +37,12 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, runtimeOpts: RuntimeOptions, initRuntimeExpr: string | null) {
-        super(content, filename, index, heuristic, pluralsFunc, runtimeOpts, initRuntimeExpr)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntimeExpr: string | null) {
+        super(content, filename, index, heuristic, pluralsFunc, initRuntimeExpr)
     }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
-        vars: this.vars,
         getRange: node => ({
             // @ts-expect-error
             start: node.start,
@@ -78,14 +76,14 @@ export class JSXTransformer extends Transformer {
                 } else {
                     toAppend = ', '
                 }
-                this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars.nestCtx : '()'} => `)
+                this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? runtimeVars.nestCtx : '()'} => `)
             }
             let begin = `]} ctx=`
             if (this.inCompoundText) {
-                begin += `{${this.vars.nestCtx}} nest`
+                begin += `{${runtimeVars.nestCtx}} nest`
             } else {
                 const index = this.index.get(msgInfo.toKey())
-                begin += `{${this.vars.rtCtx}(${index})}`
+                begin += `{${runtimeVars.rtCtx}(${index})}`
             }
             let end = ' />'
             if (hasExprs) {
@@ -149,7 +147,7 @@ export class JSXTransformer extends Transformer {
             node.start + startWh,
             // @ts-expect-error
             node.end - endWh,
-            `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
+            `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )
         return [msgInfo]
     }
@@ -196,7 +194,7 @@ export class JSXTransformer extends Transformer {
             value.start,
             // @ts-expect-error
             value.end,
-            `{${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
+            `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )
         return [msgInfo]
     }
@@ -250,7 +248,7 @@ export class JSXTransformer extends Transformer {
         const headerFin = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${solidVariant ? '.solid' : ''}.jsx"`,
             header.head,
-            this.runtimeOpts.initInScope({ funcName: null, file: this.filename }) ? `const ${this.vars.rtConst} = ${header.expr}\n` : '',
+            '',
         ].join('\n')
         this.mstr.appendRight(0, headerFin + '\n')
         return this.finalize(msgs)
