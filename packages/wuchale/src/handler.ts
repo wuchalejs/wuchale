@@ -496,14 +496,19 @@ export class AdapterHandler {
                 expr: `${this.#adapter.importName}('${loadID}')`,
             }
         }
-        const objProps = this.#locales.map(loc => `${loc}: _l_${loc}_`)
-        const importStrs = this.#locales.map(loc => `'${this.#virtualPrefix}catalog/${this.key}/${loadID}/${loc}'`)
+        const imports = []
+        const objElms = []
+        for (const [i, loc] of this.#locales.entries()) {
+            const locKW = `_w_c_${i}_`
+            imports.push(`import * as ${locKW} from '${this.virtModEvent(loc, loadID)}'`)
+            objElms.push( `${objKeyLocale(loc)}: ${locKW}`)
+        }
         return {
             head: [
                 importLoad,
                 `import { Runtime } from 'wuchale/runtime'`,
-                ...this.#locales.map((loc, i) => `import * as _l_${loc}_ from ${importStrs[i]}`),
-                `const _w_catalogs_ = {${objProps.join(',')}}`
+                ...imports,
+                `const _w_catalogs_ = {${objElms.join(',')}}`
             ].join('\n'),
             expr: `new Runtime(_w_catalogs_[${this.#adapter.importName}('${loadID}')])`,
         }
