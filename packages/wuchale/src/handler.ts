@@ -490,7 +490,7 @@ export class AdapterHandler {
             loaderPath = `./${loaderPath}`
         }
         let importLoad = `import ${this.#adapter.importName} from "${loaderPath}"`
-        if (!this.#adapter.granularLoad || !this.#adapter.bundleLoad) {
+        if (!this.#adapter.bundleLoad) {
             return {
                 head: importLoad,
                 expr: `${this.#adapter.importName}('${loadID}')`,
