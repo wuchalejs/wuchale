@@ -5,21 +5,21 @@
 
 import { useState, useEffect } from 'react'
 
-const callbacks = {}
+const callbacks = new Set()
 
 /**
  * @param {string} locale
  */
 export function setLocale(locale) {
-    for (const callback of Object.values(callbacks)) {
+    for (const callback of callbacks) {
         callback(locale)
     }
 }
 
-export default (/** @type {string} */ loadID) => {
+export default (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
     const [locale, setLocale] = useState('en')
     useEffect(() => {
-        callbacks[loadID] = (/** @type {string} */ locale) => setLocale(locale)
+        callbacks.add((/** @type {string} */ locale) => setLocale(locale))
     })
-    return locale
+    return catalogs[locale]
 }

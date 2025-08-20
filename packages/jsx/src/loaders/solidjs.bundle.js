@@ -8,4 +8,7 @@ const [locale, setLocale] = createSignal('en')
 
 export { setLocale }
 
-export default locale
+/**
+ * @param {{ [locale: string]: import('wuchale/runtime').CatalogModule }} catalogs
+ */
+export default catalogs => catalogs[locale()]
