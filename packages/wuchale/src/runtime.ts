@@ -65,3 +65,5 @@ export class Runtime {
     /** get translation */
     t = (id: number, args: any[] = []) => this.tx(this.cx(id) as Mixed, args, 0)
 }
+
+export default (catalog: CatalogModule) => new Runtime(catalog)

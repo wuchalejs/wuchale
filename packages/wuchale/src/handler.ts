@@ -11,6 +11,7 @@ import { normalize } from "node:path"
 import { type ConfigPartial, getLanguageName } from "./config.js"
 import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
+import { runtimeVars } from './adapter-utils/index.js'
 
 type PluralRule = {
     nplurals: number
@@ -490,7 +491,7 @@ export class AdapterHandler {
             loaderPath = `./${loaderPath}`
         }
         const importName = '_w_load_'
-        let importLoad = `import ${importName} from "${loaderPath}"`
+        let importLoad = `import ${runtimeVars.rtWrap} from 'wuchale/runtime'\nimport ${importName} from "${loaderPath}"`
         if (!this.#adapter.bundleLoad) {
             return {
                 head: importLoad,

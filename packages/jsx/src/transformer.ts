@@ -37,8 +37,8 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntimeExpr: string | null) {
-        super(content, filename, index, heuristic, pluralsFunc, initRuntimeExpr)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initCatalogExpr: string | null) {
+        super(content, filename, index, heuristic, pluralsFunc, initCatalogExpr)
     }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({

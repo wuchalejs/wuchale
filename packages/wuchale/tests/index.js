@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { Runtime } from 'wuchale/runtime'
+import wrapRT, { Runtime } from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
@@ -51,10 +51,11 @@ test('Inside function definitions', async function(t) {
             return \`Hello \${a\}\`
         }
     `, typescript`
+        import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_ from "../tests/test-tmp/loader.js"
 
         function foo(): string {
-            const _w_runtime_ = _w_load_('basic')
+            const _w_runtime_ = _w_to_rt_(_w_load_('basic'))
             const varName = _w_runtime_.t(0)
             return varName
         }
@@ -62,7 +63,7 @@ test('Inside function definitions', async function(t) {
             method: () => 'Not inside func def',
         }
         const bar: (a: string) => string = (a) => {
-            const _w_runtime_ = _w_load_('basic')
+            const _w_runtime_ = _w_to_rt_(_w_load_('basic'))
             return _w_runtime_.t(1, [a])
         }
     `, `
@@ -87,20 +88,20 @@ const testCatalog = {
         ['One item', '# items'], // plurals
     ]
 }
-const loaderFunc = (loadID, locale) => testCatalog
+const loaderFunc = () => testCatalog
 
 test('Loading and runtime', async t => {
     const collection = {}
     // @ts-expect-error
-    const getRT = registerLoaders('basic', loaderFunc, ['foo'], defaultCollection(collection))
+    const getCatalog = registerLoaders('basic', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called
-    const rt = getRT('foo')
+    const rt = wrapRT(getCatalog('foo'))
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(cPure['foo'].t(0), 'Hello')
+    t.assert.equal(wrapRT(cPure['foo']).t(0), 'Hello')
 })
 
 test('Runtime', t => {
@@ -112,9 +113,9 @@ test('Runtime', t => {
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
-    const getRt = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
+    const getCatalog = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return getRt('main').t(1, ['server user'])
+        return wrapRT(getCatalog('main')).t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })

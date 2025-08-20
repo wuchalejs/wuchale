@@ -258,7 +258,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    transformSv = (headerHead: string, initRuntimeExpr: string): TransformOutput => {
+    transformSv = (headerHead: string, headerExpr: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -277,7 +277,7 @@ export class SvelteTransformer extends Transformer {
         const headerFin = [
             `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
             headerHead,
-            `const ${runtimeVars.rtConst} = $derived(${initRuntimeExpr})\n`,
+            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`,
         ].join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')

@@ -65,7 +65,7 @@ export class Transformer {
     mstr: MagicString
     pluralFunc: string
     // null possible because subclasses may not want to init inside functions
-    initRuntimeExpr: string | null
+    initCatalogExpr: string | null
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -75,13 +75,13 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntimeExpr: string | null) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initCatalogExpr: string | null) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initRuntimeExpr = initRuntimeExpr
+        this.initCatalogExpr = initCatalogExpr
     }
 
     checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
@@ -281,11 +281,11 @@ export class Transformer {
         this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
         const msgs = this.visit(node)
         let initRuntimeHere = prevFuncDef == null && this.currentFuncDef != null
-        if (msgs.length > 0 && initRuntimeHere && this.initRuntimeExpr && node.type === 'BlockStatement') {
+        if (msgs.length > 0 && initRuntimeHere && this.initCatalogExpr && node.type === 'BlockStatement') {
             this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\nconst ${runtimeVars.rtConst} = ${this.initRuntimeExpr}\n`,
+                `\nconst ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${this.initCatalogExpr})\n`,
             )
         }
         this.currentFuncDef = prevFuncDef

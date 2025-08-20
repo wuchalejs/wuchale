@@ -1,7 +1,8 @@
 <script>
     import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
+    import _w_to_rt_ from 'wuchale/runtime'
     import _w_load_ from "./tests/test-tmp/loader.svelte.js"
-    const _w_runtime_ = $derived(_w_load_('svelte'))
+    const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
 
     const normalParam = 44;
 
