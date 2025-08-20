@@ -11,6 +11,7 @@ import type {
     Mode,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, runtimeVars } from "wuchale/adapter-utils"
+import { catalogVarName } from "wuchale/runtime"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -280,14 +281,15 @@ export class SvelteTransformer extends Transformer {
             headerHead,
         ]
         if (mode === 'dev') {
-            headerLines.push(
-                `const _w_catalog_ = $state({...${headerExpr}})`,
-                `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(_w_catalog_))\n`,
-                `if (import.meta.hot) {
-                    const _w_callback_ = data => {_w_catalog_.c = data}
+            headerLines.push(`
+                import { onMount as _w_onMount_ } from "svelte"
+                const _w_catalog_ = $state({...${headerExpr}})
+                const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(_w_catalog_))\n
+                _w_onMount_(() => { 
+                    const _w_callback_ = data => {_w_catalog_.${catalogVarName} = data}
                     _w_catalog_.onUpdate(_w_callback_)
-                    import.meta.hot.on('vite:beforeUpdate', () => { _w_catalog_.offUpdate(_w_callback_) })
-                }`
+                    return () => _w_catalog_.offUpdate(_w_callback_)
+                })`
             )
         } else {
             headerLines.push(`const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`)
