@@ -8,6 +8,7 @@ import type {
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
+    Mode,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, runtimeVars } from "wuchale/adapter-utils"
 
@@ -30,7 +31,7 @@ export class SvelteTransformer extends Transformer {
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(content, filename, index, heuristic, pluralsFunc, null)
+        super(content, filename, index, heuristic, pluralsFunc, () => null)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
@@ -258,7 +259,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    transformSv = (headerHead: string, headerExpr: string): TransformOutput => {
+    transformSv = (headerHead: string, headerExpr: string, mode: Mode): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -274,11 +275,24 @@ export class SvelteTransformer extends Transformer {
         if (!msgs.length) {
             return this.finalize(msgs)
         }
-        const headerFin = [
+        const headerLines = [
             `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
             headerHead,
-            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`,
-        ].join('\n')
+        ]
+        if (mode === 'dev') {
+            headerLines.push(
+                `const _w_catalog_ = $state({...${headerExpr}})`,
+                `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(_w_catalog_))\n`,
+                `if (import.meta.hot) {
+                    const _w_callback_ = data => {_w_catalog_.c = data}
+                    _w_catalog_.onUpdate(_w_callback_)
+                    import.meta.hot.on('vite:beforeUpdate', () => { _w_catalog_.offUpdate(_w_callback_) })
+                }`
+            )
+        } else {
+            headerLines.push(`const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`)
+        }
+        const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')
             return this.finalize(msgs)

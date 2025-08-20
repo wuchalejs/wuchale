@@ -16,6 +16,7 @@ import type {
     HeuristicDetails
 } from "../adapters.js"
 import { runtimeVars } from "../adapter-utils/index.js"
+import type { Mode } from "../handler.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -54,6 +55,25 @@ export function parseScript(content: string): [Program, Estree.Comment[][]] {
     return [ScriptParser.parse(content, opts), comments]
 }
 
+/* decide and return the initialization statement for the runtime */
+export type InitRuntimeFunc = (functionName?: string) => string | null
+
+export function initCatalogStmt(catalogExpr: string, mode: Mode): InitRuntimeFunc {
+    if (mode !== 'dev') {
+        return () => `const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogExpr})`
+    }
+    const catalogVar = '_w_catalog_'
+    return () => `
+        const ${catalogVar} = {...${catalogExpr}}
+        const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogVar})
+        if (import.meta.hot) {
+            const _w_callback_ = data => {${catalogVar}.c = data}
+            ${catalogVar}.onUpdate(_w_callback_)
+            import.meta.hot.on('vite:beforeUpdate', () => { ${catalogVar}.offUpdate(_w_callback_) })
+        }
+    `
+}
+
 export class Transformer {
 
     index: IndexTracker
@@ -64,8 +84,7 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    // null possible because subclasses may not want to init inside functions
-    initCatalogExpr: string | null
+    initRuntime: InitRuntimeFunc
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -75,13 +94,13 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initCatalogExpr: string | null) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: InitRuntimeFunc) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initCatalogExpr = initCatalogExpr
+        this.initRuntime = initRuntime
     }
 
     checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
@@ -281,11 +300,12 @@ export class Transformer {
         this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
         const msgs = this.visit(node)
         let initRuntimeHere = prevFuncDef == null && this.currentFuncDef != null
-        if (msgs.length > 0 && initRuntimeHere && this.initCatalogExpr && node.type === 'BlockStatement') {
-            this.mstr.prependLeft(
+        if (msgs.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
+            const initStmt = this.initRuntime(this.currentFuncDef)
+            initStmt && this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\nconst ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${this.initCatalogExpr})\n`,
+                `\n${initStmt}\n`,
             )
         }
         this.currentFuncDef = prevFuncDef

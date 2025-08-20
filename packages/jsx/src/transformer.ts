@@ -4,15 +4,71 @@ import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
 import jsx from 'acorn-jsx'
-import { Transformer, scriptParseOptionsWithComments } from 'wuchale/adapter-vanilla'
+import { Transformer, scriptParseOptionsWithComments, initCatalogStmt as initCatalogStmtVanilla, type InitRuntimeFunc } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
-    TransformHeader,
+    Mode,
 } from 'wuchale'
 import { nonWhitespaceText, MixedVisitor, runtimeVars } from "wuchale/adapter-utils"
+
+export function initCatalogStmt(catalogExpr: string, mode: Mode, lib: JSXLib): { importLine: string, stmt: InitRuntimeFunc } {
+    if (mode !== 'dev') {
+        return {
+            importLine: '',
+            stmt: () => `const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogExpr})`
+        }
+    }
+    const catalogVar = '_w_catalog_'
+    const fallbackStmt = initCatalogStmtVanilla(catalogExpr, mode)
+    if (lib === 'react') {
+        const useState = '_w_useState_'
+        const useEffect = '_w_useEffect_'
+        return {
+            importLine: `import {useState as ${useState}, useEffect as ${useEffect}} from 'react'`,
+            stmt: funcName => {
+                if (!funcName || !funcName.startsWith('use') || !/[A-Z]/.test(funcName[0])) {
+                    return fallbackStmt(funcName)
+                }
+                return `
+                    const [${catalogVar}, set${catalogVar}] = ${useState}({...${catalogExpr}})
+                    const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogVar})
+                    ${useEffect}(() => {
+                        const _w_callback_ = data => {set${catalogVar}({...${catalogVar}, c: data})}
+                        ${catalogVar}.onUpdate(_w_callback_)
+                        return () => { ${catalogVar}.offUpdate(_w_callback_)
+                    })
+                `
+            }
+        }
+    } else if (lib === 'solidjs') {
+        const createStore = '_w_createStore_'
+        const createEffect = '_w_createEffect_'
+        return {
+            importLine: `import {createStore as ${createStore}} from 'solid-js/store'; import {createEffect as ${createEffect}} from 'solid-js'`,
+            stmt: funcName => {
+                if (!funcName) {
+                    return fallbackStmt(funcName)
+                }
+                return `
+                    const [${catalogVar}, set${catalogVar}] = ${createStore}({...${catalogExpr}})
+                    const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogVar})
+                    ${createEffect}(() => {
+                        const _w_callback_ = data => {set${catalogVar}({...${catalogVar}, c: data})}
+                        ${catalogVar}.onUpdate(_w_callback_)
+                        return () => { ${catalogVar}.offUpdate(_w_callback_)
+                    })
+                `
+            }
+        }
+    }
+    return {
+        importLine: '',
+        stmt: fallbackStmt,
+    }
+}
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
@@ -26,6 +82,8 @@ const rtComponent = 'WuchaleTrans'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
 
+export type JSXLib = 'default' | 'react' | 'solidjs'
+
 export class JSXTransformer extends Transformer {
 
     // state
@@ -37,8 +95,8 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initCatalogExpr: string | null) {
-        super(content, filename, index, heuristic, pluralsFunc, initCatalogExpr)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: InitRuntimeFunc) {
+        super(content, filename, index, heuristic, pluralsFunc, initRuntime)
     }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
@@ -236,7 +294,7 @@ export class JSXTransformer extends Transformer {
         return msgs
     }
 
-    transformJx = (header: TransformHeader, solidVariant: boolean): TransformOutput => {
+    transformJx = (headerHead: string, lib: JSXLib): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
@@ -245,10 +303,11 @@ export class JSXTransformer extends Transformer {
         if (!msgs.length) {
             return this.finalize(msgs)
         }
+        let devInit = ''
         const headerFin = [
-            `import ${rtComponent} from "@wuchale/jsx/runtime${solidVariant ? '.solid' : ''}.jsx"`,
-            header.head,
-            '',
+            `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
+            headerHead,
+            devInit,
         ].join('\n')
         this.mstr.appendRight(0, headerFin + '\n')
         return this.finalize(msgs)

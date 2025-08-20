@@ -1,3 +1,5 @@
+import type { Mode } from "./handler.js"
+
 type TxtScope = "script" | "markup" | "attribute"
 
 export type HeuristicDetailsBase = {
@@ -107,6 +109,7 @@ type TransformCtx = {
     filename: string
     index: IndexTracker
     header: TransformHeader
+    mode: Mode
 }
 
 export type TransformOutput = {

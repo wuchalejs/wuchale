@@ -529,6 +529,7 @@ export class AdapterHandler {
             filename,
             index: indexTracker,
             header: this.#prepareHeader(filename, loadID),
+            mode: this.#mode,
         })
         for (const loc of this.#locales) {
             // clear references to this file first

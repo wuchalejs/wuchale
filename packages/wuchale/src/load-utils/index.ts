@@ -11,7 +11,6 @@ export type LoaderState = {
     load: LoaderFunc
     loadIDs: string[]
     collection: CatalogCollection
-    loadedLocale?: string
 }
 
 export function defaultCollection(store: Record<string, CatalogModule>): CatalogCollection {
@@ -76,13 +75,6 @@ export async function loadLocale(locale: string, key?: string): Promise<void> {
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
         const [loadID, state] = statesArr[i]
         state.collection.set(loadID, {...loaded})
-        // @ts-expect-error
-        if (import.meta.env?.DEV) {
-            state.loadedLocale = locale
-            loaded.onUpdate?.(newData => {
-                state.loadedLocale === locale && state.collection.set(loadID, {...loaded, c: newData})
-            })
-        }
     }
 }
 
@@ -96,13 +88,6 @@ export function loadLocaleSync(locale: string, key?: string) {
         for (const loadID of state.loadIDs) {
             const loaded = <CatalogModule>state.load(loadID, locale)
             state.collection.set(loadID, loaded)
-            // @ts-expect-error
-            if (import.meta.env?.DEV) {
-                state.loadedLocale = locale
-                loaded.onUpdate?.(c => {
-                    state.collection.set(loadID, {...loaded, c})
-                })
-            }
         }
     }
 }

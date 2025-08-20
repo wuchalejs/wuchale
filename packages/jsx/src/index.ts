@@ -6,7 +6,7 @@ import type {
     AdapterArgs,
     AdapterPassThruOpts,
 } from 'wuchale'
-import { JSXTransformer } from "./transformer.js"
+import { initCatalogStmt, JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
 
 const ignoreElements = ['style', 'path']
@@ -28,7 +28,7 @@ const jsxHeuristic: HeuristicFunc = (msgStr, details) => {
 }
 
 type JSXArgs = AdapterArgs & {
-    variant?: "default" | "solidjs"
+    variant?: JSXLib
 }
 
 const defaultArgs: JSXArgs = {
@@ -51,14 +51,17 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header }) => new JSXTransformer(
-            content,
-            filename,
-            index,
-            heuristic,
-            pluralsFunc,
-            header.expr
-        ).transformJx(header, variant === 'solidjs'),
+        transform: ({ content, filename, index, header, mode }) => {
+            const {importLine, stmt} = initCatalogStmt(header.expr, mode, variant)
+            return new JSXTransformer(
+                content,
+                filename,
+                index,
+                heuristic,
+                pluralsFunc,
+                stmt,
+            ).transformJx(`${importLine}\n${header.head}`, variant)
+        },
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
             const deps = await getDependencies()

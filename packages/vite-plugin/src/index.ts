@@ -91,12 +91,15 @@ class Plugin {
         }
         return `
             ${module}
-            let updateCallback
-            export const onUpdate = callback => { updateCallback = callback }
+            let updateCallbacks = new Set()
+            export const onUpdate = callback => { updateCallbacks.add(callback); console.log('sub', '${loadID}', updateCallbacks.size) }
+            export const offUpdate = callback => { updateCallbacks.delete(callback); console.log('uns', '${loadID}', updateCallbacks.size) }
             if (import.meta.hot) {
                 import.meta.hot.on('${adapter.virtModEvent(locale, loadID)}', newData => {
                     ${catalogVarName} = newData
-                    updateCallback?.(newData)
+                    for (const callback of updateCallbacks) {
+                        callback(newData)
+                    }
                 })
             }
         `
