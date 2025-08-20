@@ -1,4 +1,4 @@
-import { type CatalogModule, Runtime } from '../runtime.js'
+import type { CatalogModule } from '../runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 
@@ -35,7 +35,7 @@ const emptyCatalog: CatalogModule = { c: [] }
  * - `key` is a unique identifier for the group
  * - `loadIDs` and `load` MUST be imported from the loader virtual modules or proxies.
 */
-export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: CatalogCollection): (fileID: string) => Runtime {
+export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: CatalogCollection): (fileID: string) => CatalogModule {
     if (!(key in states)) {
         states[key] = { load, loadIDs, collection: collection ?? defaultCollection({}) }
         // @ts-expect-error
@@ -45,12 +45,12 @@ export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[]
             collection.set(id, states[key].collection.get(id) ?? emptyCatalog)
         }
         states[key].collection = collection
-        return loadID => new Runtime(collection.get(loadID))
+        return loadID => collection.get(loadID)
     }
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyCatalog)
     }
-    return loadID => new Runtime(states[key].collection.get(loadID))
+    return loadID => states[key].collection.get(loadID)
 }
 
 function statesToLoad(key?: string): LoaderState[] {

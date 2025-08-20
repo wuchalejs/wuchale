@@ -508,11 +508,10 @@ export class AdapterHandler {
         return {
             head: [
                 importLoad,
-                `import { Runtime } from 'wuchale/runtime'`,
                 ...imports,
                 `const ${catalogsVarName} = {${objElms.join(',')}}`
             ].join('\n'),
-            expr: `new Runtime(${catalogsVarName}[${importName}('${loadID}')])`,
+            expr: `${importName}(${catalogsVarName})`,
         }
     }
 
