@@ -14,7 +14,7 @@ type HotUpdateCtx = {
     server: {
         ws: { send: Function }
         moduleGraph: {
-            getModulesByFile: (id: string) => object[]
+            getModulesByFile: Function
             invalidateModule: Function
         }
     }
