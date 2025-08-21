@@ -120,7 +120,7 @@ class Plugin {
             this.#hmrLastTime = performance.now()
             return
         }
-        const sourceTriggered = performance.now() - this.#hmrLastTime < 1000
+        const sourceTriggered = performance.now() - this.#hmrLastTime < 2000
         const invalidatedModules = new Set()
         for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
