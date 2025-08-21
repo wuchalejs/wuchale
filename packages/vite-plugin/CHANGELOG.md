@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.13.1
+
+### Patch Changes
+
+- ad84fbb: Fix build error about types
+
 ## 0.13.0
 
 ### Minor Changes
