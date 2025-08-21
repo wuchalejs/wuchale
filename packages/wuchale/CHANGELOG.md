@@ -1,5 +1,61 @@
 # wuchale
 
+## 0.14.0
+
+### Minor Changes
+
+- 5600e3b: Rename the `NestText` class to `Message` and its `text` attribute to `msgStr`.
+- cf92cb5: Make runtime error message configurable
+
+  You can now configure the message shown when the message index is not found in
+  the compiled catalog array. By default, it is something like `[i18n-404:0]`
+  during dev mode and empty `''` in production. You can use the static method at
+  startup (anywhere in your app) to override it. It applies globally.
+
+  ```js
+  import { Runtime } from "wuchale/runtime";
+
+  Runtime.onInvalid((i, arr) =>
+    arr[i] == null ? `not-found:${i}` : `bad:${arr[i]}`
+  );
+  ```
+
+- c79ae56: Move runtime initialization into the transformed code, framework agnostic HMR
+
+  The `Runtime` instance is now initialized inside the transformed code and now
+  loaders are required to always return a catalog module. This makes all loaders
+  consistent and makes the `Runtime` an implementation detail. If your loaders
+  return `new Runtime(catalog)`, you have to unwrap it and return just `catalog`
+  (or `undefined` in the case of `new Runtime()`). The default loaders are
+  updated to return the catalog module. If you haven't modified them and want to
+  use the new ones, you can overwrite them by running `npx wuchale init` and
+  selecting a loader different from `existing`.
+
+  This also solves the problem where HMR may sometimes not work depending on the
+  method of loading the catalog modules, by avoiding HMR events and the
+  reactivity from the framework, and just embedding the catalog updates in the
+  transformed code itself. This also makes it fast as it now doesn't have to wait
+  for an event from the Vite dev server to update the state. This is only for dev
+  mode so the production builds still stay lean.
+
+  The downside of avoiding using HMR events is that it's now unable to make the
+  updates from editing the PO files granular and has to do a full reload. But
+  this is a reasonable tradeoff as editing PO files is not done continuously, but
+  editing code is.
+
+- e29bca7: Enable sharing catalogs between adapters
+
+  Now you can use the same catalogs with different catalogs and they will work
+  with each other on the same file. But they still need different loader files.
+  Therefore, A new adapter config option `loaderPath` was added so that different
+  loaders can be specified.
+
+- 01af763: Make keeping the existing loader an option instead of a cli flag
+
+  Instead of specifying `--force` in the cli on `npx wuchale init`, if there is
+  an existing loader, make it the first option. This makes it easier to update
+  the loader if it was the default when a new version comes out.
+
 ## 0.13.2
 
 ### Patch Changes
