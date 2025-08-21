@@ -5,6 +5,7 @@ export { MixedVisitor } from './mixed-visitor.js'
 const rtConst = '_w_runtime_'
 
 export const runtimeVars = {
+    hmrUpdate: '_w_hmrUpdate_',
     rtWrap: '_w_to_rt_',
     rtConst,
     rtTrans: `${rtConst}.t`,

@@ -16,7 +16,6 @@ import type {
     HeuristicDetails
 } from "../adapters.js"
 import { runtimeVars } from "../adapter-utils/index.js"
-import type { Mode } from "../handler.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -55,23 +54,8 @@ export function parseScript(content: string): [Program, Estree.Comment[][]] {
     return [ScriptParser.parse(content, opts), comments]
 }
 
-/* decide and return the initialization statement for the runtime */
-export type InitRuntimeFunc = (functionName?: string) => string | null
-
-export function initCatalogStmt(catalogExpr: string, mode: Mode): InitRuntimeFunc {
-    if (mode !== 'dev') {
-        return () => `const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogExpr})`
-    }
-    const catalogVar = '_w_catalog_'
-    return () => `
-        const ${catalogVar} = {...${catalogExpr}}
-        const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogVar})
-        if (import.meta.hot) {
-            const _w_callback_ = data => {${catalogVar}.c = data}
-            ${catalogVar}.onUpdate(_w_callback_)
-            import.meta.hot.on('vite:beforeUpdate', () => { ${catalogVar}.offUpdate(_w_callback_) })
-        }
-    `
+export function initRuntimeStmt(catalogExpr: string) {
+    return `const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogExpr})`
 }
 
 export class Transformer {
@@ -84,7 +68,8 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    initRuntime: InitRuntimeFunc
+    // null possible because subclasses may disable init inside functions
+    initRuntime: string | null
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -94,7 +79,7 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: InitRuntimeFunc) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: string | null) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
@@ -301,11 +286,10 @@ export class Transformer {
         const msgs = this.visit(node)
         let initRuntimeHere = prevFuncDef == null && this.currentFuncDef != null
         if (msgs.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
-            const initStmt = this.initRuntime(this.currentFuncDef)
-            initStmt && this.mstr.prependLeft(
+            this.initRuntime && this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\n${initStmt}\n`,
+                `\n${this.initRuntime}\n`,
             )
         }
         this.currentFuncDef = prevFuncDef
@@ -429,17 +413,21 @@ export class Transformer {
         return msgs
     }
 
-    finalize = (msgs: Message[]): TransformOutput => {
-        const output = { msgs }
-        if (msgs.length === 0) {
-            return output
+    finalize = (msgs: Message[], hmrHeaderIndex: number): TransformOutput => ({
+        msgs,
+        output: hmrData => {
+            if (msgs.length === 0) {
+                return {}
+            }
+            if (hmrData) {
+                this.mstr.prependRight(hmrHeaderIndex, `\nconst ${runtimeVars.hmrUpdate} = ${JSON.stringify(hmrData)}\n`)
+            }
+            return {
+                code: this.mstr.toString(),
+                map: this.mstr.generateMap(),
+            }
         }
-        return {
-            msgs: msgs,
-            code: this.mstr.toString(),
-            map: this.mstr.generateMap(),
-        }
-    }
+    })
 
     transform = (headerHead: string): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
@@ -449,6 +437,6 @@ export class Transformer {
         if (msgs.length) {
             this.mstr.appendRight(0, headerHead + '\n')
         }
-        return this.finalize(msgs)
+        return this.finalize(msgs, 0)
     }
 }

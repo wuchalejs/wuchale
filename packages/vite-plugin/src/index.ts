@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
-import type { Config, Mode, CompiledElement} from "wuchale"
+import type { Config, Mode } from "wuchale"
 import { catalogVarName } from "wuchale/runtime"
 import type { SharedStates } from "../../wuchale/dist/handler.js"
 
@@ -9,9 +9,16 @@ const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
 
-type ViteDevServer = {
-    ws: { send: (event: string, data: CompiledElement[]) => void }
-    moduleGraph: any
+type HotUpdateCtx = {
+    file: string
+    server: {
+        ws: { send: Function }
+        moduleGraph: {
+            getModulesByFile: (id: string) => object[]
+            invalidateModule: Function
+        }
+    }
+    timestamp: number
 }
 
 class Plugin {
@@ -31,6 +38,9 @@ class Plugin {
     #log: Logger
 
     #configPath: string
+
+    #hmrVersion = -1
+    #hmrLastTime = 0
 
     constructor(configPath: string) {
         this.#configPath = configPath
@@ -91,52 +101,47 @@ class Plugin {
         }
         return `
             ${module}
-            let updateCallbacks = new Set()
-            export const onUpdate = callback => { updateCallbacks.add(callback); console.log('sub', '${loadID}', updateCallbacks.size) }
-            export const offUpdate = callback => { updateCallbacks.delete(callback); console.log('uns', '${loadID}', updateCallbacks.size) }
-            if (import.meta.hot) {
-                import.meta.hot.on('${adapter.virtModEvent(locale, loadID)}', newData => {
-                    ${catalogVarName} = newData
-                    for (const callback of updateCallbacks) {
-                        callback(newData)
-                    }
-                })
+            let latestVersion = ${this.#hmrVersion}
+            export function update({ version, data }) {
+                if (latestVersion >= version) {
+                    return
+                }
+                for (const [ index, item ] of data['${locale}'] ?? []) {
+                    ${catalogVarName}[index] = item
+                }
+                latestVersion = version
             }
         `
     }
 
-    handleHotUpdate = async (ctx: { file: string, server: ViteDevServer, timestamp: number }) => {
+    handleHotUpdate = async (ctx: HotUpdateCtx) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
+            this.#hmrVersion++
+            this.#hmrLastTime = performance.now()
             return
         }
-        const adapters = this.#adaptersByCatalogPath[ctx.file]
-        for (const adapter of adapters) {
+        const sourceTriggered = performance.now() - this.#hmrLastTime < 1000
+        const invalidatedModules = new Set()
+        for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
-            await adapter.loadCatalogNCompile(loc)
-            const loadIDsToInvalidate: string[] = []
-            if (this.#config.adapters[adapter.key].granularLoad) {
-                for (const [loadID, state] of Object.entries(adapter.granularStateByID)) {
-                    loadIDsToInvalidate.push(loadID)
-                    const eventName = adapter.virtModEvent(loc, loadID)
-                    ctx.server.ws.send(eventName, state.compiled[loc].items)
-                }
-            } else {
-                loadIDsToInvalidate.push(null)
-                ctx.server.ws.send(adapter.virtModEvent(loc, null), adapter.sharedState.compiled[loc].items)
+            if (!sourceTriggered) {
+                await adapter.loadCatalogNCompile(loc)
             }
-            // invalidate for next reload
-            const invalidatedModules = new Set()
-            for (const loadID of loadIDsToInvalidate) {
+            for (const loadID of adapter.getLoadIDs()) {
                 const fileID = `${virtualResolvedPrefix}${adapter.virtModEvent(loc, loadID)}`
-                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) { 
+                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
                     ctx.server.moduleGraph.invalidateModule(
                         module,
                         invalidatedModules,
                         ctx.timestamp,
-                        false // no hmr, already sent event
+                        false,
                     )
                 }
             }
+        }
+        if (!sourceTriggered) {
+            ctx.server.ws.send({ type: 'full-reload' })
+            return []
         }
     }
 
@@ -189,7 +194,7 @@ class Plugin {
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                return await adapter.transform(code, filename)
+                return await adapter.transform(code, filename, this.#hmrVersion)
             }
         }
         return {}

@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, GlobConf } from "./adapters.js"
+import type { Adapter, GlobConf, HMRData } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -197,15 +197,6 @@ export class AdapterHandler {
     /** Get both catalog virtual module names AND HMR event names */
     virtModEvent = (locale: string, loadID: string | null) => `${this.#virtualPrefix}catalog/${this.key}/${loadID ?? this.key}/${locale}`
 
-    #getFileIDs() {
-        if (!this.#adapter.granularLoad) {
-            return [this.key]
-        }
-        return Object.values(this.granularStateByFile)
-            .filter(f => f.compiled[this.#config.sourceLocale].items.length > 0)
-            .map(f => f.id)
-    }
-
     #getCompiledFilePath(loc: string, id: string | null) {
         return this.compiledHead[loc] + (id ?? this.key) + this.#adapter.loaderExts[0]
     }
@@ -224,9 +215,21 @@ export class AdapterHandler {
         `
     }
 
+    getLoadIDs(): string[] {
+        const loadIDs: string[] = []
+        if (this.#adapter.granularLoad) {
+            for (const loadID in this.granularStateByID) {
+                loadIDs.push(loadID)
+            }
+        } else {
+            loadIDs.push(this.key)
+        }
+        return loadIDs
+    }
+
     getProxy(proxyFilePath?: string) {
         const imports = []
-        const loadIDs = this.#getFileIDs()
+        const loadIDs = this.getLoadIDs()
         for (const id of loadIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
@@ -242,7 +245,7 @@ export class AdapterHandler {
     }
 
     getProxySync(proxyFilePath?: string) {
-        const loadIDs = this.#getFileIDs()
+        const loadIDs = this.getLoadIDs()
         const imports = []
         const object = []
         for (const id of loadIDs) {
@@ -481,7 +484,7 @@ export class AdapterHandler {
         }
     }
 
-    #prepareHeader = (filename: string, loadID: string): { head: string, expr: string } => {
+    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean): { head: string, expr: string } => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
@@ -490,12 +493,26 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        const importName = '_w_load_'
-        let importLoad = `import ${runtimeVars.rtWrap} from 'wuchale/runtime'\nimport ${importName} from "${loaderPath}"`
+        const getFuncName = '_w_load_'
+        let head = `import ${runtimeVars.rtWrap} from 'wuchale/runtime'\n`
+        if (hasHmr) {
+            const getFuncHmr = `_w_load_hmr_`
+            const catalogVar = '_w_catalog_'
+            head += `
+                import ${getFuncHmr} from "${loaderPath}"
+                function ${getFuncName}(loadID) {
+                    const ${catalogVar} = ${getFuncHmr}(loadID)
+                    ${catalogVar}?.update?.(${runtimeVars.hmrUpdate})
+                    return ${catalogVar}
+                }
+            `
+        } else {
+            head += `import ${getFuncName} from "${loaderPath}"`
+        }
         if (!this.#adapter.bundleLoad) {
             return {
-                head: importLoad,
-                expr: `${importName}('${loadID}')`,
+                head,
+                expr: `${getFuncName}('${loadID}')`,
             }
         }
         const imports = []
@@ -503,34 +520,36 @@ export class AdapterHandler {
         for (const [i, loc] of this.#locales.entries()) {
             const locKW = `_w_c_${i}_`
             imports.push(`import * as ${locKW} from '${this.virtModEvent(loc, loadID)}'`)
-            objElms.push( `${objKeyLocale(loc)}: ${locKW}`)
+            objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
         const catalogsVarName = '_w_catalogs_'
         return {
             head: [
-                importLoad,
+                head,
                 ...imports,
                 `const ${catalogsVarName} = {${objElms.join(',')}}`
             ].join('\n'),
-            expr: `${importName}(${catalogsVarName})`,
+            expr: `${getFuncName}(${catalogsVarName})`,
         }
     }
 
-    transform = async (content: string, filename: string): Promise<{ code?: string, map?: any }> => {
+    transform = async (content: string, filename: string, hmrVersion = -1): Promise<{ code?: string, map?: any }> => {
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
+        let compiled = this.sharedState.compiled
         if (this.#adapter.granularLoad) {
             const state = this.#getGranularState(filename)
             indexTracker = state.indexTracker
             loadID = state.id
+            compiled = state.compiled
         }
-        const { msgs, ...output } = this.#adapter.transform({
+        const { msgs, ...result } = this.#adapter.transform({
             content,
             filename,
             index: indexTracker,
-            header: this.#prepareHeader(filename, loadID),
-            mode: this.#mode,
+            header: this.#prepareHeader(filename, loadID, hmrVersion >= 0),
         })
+        const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
             // clear references to this file first
             let previousReferences: Record<string, number> = {}
@@ -554,10 +573,12 @@ export class AdapterHandler {
                 continue
             }
             let newItems: boolean = false
+            hmrKeys[loc] = []
             const untranslated: ItemType[] = []
             let newRefs = false
             for (const msgInfo of msgs) {
                 let key = msgInfo.toKey()
+                hmrKeys[loc].push(key)
                 let poItem = poFile.catalog[key]
                 if (!poItem) {
                     // @ts-expect-error
@@ -612,6 +633,17 @@ export class AdapterHandler {
             this.#log.log(`Gemini translate ${color.cyan(untranslated.length)} items to ${color.cyan(getLanguageName(loc))} ${opType}`)
             await this.#geminiQueue[loc].running
         }
+        let hmrData: HMRData = null
+        if (hmrVersion >= 0) {
+            hmrData = { version: hmrVersion, data: {} }
+            for (const loc of this.#locales) {
+                hmrData.data[loc] = hmrKeys[loc]?.map(key => {
+                    const index = indexTracker.get(key)
+                    return [ index, compiled[loc].items[index] ]
+                })
+            }
+        }
+        const output = result.output(hmrData)
         await this.writeTransformed(filename, output.code ?? content)
         if (!msgs.length) {
             return {}

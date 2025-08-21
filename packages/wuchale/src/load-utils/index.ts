@@ -35,17 +35,7 @@ const emptyCatalog: CatalogModule = { c: [] }
  * - `loadIDs` and `load` MUST be imported from the loader virtual modules or proxies.
 */
 export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: CatalogCollection): (fileID: string) => CatalogModule {
-    if (!(key in states)) {
-        states[key] = { load, loadIDs, collection: collection ?? defaultCollection({}) }
-        // @ts-expect-error
-    } else if (import.meta.env?.DEV) { // stripped from prod builds
-        // for when doing HMR for loader file
-        for (const id of loadIDs) {
-            collection.set(id, states[key].collection.get(id) ?? emptyCatalog)
-        }
-        states[key].collection = collection
-        return loadID => collection.get(loadID)
-    }
+    states[key] = { load, loadIDs, collection: collection ?? defaultCollection({}) }
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyCatalog)
     }
@@ -74,7 +64,7 @@ export async function loadLocale(locale: string, key?: string): Promise<void> {
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
         const [loadID, state] = statesArr[i]
-        state.collection.set(loadID, {...loaded})
+        state.collection.set(loadID, loaded)
     }
 }
 

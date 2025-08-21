@@ -8,10 +8,8 @@ import type {
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
-    Mode,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, runtimeVars } from "wuchale/adapter-utils"
-import { catalogVarName } from "wuchale/runtime"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -32,7 +30,7 @@ export class SvelteTransformer extends Transformer {
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(content, filename, index, heuristic, pluralsFunc, () => null)
+        super(content, filename, index, heuristic, pluralsFunc, null)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
@@ -260,7 +258,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    transformSv = (headerHead: string, headerExpr: string, mode: Mode): TransformOutput => {
+    transformSv = (headerHead: string, headerExpr: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -274,40 +272,33 @@ export class SvelteTransformer extends Transformer {
         this.mixedVisitor = this.initMixedVisitor()
         const msgs = this.visitSv(ast)
         if (!msgs.length) {
-            return this.finalize(msgs)
+            return this.finalize(msgs, 0)
         }
         const headerLines = [
             `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
             headerHead,
+            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`
         ]
-        if (mode === 'dev') {
-            headerLines.push(`
-                import { onMount as _w_onMount_ } from "svelte"
-                const _w_catalog_ = $state({...${headerExpr}})
-                const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(_w_catalog_))\n
-                _w_onMount_(() => { 
-                    const _w_callback_ = data => {_w_catalog_.${catalogVarName} = data}
-                    _w_catalog_.onUpdate(_w_callback_)
-                    return () => _w_catalog_.offUpdate(_w_callback_)
-                })`
-            )
-        } else {
-            headerLines.push(`const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`)
-        }
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
             this.mstr.appendRight(0, headerFin + '\n')
-            return this.finalize(msgs)
+            return this.finalize(msgs, 0)
         }
+        let hmrHeaderIndex = 0
         if (ast.module) {
             // @ts-ignore
-            this.mstr.appendRight(ast.module.content.start, headerFin)
+            hmrHeaderIndex = ast.module.content.start
+            this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else if (ast.instance) {
             // @ts-ignore
-            this.mstr.appendRight(ast.instance.content.start, headerFin)
+            hmrHeaderIndex = ast.instance.content.start
+            this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else {
-            this.mstr.prepend(`<script>${headerFin}</script>\n`)
+            this.mstr.prepend('<script>')
+            // account index for hmr data here
+            this.mstr.prependRight(0, `${headerFin}</script>\n`)
+            // now hmr data can be prependRight(0, ...)
         }
-        return this.finalize(msgs)
+        return this.finalize(msgs, hmrHeaderIndex)
     }
 }

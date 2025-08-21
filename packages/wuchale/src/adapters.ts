@@ -1,4 +1,4 @@
-import type { Mode } from "./handler.js"
+import type { CompiledElement } from "./compile.js"
 
 type TxtScope = "script" | "markup" | "attribute"
 
@@ -109,12 +109,20 @@ type TransformCtx = {
     filename: string
     index: IndexTracker
     header: TransformHeader
-    mode: Mode
+}
+
+export type HMRData = {
+    version: number
+    data: Record<string, [number, CompiledElement][]>
+}
+
+export type TransformOutputFunc = (hmrData: HMRData | null) => {
+    code?: string
+    map?: any
 }
 
 export type TransformOutput = {
-    code?: string
-    map?: any
+    output: TransformOutputFunc
     msgs: Message[]
 }
 

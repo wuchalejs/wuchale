@@ -8,10 +8,12 @@ import { registerLoaders } from 'wuchale/load-utils'
 import { useState, useEffect } from 'react'
 
 const callbacks = {}
+const store = {}
 
 const collection = {
-    get: () => null, // not needed, using useState
+    get: loadID => store[loadID],
     set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').CatalogModule} */ catalog) => {
+        store[loadID] = catalog // for when useEffect hasn't run yet
         callbacks[loadID]?.(catalog)
     }
 }
@@ -22,7 +24,7 @@ registerLoaders(key, loadCatalog, loadIDs, collection)
  * @param { string } loadID
  */
 export default loadID => {
-    const [catalog, setCatalog] = useState(null)
+    const [catalog, setCatalog] = useState(collection.get(loadID))
     useEffect(() => {
         callbacks[loadID] = (/** @type {import('wuchale/runtime').CatalogModule} */ catalog) => setCatalog(catalog)
     })

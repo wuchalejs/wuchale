@@ -7,11 +7,11 @@ import type {
     Adapter,
     AdapterPassThruOpts,
 } from "../adapters.js"
-import { initCatalogStmt, Transformer } from "./transformer.js"
+import { initRuntimeStmt, Transformer } from "./transformer.js"
 import { getDependencies } from '../adapter-utils/index.js'
 
 export { Transformer }
-export { parseScript, scriptParseOptions, scriptParseOptionsWithComments, initCatalogStmt, type InitRuntimeFunc } from './transformer.js'
+export { parseScript, scriptParseOptions, scriptParseOptionsWithComments, initRuntimeStmt } from './transformer.js'
 
 const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
@@ -31,13 +31,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header, mode }) => new Transformer(
+        transform: ({ content, filename, index, header }) => new Transformer(
             content,
             filename,
             index,
             heuristic,
             pluralsFunc,
-            initCatalogStmt(header.expr, mode),
+            initRuntimeStmt(header.expr),
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {

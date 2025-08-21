@@ -49,13 +49,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header, mode }) => new SvelteTransformer(
+        transform: ({ content, filename, index, header }) => new SvelteTransformer(
             content,
             filename,
             index,
             heuristic,
             pluralsFunc,
-        ).transformSv(header.head, header.expr, mode),
+        ).transformSv(header.head, header.expr),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaders: async () => {
             if (rest.bundleLoad) {

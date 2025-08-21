@@ -1,12 +1,12 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
+import { adapter as vanillaAdapter, initRuntimeStmt } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
 } from 'wuchale'
-import { initCatalogStmt, JSXTransformer, type JSXLib } from "./transformer.js"
+import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
 
 const ignoreElements = ['style', 'path']
@@ -51,16 +51,15 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header, mode }) => {
-            const {importLine, stmt} = initCatalogStmt(header.expr, mode, variant)
+        transform: ({ content, filename, index, header }) => {
             return new JSXTransformer(
                 content,
                 filename,
                 index,
                 heuristic,
                 pluralsFunc,
-                stmt,
-            ).transformJx(`${importLine}\n${header.head}`, variant)
+                initRuntimeStmt(header.expr),
+            ).transformJx(header.head, variant)
         },
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
