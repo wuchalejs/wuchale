@@ -1,5 +1,14 @@
 # wuchale
 
+## 0.14.1
+
+### Patch Changes
+
+- 6c459fa: Prevent errors on SSR loading in some cases
+
+  Like with SvelteKit on StackBlitz, it seems it loses the `AsyncLocalStorage`
+  context inside the request. But this should't affect normal usage.
+
 ## 0.14.0
 
 ### Minor Changes
