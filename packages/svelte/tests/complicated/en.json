@@ -1,6 +1,25 @@
 [
-  "Bar",
+  "Extract",
+  [
+    "Interpolate ",
+    0,
+    " ",
+    1
+  ],
+  "Extracted name",
+  [
+    "This page says: ",
+    0
+  ],
   "Extracted text",
+  "Extract this",
+  "Variable",
+  "Add to Variable",
+  "Check extracted",
+  "That",
+  "And this",
+  "Okay?",
+  "Bar",
   "Extracted",
   "Extracted Text",
   "extracted anyway",
@@ -45,24 +64,5 @@
     [
       1
     ]
-  ],
-  "Extract",
-  [
-    "Interpolate ",
-    0,
-    " ",
-    1
-  ],
-  "Extracted name",
-  [
-    "This page says: ",
-    0
-  ],
-  "Extract this",
-  "Variable",
-  "Add to Variable",
-  "Check extracted",
-  "That",
-  "And this",
-  "Okay?"
+  ]
 ]

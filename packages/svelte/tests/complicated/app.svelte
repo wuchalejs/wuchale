@@ -1,4 +1,4 @@
-<script>
+<script module>
     const normalParam = 44;
 
     function someFunction(a, b, c) {
@@ -6,6 +6,9 @@
         const next = `Interpolate ${a} ${b}`
         return next + c + value
     }
+</script>
+
+<script>
 
     async function someFunctionAsync(name) {
         const json = {}

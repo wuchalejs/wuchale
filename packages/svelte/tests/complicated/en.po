@@ -2,43 +2,6 @@ msgid ""
 msgstr ""
 
 #: app.svelte
-msgid "Bar"
-msgstr "Bar"
-
-#: app.svelte
-#: app.svelte
-msgid "Extracted text"
-msgstr "Extracted text"
-
-#: app.svelte
-msgid "Extracted"
-msgstr "Extracted"
-
-#: app.svelte
-msgid "Extracted Text"
-msgstr "Extracted Text"
-
-#: app.svelte
-msgid "extracted anyway"
-msgstr "extracted anyway"
-
-#: app.svelte
-msgid "{0} other blocks"
-msgstr "{0} other blocks"
-
-#: app.svelte
-msgid "Loops and {0} <0/> Supported"
-msgstr "Loops and {0} <0/> Supported"
-
-#: app.svelte
-msgid "Conditionals, <0/>"
-msgstr "Conditionals, <0/>"
-
-#: app.svelte
-msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
-msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
-
-#: app.svelte
 msgid "Extract"
 msgstr "Extract"
 
@@ -53,6 +16,11 @@ msgstr "Extracted name"
 #: app.svelte
 msgid "This page says: {0}"
 msgstr "This page says: {0}"
+
+#: app.svelte
+#: app.svelte
+msgid "Extracted text"
+msgstr "Extracted text"
 
 #: app.svelte
 msgid "Extract this"
@@ -82,3 +50,36 @@ msgstr "And this"
 #: app.svelte
 msgid "Okay?"
 msgstr "Okay?"
+
+#: app.svelte
+msgid "Bar"
+msgstr "Bar"
+
+#: app.svelte
+msgid "Extracted"
+msgstr "Extracted"
+
+#: app.svelte
+msgid "Extracted Text"
+msgstr "Extracted Text"
+
+#: app.svelte
+msgid "extracted anyway"
+msgstr "extracted anyway"
+
+#: app.svelte
+msgid "{0} other blocks"
+msgstr "{0} other blocks"
+
+#: app.svelte
+msgid "Loops and {0} <0/> Supported"
+msgstr "Loops and {0} <0/> Supported"
+
+#: app.svelte
+msgid "Conditionals, <0/>"
+msgstr "Conditionals, <0/>"
+
+#: app.svelte
+msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
+msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
+

@@ -217,6 +217,7 @@ export class SvelteTransformer extends Transformer {
     visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
 
     visitRoot = (node: AST.Root): Message[] => {
+        const msgs: Message[] = []
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
             this.commentDirectives = {} // reset
@@ -227,11 +228,11 @@ export class SvelteTransformer extends Transformer {
         // they run everytime they are rendered instead of once at startup
         const initRuntime = this.initRuntime
         this.initRuntime = null
-        const msgs = this.visitFragment(node.fragment)
         if (node.instance) {
             this.commentDirectives = {} // reset
             msgs.push(...this.visitProgram(node.instance.content))
         }
+        msgs.push(...this.visitFragment(node.fragment))
         // restore just in case
         this.initRuntime = initRuntime
         return msgs
