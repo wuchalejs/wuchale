@@ -7,7 +7,11 @@ const catalogs: Record<string, LoadedCatalogs> = {}
 const catalogCtx: AsyncLocalStorage<LoadedCatalogs> = new AsyncLocalStorage()
 
 export function currentCatalog(key: string, loadID: string) {
-    return catalogCtx.getStore()[key][loadID]
+    const catalog = catalogCtx.getStore()?.[key]?.[loadID]
+    if (catalog == null) {
+        console.warn(`Catalog for '${key}.${loadID}' not found.\n  Either 'runWithLocale' was not called or the environment has a problem.`)
+    }
+    return catalog
 }
 
 export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => CatalogModule> {
