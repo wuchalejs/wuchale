@@ -31,16 +31,38 @@ test('Simple text', async function(t) {
     `, ['Hello'])
 })
 
-test('JS no extract', async function(t) {
+test('JS module files', async function(t) {
     await testContent(t, javascript`
-        // 'Not translation!' // simple expression
-        // const varName = 'No extraction' // simple assignment
+        'Not translation!' // simple expression
+        const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
         noExtract('Foo')
-    `, undefined, `
+
+        function foo() {
+            return 'Should extract'
+        }
+
+    `, javascript`
+        import _w_to_rt_ from 'wuchale/runtime'
+        import _w_load_ from "./tests/test-tmp/loader.svelte.js"
+
+        'Not translation!' // simple expression
+        const varName = 'No extraction' // simple assignment
+        const noExtract = call('Foo')
+        noExtract('Foo')
+
+        function foo() {
+            const _w_runtime_ = _w_to_rt_(_w_load_('svelte'))
+            return _w_runtime_.t(0)
+        }
+    `, `
         msgid ""
         msgstr ""
-    `, [], 'test.svelte.js')
+
+        #: test.svelte.js
+        msgid "Should extract"
+        msgstr "Should extract"
+    `, ['Should extract'], 'test.svelte.js')
 })
 
 test('Simple element with new lines', async function(t) {

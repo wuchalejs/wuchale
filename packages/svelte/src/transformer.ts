@@ -29,8 +29,8 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string) {
-        super(content, filename, index, heuristic, pluralsFunc, null)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: string) {
+        super(content, filename, index, heuristic, pluralsFunc, initRuntime)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
@@ -217,17 +217,23 @@ export class SvelteTransformer extends Transformer {
     visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
 
     visitRoot = (node: AST.Root): Message[] => {
-        const msgs = this.visitFragment(node.fragment)
-        if (node.instance) {
-            this.commentDirectives = {} // reset
-            msgs.push(...this.visitProgram(node.instance.content))
-        }
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
             this.commentDirectives = {} // reset
             // @ts-ignore
             msgs.push(...this.visitProgram(node.module.content))
         }
+        // no need to init runtime inside components outside <script module>s
+        // they run everytime they are rendered instead of once at startup
+        const initRuntime = this.initRuntime
+        this.initRuntime = null
+        const msgs = this.visitFragment(node.fragment)
+        if (node.instance) {
+            this.commentDirectives = {} // reset
+            msgs.push(...this.visitProgram(node.instance.content))
+        }
+        // restore just in case
+        this.initRuntime = initRuntime
         return msgs
     }
 
@@ -275,9 +281,10 @@ export class SvelteTransformer extends Transformer {
             return this.finalize(msgs, 0)
         }
         const headerLines = [
-            `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`,
+            isComponent ? `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"` : '',
             headerHead,
-            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`
+            // if it's a .svelte.js file it follows the vanilla initialization: inside functions only
+            isComponent ? `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n` : '',
         ]
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
