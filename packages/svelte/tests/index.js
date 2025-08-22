@@ -37,6 +37,7 @@ test('JS module files', async function(t) {
         const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
         noExtract('Foo')
+        const msg = $derived('Hello')
 
         function foo() {
             return 'Should extract'
@@ -45,24 +46,30 @@ test('JS module files', async function(t) {
     `, javascript`
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_ from "./tests/test-tmp/loader.svelte.js"
+        const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
 
         'Not translation!' // simple expression
         const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
         noExtract('Foo')
+        const msg = $derived(_w_runtime_.t(0))
 
         function foo() {
             const _w_runtime_ = _w_to_rt_(_w_load_('svelte'))
-            return _w_runtime_.t(0)
+            return _w_runtime_.t(1)
         }
     `, `
         msgid ""
         msgstr ""
 
         #: test.svelte.js
+        msgid "Hello"
+        msgstr "Hello"
+
+        #: test.svelte.js
         msgid "Should extract"
         msgstr "Should extract"
-    `, ['Should extract'], 'test.svelte.js')
+    `, ['Hello', 'Should extract'], 'test.svelte.js')
 })
 
 test('Simple element with new lines', async function(t) {

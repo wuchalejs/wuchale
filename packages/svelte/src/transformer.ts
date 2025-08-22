@@ -283,8 +283,7 @@ export class SvelteTransformer extends Transformer {
         const headerLines = [
             isComponent ? `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"` : '',
             headerHead,
-            // if it's a .svelte.js file it follows the vanilla initialization: inside functions only
-            isComponent ? `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n` : '',
+            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`,
         ]
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
