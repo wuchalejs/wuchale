@@ -5,7 +5,7 @@
     "scripts": {
         "clean": "rm -r packages/*/dist packages/*/*.tsbuildinfo packages/*/*/*.tsbuildinfo",
         "dev": "npm run clean && tsc --build tsconfig.build.json --watch",
-        "build": "tsc --build tsconfig.build.json",
+        "build": "tsc --build tsconfig.build.json --declarationMap false",
         "test": "npm run test --workspaces",
         "v": "npx @changesets/cli"
     },
