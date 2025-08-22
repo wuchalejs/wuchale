@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.13.3
+
+### Patch Changes
+
+- d8f72cb: Fix error when parsing <script module>s
+
 ## 0.13.2
 
 ### Patch Changes
