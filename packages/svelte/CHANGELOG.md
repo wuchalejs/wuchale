@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.13.1
+
+### Patch Changes
+
+- 80f682f: Fix <script module>s and .svelte.js files not using current locale in SSR
+
 ## 0.13.0
 
 ### Minor Changes
