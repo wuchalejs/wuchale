@@ -1,6 +1,6 @@
 # `@wuchale/jsx`
 
-[![npm version](https://img.shields.io/npm/v/@wuchale/jsx)](https://www.npmjs.com/package/@wuchale/jsx) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
+[![npm version](https://img.shields.io/npm/v/@wuchale/jsx?logo=npm&logoColor=red&color=blue)](https://www.npmjs.com/package/@wuchale/jsx) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
 
 An adapter to integrate `wuchale` in JSX projects.
 

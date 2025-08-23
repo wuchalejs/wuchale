@@ -1,6 +1,6 @@
 # `@wuchale/svelte`
 
-[![npm version](https://img.shields.io/npm/v/@wuchale/svelte)](https://www.npmjs.com/package/@wuchale/svelte) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
+[![npm version](https://img.shields.io/npm/v/@wuchale/svelte?logo=npm&logoColor=red&color=blue)](https://www.npmjs.com/package/@wuchale/svelte) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
 
 An adapter to integrate `wuchale` in Svelte projects.
 

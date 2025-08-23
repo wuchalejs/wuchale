@@ -1,6 +1,6 @@
 # `@wuchale/vite-plugin`
 
-[![npm version](https://img.shields.io/npm/v/@wuchale/vite-plugin)](https://www.npmjs.com/package/@wuchale/vite-plugin) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
+[![npm version](https://img.shields.io/npm/v/@wuchale/vite-plugin?logo=npm&logoColor=red&color=blue)](https://www.npmjs.com/package/@wuchale/vite-plugin) ![License](https://img.shields.io/github/license/wuchalejs/wuchale)
 
 The official Vite plugin for `wuchale`.
 
