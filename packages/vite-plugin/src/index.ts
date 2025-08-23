@@ -1,9 +1,8 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
-import type { Config, Mode } from "wuchale"
+import type { Config, Mode, SharedStates } from "wuchale"
 import { catalogVarName } from "wuchale/runtime"
-import type { SharedStates } from "../../wuchale/dist/handler.js"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`

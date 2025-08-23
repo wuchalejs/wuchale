@@ -11,7 +11,8 @@ export type {
     Composite,
     Mixed
 } from './compile.js'
-export { AdapterHandler, type Mode } from './handler.js'
+export { AdapterHandler } from './handler.js'
+export type { Mode, SharedStates } from './handler.js'
 export { Logger } from './log.js'
 export {
     Message,
