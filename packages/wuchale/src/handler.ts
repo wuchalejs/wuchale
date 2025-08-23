@@ -323,18 +323,33 @@ export class AdapterHandler {
         }
     }
 
-    loadDataModule = (locale: string, loadID: string) => {
+    loadCatalogModule = (locale: string, loadID: string, hmrVersion = -1) => {
         let compiledData = this.sharedState.compiled[locale]
         if (this.#adapter.granularLoad) {
             compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? { hasPlurals: false, items: [] }
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.sharedState.poFilesByLoc[locale].pluralRule.plural}`
-        const compiled = `export let ${catalogVarName} = ${compiledItems}`
-        if (!compiledData.hasPlurals) {
-            return compiled
+        let module = `export let ${catalogVarName} = ${compiledItems}`
+        if (compiledData.hasPlurals) {
+            module = `${module}\nexport let p = ${plural}`
         }
-        return `${compiled}\nexport let p = ${plural}`
+        if (this.#mode !== 'dev') {
+            return module
+        }
+        return `
+            ${module}
+            let latestVersion = ${hmrVersion}
+            export function update({ version, data }) {
+                if (latestVersion >= version) {
+                    return
+                }
+                for (const [ index, item ] of data['${locale}'] ?? []) {
+                    ${catalogVarName}[index] = item
+                }
+                latestVersion = version
+            }
+        `
     }
 
     #getGranularState(filename: string): GranularState {
@@ -394,12 +409,12 @@ export class AdapterHandler {
         if (!this.#adapter.writeFiles.compiled) {
             return
         }
-        await writeFile(this.#getCompiledFilePath(loc, null), this.loadDataModule(loc, null))
+        await writeFile(this.#getCompiledFilePath(loc, null), this.loadCatalogModule(loc, null))
         if (!this.#adapter.granularLoad) {
             return
         }
         for (const state of Object.values(this.granularStateByID)) {
-            await writeFile(this.#getCompiledFilePath(loc, state.id), this.loadDataModule(loc, state.id))
+            await writeFile(this.#getCompiledFilePath(loc, state.id), this.loadCatalogModule(loc, state.id))
         }
     }
 

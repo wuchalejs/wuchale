@@ -2,7 +2,6 @@
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, SharedStates } from "wuchale"
-import { catalogVarName } from "wuchale/runtime"
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
@@ -28,8 +27,6 @@ class Plugin {
     #locales: string[] = []
     #projectRoot: string = ''
 
-    #mode: Mode
-
     #adapters: Record<string, AdapterHandler> = {}
     #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
     #adaptersByCatalogPath: Record<string, AdapterHandler[]> = {}
@@ -49,7 +46,6 @@ class Plugin {
         this.#config = await getConfig(this.#configPath)
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         this.#log = new Logger(this.#config.messages)
-        this.#mode = mode
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
@@ -91,26 +87,6 @@ class Plugin {
         }
         this.#projectRoot = config.root
         await this.#init(mode)
-    }
-
-    #loadCatalog(adapter: AdapterHandler, locale: string, loadID: string | null) {
-        const module = adapter.loadDataModule(locale, loadID)
-        if (this.#mode !== 'dev') {
-            return module
-        }
-        return `
-            ${module}
-            let latestVersion = ${this.#hmrVersion}
-            export function update({ version, data }) {
-                if (latestVersion >= version) {
-                    return
-                }
-                for (const [ index, item ] of data['${locale}'] ?? []) {
-                    ${catalogVarName}[index] = item
-                }
-                latestVersion = version
-            }
-        `
     }
 
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
@@ -165,7 +141,7 @@ class Plugin {
                 this.#log.error(`Adapter not found for key: ${adapterKey}`)
                 return null
             }
-            return this.#loadCatalog(adapter, locale, loadID)
+            return adapter.loadCatalogModule(locale, loadID, this.#hmrVersion)
         }
         if (part === 'locales') {
             return `export const locales = ['${this.#locales.join("', '")}']`
