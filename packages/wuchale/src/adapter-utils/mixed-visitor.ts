@@ -50,7 +50,7 @@ export class MixedVisitor<NodeT> {
                 hasTextChild = true
                 heurStr += strContent + ' '
             } else if (this.isComment(child)) {
-                if (this.getCommentData(child).trim().startsWith('@wc-')) {
+                if (this.getCommentData(child).trim().startsWith('wuchale-')) {
                     hasCommentDirectives = true
                 }
             } else {

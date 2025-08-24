@@ -40,9 +40,9 @@ test('Ignore and include', async function(t) {
             return <div>
                 <svg><path d="M100 200" /></svg>
                 <p>{'hello there'}</p>
-                {/* @wc-ignore */}
+                {/* wuchale-ignore */}
                 <span>Ignore this</span>
-                {/* @wc-include */}
+                {/* wuchale-include */}
                 {'include this'}
             </div>
         }
@@ -55,9 +55,9 @@ test('Ignore and include', async function(t) {
             return <div>
                 <svg><path d="M100 200" /></svg>
                 <p>{'hello there'}</p>
-                {/* @wc-ignore */}
+                {/* wuchale-ignore */}
                 <span>Ignore this</span>
-                {/* @wc-include */}
+                {/* wuchale-include */}
                 {_w_runtime_.t(0)}
             </div>
         }
@@ -75,11 +75,11 @@ test('Context', async function(t) {
     await testContent(t, jsx`
         const m = () => {
             return <>
-                <p>{/* @wc-context: music */ 'String'}</p>
-                <p>{/* @wc-context: programming */ 'String'}</p>
-                {/* @wc-context: door */}
+                <p>{/* wuchale-context: music */ 'String'}</p>
+                <p>{/* wuchale-context: programming */ 'String'}</p>
+                {/* wuchale-context: door */}
                 <p>Close</p>
-                {/* @wc-context: distance */}
+                {/* wuchale-context: distance */}
                 <p>Close</p>
             </>
         }`, jsx`
@@ -89,11 +89,11 @@ test('Context', async function(t) {
             const m = () => {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
                 return <>
-                    <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
-                    <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
-                    {/* @wc-context: door */}
+                    <p>{/* wuchale-context: music */ _w_runtime_.t(0)}</p>
+                    <p>{/* wuchale-context: programming */ _w_runtime_.t(1)}</p>
+                    {/* wuchale-context: door */}
                     <p>{_w_runtime_.t(2)}</p>
-                    {/* @wc-context: distance */}
+                    {/* wuchale-context: distance */}
                     <p>{_w_runtime_.t(3)}</p>
                 </>
             }`, `

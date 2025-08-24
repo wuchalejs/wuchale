@@ -79,7 +79,7 @@
         >
     {/snippet}<!-- foo bar -->
     {#snippet wuchaleSnippet5()}
-        {#if someFunction(_w_runtime_.t(14), normalParam, [/* @wc-include */ _w_runtime_.t(15)])}
+        {#if someFunction(_w_runtime_.t(14), normalParam, [/* wuchale-include */ _w_runtime_.t(15)])}
             {#snippet wuchaleSnippet3()}
                 {#each collection.members as member}
                     <!-- What not -->
@@ -97,5 +97,5 @@
     <WuchaleTrans tags={[wuchaleSnippet4, wuchaleSnippet5]} ctx={_w_runtime_.cx(19)} args={[obj.property["non-extracted text"][_w_runtime_.t(4)]]} />
 </p>
 
-<!-- @wc-ignore -->
+<!-- wuchale-ignore -->
 But ignore me

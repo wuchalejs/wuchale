@@ -71,7 +71,7 @@
     >
     With
     <!-- foo bar -->
-    {#if someFunction("Extracted Text", normalParam, [/* @wc-include */ "extracted anyway"])}
+    {#if someFunction("Extracted Text", normalParam, [/* wuchale-include */ "extracted anyway"])}
         Conditionals,
         {#each collection.members as member}
             Loops and {member}
@@ -84,5 +84,5 @@
     {/if}
 </p>
 
-<!-- @wc-ignore -->
+<!-- wuchale-ignore -->
 But ignore me

@@ -379,13 +379,13 @@ export class Transformer {
 
     processCommentDirectives = (data: string): CommentDirectives => {
         const directives: CommentDirectives = { ...this.commentDirectives }
-        if (data === '@wc-ignore') {
+        if (data === 'wuchale-ignore') {
             directives.forceInclude = false
         }
-        if (data === '@wc-include') {
+        if (data === 'wuchale-include') {
             directives.forceInclude = true
         }
-        const ctxStart = '@wc-context:'
+        const ctxStart = 'wuchale-context:'
         if (data.startsWith(ctxStart)) {
             directives.context = data.slice(ctxStart.length).trim()
         }
