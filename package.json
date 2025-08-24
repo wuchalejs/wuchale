@@ -7,9 +7,7 @@
         "dev": "npm run clean && tsc --build tsconfig.build.json --watch",
         "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
         "test": "npm run test --workspaces",
-        "v": "npx changeset",
-        "vpe": "npx changeset pre enter rc",
-        "vpx": "npx changeset pre exit"
+        "v": "npx changeset"
     },
     "workspaces": [
         "packages/*"
