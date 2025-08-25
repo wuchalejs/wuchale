@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.14.3
+
+### Patch Changes
+
+- e7928e9: Fix multiline messages possibly missing catalog checks
+
 ## 0.14.2
 
 ### Patch Changes
