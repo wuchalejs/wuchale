@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.14.2
+
+### Patch Changes
+
+- 2c09872: Trim multiline messages to remove indentation
+- f5cf428: Fix svelte mixed attributes not handled correctly
+
 ## 0.14.1
 
 ### Patch Changes

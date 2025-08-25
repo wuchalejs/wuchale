@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.5.1
+
+### Patch Changes
+
+- f5cf428: Fix svelte mixed attributes not handled correctly
+- Updated dependencies [2c09872]
+- Updated dependencies [f5cf428]
+  - wuchale@0.14.2
+
 ## 0.5.0
 
 ### Minor Changes
