@@ -60,6 +60,10 @@ msgid "Extracted"
 msgstr "Extracted"
 
 #: app.svelte
+msgid "Also {0}"
+msgstr "Also {0}"
+
+#: app.svelte
 msgid "Extracted Text"
 msgstr "Extracted Text"
 

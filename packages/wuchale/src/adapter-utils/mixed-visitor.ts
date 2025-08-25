@@ -1,7 +1,7 @@
 // Shared logic between adapters for handling nested / mixed elements within elements / fragments
 
 import type MagicString from "magic-string"
-import { IndexTracker, Message, type CommentDirectives } from "../adapters.js"
+import { IndexTracker, Message, type CommentDirectives, type HeuristicDetailsBase, type HeuristicFunc } from "../adapters.js"
 import { nonWhitespaceText, runtimeVars } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
@@ -17,15 +17,20 @@ type InitProps<NodeT> = {
     getCommentData: (node: NodeT) => string
     visitFunc: (node: NodeT, inCompoundText: boolean) => Message[]
     visitExpressionTag: (node: NodeT) => Message[]
-    checkHeuristic: (msgStr: string) => boolean
+    checkHeuristic: HeuristicFunc<HeuristicDetailsBase>
     wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
     index: IndexTracker
 }
+
+export type MixedScope = 'markup' | 'attribute'
 
 type VisitProps<NodeT> = {
     children: NodeT[]
     commentDirectives: CommentDirectives
     inCompoundText: boolean
+    scope: MixedScope
+    element: string
+    attribute?: string
 }
 
 export interface MixedVisitor<NodeT> extends InitProps<NodeT> {}
@@ -59,16 +64,22 @@ export class MixedVisitor<NodeT> {
             }
         }
         heurStr = heurStr.trimEnd()
-        const passHeuristic = this.checkHeuristic(heurStr)
+        const passHeuristic = this.checkHeuristic(heurStr, {
+            scope: props.scope,
+            element: props.element,
+            attribute: props.attribute,
+        })
         let hasCompoundText = hasTextChild && hasNonTextChild
         const visitAsOne = passHeuristic && !hasCommentDirectives
         if (props.inCompoundText || hasCompoundText && visitAsOne) {
             return [false, hasTextChild, hasCompoundText, []]
         }
+        // can't be extracted as one; visit each separately if markup
         const msgs = []
-        // can't be extracted as one; visitSv each separately
-        for (const child of props.children) {
-            msgs.push(...this.visitFunc(child, props.inCompoundText))
+        if (props.scope === 'markup') {
+            for (const child of props.children) {
+                msgs.push(...this.visitFunc(child, props.inCompoundText))
+            }
         }
         return [true, false, false, msgs]
     }
@@ -95,7 +106,7 @@ export class MixedVisitor<NodeT> {
             const chRange = this.getRange(child)
             if (this.isText(child)) {
                 const [startWh, trimmed, endWh] = nonWhitespaceText(this.getTextContent(child))
-                const msgInfo = new Message(trimmed, 'markup', props.commentDirectives.context)
+                const msgInfo = new Message(trimmed, props.scope, props.commentDirectives.context)
                 if (startWh && !msgStr.endsWith(' ')) {
                     msgStr += ' '
                 }
@@ -133,7 +144,7 @@ export class MixedVisitor<NodeT> {
             let nestedNeedsCtx = false
             let chTxt = ''
             for (const msgInfo of childMsgs) {
-                if (canHaveChildren && msgInfo.scope === 'markup') {
+                if (canHaveChildren && msgInfo.scope === props.scope) {
                     chTxt += msgInfo.msgStr[0]
                     hasTextDescendants = true
                     nestedNeedsCtx = true
@@ -155,7 +166,7 @@ export class MixedVisitor<NodeT> {
         if (!msgStr) {
             return msgs
         }
-        const msgInfo = new Message(msgStr, 'markup', props.commentDirectives.context)
+        const msgInfo = new Message(msgStr, props.scope, props.commentDirectives.context)
         if (hasTextChild || hasTextDescendants) {
             msgs.push(msgInfo)
         } else {

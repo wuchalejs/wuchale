@@ -88,10 +88,10 @@ export class Transformer {
         this.initRuntime = initRuntime
     }
 
-    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
+    checkHeuristicBool: HeuristicFunc<HeuristicDetailsBase> = (msgStr, detailsBase): boolean => {
         if (!msgStr) {
             // nothing to ask
-            return [false, null]
+            return false
         }
         let extract = this.commentDirectives.forceInclude
         if (extract == null) {
@@ -108,6 +108,15 @@ export class Transformer {
             }
             extract = this.heuristic(msgStr, details) ?? defaultHeuristicFuncOnly(msgStr, details) ?? true
         }
+        return extract
+    }
+
+    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
+        if (!msgStr) {
+            // nothing to ask
+            return [false, null]
+        }
+        let extract = this.checkHeuristicBool(msgStr, detailsBase)
         return [extract, new Message(msgStr, detailsBase.scope, this.commentDirectives.context)]
     }
 

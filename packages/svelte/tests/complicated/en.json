@@ -21,6 +21,10 @@
   "Okay?",
   "Bar",
   "Extracted",
+  [
+      "Also ",
+      0
+  ],
   "Extracted Text",
   "extracted anyway",
   [

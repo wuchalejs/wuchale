@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises"
-export { MixedVisitor } from './mixed-visitor.js'
+export { MixedVisitor, type MixedScope } from './mixed-visitor.js'
 
 // for runtime
 const rtConst = '_w_runtime_'

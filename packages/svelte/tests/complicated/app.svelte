@@ -66,7 +66,7 @@
 <p>
     This is a very {obj.property["non-extracted text"]["Extracted text"]}
     Complicated
-    <i class="not-extracted" title="Extracted"
+    <i class="not-extracted" title="Extracted" data-mixed="Also {'handled'}"
         >and even <b><u>depply</u> nested {`with ${someJSEven}` + "foo"}</b> content</i
     >
     With

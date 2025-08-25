@@ -22,7 +22,7 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
-export type HeuristicFunc = (msgStr: string, details: HeuristicDetails) => boolean | null | undefined
+export type HeuristicFunc<T = HeuristicDetails> = (msgStr: string, details: T) => boolean | null | undefined
 
 export function defaultHeuristic(msgStr: string, details: HeuristicDetails) {
     if (msgStr.search(/\p{L}/u) === -1) {

@@ -52,7 +52,7 @@ export class SvelteTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitExpressionTag,
-        checkHeuristic: msgStr => this.checkHeuristic(msgStr, { scope: 'markup', element: this.currentElement })[0],
+        checkHeuristic: this.checkHeuristicBool,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             const snippets = []
@@ -87,6 +87,8 @@ export class SvelteTransformer extends Transformer {
         children: node.nodes,
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
+        scope: 'markup',
+        element: this.currentElement,
     })
 
     visitRegularElement = (node: AST.ElementLike): Message[] => {
@@ -122,37 +124,40 @@ export class SvelteTransformer extends Transformer {
         if (node.value === true) {
             return []
         }
-        const msgs = []
         let values: (AST.ExpressionTag | AST.Text)[]
         if (Array.isArray(node.value)) {
             values = node.value
         } else {
             values = [node.value]
         }
-        for (const value of values) {
-            if (value.type !== 'Text') { // ExpressionTag
-                msgs.push(...this.visitSv(value))
-                continue
-            }
-            // Text
-            const { start, end } = value
-            const [pass, msgInfo] = this.checkHeuristic(value.data, {
+        if (values.length > 1) {
+            return this.mixedVisitor.visit({
+                children: values,
+                commentDirectives: this.commentDirectives,
+                inCompoundText: false,
                 scope: 'attribute',
                 element: this.currentElement,
                 attribute: node.name,
             })
-            if (!pass) {
-                continue
-            }
-            msgs.push(msgInfo)
-            this.mstr.update(value.start, value.end, `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
-            if (!`'"`.includes(this.content[start - 1])) {
-                continue
-            }
-            this.mstr.remove(start - 1, start)
-            this.mstr.remove(end, end + 1)
         }
-        return msgs
+        const value = values[0]
+        if (value.type !== 'Text') {
+            return []
+        }
+        const [pass, msgInfo] = this.checkHeuristic(value.data, {
+            scope: 'attribute',
+            element: this.currentElement,
+            attribute: node.name,
+        })
+        if (!pass) {
+            return []
+        }
+        this.mstr.update(value.start, value.end, `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        if (`'"`.includes(this.content[value.start - 1])) {
+            this.mstr.remove(value.start - 1, value.start)
+            this.mstr.remove(value.end, value.end + 1)
+        }
+        return [msgInfo]
     }
 
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => this.visitFragment(node.body)

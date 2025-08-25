@@ -67,7 +67,7 @@ export class JSXTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitJSXExpressionContainer,
-        checkHeuristic: msgStr => this.checkHeuristic(msgStr, { scope: 'markup', element: this.currentElement })[0],
+        checkHeuristic: this.checkHeuristicBool,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
@@ -100,6 +100,8 @@ export class JSXTransformer extends Transformer {
         children: node.children,
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
+        scope: 'markup',
+        element: this.currentElement,
     })
 
     visitNameJSXNamespacedName = (node: JX.JSXNamespacedName): string => {

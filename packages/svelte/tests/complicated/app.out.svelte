@@ -64,7 +64,7 @@
 
 <p>
     {#snippet wuchaleSnippet4(_w_ctx_)}
-        <i class="not-extracted" title={_w_runtime_.t(13)}
+        <i class="not-extracted" title={_w_runtime_.t(13)} data-mixed="{_w_runtime_.t(14, ['handled'])}"
         >
             {#snippet wuchaleSnippet1(_w_ctx_)}
                 <b>
@@ -79,22 +79,22 @@
         >
     {/snippet}<!-- foo bar -->
     {#snippet wuchaleSnippet5()}
-        {#if someFunction(_w_runtime_.t(14), normalParam, [/* @wc-include */ _w_runtime_.t(15)])}
+        {#if someFunction(_w_runtime_.t(15), normalParam, [/* @wc-include */ _w_runtime_.t(16)])}
             {#snippet wuchaleSnippet3()}
                 {#each collection.members as member}
                     <!-- What not -->
                     {#snippet wuchaleSnippet2()}
                         {#await someFunctionAsync(derive) then json}
-                            <b>{_w_runtime_.t(16, [json.title])}</b>
+                            <b>{_w_runtime_.t(17, [json.title])}</b>
                         {/await}
                     {/snippet}
-                    <WuchaleTrans tags={[wuchaleSnippet2]} ctx={_w_runtime_.cx(17)} args={[member]} />
+                    <WuchaleTrans tags={[wuchaleSnippet2]} ctx={_w_runtime_.cx(18)} args={[member]} />
                 {/each}
             {/snippet}
-            <WuchaleTrans tags={[wuchaleSnippet3]} ctx={_w_runtime_.cx(18)} />
+            <WuchaleTrans tags={[wuchaleSnippet3]} ctx={_w_runtime_.cx(19)} />
         {/if}
     {/snippet}
-    <WuchaleTrans tags={[wuchaleSnippet4, wuchaleSnippet5]} ctx={_w_runtime_.cx(19)} args={[obj.property["non-extracted text"][_w_runtime_.t(4)]]} />
+    <WuchaleTrans tags={[wuchaleSnippet4, wuchaleSnippet5]} ctx={_w_runtime_.cx(20)} args={[obj.property["non-extracted text"][_w_runtime_.t(4)]]} />
 </p>
 
 <!-- @wc-ignore -->
