@@ -192,6 +192,12 @@ export class Transformer {
         ...this.visit(node.right),
     ]
 
+    visitConditionalExpression = (node: Estree.ConditionalExpression): Message[] => [
+        ...this.visit(node.test),
+        ...this.visit(node.consequent),
+        ...this.visit(node.alternate),
+    ]
+
     visitUnaryExpression = (node: Estree.UnaryExpression): Message[] => this.visit(node.argument)
 
     visitLogicalExpression = (node: Estree.LogicalExpression): Message[] => [
