@@ -107,9 +107,9 @@ test('Ignore and include', async function(t) {
         <div>
             <svg><path d="M100 200" /></svg>
             <p>{'hello there'}</p>
-            <!-- wuchale-ignore -->
+            <!-- @wc-ignore -->
             <span>Ignore this</span>
-            <!-- wuchale-include -->
+            <!-- @wc-include -->
             {'include this'}
         </div>
     `, svelte`
@@ -122,9 +122,9 @@ test('Ignore and include', async function(t) {
         <div>
             <svg><path d="M100 200" /></svg>
             <p>{'hello there'}</p>
-            <!-- wuchale-ignore -->
+            <!-- @wc-ignore -->
             <span>Ignore this</span>
-            <!-- wuchale-include -->
+            <!-- @wc-include -->
             {_w_runtime_.t(0)}
         </div>
     `, `
@@ -140,11 +140,11 @@ test('Ignore and include', async function(t) {
 test('Context', async function(t) {
     await testContent(t,
         svelte`
-            <p>{/* wuchale-context: music */ 'String'}</p>
-            <p>{/* wuchale-context: programming */ 'String'}</p>
-            <!-- wuchale-context: door -->
+            <p>{/* @wc-context: music */ 'String'}</p>
+            <p>{/* @wc-context: programming */ 'String'}</p>
+            <!-- @wc-context: door -->
             <p>Close</p>
-            <!-- wuchale-context: distance -->
+            <!-- @wc-context: distance -->
             <p>Close</p>
         `,
         svelte`
@@ -154,11 +154,11 @@ test('Context', async function(t) {
                 import _w_load_ from "../tests/test-tmp/loader.svelte.js"
                 const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
             </script>
-            <p>{/* wuchale-context: music */ _w_runtime_.t(0)}</p>
-            <p>{/* wuchale-context: programming */ _w_runtime_.t(1)}</p>
-            <!-- wuchale-context: door -->
+            <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
+            <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
+            <!-- @wc-context: door -->
             <p>{_w_runtime_.t(2)}</p>
-            <!-- wuchale-context: distance -->
+            <!-- @wc-context: distance -->
             <p>{_w_runtime_.t(3)}</p>
     `, `
         msgid ""
