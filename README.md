@@ -164,6 +164,16 @@ If you find `wuchale` valuable and you enjoy working with it, supporting it on
 [Github Sponsors](https://github.com/sponsors/K1DV5) or [Open
 Collective](https://opencollective.com/wuchale) would mean a lot.
 
+## Inspiration
+
+This project was inspired by [Lingui](https://lingui.dev/) especially some of
+its workflow. If you've used Lingui before, you'll find familiar concepts like
+extraction and compilation.
+
+`wuchale` takes a different approach: you don't need to change your code,
+catalogs compile smaller than any other tool (including Lingui's), and it
+integrates with a wider range of frameworks.
+
 ## License
 
 [MIT](LICENSE)
