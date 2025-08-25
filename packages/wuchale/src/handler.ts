@@ -594,6 +594,7 @@ export class AdapterHandler {
             for (const msgInfo of msgs) {
                 let key = msgInfo.toKey()
                 hmrKeys[loc].push(key)
+                msgInfo.trimLines()
                 let poItem = poFile.catalog[key]
                 if (!poItem) {
                     // @ts-expect-error

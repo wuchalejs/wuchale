@@ -65,10 +65,14 @@ export class Message {
         } else {
             this.msgStr = msgStr
         }
-        // trim lines
-        this.msgStr = this.msgStr.map(msg => msg.split('\n').map(line => line.trim()).join('\n'))
         this.scope = scope
         this.context = context ?? null
+    }
+
+    trimLines = () => {
+        this.msgStr = this.msgStr.map(
+            msg => msg.split('\n').map(line => line.trim()).join('\n')
+        )
     }
 
     toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
