@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.14.5
+
+### Patch Changes
+
+- 6604274: Fix destructuring assignment default values not extracted
+
 ## 0.14.4
 
 ### Patch Changes
