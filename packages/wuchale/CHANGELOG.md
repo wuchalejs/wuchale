@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.14.4
+
+### Patch Changes
+
+- 7d8f079: Fix ternary expressions not extracted
+
 ## 0.14.3
 
 ### Patch Changes
