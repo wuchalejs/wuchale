@@ -1,5 +1,14 @@
 # @wuchale/vite-plugin
 
+## 0.13.2
+
+### Patch Changes
+
+- 4191ead: Update after moving hmr catalog to handler
+- Updated dependencies [2c09872]
+- Updated dependencies [f5cf428]
+  - wuchale@0.14.2
+
 ## 0.13.1
 
 ### Patch Changes
