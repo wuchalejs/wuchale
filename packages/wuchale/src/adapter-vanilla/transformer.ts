@@ -137,6 +137,10 @@ export class Transformer {
 
     visitObjectExpression = (node: Estree.ObjectExpression): Message[] => node.properties.map(this.visit).flat()
 
+    visitObjectPattern = (node: Estree.ObjectPattern): Message[] => node.properties.map(this.visit).flat()
+
+    visitRestElement = (node: Estree.RestElement): Message[] => this.visit(node.argument)
+
     visitProperty = (node: Estree.Property): Message[] => [
         ...this.visit(node.key),
         ...this.visit(node.value),
@@ -209,6 +213,11 @@ export class Transformer {
 
     visitAssignmentExpression = this.visitBinaryExpression
 
+    visitAssignmentPattern = (node: Estree.AssignmentPattern): Message[] => [
+        ...this.visit(node.left),
+        ...this.visit(node.right),
+    ]
+
     visitExpressionStatement = (node: Estree.ExpressionStatement): Message[] => this.visit(node.expression)
 
     visitForOfStatement = (node: Estree.ForOfStatement): Message[] => [
@@ -267,6 +276,7 @@ export class Transformer {
             if (!dec.init) {
                 continue
             }
+            msgs.push(...this.visit(dec.id))
             // store the name of the function after =
             if (atTopLevelDefn) {
                 if (dec.init.type === 'ArrowFunctionExpression') {
@@ -420,8 +430,8 @@ export class Transformer {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 msgs = this[methodName](node)
-                // } else {
-                //     console.log(node)
+            // } else {
+            //     console.log(node)
             }
         }
         this.commentDirectives = commentDirectives // restore
