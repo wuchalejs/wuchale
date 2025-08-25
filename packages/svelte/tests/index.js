@@ -95,11 +95,11 @@ test('Simple element with new lines', async function(t) {
         #: test-tmp/test.svelte
         msgid ""
         "Hello\\n"
-        "            There"
+        "There"
         msgstr ""
         "Hello\\n"
-        "            There"
-    `, ['Hello\n            There'])
+        "There"
+    `, ['Hello\nThere'])
 })
 
 test('Ignore and include', async function(t) {
