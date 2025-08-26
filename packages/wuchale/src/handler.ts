@@ -137,7 +137,7 @@ export class AdapterHandler {
 
     #log: Logger
 
-    constructor(adapter: Adapter, key: string | number, config: ConfigPartial, mode: Mode, virtualPrefix: string, projectRoot: string, log: Logger) {
+    constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, virtualPrefix: string, projectRoot: string, log: Logger) {
         this.#adapter = adapter
         this.key = key.toString()
         this.#mode = mode

@@ -1,5 +1,5 @@
-import MagicString from "magic-string"
-import { Parser, type Program } from "acorn"
+import MagicString from 'magic-string'
+import { Parser, type Program } from 'acorn'
 import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
