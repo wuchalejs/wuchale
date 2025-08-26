@@ -48,6 +48,9 @@ test('Inside function definitions', async function(t) {
             method: () => 'Not inside func def',
         }
         const bar: (a: string) => string = (a) => {
+            const foo = {
+                'Extracted': 42,
+            }
             return \`Hello \${a\}\`
         }
     `, typescript`
@@ -64,7 +67,10 @@ test('Inside function definitions', async function(t) {
         }
         const bar: (a: string) => string = (a) => {
             const _w_runtime_ = _w_to_rt_(_w_load_('basic'))
-            return _w_runtime_.t(1, [a])
+            const foo = {
+                [_w_runtime_.t(1)]: 42,
+            }
+            return _w_runtime_.t(2, [a])
         }
     `, `
     msgid ""
@@ -75,9 +81,13 @@ test('Inside function definitions', async function(t) {
     msgstr "Hello"
 
     #: test-tmp/test.js
+    msgid "Extracted"
+    msgstr "Extracted"
+
+    #: test-tmp/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
-    `, ['Hello', ['Hello ', 0]])
+    `, ['Hello', 'Extracted', ['Hello ', 0]])
 })
 
 const testCatalog = {

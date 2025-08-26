@@ -141,10 +141,17 @@ export class Transformer {
 
     visitRestElement = (node: Estree.RestElement): Message[] => this.visit(node.argument)
 
-    visitProperty = (node: Estree.Property): Message[] => [
-        ...this.visit(node.key),
-        ...this.visit(node.value),
-    ]
+    visitProperty = (node: Estree.Property): Message[] => {
+        const msgs = this.visit(node.key)
+        if (msgs.length && node.key.type === 'Literal' && typeof node.key.value === 'string') {
+            // @ts-expect-error
+            this.mstr.appendRight(node.key.start, '[')
+            // @ts-expect-error
+            this.mstr.appendLeft(node.key.end, ']')
+        }
+        msgs.push(...this.visit(node.value))
+        return msgs
+    }
 
     visitSpreadElement = (node: Estree.SpreadElement): Message[] => this.visit(node.argument)
 
