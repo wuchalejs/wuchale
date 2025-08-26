@@ -15,7 +15,7 @@ test('Default loader file paths', async function(t){
 test('Simple text', async function(t) {
     await testContent(t, jsx`
         function m() {
-            return <p>Hello</p>
+            return <p data-novalue>Hello</p>
         }
     `, jsx`
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
@@ -23,7 +23,7 @@ test('Simple text', async function(t) {
         import _w_load_ from "../tests/test-tmp/loader.js"
         function m() {
             const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
-            return <p>{_w_runtime_.t(0)}</p>
+            return <p data-novalue>{_w_runtime_.t(0)}</p>
         }
     `, `
     msgid ""

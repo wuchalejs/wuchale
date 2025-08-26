@@ -171,6 +171,9 @@ export class JSXTransformer extends Transformer {
     }
 
     visitJSXAttribute = (node: JX.JSXAttribute): Message[] => {
+        if (node.value == null) {
+            return []
+        }
         if (node.value.type !== 'Literal') {
             return this.visitJx(node.value)
         }
