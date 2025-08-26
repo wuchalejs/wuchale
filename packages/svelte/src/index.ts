@@ -40,6 +40,16 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    getCatalog: {
+        reactiveImport: 'default',
+        staticImport: '',
+        useReactive: () => true,
+        wrapInit: expr => expr,
+    },
+    runtime: {
+        wrapInit: expr => `$derived(${expr})`,
+        wrapUse: expr => expr,
+    },
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {

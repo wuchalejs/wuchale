@@ -144,6 +144,16 @@ export type AdapterPassThruOpts = {
         transformed?: boolean
         outDir?: string
     }
+    getCatalog: {
+        reactiveImport?: string
+        staticImport?: string
+        useReactive?: (details: {funcName?: string, nested: boolean}) => boolean
+        wrapInit?: (expr: string) => string
+    }
+    runtime: {
+        wrapInit?: (expr: string) => string
+        wrapUse?: (expr: string) => string
+    }
 }
 
 export type Adapter = AdapterPassThruOpts & {

@@ -40,6 +40,16 @@ const defaultArgs: JSXArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    getCatalog: {
+        reactiveImport: 'default',
+        staticImport: 'get',
+        useReactive: ({funcName, nested}) => !nested && funcName != null && (funcName.startsWith('use') || /A-Z/.test(funcName[0])),
+        wrapInit: expr => expr,
+    },
+    runtime: {
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
+    },
     variant: 'default',
 }
 

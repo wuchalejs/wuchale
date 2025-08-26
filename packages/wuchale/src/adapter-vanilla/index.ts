@@ -22,6 +22,16 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    getCatalog: {
+        reactiveImport: '',
+        staticImport: 'default',
+        useReactive: () => false,
+        wrapInit: expr => expr,
+    },
+    runtime: {
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
+    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
