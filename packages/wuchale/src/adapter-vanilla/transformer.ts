@@ -143,7 +143,7 @@ export class Transformer {
 
     visitProperty = (node: Estree.Property): Message[] => {
         const msgs = this.visit(node.key)
-        if (msgs.length && node.key.type === 'Literal' && typeof node.key.value === 'string') {
+        if (msgs.length && node.key.type === 'Literal' && typeof node.key.value === 'string' && !node.computed) {
             // @ts-expect-error
             this.mstr.appendRight(node.key.start, '[')
             // @ts-expect-error
