@@ -142,7 +142,7 @@ export class SvelteTransformer extends Transformer {
         }
         const value = values[0]
         if (value.type !== 'Text') {
-            return []
+            return this.visitSv(value)
         }
         const [pass, msgInfo] = this.checkHeuristic(value.data, {
             scope: 'attribute',

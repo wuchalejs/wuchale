@@ -74,7 +74,7 @@ test('JS module files', async function(t) {
 
 test('Simple element with new lines', async function(t) {
     await testContent(t, svelte`
-        <p>
+        <p title={loggedIn && 'Hello'}>
             Hello
             There
         </p>`,
@@ -85,12 +85,16 @@ test('Simple element with new lines', async function(t) {
             import _w_load_ from "../tests/test-tmp/loader.svelte.js"
             const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
         </script>
-        <p>
-            {_w_runtime_.t(0)}
+        <p title={loggedIn && _w_runtime_.t(0)}>
+            {_w_runtime_.t(1)}
         </p>
     `, `
         msgid ""
         msgstr ""
+
+        #: test-tmp/test.svelte
+        msgid "Hello"
+        msgstr "Hello"
 
         #: test-tmp/test.svelte
         msgid ""
@@ -99,7 +103,7 @@ test('Simple element with new lines', async function(t) {
         msgstr ""
         "Hello\\n"
         "There"
-    `, ['Hello\nThere'])
+    `, ['Hello', 'Hello\nThere'])
 })
 
 test('Ignore and include', async function(t) {
