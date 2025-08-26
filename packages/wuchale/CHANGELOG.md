@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.14.6
+
+### Patch Changes
+
+- 53ee835: Surround object keys only if not computed
+- d67de40: Fix error when extracting quoted object key strings
+
 ## 0.14.5
 
 ### Patch Changes

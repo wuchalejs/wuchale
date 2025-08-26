@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.13.5
+
+### Patch Changes
+
+- b2475f0: Fix expression tag attributes not visited
+- Updated dependencies [53ee835]
+- Updated dependencies [d67de40]
+  - wuchale@0.14.6
+
 ## 0.13.4
 
 ### Patch Changes
