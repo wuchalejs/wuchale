@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/jsx",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "description": "Protobuf-like i18n from plain code: JSX adapter",
     "scripts": {
         "dev": "tsc --watch",
