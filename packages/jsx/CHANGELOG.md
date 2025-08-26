@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.5.2
+
+### Patch Changes
+
+- 53a8df0: Fix error on attributes without value
+
 ## 0.5.1
 
 ### Patch Changes
