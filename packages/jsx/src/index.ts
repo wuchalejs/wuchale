@@ -1,10 +1,12 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { adapter as vanillaAdapter, initRuntimeStmt } from 'wuchale/adapter-vanilla'
+import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
+    CatalogConf,
+    RuntimeConf,
 } from 'wuchale'
 import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
@@ -42,7 +44,7 @@ const defaultArgs: JSXArgs = {
     writeFiles: {},
     getCatalog: {
         reactiveImport: 'default',
-        staticImport: 'get',
+        plainImport: 'get',
         useReactive: ({funcName, nested}) => !nested && funcName != null && (funcName.startsWith('use') || /A-Z/.test(funcName[0])),
         wrapInit: expr => expr,
     },
@@ -58,6 +60,8 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         heuristic,
         pluralsFunc,
         variant,
+        getCatalog,
+        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -68,7 +72,9 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
                 index,
                 heuristic,
                 pluralsFunc,
-                initRuntimeStmt(header.expr),
+                header.expr,
+                getCatalog as CatalogConf,
+                runtime as RuntimeConf,
             ).transformJx(header.head, variant)
         },
         loaderExts: ['.js', '.ts'],

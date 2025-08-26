@@ -1,10 +1,12 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { initRuntimeStmt, adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
+import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
+    RuntimeConf,
+    CatalogConf,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
@@ -42,7 +44,7 @@ const defaultArgs: AdapterArgs = {
     writeFiles: {},
     getCatalog: {
         reactiveImport: 'default',
-        staticImport: '',
+        plainImport: null,
         useReactive: () => true,
         wrapInit: expr => expr,
     },
@@ -56,6 +58,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
+        getCatalog,
+        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -66,8 +70,10 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 index,
                 heuristic,
                 pluralsFunc,
-                initRuntimeStmt(header.expr),
-            ).transformSv(header.head, header.expr)
+                header.expr,
+                getCatalog as CatalogConf,
+                runtime as RuntimeConf,
+            ).transformSv(header.head)
         },
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaders: async () => {

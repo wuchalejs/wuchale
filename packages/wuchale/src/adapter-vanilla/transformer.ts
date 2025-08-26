@@ -13,9 +13,14 @@ import type {
     IndexTracker,
     ScriptDeclType,
     TransformOutput,
-    HeuristicDetails
+    HeuristicDetails,
+    RuntimeConf,
+    CatalogConf,
+    UseReactiveFunc,
+    CatalogExpr,
+    WrapFunc
 } from "../adapters.js"
-import { runtimeVars } from "../adapter-utils/index.js"
+import { runtimeVars, varNames, type RuntimeVars } from "../adapter-utils/index.js"
 
 export const scriptParseOptions: ParserOptions = {
     sourceType: 'module',
@@ -54,8 +59,16 @@ export function parseScript(content: string): [Program, Estree.Comment[][]] {
     return [ScriptParser.parse(content, opts), comments]
 }
 
-export function initRuntimeStmt(catalogExpr: string) {
-    return `const ${runtimeVars.rtConst} = ${runtimeVars.rtWrap}(${catalogExpr})`
+function initRuntimeStmt(useReactiveFunc: UseReactiveFunc, wrapCatalog: WrapFunc, wrapRuntime: WrapFunc, expr: CatalogExpr) {
+    return (funcName?: string, parentFunc?: string) => {
+        const useReactive = useReactiveFunc({funcName, nested: parentFunc != null})
+        if (useReactive == null) {
+            return
+        }
+        const catalogExpr = useReactive ? expr.reactive : expr.plain
+        const runtimeExpr = `${varNames.rtWrap}(${wrapCatalog(catalogExpr)})`
+        return `const ${varNames.rt} = ${wrapRuntime(runtimeExpr)}`
+    }
 }
 
 export class Transformer {
@@ -68,8 +81,8 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    // null possible because subclasses may disable init inside functions
-    initRuntime: string | null
+    initRuntime: ReturnType<typeof initRuntimeStmt>
+    vars: RuntimeVars
 
     // state
     commentDirectives: CommentDirectives = {}
@@ -79,13 +92,14 @@ export class Transformer {
     currentCall: string
     currentTopLevelCall: string
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: string | null) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, catalogConf: CatalogConf, rtConf: RuntimeConf) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initRuntime = initRuntime
+        this.initRuntime = initRuntimeStmt(catalogConf.useReactive, catalogConf.wrapInit, rtConf.wrapInit, catalogExpr)
+        this.vars = runtimeVars(rtConf.wrapUse)
     }
 
     checkHeuristicBool: HeuristicFunc<HeuristicDetailsBase> = (msgStr, detailsBase): boolean => {
@@ -129,7 +143,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
+        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
         return [msgInfo]
     }
 
@@ -192,7 +206,7 @@ export class Transformer {
         const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
         msgInfo.plural = true
         const index = this.index.get(msgInfo.toKey())
-        const pluralUpdate = `${runtimeVars.rtTPlural}(${index}), ${runtimeVars.rtPlural}`
+        const pluralUpdate = `${this.vars.rtTPlural}(${index}), ${this.vars.rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [msgInfo]
@@ -316,12 +330,12 @@ export class Transformer {
         const prevFuncDef = this.currentFuncDef
         this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
         const msgs = this.visit(node)
-        let initRuntimeHere = prevFuncDef == null && this.currentFuncDef != null
-        if (msgs.length > 0 && initRuntimeHere && node.type === 'BlockStatement') {
-            this.initRuntime && this.mstr.prependLeft(
+        if (msgs.length > 0 && node.type === 'BlockStatement') {
+            const initRuntime = this.initRuntime(this.currentFuncDef, prevFuncDef)
+            initRuntime && this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\n${this.initRuntime}\n`,
+                `\n${initRuntime}\n`,
             )
         }
         this.currentFuncDef = prevFuncDef
@@ -384,7 +398,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
-        let begin = `${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())}`
+        let begin = `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -452,7 +466,7 @@ export class Transformer {
                 return {}
             }
             if (hmrData) {
-                this.mstr.prependRight(hmrHeaderIndex, `\nconst ${runtimeVars.hmrUpdate} = ${JSON.stringify(hmrData)}\n`)
+                this.mstr.prependRight(hmrHeaderIndex, `\nconst ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}\n`)
             }
             return {
                 code: this.mstr.toString(),

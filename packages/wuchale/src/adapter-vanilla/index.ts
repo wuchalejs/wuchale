@@ -6,12 +6,14 @@ import type {
     AdapterArgs,
     Adapter,
     AdapterPassThruOpts,
+    CatalogConf,
+    RuntimeConf,
 } from "../adapters.js"
-import { initRuntimeStmt, Transformer } from "./transformer.js"
+import { Transformer } from "./transformer.js"
 import { getDependencies } from '../adapter-utils/index.js'
 
 export { Transformer }
-export { parseScript, scriptParseOptions, scriptParseOptionsWithComments, initRuntimeStmt } from './transformer.js'
+export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
 
 const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
@@ -23,8 +25,8 @@ const defaultArgs: AdapterArgs = {
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
     getCatalog: {
-        reactiveImport: '',
-        staticImport: 'default',
+        reactiveImport: null,
+        plainImport: 'default',
         useReactive: () => false,
         wrapInit: expr => expr,
     },
@@ -38,6 +40,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
+        getCatalog,
+        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -47,7 +51,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             index,
             heuristic,
             pluralsFunc,
-            initRuntimeStmt(header.expr),
+            header.expr,
+            getCatalog as CatalogConf,
+            runtime as RuntimeConf,
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
