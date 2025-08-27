@@ -10,7 +10,7 @@ export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(f
 const dirBase = absDir(import.meta.url)
 const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
 
-const adapterOpts = {
+export const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
     catalog: `${dirBase}/test-tmp/{locale}`,
     initInsideFunc: false,
@@ -21,9 +21,10 @@ const adapterOpts = {
  * @param {import("wuchale").Adapter} adapter
  * @param {string} key
  * @param {string} filename
+ * @param {number} hmrVersion
  * @returns {Promise<object>}
  */
-export async function getOutput(adapter, key, content, filename) {
+export async function getOutput(adapter, key, content, filename, hmrVersion) {
     adapter.catalog
     const handler = new AdapterHandler(
         adapter,
@@ -35,7 +36,7 @@ export async function getOutput(adapter, key, content, filename) {
         new Logger(false),
     )
     await handler.init({})
-    const { code } = await handler.transform(content, filename)
+    const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
     return { code, catalogs: poFilesByLoc, compiled }
 }
@@ -65,9 +66,10 @@ function trimLines(str) {
  * @param {string} testFile
  * @param {import("wuchale").Adapter} adapter
  * @param {string} key
+ * @param {number} hmrVersion
  */
-export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile) {
-    const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile)
+export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion) {
+    const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile, hmrVersion)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
     for (const key in catalogs.en.catalog) {
@@ -90,10 +92,10 @@ export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) 
     const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
     const poContents = (await readFile(`${dir}/en.po`)).toString()
     const compiledContents = JSON.parse((await readFile(`${dir}/en.json`)).toString())
-    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, testFile)
+    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, testFile, -1)
 }
 
-const basic = adapter(adapterOpts)
+export const basic = adapter(adapterOpts)
 
 /**
  * @param {any} t
@@ -102,22 +104,22 @@ const basic = adapter(adapterOpts)
  * @param {string} expectedTranslations
  * @param {(string | number | (string | number)[])[]} expectedCompiled
  */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled) {
+export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, adapter=basic, hmrVersion=-1) {
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testContentSetup(t, basic, 'basic', content, expectedContent, expectedTranslations, expectedCompiled, testFile)
+    await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
 }
 
 /**
  * @param {any} t
  * @param {string} dir
  */
-export async function testDir(t, dir) {
+export async function testDir(t, dir, adapter=basic) {
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testDirSetup(t, basic, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
+    await testDirSetup(t, adapter, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }
 
 // only for syntax highlighting

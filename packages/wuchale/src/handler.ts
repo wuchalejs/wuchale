@@ -531,6 +531,7 @@ export class AdapterHandler {
             loaderPath = `./${loaderPath}`
         }
         const importsFuncs = []
+        const runtimeConf = this.#adapter.runtime
         let getFuncPlain = '_w_load_'
         let getFuncReactive = getFuncPlain + 'rx_'
         let head = []
@@ -539,13 +540,15 @@ export class AdapterHandler {
             const getFuncReactiveHmr = getFuncReactive
             getFuncPlain += 'hmr_'
             getFuncReactive += 'hmr_'
-            head.push(
-                this.#hmrUpdateFunc(getFuncPlainHmr, getFuncPlain),
-                this.#hmrUpdateFunc(getFuncReactiveHmr, getFuncReactive),
-            )
+            if (runtimeConf.plain?.importName) {
+                head.push(this.#hmrUpdateFunc(getFuncPlainHmr, getFuncPlain))
+            }
+            if (runtimeConf.reactive?.importName) {
+                head.push(this.#hmrUpdateFunc(getFuncReactiveHmr, getFuncReactive))
+            }
         }
-        this.#putImportSpec(this.#adapter.runtime.plain?.importName, getFuncPlain, importsFuncs)
-        this.#putImportSpec(this.#adapter.runtime.reactive?.importName, getFuncReactive, importsFuncs)
+        this.#putImportSpec(runtimeConf.plain?.importName, getFuncPlain, importsFuncs)
+        this.#putImportSpec(runtimeConf.reactive?.importName, getFuncReactive, importsFuncs)
         head = [
             `import ${varNames.rtWrap} from 'wuchale/runtime'`,
             `import ${importsFuncs.join(',')} from "${loaderPath}"`,
