@@ -1,5 +1,4 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
@@ -88,16 +87,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 return ['bundle']
             }
             const deps = await getDependencies()
-            const available = ['reactive', 'vanilla']
+            const available = ['svelte']
             if (deps.has('@sveltejs/kit')) {
                 available.unshift('sveltekit')
             }
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            if (loader === 'vanilla') {
-                return vanillaAdapter().defaultLoaderPath('vite')
-            }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
         runtime,

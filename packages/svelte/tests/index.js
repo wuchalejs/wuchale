@@ -7,7 +7,7 @@ import { statfs } from 'fs/promises'
 
 test('Default loader file paths', async function(t){
     const adap = adapter()
-    for (const loader of ['reactive', 'vanilla', 'sveltekit', 'bundle']) {
+    for (const loader of ['svelte', 'sveltekit', 'bundle']) {
         await statfs(adap.defaultLoaderPath(loader)) // no error
     }
 })
