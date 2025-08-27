@@ -10,7 +10,11 @@ export function setLocale(newLocale) {
     locale = newLocale
 }
 
+// for non-reactive
 /**
  * @param {{ [locale: string]: import("wuchale/runtime").CatalogModule }} catalogs
 */ 
-export default catalogs => catalogs[locale]
+export const get = catalogs => catalogs[locale]
+
+// same function, only will be inside $derived when used
+export default get
