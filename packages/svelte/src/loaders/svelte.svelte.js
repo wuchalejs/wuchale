@@ -8,4 +8,8 @@ import { registerLoaders, defaultCollection } from 'wuchale/load-utils'
 
 const catalogs = $state({})
 
-export default registerLoaders(key, loadCatalog, loadIDs, defaultCollection(catalogs))
+// for non-reactive
+export const get = registerLoaders(key, loadCatalog, loadIDs, defaultCollection(catalogs))
+
+// same function, only will be inside $derived when used
+export default get

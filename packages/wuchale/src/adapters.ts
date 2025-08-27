@@ -102,9 +102,14 @@ export type GlobConf = string | string[] | {
     ignore: string | string[],
 }
 
+export type CatalogExpr = {
+    plain: string
+    reactive: string
+}
+
 export type TransformHeader = {
-    head: string,
-    expr: string,
+    head: string
+    expr: CatalogExpr
 }
 
 type TransformCtx = {
@@ -131,6 +136,26 @@ export type TransformOutput = {
 
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
+export type WrapFunc = (expr: string) => string
+
+export type UseReactiveFunc = (details: {funcName?: string, nested: boolean, file: string, additional: object}) => {
+    /** null to disable initializing */
+    init: boolean | null
+    use: boolean
+}
+
+type RuntimeConfDetails = {
+    wrapInit: WrapFunc
+    wrapUse: WrapFunc
+    importName: 'default' | string
+}
+
+export type RuntimeConf = {
+    useReactive: UseReactiveFunc
+    plain: RuntimeConfDetails
+    reactive: RuntimeConfDetails
+}
+
 export type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
@@ -144,6 +169,7 @@ export type AdapterPassThruOpts = {
         transformed?: boolean
         outDir?: string
     }
+    runtime: Partial<RuntimeConf>
 }
 
 export type Adapter = AdapterPassThruOpts & {

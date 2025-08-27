@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, GlobConf, HMRData } from "./adapters.js"
+import type { Adapter, GlobConf, HMRData, TransformHeader } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -11,7 +11,7 @@ import { normalize } from "node:path"
 import { type ConfigPartial, getLanguageName } from "./config.js"
 import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
-import { runtimeVars } from './adapter-utils/index.js'
+import { varNames } from './adapter-utils/index.js'
 
 type PluralRule = {
     nplurals: number
@@ -499,7 +499,29 @@ export class AdapterHandler {
         }
     }
 
-    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean): { head: string, expr: string } => {
+    #putImportSpec = (varName: string | null, alias: string, importsFuncs: string[]) => {
+        if (!varName) {
+            return
+        }
+        if (varName === 'default') {
+            importsFuncs.unshift(alias) // default imports are first
+        } else {
+            importsFuncs.push(`{${varName} as ${alias}}`)
+        }
+    }
+
+    #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
+        const catalogVar = '_w_catalog_'
+        return `
+            function ${getFuncName}(loadID) {
+                const ${catalogVar} = ${getFuncNameHmr}(loadID)
+                ${catalogVar}?.update?.(${varNames.hmrUpdate})
+                return ${catalogVar}
+            }
+        `
+    }
+
+    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean): TransformHeader => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
@@ -508,26 +530,37 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        const getFuncName = '_w_load_'
-        let head = `import ${runtimeVars.rtWrap} from 'wuchale/runtime'\n`
+        const importsFuncs = []
+        const runtimeConf = this.#adapter.runtime
+        let getFuncPlain = '_w_load_'
+        let getFuncReactive = getFuncPlain + 'rx_'
+        let head = []
         if (hasHmr) {
-            const getFuncHmr = `_w_load_hmr_`
-            const catalogVar = '_w_catalog_'
-            head += `
-                import ${getFuncHmr} from "${loaderPath}"
-                function ${getFuncName}(loadID) {
-                    const ${catalogVar} = ${getFuncHmr}(loadID)
-                    ${catalogVar}?.update?.(${runtimeVars.hmrUpdate})
-                    return ${catalogVar}
-                }
-            `
-        } else {
-            head += `import ${getFuncName} from "${loaderPath}"`
+            const getFuncPlainHmr = getFuncPlain
+            const getFuncReactiveHmr = getFuncReactive
+            getFuncPlain += 'hmr_'
+            getFuncReactive += 'hmr_'
+            if (runtimeConf.plain?.importName) {
+                head.push(this.#hmrUpdateFunc(getFuncPlainHmr, getFuncPlain))
+            }
+            if (runtimeConf.reactive?.importName) {
+                head.push(this.#hmrUpdateFunc(getFuncReactiveHmr, getFuncReactive))
+            }
         }
+        this.#putImportSpec(runtimeConf.plain?.importName, getFuncPlain, importsFuncs)
+        this.#putImportSpec(runtimeConf.reactive?.importName, getFuncReactive, importsFuncs)
+        head = [
+            `import ${varNames.rtWrap} from 'wuchale/runtime'`,
+            `import ${importsFuncs.join(',')} from "${loaderPath}"`,
+            ...head,
+        ]
         if (!this.#adapter.bundleLoad) {
             return {
-                head,
-                expr: `${getFuncName}('${loadID}')`,
+                head: head.join('\n'),
+                expr: {
+                    plain: `${getFuncPlain}('${loadID}')`,
+                    reactive: `${getFuncReactive}('${loadID}')`,
+                }
             }
         }
         const imports = []
@@ -540,11 +573,14 @@ export class AdapterHandler {
         const catalogsVarName = '_w_catalogs_'
         return {
             head: [
-                head,
                 ...imports,
+                ...head,
                 `const ${catalogsVarName} = {${objElms.join(',')}}`
             ].join('\n'),
-            expr: `${getFuncName}(${catalogsVarName})`,
+            expr: {
+                plain: `${getFuncPlain}(${catalogsVarName})`,
+                reactive: `${getFuncReactive}(${catalogsVarName})`,
+            }
         }
     }
 

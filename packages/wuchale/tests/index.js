@@ -6,8 +6,7 @@ import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
-import { testContent, testDir, javascript, typescript } from './check.js'
-import { adapter } from 'wuchale/adapter-vanilla'
+import { testContent, basic, typescript, adapterOpts } from './check.js'
 import { statfs } from 'fs/promises'
 
 test('Compile nested', function(t) {
@@ -21,9 +20,8 @@ test('Compile nested', function(t) {
 })
 
 test('Default loader file paths', async function(t){
-    const adap = adapter()
     for (const loader of ['server', 'vite', 'bundle']) {
-        await statfs(adap.defaultLoaderPath(loader)) // no error
+        await statfs(basic.defaultLoaderPath(loader)) // no error
     }
 })
 
@@ -58,7 +56,7 @@ test('Inside function definitions', async function(t) {
         import _w_load_ from "../tests/test-tmp/loader.js"
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_('basic'))
+            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
             const varName = _w_runtime_.t(0)
             return varName
         }
@@ -66,7 +64,7 @@ test('Inside function definitions', async function(t) {
             method: () => 'Not inside func def',
         }
         const bar: (a: string) => string = (a) => {
-            const _w_runtime_ = _w_to_rt_(_w_load_('basic'))
+            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
             const foo = {
                 [_w_runtime_.t(1)]: 42,
             }
@@ -90,6 +88,40 @@ test('Inside function definitions', async function(t) {
     `, ['Hello', 'Extracted', ['Hello ', 0]])
 })
 
+test('HMR', async function(t) {
+    await testContent(t, typescript`
+        function foo(): string {
+            const varName = 'Hello'
+            return varName
+        }
+    `, typescript`
+        const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
+
+        import _w_to_rt_ from 'wuchale/runtime'
+        import _w_load_hmr_ from "../tests/test-tmp/loader.js"
+
+        function _w_load_(loadID) {
+            const _w_catalog_ = _w_load_hmr_(loadID)
+            _w_catalog_?.update?.(_w_hmrUpdate_)
+            return _w_catalog_
+        }
+
+        function foo(): string {
+            const _w_runtime_ = _w_to_rt_(_w_load_hmr_('main'))
+            const varName = _w_runtime_.t(0)
+            return varName
+        }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.js
+    msgid "Hello"
+    msgstr "Hello"
+
+    `, ['Hello'], basic, 1)
+})
+
 const testCatalog = {
     p: (/** @type {number} */ n) => n == 1 ? 0 : 1,
     c: [
@@ -103,7 +135,7 @@ const loaderFunc = () => testCatalog
 test('Loading and runtime', async t => {
     const collection = {}
     // @ts-expect-error
-    const getCatalog = registerLoaders('basic', loaderFunc, ['foo'], defaultCollection(collection))
+    const getCatalog = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called
     const rt = wrapRT(getCatalog('foo'))

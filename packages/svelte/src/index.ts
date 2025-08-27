@@ -1,10 +1,10 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { initRuntimeStmt, adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
+    RuntimeConf,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
@@ -40,12 +40,33 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    runtime: {
+        useReactive: ({file, funcName, additional}) => {
+            const inTopLevel = funcName == null
+            const inModule = file.endsWith('.svelte.js') || (additional as {module: boolean}).module
+            return {
+                init: inModule ? inTopLevel : (inTopLevel ? true : null),
+                use: inModule ? inTopLevel : true,
+            }
+        },
+        reactive: {
+            importName: 'default',
+            wrapInit: expr => `$derived(${expr})`,
+            wrapUse: expr => expr,
+        },
+        plain: {
+            importName: 'get',
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
+        },
+    },
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
+        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -56,8 +77,9 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 index,
                 heuristic,
                 pluralsFunc,
-                initRuntimeStmt(header.expr),
-            ).transformSv(header.head, header.expr)
+                header.expr,
+                runtime as RuntimeConf,
+            ).transformSv(header.head)
         },
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaders: async () => {
@@ -65,19 +87,17 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 return ['bundle']
             }
             const deps = await getDependencies()
-            const available = ['reactive', 'vanilla']
+            const available = ['svelte']
             if (deps.has('@sveltejs/kit')) {
                 available.unshift('sveltekit')
             }
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            if (loader === 'vanilla') {
-                return vanillaAdapter().defaultLoaderPath('vite')
-            }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts,
+        runtime,
+        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
         docsUrl: 'https://wuchale.dev/adapters/svelte'
     }
 }

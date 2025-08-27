@@ -8,8 +8,10 @@ import type {
     HeuristicFunc,
     TransformOutput,
     CommentDirectives,
+    CatalogExpr,
+    RuntimeConf,
 } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText, runtimeVars } from "wuchale/adapter-utils"
+import { MixedVisitor, nonWhitespaceText } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -29,14 +31,15 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, initRuntime: string) {
-        super(content, filename, index, heuristic, pluralsFunc, initRuntime)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
+        super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf)
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
+        vars: this.vars,
         getRange: node => ({ start: node.start, end: node.end }),
         isText: node => node.type === 'Text',
         isComment: node => node.type === 'Comment',
@@ -61,16 +64,16 @@ export class SvelteTransformer extends Transformer {
                 const snippetName = `${snipPrefix}${this.currentSnippet}`
                 snippets.push(snippetName)
                 this.currentSnippet++
-                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? runtimeVars.nestCtx : ''})}\n`
+                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
                 this.mstr.appendRight(childStart, snippetBegin)
                 this.mstr.prependLeft(childEnd, '\n{/snippet}')
             }
             let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
             if (this.inCompoundText) {
-                begin += `{${runtimeVars.nestCtx}} nest`
+                begin += `{${this.vars().nestCtx}} nest`
             } else {
                 const index = this.index.get(msgInfo.toKey())
-                begin += `{${runtimeVars.rtCtx}(${index})}`
+                begin += `{${this.vars().rtCtx}(${index})}`
             }
             let end = ' />\n'
             if (hasExprs) {
@@ -114,7 +117,7 @@ export class SvelteTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
         return [msgInfo]
     }
 
@@ -152,7 +155,7 @@ export class SvelteTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(value.start, value.end, `{${runtimeVars.rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(value.start, value.end, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
         if (`'"`.includes(this.content[value.start - 1])) {
             this.mstr.remove(value.start - 1, value.start)
             this.mstr.remove(value.end, value.end + 1)
@@ -225,21 +228,17 @@ export class SvelteTransformer extends Transformer {
         const msgs: Message[] = []
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
+            this.additionalState = {module: true}
             this.commentDirectives = {} // reset
             // @ts-ignore
             msgs.push(...this.visitProgram(node.module.content))
+            this.additionalState = {} // reset
         }
-        // no need to init runtime inside components outside <script module>s
-        // they run everytime they are rendered instead of once at startup
-        const initRuntime = this.initRuntime
-        this.initRuntime = null
         if (node.instance) {
             this.commentDirectives = {} // reset
             msgs.push(...this.visitProgram(node.instance.content))
         }
         msgs.push(...this.visitFragment(node.fragment))
-        // restore just in case
-        this.initRuntime = initRuntime
         return msgs
     }
 
@@ -270,7 +269,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    transformSv = (headerHead: string, headerExpr: string): TransformOutput => {
+    transformSv = (headerHead: string): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -289,7 +288,7 @@ export class SvelteTransformer extends Transformer {
         const headerLines = [
             isComponent ? `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"` : '',
             headerHead,
-            `const ${runtimeVars.rtConst} = $derived(${runtimeVars.rtWrap}(${headerExpr}))\n`,
+            this.initRuntime(this.filename, null, null, {}),
         ]
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {

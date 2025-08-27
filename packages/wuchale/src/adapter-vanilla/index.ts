@@ -6,12 +6,13 @@ import type {
     AdapterArgs,
     Adapter,
     AdapterPassThruOpts,
+    RuntimeConf,
 } from "../adapters.js"
-import { initRuntimeStmt, Transformer } from "./transformer.js"
+import { Transformer } from "./transformer.js"
 import { getDependencies } from '../adapter-utils/index.js'
 
 export { Transformer }
-export { parseScript, scriptParseOptions, scriptParseOptionsWithComments, initRuntimeStmt } from './transformer.js'
+export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
 
 const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
@@ -22,12 +23,24 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
+    runtime: {
+        useReactive: () => ({
+            init: false,
+            use: false
+        }),
+        plain: {
+            importName: 'default',
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
+        }
+    }
 }
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
+        runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
@@ -37,7 +50,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             index,
             heuristic,
             pluralsFunc,
-            initRuntimeStmt(header.expr),
+            header.expr,
+            runtime as RuntimeConf,
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
@@ -54,7 +68,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         defaultLoaderPath: (loader: string) => {
             return new URL(`../../src/adapter-vanilla/loaders/${loader}.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts,
+        runtime,
+        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
         docsUrl: 'https://wuchale.dev/adapters/vanilla'
     }
 }

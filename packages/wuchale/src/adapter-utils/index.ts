@@ -1,21 +1,25 @@
 import { readFile } from "node:fs/promises"
-export { MixedVisitor, type MixedScope } from './mixed-visitor.js'
+export { MixedVisitor } from './mixed-visitor.js'
 
-// for runtime
-const rtConst = '_w_runtime_'
-
-export const runtimeVars = {
+export const varNames = {
+    rt: '_w_runtime_',
     hmrUpdate: '_w_hmrUpdate_',
     rtWrap: '_w_to_rt_',
-    rtConst,
-    rtTrans: `${rtConst}.t`,
-    rtTPlural: `${rtConst}.tp`,
-    rtPlural: `${rtConst}._.p`,
-    rtCtx: `${rtConst}.cx`,
-    rtTransCtx: `${rtConst}.tx`,
-    /** for when nesting, used in adapters with elements */
-    nestCtx: '_w_ctx_',
 }
+
+export function runtimeVars(wrapFunc: (expr: string) => string) {
+    return {
+        rtTrans: `${wrapFunc(varNames.rt)}.t`,
+        rtTPlural: `${wrapFunc(varNames.rt)}.tp`,
+        rtPlural: `${wrapFunc(varNames.rt)}._.p`,
+        rtCtx: `${wrapFunc(varNames.rt)}.cx`,
+        rtTransCtx: `${wrapFunc(varNames.rt)}.tx`,
+        /** for when nesting, used in adapters with elements */
+        nestCtx: '_w_ctx_',
+    }
+}
+
+export type RuntimeVars = ReturnType<typeof runtimeVars>
 
 export function nonWhitespaceText(msgStr: string): [number, string, number] {
     let trimmedS = msgStr.trimStart()

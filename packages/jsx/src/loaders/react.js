@@ -10,8 +10,11 @@ import { useState, useEffect } from 'react'
 const callbacks = {}
 const store = {}
 
+// non-reactive
+export const get = (/** @type {string} */ loadID) => store[loadID]
+
 const collection = {
-    get: loadID => store[loadID],
+    get,
     set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').CatalogModule} */ catalog) => {
         store[loadID] = catalog // for when useEffect hasn't run yet
         callbacks[loadID]?.(catalog)
@@ -20,13 +23,11 @@ const collection = {
 
 registerLoaders(key, loadCatalog, loadIDs, collection)
 
-/**
- * @param { string } loadID
- */
-export default loadID => {
+export default (/** @type {string} */ loadID) => {
     const [catalog, setCatalog] = useState(collection.get(loadID))
     useEffect(() => {
         callbacks[loadID] = (/** @type {import('wuchale/runtime').CatalogModule} */ catalog) => setCatalog(catalog)
+        return () => delete callbacks[loadID]
     })
     return catalog
 }
