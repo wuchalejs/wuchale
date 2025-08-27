@@ -1,7 +1,7 @@
 <script>
     import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
     import _w_to_rt_ from 'wuchale/runtime'
-    import {get as _w_load_},_w_load_rx_ from "./tests/test-tmp/loader.svelte.js"
+    import _w_load_rx_,{get as _w_load_} from "./tests/test-tmp/loader.svelte.js"
     const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 </script>
 <h1>{_w_runtime_.t(0)}</h1>

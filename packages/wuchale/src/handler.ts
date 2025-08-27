@@ -503,13 +503,11 @@ export class AdapterHandler {
         if (!varName) {
             return
         }
-        let importSpec: string
         if (varName === 'default') {
-            importSpec = alias
+            importsFuncs.unshift(alias) // default imports are first
         } else {
-            importSpec = `{${varName} as ${alias}}`
+            importsFuncs.push(`{${varName} as ${alias}}`)
         }
-        importsFuncs.push(importSpec)
     }
 
     #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
