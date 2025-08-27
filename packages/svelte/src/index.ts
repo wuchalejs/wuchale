@@ -6,7 +6,6 @@ import type {
     AdapterArgs,
     AdapterPassThruOpts,
     RuntimeConf,
-    CatalogConf,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { getDependencies } from 'wuchale/adapter-utils'
@@ -42,15 +41,25 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    getCatalog: {
-        reactiveImport: 'default',
-        plainImport: null,
-        useReactive: () => true,
-        wrapInit: expr => expr,
-    },
     runtime: {
-        wrapInit: expr => `$derived(${expr})`,
-        wrapUse: expr => expr,
+        useReactive: ({file, funcName, additional}) => {
+            const inTopLevel = funcName == null
+            const inModule = file.endsWith('.svelte.js') || (additional as {module: boolean}).module
+            return {
+                init: inModule ? inTopLevel : (inTopLevel ? true : null),
+                use: inModule ? inTopLevel : true,
+            }
+        },
+        reactive: {
+            importName: 'default',
+            wrapInit: expr => `$derived(${expr})`,
+            wrapUse: expr => expr,
+        },
+        plain: {
+            importName: 'get',
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
+        },
     },
 }
 
@@ -58,7 +67,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        getCatalog,
         runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
@@ -71,7 +79,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 heuristic,
                 pluralsFunc,
                 header.expr,
-                getCatalog as CatalogConf,
                 runtime as RuntimeConf,
             ).transformSv(header.head)
         },
@@ -93,7 +100,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts,
+        runtime,
+        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
         docsUrl: 'https://wuchale.dev/adapters/svelte'
     }
 }

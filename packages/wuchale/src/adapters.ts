@@ -137,17 +137,23 @@ export type TransformOutput = {
 export type TransformFunc = (ctx: TransformCtx) => TransformOutput
 
 export type WrapFunc = (expr: string) => string
-export type UseReactiveFunc = (details: {funcName?: string, nested: boolean}) => boolean | null
 
-export type RuntimeConf = {
-    wrapInit: WrapFunc
-    wrapUse: WrapFunc
+export type UseReactiveFunc = (details: {funcName?: string, nested: boolean, file: string, additional: object}) => {
+    /** null to disable initializing */
+    init: boolean | null
+    use: boolean
 }
 
-export type CatalogConf = {
-    /* return null to disable initializing */
-    useReactive: UseReactiveFunc
+type RuntimeConfDetails = {
     wrapInit: WrapFunc
+    wrapUse: WrapFunc
+    importName: 'default' | string
+}
+
+export type RuntimeConf = {
+    useReactive: UseReactiveFunc
+    plain: RuntimeConfDetails
+    reactive: RuntimeConfDetails
 }
 
 export type AdapterPassThruOpts = {
@@ -162,10 +168,6 @@ export type AdapterPassThruOpts = {
         proxy?: boolean
         transformed?: boolean
         outDir?: string
-    }
-    getCatalog: Partial<CatalogConf> & {
-        reactiveImport?: string
-        plainImport?: string
     }
     runtime: Partial<RuntimeConf>
 }

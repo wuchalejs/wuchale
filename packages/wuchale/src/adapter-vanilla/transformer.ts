@@ -15,10 +15,7 @@ import type {
     TransformOutput,
     HeuristicDetails,
     RuntimeConf,
-    CatalogConf,
-    UseReactiveFunc,
     CatalogExpr,
-    WrapFunc
 } from "../adapters.js"
 import { runtimeVars, varNames, type RuntimeVars } from "../adapter-utils/index.js"
 
@@ -59,15 +56,16 @@ export function parseScript(content: string): [Program, Estree.Comment[][]] {
     return [ScriptParser.parse(content, opts), comments]
 }
 
-function initRuntimeStmt(useReactiveFunc: UseReactiveFunc, wrapCatalog: WrapFunc, wrapRuntime: WrapFunc, expr: CatalogExpr) {
-    return (funcName?: string, parentFunc?: string) => {
-        const useReactive = useReactiveFunc({funcName, nested: parentFunc != null})
-        if (useReactive == null) {
+function initRuntimeStmt(rtConf: RuntimeConf, expr: CatalogExpr) {
+    return (file: string, funcName: string, parentFunc: string, additional: object) => {
+        const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional})
+        if (useReactive.init == null) {
             return
         }
-        const catalogExpr = useReactive ? expr.reactive : expr.plain
-        const runtimeExpr = `${varNames.rtWrap}(${wrapCatalog(catalogExpr)})`
-        return `const ${varNames.rt} = ${wrapRuntime(runtimeExpr)}`
+        const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
+        const catalogExpr = useReactive.init ? expr.reactive : expr.plain
+        const runtimeExpr = `${varNames.rtWrap}(${catalogExpr})`
+        return `\nconst ${varNames.rt} = ${wrapInit(runtimeExpr)}\n`
     }
 }
 
@@ -82,24 +80,43 @@ export class Transformer {
     mstr: MagicString
     pluralFunc: string
     initRuntime: ReturnType<typeof initRuntimeStmt>
-    vars: RuntimeVars
+    vars: () => RuntimeVars
 
     // state
     commentDirectives: CommentDirectives = {}
     insideProgram: boolean = false
     declaring: ScriptDeclType = null
+    currentFuncNested: boolean = false
     currentFuncDef: string | null = null
     currentCall: string
     currentTopLevelCall: string
+    /** for subclasses. right now for svelte, if in <script module> */
+    additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, catalogConf: CatalogConf, rtConf: RuntimeConf) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initRuntime = initRuntimeStmt(catalogConf.useReactive, catalogConf.wrapInit, rtConf.wrapInit, catalogExpr)
-        this.vars = runtimeVars(rtConf.wrapUse)
+        this.initRuntime = initRuntimeStmt(rtConf, catalogExpr)
+        const topLevelUseReactive = rtConf.useReactive({
+            funcName: null,
+            nested: false,
+            file: filename,
+            additional: this.additionalState,
+        })
+        const reactiveVars = rtConf.reactive?.wrapUse && runtimeVars(rtConf.reactive.wrapUse)
+        const plainVars = rtConf.plain?.wrapUse && runtimeVars(rtConf.plain.wrapUse)
+        this.vars = () => {
+            const useReactive = rtConf.useReactive({
+                funcName: this.currentFuncDef,
+                nested: this.currentFuncNested,
+                file: filename,
+                additional: this.additionalState,
+            }) ?? topLevelUseReactive
+            return useReactive.use ? reactiveVars : plainVars
+        }
     }
 
     checkHeuristicBool: HeuristicFunc<HeuristicDetailsBase> = (msgStr, detailsBase): boolean => {
@@ -143,7 +160,7 @@ export class Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())})`)
+        this.mstr.update(start, end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
         return [msgInfo]
     }
 
@@ -206,7 +223,7 @@ export class Transformer {
         const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
         msgInfo.plural = true
         const index = this.index.get(msgInfo.toKey())
-        const pluralUpdate = `${this.vars.rtTPlural}(${index}), ${this.vars.rtPlural}`
+        const pluralUpdate = `${this.vars().rtTPlural}(${index}), ${this.vars().rtPlural}`
         // @ts-ignore
         this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
         return [msgInfo]
@@ -328,16 +345,20 @@ export class Transformer {
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): Message[] => {
         const prevFuncDef = this.currentFuncDef
-        this.currentFuncDef = node.type === 'BlockStatement' ? name : prevFuncDef
+        const prevFuncNested = this.currentFuncNested
+        const isBlock = node.type === 'BlockStatement'
+        this.currentFuncDef = isBlock ? name : prevFuncDef
+        this.currentFuncNested = isBlock && name != null && prevFuncDef != null
         const msgs = this.visit(node)
-        if (msgs.length > 0 && node.type === 'BlockStatement') {
-            const initRuntime = this.initRuntime(this.currentFuncDef, prevFuncDef)
+        if (msgs.length > 0 && isBlock) {
+            const initRuntime = this.initRuntime(this.filename, this.currentFuncDef, prevFuncDef, this.additionalState)
             initRuntime && this.mstr.prependLeft(
                 // @ts-expect-error
                 node.start + 1,
-                `\n${initRuntime}\n`,
+                initRuntime,
             )
         }
+        this.currentFuncNested = prevFuncNested
         this.currentFuncDef = prevFuncDef
         return msgs
     }
@@ -345,7 +366,7 @@ export class Transformer {
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): Message[] => {
         const declaring = this.declaring
         this.declaring = 'function'
-        const msgs = this.visitFunctionBody(node.body, node.id?.name ?? null)
+        const msgs = this.visitFunctionBody(node.body, node.id?.name ?? '')
         this.declaring = declaring
         return msgs
     }
@@ -398,7 +419,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
-        let begin = `${this.vars.rtTrans}(${this.index.get(msgInfo.toKey())}`
+        let begin = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['

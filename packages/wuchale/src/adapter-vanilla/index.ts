@@ -6,7 +6,6 @@ import type {
     AdapterArgs,
     Adapter,
     AdapterPassThruOpts,
-    CatalogConf,
     RuntimeConf,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
@@ -24,15 +23,16 @@ const defaultArgs: AdapterArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    getCatalog: {
-        reactiveImport: null,
-        plainImport: 'default',
-        useReactive: () => false,
-        wrapInit: expr => expr,
-    },
     runtime: {
-        wrapInit: expr => expr,
-        wrapUse: expr => expr,
+        useReactive: () => ({
+            init: false,
+            use: false
+        }),
+        plain: {
+            importName: 'default',
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
+        }
     }
 }
 
@@ -40,7 +40,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         pluralsFunc,
-        getCatalog,
         runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
@@ -52,7 +51,6 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             heuristic,
             pluralsFunc,
             header.expr,
-            getCatalog as CatalogConf,
             runtime as RuntimeConf,
         ).transform(header.head),
         loaderExts: ['.js', '.ts'],
@@ -70,7 +68,8 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         defaultLoaderPath: (loader: string) => {
             return new URL(`../../src/adapter-vanilla/loaders/${loader}.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts,
+        runtime,
+        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
         docsUrl: 'https://wuchale.dev/adapters/vanilla'
     }
 }

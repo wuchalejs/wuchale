@@ -5,7 +5,6 @@ import type {
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
-    CatalogConf,
     RuntimeConf,
 } from 'wuchale'
 import { JSXTransformer, type JSXLib } from "./transformer.js"
@@ -33,6 +32,43 @@ type JSXArgs = AdapterArgs & {
     variant?: JSXLib
 }
 
+const defaultRuntime: RuntimeConf = {
+    useReactive: ({funcName, nested}) => {
+        const inTopLevel = funcName == null
+        const insideReactive =  !inTopLevel && !nested && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
+        return {
+            init: inTopLevel ? null : insideReactive,
+            use: insideReactive
+        }
+    },
+    reactive: {
+        importName: 'default',
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
+    },
+    plain: {
+        importName: 'get',
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
+    },
+}
+
+const defaultRuntimeSolid: RuntimeConf = {
+    ...defaultRuntime,
+    useReactive: ({funcName}) => {
+        const inTopLevel = funcName == null
+        return {
+            init: inTopLevel ? true : null, // init only in top level
+            use: true, // always use reactive
+        }
+    },
+    reactive: {
+        importName: 'default',
+        wrapInit: expr => `() => ${expr}`,
+        wrapUse: expr => `${expr}()`
+    }
+}
+
 const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
@@ -42,28 +78,21 @@ const defaultArgs: JSXArgs = {
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
-    getCatalog: {
-        reactiveImport: 'default',
-        plainImport: 'get',
-        useReactive: ({funcName, nested}) => !nested && funcName != null && (funcName.startsWith('use') || /A-Z/.test(funcName[0])),
-        wrapInit: expr => expr,
-    },
-    runtime: {
-        wrapInit: expr => expr,
-        wrapUse: expr => expr,
-    },
+    runtime: defaultRuntime,
     variant: 'default',
 }
 
 export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
-    const {
+    let {
         heuristic,
         pluralsFunc,
         variant,
-        getCatalog,
         runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
+    if (variant === 'solidjs' && args.runtime == null) {
+        runtime = defaultRuntimeSolid
+    }
     return {
         transform: ({ content, filename, index, header }) => {
             return new JSXTransformer(
@@ -73,7 +102,6 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
                 heuristic,
                 pluralsFunc,
                 header.expr,
-                getCatalog as CatalogConf,
                 runtime as RuntimeConf,
             ).transformJx(header.head, variant)
         },
@@ -98,7 +126,8 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             }
             return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
         },
-        ...rest as AdapterPassThruOpts,
+        runtime,
+        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
         docsUrl: 'https://wuchale.dev/adapters/jsx'
     }
 }

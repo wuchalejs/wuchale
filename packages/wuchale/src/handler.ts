@@ -503,9 +503,11 @@ export class AdapterHandler {
         if (!varName) {
             return
         }
-        let importSpec = `${varName} as ${alias}`
-        if (varName !== 'default') {
-            importSpec = `{${importSpec}}`
+        let importSpec: string
+        if (varName === 'default') {
+            importSpec = alias
+        } else {
+            importSpec = `{${varName} as ${alias}}`
         }
         importsFuncs.push(importSpec)
     }
@@ -544,8 +546,8 @@ export class AdapterHandler {
                 this.#hmrUpdateFunc(getFuncReactive, getFuncReactiveHmr),
             )
         }
-        this.#putImportSpec(this.#adapter.getCatalog.plainImport, getFuncPlain, importsFuncs)
-        this.#putImportSpec(this.#adapter.getCatalog.reactiveImport, getFuncReactive, importsFuncs)
+        this.#putImportSpec(this.#adapter.runtime.plain?.importName, getFuncPlain, importsFuncs)
+        this.#putImportSpec(this.#adapter.runtime.reactive?.importName, getFuncReactive, importsFuncs)
         head = [
             `import ${varNames.rtWrap} from 'wuchale/runtime'`,
             `import ${importsFuncs.join(',')} from "${loaderPath}"`,
@@ -556,7 +558,7 @@ export class AdapterHandler {
                 head: head.join('\n'),
                 expr: {
                     plain: `${getFuncPlain}('${loadID}')`,
-                    reactive: `${getFuncReactive}(${loadID})`,
+                    reactive: `${getFuncReactive}('${loadID}')`,
                 }
             }
         }

@@ -9,7 +9,6 @@ export const varNames = {
 
 export function runtimeVars(wrapFunc: (expr: string) => string) {
     return {
-        rtConst: varNames.rt,
         rtTrans: `${wrapFunc(varNames.rt)}.t`,
         rtTPlural: `${wrapFunc(varNames.rt)}.tp`,
         rtPlural: `${wrapFunc(varNames.rt)}._.p`,

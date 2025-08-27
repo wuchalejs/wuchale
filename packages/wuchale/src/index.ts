@@ -24,11 +24,11 @@ export type {
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
-    CatalogConf,
     RuntimeConf,
     CatalogExpr,
     HeuristicFunc,
     TransformOutput,
     TransformHeader,
     CommentDirectives,
+    UseReactiveFunc,
 } from './adapters.js'

@@ -17,8 +17,8 @@ test('Simple text', async function(t) {
         <script>
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+            import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.svelte.js"
+            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
         </script>
         {_w_runtime_.t(0)}
     `, `
@@ -45,8 +45,8 @@ test('JS module files', async function(t) {
 
     `, javascript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "./tests/test-tmp/loader.svelte.js"
-        const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+        import {get as _w_load_},_w_load_rx_ from "./tests/test-tmp/loader.svelte.js"
+        const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 
         'Not translation!' // simple expression
         const varName = 'No extraction' // simple assignment
@@ -82,8 +82,8 @@ test('Simple element with new lines', async function(t) {
         <script>
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+            import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.svelte.js"
+            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
         </script>
         <p title={loggedIn && _w_runtime_.t(0)}>
             {_w_runtime_.t(1)}
@@ -120,8 +120,8 @@ test('Ignore and include', async function(t) {
         <script>
             import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.svelte.js"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+            import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.svelte.js"
+            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -155,8 +155,8 @@ test('Context', async function(t) {
             <script>
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 import _w_to_rt_ from 'wuchale/runtime'
-                import _w_load_ from "../tests/test-tmp/loader.svelte.js"
-                const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+                import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.svelte.js"
+                const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             </script>
             <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
             <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
@@ -197,8 +197,8 @@ test('Plural', async function(t) {
             <script>
                 import WuchaleTrans from "@wuchale/svelte/runtime.svelte"
                 import _w_to_rt_ from 'wuchale/runtime'
-                import _w_load_ from "../tests/test-tmp/loader.svelte.js"
-                const _w_runtime_ = $derived(_w_to_rt_(_w_load_('svelte')))
+                import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.svelte.js"
+                const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             </script>
             <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
     `, `

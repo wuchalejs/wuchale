@@ -14,13 +14,20 @@ test('Default loader file paths', async function(t){
 
 test('Simple text', async function(t) {
     await testContent(t, jsx`
+        function Foo() {
+            return <p>Hello</p>
+        }
         function m() {
             return <p data-novalue>Hello</p>
         }
     `, jsx`
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+        import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.js"
+        function Foo() {
+            const _w_runtime_ = _w_to_rt_(_w_load_rx_('jsx'))
+            return <p>{_w_runtime_.t(0)}</p>
+        }
         function m() {
             const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
             return <p data-novalue>{_w_runtime_.t(0)}</p>
@@ -28,6 +35,7 @@ test('Simple text', async function(t) {
     `, `
     msgid ""
     msgstr ""
+    #: test-tmp/test.jsx
     #: test-tmp/test.jsx
     msgid "Hello"
     msgstr "Hello"
@@ -49,7 +57,7 @@ test('Ignore and include', async function(t) {
     `, jsx`
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+        import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.js"
         function foo() {
             const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
             return <div>
@@ -85,7 +93,7 @@ test('Context', async function(t) {
         }`, jsx`
             import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.js"
+            import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.js"
             const m = () => {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
                 return <>
@@ -131,7 +139,7 @@ test('Plural', async function(t) {
         jsx`
             import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.js"
+            import {get as _w_load_},_w_load_rx_ from "../tests/test-tmp/loader.js"
             function m() {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
                 return <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
