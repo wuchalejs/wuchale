@@ -540,8 +540,8 @@ export class AdapterHandler {
             getFuncPlain += 'hmr_'
             getFuncReactive += 'hmr_'
             head.push(
-                this.#hmrUpdateFunc(getFuncPlain, getFuncPlainHmr),
-                this.#hmrUpdateFunc(getFuncReactive, getFuncReactiveHmr),
+                this.#hmrUpdateFunc(getFuncPlainHmr, getFuncPlain),
+                this.#hmrUpdateFunc(getFuncReactiveHmr, getFuncReactive),
             )
         }
         this.#putImportSpec(this.#adapter.runtime.plain?.importName, getFuncPlain, importsFuncs)
