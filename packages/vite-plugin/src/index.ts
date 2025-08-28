@@ -62,15 +62,22 @@ class Plugin {
             )
             await handler.init(sharedState)
             this.#adapters[key] = handler
-            const loaderPath = resolve(handler.loaderPath)
-            if (loaderPath in this.#adaptersByLoaderPath) {
-                throw new Error([
-                    'While catalogs can be shared, the same loader cannot be used by multiple adapters',
-                    `Conflicting: ${key} and ${this.#adaptersByLoaderPath[loaderPath].key}`,
-                    'Specify a different loaderPath for one of them.'
-                ].join('\n'))
+            for (const path of Object.values(handler.loaderPath)) {
+                const loaderPath = resolve(path)
+                if (loaderPath in this.#adaptersByLoaderPath) {
+                    const otherKey = this.#adaptersByLoaderPath[loaderPath].key
+                    if (otherKey === key) {
+                        // same loader for both ssr and client, no problem
+                        continue
+                    }
+                    throw new Error([
+                        'While catalogs can be shared, the same loader cannot be used by multiple adapters',
+                        `Conflicting: ${key} and ${otherKey}`,
+                        'Specify a different loaderPath for one of them.'
+                    ].join('\n'))
+                }
+                this.#adaptersByLoaderPath[loaderPath] = handler
             }
-            this.#adaptersByLoaderPath[loaderPath] = handler
             for (const fname of Object.keys(handler.catalogPathsToLocales)) {
                 this.#adaptersByCatalogPath[fname] ??= []
                 this.#adaptersByCatalogPath[fname].push(handler)
@@ -162,14 +169,14 @@ class Plugin {
         return adapter.getProxy()
     }
 
-    #transformHandler = async (code: string, id: string) => {
+    #transformHandler = async (code: string, id: string, options: {ssr?: boolean}) => {
         if (!this.#config.hmr) {
             return {}
         }
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                return await adapter.transform(code, filename, this.#hmrVersion)
+                return await adapter.transform(code, filename, this.#hmrVersion, options.ssr)
             }
         }
         return {}

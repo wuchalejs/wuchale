@@ -8,7 +8,11 @@ import { statfs } from 'fs/promises'
 test('Default loader file paths', async function(t){
     const adap = adapter()
     for (const loader of ['default', 'react', 'react.bundle', 'solidjs', 'solidjs.bundle']) {
-        await statfs(adap.defaultLoaderPath(loader)) // no error
+        const path = adap.defaultLoaderPath(loader)
+        const paths = typeof path === 'string' ? [path] : Object.values(path)
+        for (const path of paths) {
+            await statfs(path) // no error
+        }
     }
 })
 

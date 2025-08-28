@@ -5,6 +5,7 @@ import { dirname } from "node:path"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
+import type { LoaderPath } from "../adapters.js"
 
 export async function init(config: Config, locales: string[], logger: Logger) {
     logger.info('Initializing...')
@@ -20,15 +21,14 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         const loaders = await adapter.defaultLoaders()
         let existing = false
         if (loaderPath) {
-            if (!empty) {
+            if (!Object.values(empty).some(side => side)) { // all non empty
                 loaders.unshift('existing')
                 existing = true
             }
         } else {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${adapterName} at ${color.cyan(loaderPath)}`)
-        await mkdir(dirname(loaderPath), { recursive: true })
+        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${adapterName}`)
         let loader = loaders[0]
         if (loaders.length > 1) {
             loader = await ask(loaders, `Select default loader for adapter: ${adapterName}`, logger)
@@ -37,18 +37,18 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             logger.log('Keep existing loader')
             continue
         }
-        await copyFile(adapter.defaultLoaderPath(loader), loaderPath)
+        const defaultLoader = adapter.defaultLoaderPath(loader)
+        const defaultPaths: LoaderPath = typeof defaultLoader === 'string' ? {
+            client: defaultLoader,
+            ssr: defaultLoader,
+        } : defaultLoader
+        for (const [side, path] of Object.entries(defaultPaths)) {
+            await mkdir(dirname(path), { recursive: true })
+            await copyFile(path, loaderPath[side])
+            keysByLoaderPath[path] = key
+        }
         logger.log(`Initial extract for ${adapterName}`)
         await extractAdap(handler, sharedState, adapter.files, locales, false, logger)
-        if (handler.loaderPath in keysByLoaderPath) {
-            throw new Error([
-                'While catalogs can be shared, the same loader cannot be used by multiple adapters',
-                `Conflicting: ${adapterName} and ${color.cyan(keysByLoaderPath[handler.loaderPath])}`,
-                'Specify a different loaderPath for one of them.'
-            ].join('\n'))
-        } else {
-            keysByLoaderPath[handler.loaderPath] = key
-        }
         extractedNew = true
         logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }

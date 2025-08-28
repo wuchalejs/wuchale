@@ -43,17 +43,17 @@ export async function status(config: Config, locales: string[], logger: Logger) 
             const {total, obsolete, untranslated} = stats
             const locName = getLanguageName(locale)
             logger.log([
-                `  ${locName}: ${color.cyan(`total: ${total} `)}`,
-                color.yellow(`untranslated: ${untranslated} `),
+                `  ${locName}: ${color.cyan(`total: ${total}`)}`,
+                color.yellow(`untranslated: ${untranslated}`),
                 color.grey(`obsolete: ${obsolete}`),
-            ].join(' '))
-        }
-        if (loaderPath && !empty) {
-            logger.log(`  Loader file: ${color.cyan(loaderPath)}`)
-            continue
+            ].join(', '))
         }
         if (loaderPath) {
-            logger.warn(`  Loader file empty at ${color.cyan(loaderPath)}`)
+            logger.log(`  Loader files:`)
+            for (const [side, path] of Object.entries(loaderPath)) {
+                logger.log(`    ${color.cyan(side)}: ${color.cyan(path)}${empty[side] ? color.yellow(' (empty)') : ''}`)
+            }
+            continue
         } else {
             logger.warn('  No loader file found.')
         }
