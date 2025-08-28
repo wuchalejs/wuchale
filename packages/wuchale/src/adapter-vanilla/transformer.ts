@@ -342,6 +342,16 @@ export class Transformer {
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
+    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number => {
+        for (const node of nodes) {
+            if (node.type === 'ExpressionStatement') {
+                continue
+            }
+            return node.start
+        }
+        return nodes[0].start
+    }
+
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): Message[] => {
         const prevFuncDef = this.currentFuncDef
         const prevFuncNested = this.currentFuncNested
@@ -352,7 +362,7 @@ export class Transformer {
         if (msgs.length > 0 && isBlock) {
             const initRuntime = this.initRuntime(this.filename, this.currentFuncDef, prevFuncDef, this.additionalState)
             initRuntime && this.mstr.prependLeft(
-                node.start + 1,
+                this.getRealBodyStart(node.body),
                 initRuntime,
             )
         }
@@ -500,7 +510,7 @@ export class Transformer {
         this.mstr = new MagicString(this.content)
         const msgs = this.visit(ast)
         if (msgs.length) {
-            this.mstr.appendRight(0, headerHead + '\n')
+            this.mstr.appendRight(this.getRealBodyStart(ast.body), headerHead + '\n')
         }
         return this.finalize(msgs, 0)
     }

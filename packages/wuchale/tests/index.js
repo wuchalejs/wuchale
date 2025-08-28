@@ -42,6 +42,7 @@ test('Simple expression and assignment', async function(t) {
 
 test('Inside function definitions', async function(t) {
     await testContent(t, typescript`
+        'use strict'
         function foo(): string {
             const varName = 'Hello'
             return varName
@@ -56,6 +57,7 @@ test('Inside function definitions', async function(t) {
             return \`Hello \${a\}\`
         }
     `, typescript`
+        'use strict'
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_ from "../tests/test-tmp/loader.js"
 

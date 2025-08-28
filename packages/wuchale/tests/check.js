@@ -134,7 +134,7 @@ export const javascript = typescript
 //         },
 //     }
 // `
-// const p = await getOutput(basic, 'basic', code, testFile)
+// const p = await getOutput(basic, 'basic', code, testFile, -1)
 // console.log(p.code)
 // console.log(Object.values(p.catalogs.en))
 // console.log(p.compiled.en)

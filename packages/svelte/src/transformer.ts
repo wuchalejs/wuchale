@@ -292,17 +292,18 @@ export class SvelteTransformer extends Transformer {
         ]
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
-            this.mstr.appendRight(0, headerFin + '\n')
-            return this.finalize(msgs, 0)
+            const bodyStart = this.getRealBodyStart(ast.body)
+            this.mstr.appendRight(bodyStart, headerFin + '\n')
+            return this.finalize(msgs, bodyStart)
         }
         let hmrHeaderIndex = 0
         if (ast.module) {
             // @ts-ignore
-            hmrHeaderIndex = ast.module.content.start
+            hmrHeaderIndex = this.getRealBodyStart(ast.module.content.body)
             this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else if (ast.instance) {
             // @ts-ignore
-            hmrHeaderIndex = ast.instance.content.start
+            hmrHeaderIndex = this.getRealBodyStart(ast.instance.content.body)
             this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else {
             this.mstr.prepend('<script>')

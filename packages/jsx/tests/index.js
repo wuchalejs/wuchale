@@ -16,19 +16,23 @@ test('Default loader file paths', async function(t){
     }
 })
 
-test('Simple text', async function(t) {
+test('React basic', async function(t) {
     await testContent(t, jsx`
+        'use server'
         function Foo() {
+            'use client'
             return <p>Hello</p>
         }
         function m() {
             return <p data-novalue>Hello</p>
         }
     `, jsx`
+        'use server'
         import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
         function Foo() {
+            'use client'
             const _w_runtime_ = _w_to_rt_(_w_load_rx_('jsx'))
             return <p>{_w_runtime_.t(0)}</p>
         }
@@ -46,7 +50,7 @@ test('Simple text', async function(t) {
     `, ['Hello'])
 })
 
-test('Simple text SolidJS', async function(t) {
+test('SolidJS basic', async function(t) {
     await testContent(t, jsx`
         function Foo() {
             return <p>Hello</p>

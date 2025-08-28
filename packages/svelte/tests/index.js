@@ -37,8 +37,8 @@ test('Simple text', async function(t) {
 
 test('JS module files', async function(t) {
     await testContent(t, javascript`
-        'Not translation!' // simple expression
         const varName = 'No extraction' // simple assignment
+        'Not translation!' // simple expression
         const noExtract = call('Foo')
         noExtract('Foo')
         const msg = $derived('Hello')
@@ -52,8 +52,8 @@ test('JS module files', async function(t) {
         import _w_load_rx_,{get as _w_load_} from "./tests/test-tmp/loader.svelte.js"
         const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 
-        'Not translation!' // simple expression
         const varName = 'No extraction' // simple assignment
+        'Not translation!' // simple expression
         const noExtract = call('Foo')
         noExtract('Foo')
         const msg = $derived(_w_runtime_.t(0))

@@ -261,7 +261,8 @@ export class JSXTransformer extends Transformer {
             headerHead,
             this.initRuntime(this.filename, null, null, {}),
         ].join('\n')
-        this.mstr.appendRight(0, headerFin + '\n')
-        return this.finalize(msgs, 0)
+        const bodyStart = this.getRealBodyStart(ast.body)
+        this.mstr.appendRight(bodyStart, headerFin + '\n')
+        return this.finalize(msgs, bodyStart)
     }
 }
