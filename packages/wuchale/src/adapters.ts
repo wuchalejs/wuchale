@@ -156,13 +156,18 @@ export type RuntimeConf = {
     reactive: RuntimeConfDetails
 }
 
+export type LoaderPath = {
+    client: string
+    ssr: string
+}
+
 export type AdapterPassThruOpts = {
     files: GlobConf
     catalog: string
     granularLoad: boolean
     bundleLoad: boolean,
     generateLoadID: (filename: string) => string
-    loaderPath?: string
+    loaderPath?: string | LoaderPath
     writeFiles: {
         compiled?: boolean
         proxy?: boolean
@@ -179,7 +184,7 @@ export type Adapter = AdapterPassThruOpts & {
     /** available loader names, can do auto detection logic to sort, dependencies given */
     defaultLoaders: () => string[] | Promise<string[]>
     /* Can return different file paths based on conditions */
-    defaultLoaderPath: (loaderName: string) => string
+    defaultLoaderPath: (loaderName: string) => LoaderPath | string
     /* docs specific to the adapter */
     docsUrl: string
 }

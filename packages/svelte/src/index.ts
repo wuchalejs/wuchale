@@ -93,7 +93,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             }
             return available
         },
-        defaultLoaderPath: (loader: string) => {
+        defaultLoaderPath: loader => {
+            if (loader === 'sveltekit') {
+                return {
+                    client: new URL(`../src/loaders/svelte.svelte.js`, import.meta.url).pathname,
+                    ssr: new URL(`../src/loaders/sveltekit.ssr.svelte.js`, import.meta.url).pathname
+                }
+            }
             return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
         },
         runtime,

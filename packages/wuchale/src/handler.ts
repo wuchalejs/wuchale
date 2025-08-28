@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, GlobConf, HMRData, TransformHeader } from "./adapters.js"
+import type { Adapter, GlobConf, HMRData, LoaderPath, TransformHeader } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -100,17 +100,19 @@ type SharedState = {
 export type SharedStates = Record<string, SharedState>
 
 type GranularState = {
-    id: string,
-    compiled: CompiledCatalogs,
-    indexTracker: IndexTracker,
+    id: string
+    compiled: CompiledCatalogs
+    indexTracker: IndexTracker
 }
+
+type LoaderPathEmpty = {[K in keyof LoaderPath]: boolean}
 
 export class AdapterHandler {
 
     key: string
 
     // paths
-    loaderPath: string
+    loaderPath: LoaderPath
     proxyPath: string
     outDir: string
     compiledHead: Record<string, string> = {}
@@ -147,40 +149,59 @@ export class AdapterHandler {
         this.#log = log
     }
 
-    getLoaderPaths(): string[] {
+    getLoaderPaths(): LoaderPath[] {
         if (this.#adapter.loaderPath != null) {
+            if (typeof this.#adapter.loaderPath === 'string') {
+                return [{
+                    client: this.#adapter.loaderPath,
+                    ssr: this.#adapter.loaderPath,
+                }]
+            }
             return [this.#adapter.loaderPath]
         }
         const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
-        const paths: string[] = []
+        const paths: LoaderPath[] = []
         for (const ext of this.#adapter.loaderExts) {
-            let path = catalogToLoader + ext
+            let path = catalogToLoader
             if (path.startsWith('./')) {
                 path = path.slice(2)
             }
-            paths.push(path)
+            const pathClient = path + ext
+            paths.push(
+                { client: pathClient, ssr: path + '.ssr' + ext},
+                { client: pathClient, ssr: pathClient },
+            )
         }
         return paths
     }
 
-    async getLoaderPath(): Promise<{ path: string | null, empty: boolean }> {
+    async getLoaderPath(): Promise<{ path: LoaderPath | null, empty: LoaderPathEmpty }> {
+        const empty: LoaderPathEmpty = {client: true, ssr: true}
         for (const path of this.getLoaderPaths()) {
-            try {
-                const contents = await readFile(path)
-                return { path, empty: contents.toString().trim() === '' }
-            } catch (err: any) {
-                if (err.code !== 'ENOENT') {
-                    throw err
+            let bothExist = true
+            for (const side in empty) {
+                try {
+                    const contents = await readFile(path[side])
+                    empty[side] = contents.toString().trim() === ''
+                } catch (err: any) {
+                    if (err.code !== 'ENOENT') {
+                        throw err
+                    }
+                    bothExist = false
+                    break
                 }
+            }
+            if (!bothExist) {
                 continue
             }
+            return {path, empty}
         }
-        return { path: null, empty: true }
+        return { path: null, empty }
     }
 
     async #initPaths() {
         const { path: loaderPath, empty } = await this.getLoaderPath()
-        if (!loaderPath || empty) {
+        if (!loaderPath || Object.values(empty).some(side => side)) {
             throw new Error('No valid loader file found.')
         }
         this.loaderPath = loaderPath
@@ -437,7 +458,7 @@ export class AdapterHandler {
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
-        const options = { ignore: [this.loaderPath] }
+        const options = { ignore: [this.loaderPath.client, this.loaderPath.ssr] }
         if (this.#adapter.writeFiles.proxy) {
             options.ignore.push(this.proxyPath)
         }
@@ -521,12 +542,12 @@ export class AdapterHandler {
         `
     }
 
-    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean): TransformHeader => {
+    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean, ssr: boolean): TransformHeader => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
         }
-        let loaderPath = relative(dirname(loaderRelTo), this.loaderPath)
+        let loaderPath = relative(dirname(loaderRelTo), ssr ? this.loaderPath.ssr : this.loaderPath.client)
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
@@ -584,7 +605,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1): Promise<{ code?: string, map?: any }> => {
+    transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<{ code?: string, map?: any }> => {
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         let compiled = this.sharedState.compiled
@@ -598,7 +619,7 @@ export class AdapterHandler {
             content,
             filename,
             index: indexTracker,
-            header: this.#prepareHeader(filename, loadID, hmrVersion >= 0),
+            header: this.#prepareHeader(filename, loadID, hmrVersion >= 0, ssr),
         })
         const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
