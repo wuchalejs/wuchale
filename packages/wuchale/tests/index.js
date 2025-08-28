@@ -21,7 +21,11 @@ test('Compile nested', function(t) {
 
 test('Default loader file paths', async function(t){
     for (const loader of ['server', 'vite', 'bundle']) {
-        await statfs(basic.defaultLoaderPath(loader)) // no error
+        const path = basic.defaultLoaderPath(loader)
+        const paths = typeof path === 'string' ? [path] : Object.values(path)
+        for (const path of paths) {
+            await statfs(path) // no error
+        }
     }
 })
 
