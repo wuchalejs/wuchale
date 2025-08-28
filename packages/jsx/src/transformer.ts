@@ -1,8 +1,9 @@
 import MagicString from 'magic-string'
-import { Parser, type Program } from 'acorn'
+import { Parser } from 'acorn'
 import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
+import type * as Estree from 'acorn'
 import jsx from 'acorn-jsx'
 import { Transformer, scriptParseOptionsWithComments } from 'wuchale/adapter-vanilla'
 import type {
@@ -14,10 +15,11 @@ import type {
     CatalogExpr,
 } from 'wuchale'
 import { nonWhitespaceText, MixedVisitor } from "wuchale/adapter-utils"
+import type { AnyNode } from 'acorn'
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
 
-export function parseScript(content: string): [Program, JX.Comment[][]] {
+export function parseScript(content: string): [Estree.Program, Estree.Comment[][]] {
     const [opts, comments] = scriptParseOptionsWithComments()
     return [JsxParser.parse(content, opts), comments]
 }
@@ -170,7 +172,7 @@ export class JSXTransformer extends Transformer {
     }
 
     visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => {
-        return this.visit(node.expression as JX.Expression)
+        return this.visit(node.expression as Estree.Expression)
     }
 
     visitJSXAttribute = (node: JX.JSXAttribute): Message[] => {
@@ -208,7 +210,7 @@ export class JSXTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): Message[] => this.visit(node.argument)
+    visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): Message[] => this.visit(node.argument as Estree.Expression)
 
     visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): Message[] => {
         const commentContents = this.getMarkupCommentBody(node)
@@ -225,7 +227,7 @@ export class JSXTransformer extends Transformer {
         return []
     }
 
-    visitJx = (node: JX.Node | JX.JSXSpreadChild | Program): Message[] => {
+    visitJx = (node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] => {
         if (node.type === 'JSXText' && !node.value.trim()) {
             return []
         }
@@ -239,7 +241,7 @@ export class JSXTransformer extends Transformer {
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
-            msgs = this.visit(node)
+            msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev
         return msgs

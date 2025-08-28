@@ -1,8 +1,7 @@
 // $$ cd .. && npm run test
 
 import MagicString from "magic-string"
-import type Estree from 'estree'
-import type { Program, Options as ParserOptions } from "acorn"
+import type * as Estree from "acorn"
 import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
@@ -19,7 +18,7 @@ import type {
 } from "../adapters.js"
 import { runtimeVars, varNames, type RuntimeVars } from "../adapter-utils/index.js"
 
-export const scriptParseOptions: ParserOptions = {
+export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
     ecmaVersion: 'latest',
     locations: true
@@ -27,7 +26,7 @@ export const scriptParseOptions: ParserOptions = {
 
 const ScriptParser = Parser.extend(tsPlugin())
 
-export function scriptParseOptionsWithComments(): [ParserOptions, Estree.Comment[][]] {
+export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Comment[][]] {
     let accumulateComments: Estree.Comment[] = []
     const comments: Estree.Comment[][] = []
     return [
@@ -44,6 +43,8 @@ export function scriptParseOptionsWithComments(): [ParserOptions, Estree.Comment
                 accumulateComments.push({
                     type: block ? 'Block' : 'Line',
                     value: comment,
+                    start: null,
+                    end: null,
                 })
             }
         },
@@ -51,7 +52,7 @@ export function scriptParseOptionsWithComments(): [ParserOptions, Estree.Comment
     ]
 }
 
-export function parseScript(content: string): [Program, Estree.Comment[][]] {
+export function parseScript(content: string): [Estree.Program, Estree.Comment[][]] {
     const [opts, comments] = scriptParseOptionsWithComments()
     return [ScriptParser.parse(content, opts), comments]
 }
@@ -175,9 +176,7 @@ export class Transformer {
     visitProperty = (node: Estree.Property): Message[] => {
         const msgs = this.visit(node.key)
         if (msgs.length && node.key.type === 'Literal' && typeof node.key.value === 'string' && !node.computed) {
-            // @ts-expect-error
             this.mstr.appendRight(node.key.start, '[')
-            // @ts-expect-error
             this.mstr.appendLeft(node.key.end, ']')
         }
         msgs.push(...this.visit(node.value))
@@ -353,7 +352,6 @@ export class Transformer {
         if (msgs.length > 0 && isBlock) {
             const initRuntime = this.initRuntime(this.filename, this.currentFuncDef, prevFuncDef, this.additionalState)
             initRuntime && this.mstr.prependLeft(
-                // @ts-expect-error
                 node.start + 1,
                 initRuntime,
             )
@@ -459,11 +457,11 @@ export class Transformer {
         return directives
     }
 
-    visit = (node: Estree.BaseNode): Message[] => {
+    visit = (node: Estree.AnyNode): Message[] => {
         // for estree
         const commentDirectives = { ...this.commentDirectives }
-        // @ts-expect-error
         const comments = this.comments[node.start]
+        // @ts-expect-error
         for (const comment of node.leadingComments ?? comments ?? []) {
             this.commentDirectives = this.processCommentDirectives(comment.value.trim())
         }

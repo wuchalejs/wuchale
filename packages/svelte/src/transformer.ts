@@ -35,7 +35,7 @@ export class SvelteTransformer extends Transformer {
         super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf)
     }
 
-    visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression)
+    visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,
@@ -121,7 +121,7 @@ export class SvelteTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitSpreadAttribute = (node: AST.SpreadAttribute): Message[] => this.visit(node.expression)
+    visitSpreadAttribute = (node: AST.SpreadAttribute): Message[] => this.visit(node.expression as AnyNode)
 
     visitAttribute = (node: AST.Attribute): Message[] => {
         if (node.value === true) {
@@ -166,7 +166,7 @@ export class SvelteTransformer extends Transformer {
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => this.visitFragment(node.body)
 
     visitIfBlock = (node: AST.IfBlock): Message[] => {
-        const msgs = this.visit(node.test)
+        const msgs = this.visit(node.test as AnyNode)
         msgs.push(...this.visitSv(node.consequent))
         if (node.alternate) {
             msgs.push(...this.visitSv(node.alternate))
@@ -176,11 +176,11 @@ export class SvelteTransformer extends Transformer {
 
     visitEachBlock = (node: AST.EachBlock): Message[] => {
         const msgs = [
-            ...this.visit(node.expression),
+            ...this.visit(node.expression as AnyNode),
             ...this.visitSv(node.body),
         ]
         if (node.key) {
-            msgs.push(...this.visit(node.key))
+            msgs.push(...this.visit(node.key as AnyNode))
         }
         if (node.fallback) {
             msgs.push(...this.visitSv(node.fallback))
@@ -190,14 +190,14 @@ export class SvelteTransformer extends Transformer {
 
     visitKeyBlock = (node: AST.KeyBlock): Message[] => {
         return [
-            ...this.visit(node.expression),
+            ...this.visit(node.expression as AnyNode),
             ...this.visitSv(node.fragment),
         ]
     }
 
     visitAwaitBlock = (node: AST.AwaitBlock): Message[] => {
         const msgs = [
-            ...this.visit(node.expression),
+            ...this.visit(node.expression as AnyNode),
             ...this.visitFragment(node.then),
         ]
         if (node.pending) {
@@ -236,7 +236,7 @@ export class SvelteTransformer extends Transformer {
         }
         if (node.instance) {
             this.commentDirectives = {} // reset
-            msgs.push(...this.visitProgram(node.instance.content))
+            msgs.push(...this.visitProgram(node.instance.content as Program))
         }
         msgs.push(...this.visitFragment(node.fragment))
         return msgs
@@ -263,7 +263,7 @@ export class SvelteTransformer extends Transformer {
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.forceInclude !== false) {
-            msgs = this.visit(node)
+            msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev
         return msgs
