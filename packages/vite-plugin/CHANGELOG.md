@@ -1,5 +1,17 @@
 # @wuchale/vite-plugin
 
+## 0.14.0
+
+### Minor Changes
+
+- af21188: Optional support for separate loader for SSR
+
+### Patch Changes
+
+- Updated dependencies [af21188]
+- Updated dependencies [26ce0c3]
+  - wuchale@0.15.0
+
 ## 0.13.2
 
 ### Patch Changes
