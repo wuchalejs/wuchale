@@ -7,12 +7,10 @@ import { relative } from 'path'
 import { adapter } from '@wuchale/jsx'
 
 const dirBase = absDir(import.meta.url)
-const adapterOpts = {
+export const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
     catalog: `${dirBase}/test-tmp/{locale}`
 }
-
-const sv = adapter(adapterOpts)
 
 const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
 
@@ -23,13 +21,16 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
  * @param {string} expectedTranslations
  * @param {string[] | string[][]} expectedCompiled
  * @param {string} [filename]
+ * @param {object} [conf]
  */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename) {
+export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename, conf = adapterOpts) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(conf.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testContentSetup(t, sv, 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
+    await testContentSetup(t, adapter(conf), 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
+
+const sv = adapter(adapterOpts)
 
 /**
  * @param {any} t

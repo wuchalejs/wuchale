@@ -68,7 +68,7 @@ function trimLines(str) {
  * @param {string} key
  * @param {number} hmrVersion
  */
-export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion) {
+export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion=-1) {
     const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile, hmrVersion)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()

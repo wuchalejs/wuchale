@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, jsx } from './check.js'
+import { testContent, testDir, jsx, adapterOpts } from './check.js'
 import { adapter } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
 
@@ -44,6 +44,30 @@ test('Simple text', async function(t) {
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
+})
+
+test('Simple text SolidJS', async function(t) {
+    await testContent(t, jsx`
+        function Foo() {
+            return <p>Hello</p>
+        }
+    `, jsx`
+        import WuchaleTrans from "@wuchale/jsx/runtime.solid.jsx"
+        import _w_to_rt_ from 'wuchale/runtime'
+        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+
+        const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
+
+        function Foo() {
+            return <p>{_w_runtime_().t(0)}</p>
+        }
+    `, `
+    msgid ""
+    msgstr ""
+    #: test-tmp/test.jsx
+    msgid "Hello"
+    msgstr "Hello"
+    `, ['Hello'], null, {...adapterOpts, variant: 'solidjs'})
 })
 
 test('Ignore and include', async function(t) {
