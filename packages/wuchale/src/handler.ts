@@ -555,17 +555,17 @@ export class AdapterHandler {
         const runtimeConf = this.#adapter.runtime
         let getFuncPlain = '_w_load_'
         let getFuncReactive = getFuncPlain + 'rx_'
+        const getFuncPlainExpr = getFuncPlain
+        const getFuncReactiveExpr = getFuncReactive
         let head = []
         if (hasHmr) {
-            const getFuncPlainHmr = getFuncPlain
-            const getFuncReactiveHmr = getFuncReactive
             getFuncPlain += 'hmr_'
             getFuncReactive += 'hmr_'
             if (runtimeConf.plain?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncPlainHmr, getFuncPlain))
+                head.push(this.#hmrUpdateFunc(getFuncPlainExpr, getFuncPlain))
             }
             if (runtimeConf.reactive?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncReactiveHmr, getFuncReactive))
+                head.push(this.#hmrUpdateFunc(getFuncReactiveExpr, getFuncReactive))
             }
         }
         this.#putImportSpec(runtimeConf.plain?.importName, getFuncPlain, importsFuncs)
@@ -579,8 +579,8 @@ export class AdapterHandler {
             return {
                 head: head.join('\n'),
                 expr: {
-                    plain: `${getFuncPlain}('${loadID}')`,
-                    reactive: `${getFuncReactive}('${loadID}')`,
+                    plain: `${getFuncPlainExpr}('${loadID}')`,
+                    reactive: `${getFuncReactiveExpr}('${loadID}')`,
                 }
             }
         }

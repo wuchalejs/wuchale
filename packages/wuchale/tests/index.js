@@ -113,7 +113,7 @@ test('HMR', async function(t) {
         }
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_hmr_('main'))
+            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
             const varName = _w_runtime_.t(0)
             return varName
         }
