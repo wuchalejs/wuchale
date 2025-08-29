@@ -2,24 +2,13 @@
 import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, SharedStates } from "wuchale"
+import type { HmrContext, ModuleNode, ResolvedConfig, TransformOptions, Plugin } from 'vite'
 
 const pluginName = 'wuchale'
 const virtualPrefix = `virtual:${pluginName}/`
 const virtualResolvedPrefix = '\0'
 
-type HotUpdateCtx = {
-    file: string
-    server: {
-        ws: { send: Function }
-        moduleGraph: {
-            getModulesByFile: Function
-            invalidateModule: Function
-        }
-    }
-    timestamp: number
-}
-
-class Plugin {
+class Wuchale implements Plugin {
 
     name = pluginName
 
@@ -85,7 +74,7 @@ class Plugin {
         }
     }
 
-    configResolved = async (config: { env: { DEV?: boolean }, root: string }) => {
+    configResolved = async (config: ResolvedConfig) => {
         let mode: Mode
         if (config.env.DEV) {
             mode = 'dev'
@@ -96,14 +85,14 @@ class Plugin {
         await this.#init(mode)
     }
 
-    handleHotUpdate = async (ctx: HotUpdateCtx) => {
+    handleHotUpdate = async (ctx: HmrContext) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             this.#hmrVersion++
             this.#hmrLastTime = performance.now()
             return
         }
         const sourceTriggered = performance.now() - this.#hmrLastTime < 2000
-        const invalidatedModules = new Set()
+        const invalidatedModules = new Set<ModuleNode>()
         for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
             if (!sourceTriggered) {
@@ -169,7 +158,7 @@ class Plugin {
         return adapter.getProxy()
     }
 
-    #transformHandler = async (code: string, id: string, options?: {ssr?: boolean}) => {
+    #transformHandler = async (code: string, id: string, options: TransformOptions) => {
         if (!this.#config.hmr) {
             return {}
         }
@@ -182,7 +171,7 @@ class Plugin {
         return {}
     }
 
-    transform = { order: <'pre'>'pre', handler: this.#transformHandler }
+    transform = { order: 'pre' as 'pre', handler: this.#transformHandler }
 }
 
-export const wuchale = (configPath?: string) => new Plugin(configPath)
+export const wuchale = (configPath?: string) => new Wuchale(configPath)
