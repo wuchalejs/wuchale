@@ -36,6 +36,8 @@ const defaultArgs: AdapterArgs = {
     }
 }
 
+const resolveLoaderPath = (name: string) => new URL(`../../src/adapter-vanilla/loaders/${name}.js`, import.meta.url).pathname
+
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
@@ -66,7 +68,13 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             return available
         },
         defaultLoaderPath: (loader: string) => {
-            return new URL(`../../src/adapter-vanilla/loaders/${loader}.js`, import.meta.url).pathname
+            if (loader === 'vite') {
+                return {
+                    client: resolveLoaderPath('vite'),
+                    ssr: resolveLoaderPath('vite.ssr'),
+                }
+            }
+            return resolveLoaderPath(loader)
         },
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
