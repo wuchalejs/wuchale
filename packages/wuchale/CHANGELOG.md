@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.15.2
+
+### Patch Changes
+
+- bc8a734: Add ssr default loader for vite
+
 ## 0.15.1
 
 ### Patch Changes
