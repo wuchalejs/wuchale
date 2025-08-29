@@ -488,15 +488,10 @@ export class Transformer {
         return msgs
     }
 
-    finalize = (msgs: Message[], hmrHeaderIndex: number): TransformOutput => ({
+    finalize = (msgs: Message[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput => ({
         msgs,
-        output: hmrData => {
-            if (msgs.length === 0) {
-                return {}
-            }
-            if (hmrData) {
-                this.mstr.prependRight(hmrHeaderIndex, `\nconst ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}\n`)
-            }
+        output: header => {
+            this.mstr.prependRight(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
             return {
                 code: this.mstr.toString(),
                 map: this.mstr.generateMap(),
@@ -504,14 +499,10 @@ export class Transformer {
         }
     })
 
-    transform = (headerHead: string): TransformOutput => {
+    transform = (): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
-        const msgs = this.visit(ast)
-        if (msgs.length) {
-            this.mstr.appendRight(this.getRealBodyStart(ast.body), headerHead + '\n')
-        }
-        return this.finalize(msgs, 0)
+        return this.finalize(this.visit(ast), this.getRealBodyStart(ast.body))
     }
 }

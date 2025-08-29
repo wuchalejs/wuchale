@@ -46,15 +46,15 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, header }) => new Transformer(
+        transform: ({ content, filename, index, expr }) => new Transformer(
             content,
             filename,
             index,
             heuristic,
             pluralsFunc,
-            header.expr,
+            expr,
             runtime as RuntimeConf,
-        ).transform(header.head),
+        ).transform(),
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {
             if (rest.bundleLoad) {

@@ -247,22 +247,17 @@ export class JSXTransformer extends Transformer {
         return msgs
     }
 
-    transformJx = (headerHead: string, lib: JSXLib): TransformOutput => {
+    transformJx = (lib: JSXLib): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
         const msgs = this.visitJx(ast)
-        if (!msgs.length) {
-            return this.finalize(msgs, 0)
-        }
-        const headerFin = [
+        const header = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
-            headerHead,
             this.initRuntime(this.filename, null, null, {}),
         ].join('\n')
         const bodyStart = this.getRealBodyStart(ast.body)
-        this.mstr.appendRight(bodyStart, headerFin + '\n')
-        return this.finalize(msgs, bodyStart)
+        return this.finalize(msgs, bodyStart, header)
     }
 }

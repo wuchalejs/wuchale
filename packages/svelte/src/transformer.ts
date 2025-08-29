@@ -269,7 +269,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    transformSv = (headerHead: string): TransformOutput => {
+    transformSv = (): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -282,35 +282,28 @@ export class SvelteTransformer extends Transformer {
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
         const msgs = this.visitSv(ast)
-        if (!msgs.length) {
-            return this.finalize(msgs, 0)
-        }
         const headerLines = [
             isComponent ? `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"` : '',
-            headerHead,
             this.initRuntime(this.filename, null, null, {}),
         ]
         const headerFin = headerLines.join('\n')
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body)
-            this.mstr.appendRight(bodyStart, headerFin + '\n')
-            return this.finalize(msgs, bodyStart)
+            return this.finalize(msgs, bodyStart, headerFin)
         }
         let hmrHeaderIndex = 0
         if (ast.module) {
             // @ts-ignore
             hmrHeaderIndex = this.getRealBodyStart(ast.module.content.body)
-            this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else if (ast.instance) {
             // @ts-ignore
             hmrHeaderIndex = this.getRealBodyStart(ast.instance.content.body)
-            this.mstr.appendRight(hmrHeaderIndex, headerFin)
         } else {
             this.mstr.prepend('<script>')
             // account index for hmr data here
-            this.mstr.prependRight(0, `${headerFin}</script>\n`)
+            this.mstr.prependRight(0, `</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
-        return this.finalize(msgs, hmrHeaderIndex)
+        return this.finalize(msgs, hmrHeaderIndex, headerFin)
     }
 }

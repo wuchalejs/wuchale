@@ -109,14 +109,13 @@ export type CatalogExpr = {
 
 export type TransformHeader = {
     head: string
-    expr: CatalogExpr
 }
 
 type TransformCtx = {
     content: string
     filename: string
     index: IndexTracker
-    header: TransformHeader
+    expr: CatalogExpr
 }
 
 export type HMRData = {
@@ -124,7 +123,7 @@ export type HMRData = {
     data: Record<string, [number, CompiledElement][]>
 }
 
-export type TransformOutputFunc = (hmrData: HMRData | null) => {
+export type TransformOutputFunc = (header: string) => {
     code?: string
     map?: any
 }
@@ -134,7 +133,7 @@ export type TransformOutput = {
     msgs: Message[]
 }
 
-export type TransformFunc = (ctx: TransformCtx) => TransformOutput
+export type TransformFunc = (expr: TransformCtx) => TransformOutput
 
 export type WrapFunc = (expr: string) => string
 

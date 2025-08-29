@@ -94,16 +94,16 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         runtime = defaultRuntimeSolid
     }
     return {
-        transform: ({ content, filename, index, header }) => {
+        transform: ({ content, filename, index, expr }) => {
             return new JSXTransformer(
                 content,
                 filename,
                 index,
                 heuristic,
                 pluralsFunc,
-                header.expr,
+                expr,
                 runtime as RuntimeConf,
-            ).transformJx(header.head, variant)
+            ).transformJx(variant)
         },
         loaderExts: ['.js', '.ts'],
         defaultLoaders: async () => {

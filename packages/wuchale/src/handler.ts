@@ -1,7 +1,7 @@
 // $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, GlobConf, HMRData, LoaderPath, TransformHeader } from "./adapters.js"
+import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
@@ -30,6 +30,14 @@ type POFile = {
     headers: Record<string, string>
     pluralRule: PluralRule
     loaded: boolean
+}
+
+const getFuncPlain = '_w_load_'
+const getFuncReactive = getFuncPlain + 'rx_'
+const catalogsVarName = '_w_catalogs_'
+const bundledCatalogExpr: CatalogExpr = {
+    plain: `${getFuncPlain}(${catalogsVarName})`,
+    reactive: `${getFuncReactive}(${catalogsVarName})`,
 }
 
 const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
@@ -106,6 +114,8 @@ type GranularState = {
 }
 
 type LoaderPathEmpty = {[K in keyof LoaderPath]: boolean}
+
+type TransformOutputCode = { code?: string, map?: any }
 
 export class AdapterHandler {
 
@@ -542,7 +552,7 @@ export class AdapterHandler {
         `
     }
 
-    #prepareHeader = (filename: string, loadID: string, hasHmr: boolean, ssr: boolean): TransformHeader => {
+    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, ssr: boolean): string => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
@@ -553,36 +563,29 @@ export class AdapterHandler {
         }
         const importsFuncs = []
         const runtimeConf = this.#adapter.runtime
-        let getFuncPlain = '_w_load_'
-        let getFuncReactive = getFuncPlain + 'rx_'
-        const getFuncPlainExpr = getFuncPlain
-        const getFuncReactiveExpr = getFuncReactive
         let head = []
-        if (hasHmr) {
-            getFuncPlain += 'hmr_'
-            getFuncReactive += 'hmr_'
+        let getFuncImportPlain = getFuncPlain
+        let getFuncImportReactive = getFuncReactive
+        if (hmrData != null) {
+            head.push(`const ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}`)
+            getFuncImportPlain += 'hmr_'
+            getFuncImportReactive += 'hmr_'
             if (runtimeConf.plain?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncPlainExpr, getFuncPlain))
+                head.push(this.#hmrUpdateFunc(getFuncPlain, getFuncImportPlain))
             }
             if (runtimeConf.reactive?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncReactiveExpr, getFuncReactive))
+                head.push(this.#hmrUpdateFunc(getFuncReactive, getFuncImportReactive))
             }
         }
-        this.#putImportSpec(runtimeConf.plain?.importName, getFuncPlain, importsFuncs)
-        this.#putImportSpec(runtimeConf.reactive?.importName, getFuncReactive, importsFuncs)
+        this.#putImportSpec(runtimeConf.plain?.importName, getFuncImportPlain, importsFuncs)
+        this.#putImportSpec(runtimeConf.reactive?.importName, getFuncImportReactive, importsFuncs)
         head = [
             `import ${varNames.rtWrap} from 'wuchale/runtime'`,
             `import ${importsFuncs.join(',')} from "${loaderPath}"`,
             ...head,
         ]
         if (!this.#adapter.bundleLoad) {
-            return {
-                head: head.join('\n'),
-                expr: {
-                    plain: `${getFuncPlainExpr}('${loadID}')`,
-                    reactive: `${getFuncReactiveExpr}('${loadID}')`,
-                }
-            }
+            return head.join('\n')
         }
         const imports = []
         const objElms = []
@@ -591,21 +594,24 @@ export class AdapterHandler {
             imports.push(`import * as ${locKW} from '${this.virtModEvent(loc, loadID)}'`)
             objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
-        const catalogsVarName = '_w_catalogs_'
+        return [
+            ...imports,
+            ...head,
+            `const ${catalogsVarName} = {${objElms.join(',')}}`
+        ].join('\n')
+    }
+
+    #prepareRuntimeExpr = (loadID: string): CatalogExpr => {
+        if (this.#adapter.bundleLoad) {
+            return bundledCatalogExpr
+        }
         return {
-            head: [
-                ...imports,
-                ...head,
-                `const ${catalogsVarName} = {${objElms.join(',')}}`
-            ].join('\n'),
-            expr: {
-                plain: `${getFuncPlain}(${catalogsVarName})`,
-                reactive: `${getFuncReactive}(${catalogsVarName})`,
-            }
+            plain: `${getFuncPlain}('${loadID}')`,
+            reactive: `${getFuncReactive}('${loadID}')`,
         }
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<{ code?: string, map?: any }> => {
+    transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<TransformOutputCode> => {
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         let compiled = this.sharedState.compiled
@@ -619,7 +625,7 @@ export class AdapterHandler {
             content,
             filename,
             index: indexTracker,
-            header: this.#prepareHeader(filename, loadID, hmrVersion >= 0, ssr),
+            expr: this.#prepareRuntimeExpr(loadID),
         })
         const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
@@ -705,21 +711,21 @@ export class AdapterHandler {
             this.#log.log(`Gemini translate ${color.cyan(untranslated.length)} items to ${color.cyan(getLanguageName(loc))} ${opType}`)
             await this.#geminiQueue[loc].running
         }
-        let hmrData: HMRData = null
-        if (hmrVersion >= 0) {
-            hmrData = { version: hmrVersion, data: {} }
-            for (const loc of this.#locales) {
-                hmrData.data[loc] = hmrKeys[loc]?.map(key => {
-                    const index = indexTracker.get(key)
-                    return [ index, compiled[loc].items[index] ]
-                })
+        let output: TransformOutputCode = {}
+        if (msgs.length) {
+            let hmrData: HMRData = null
+            if (hmrVersion >= 0) {
+                hmrData = { version: hmrVersion, data: {} }
+                for (const loc of this.#locales) {
+                    hmrData.data[loc] = hmrKeys[loc]?.map(key => {
+                        const index = indexTracker.get(key)
+                        return [ index, compiled[loc].items[index] ]
+                    })
+                }
             }
+            output = result.output(this.#prepareHeader(filename, loadID, hmrData, ssr))
         }
-        const output = result.output(hmrData)
         await this.writeTransformed(filename, output.code ?? content)
-        if (!msgs.length) {
-            return {}
-        }
         return output
     }
 }

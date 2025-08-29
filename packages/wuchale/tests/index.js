@@ -101,10 +101,9 @@ test('HMR', async function(t) {
             return varName
         }
     `, typescript`
-        const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
-
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_hmr_ from "../tests/test-tmp/loader.js"
+        const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 
         function _w_load_(loadID) {
             const _w_catalog_ = _w_load_hmr_(loadID)
