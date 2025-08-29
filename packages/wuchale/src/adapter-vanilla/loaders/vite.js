@@ -6,4 +6,6 @@
 import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
 import { registerLoaders } from 'wuchale/load-utils'
 
-export default registerLoaders(key, loadCatalog, loadIDs)
+// two exports. can be used anywhere
+export const get = registerLoaders(key, loadCatalog, loadIDs)
+export default get

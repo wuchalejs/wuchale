@@ -11,4 +11,6 @@ export { setLocale }
 /**
  * @param {{ [locale: string]: import('wuchale/runtime').CatalogModule }} catalogs
  */
-export default catalogs => catalogs[locale()]
+export const get = catalogs => catalogs[locale()]
+// same function, because solid-js can use them anywhere
+export default get
