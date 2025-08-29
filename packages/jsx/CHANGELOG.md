@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.6.1
+
+### Patch Changes
+
+- 2a74da7: Fix not all loaders updated for two exports
+- Updated dependencies [d03dfa1]
+- Updated dependencies [2a74da7]
+  - wuchale@0.15.1
+
 ## 0.6.0
 
 ### Minor Changes
