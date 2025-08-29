@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.14.1
+
+### Patch Changes
+
+- c70b2d7: Fix build error because of type differences
+
 ## 0.14.0
 
 ### Minor Changes
