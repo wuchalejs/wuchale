@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.15.1
+
+### Patch Changes
+
+- d03dfa1: Fix error when runtime initialized after non literal expressions
+- 2a74da7: Fix not all loaders updated for two exports
+
 ## 0.15.0
 
 ### Minor Changes
