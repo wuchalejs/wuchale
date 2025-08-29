@@ -169,14 +169,14 @@ class Plugin {
         return adapter.getProxy()
     }
 
-    #transformHandler = async (code: string, id: string, options: {ssr?: boolean}) => {
+    #transformHandler = async (code: string, id: string, options?: {ssr?: boolean}) => {
         if (!this.#config.hmr) {
             return {}
         }
         const filename = relative(this.#projectRoot, id)
         for (const adapter of Object.values(this.#adapters)) {
             if (adapter.fileMatches(filename)) {
-                return await adapter.transform(code, filename, this.#hmrVersion, options.ssr)
+                return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
             }
         }
         return {}
