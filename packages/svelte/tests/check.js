@@ -48,13 +48,9 @@ export const javascript = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = svelte`
-//   <main>
-//     <p class="read-the-docs">
-//       Click on the Vite and Svelte logos to learn more
-//     </p>
-//   </main>
+//   <main>Hello</main>
 // `
-// const p = await getOutput(sv, 'svelte', code, testFile)
+// const p = await getOutput(sv, 'svelte', code, testFile, -1)
 // console.log(p.code)
 // console.log(Object.values(p.catalogs.en))
 // console.log(p.compiled.en)

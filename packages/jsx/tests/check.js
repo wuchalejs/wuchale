@@ -30,7 +30,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
     await testContentSetup(t, adapter(conf), 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
 
-const sv = adapter(adapterOpts)
+const jx = adapter(adapterOpts)
 
 /**
  * @param {any} t
@@ -40,15 +40,19 @@ export async function testDir(t, dir) {
     try {
         await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
     } catch {}
-    await testDirSetup(t, sv, 'jsx', `${dirBase}/${dir}`, 'app.jsx', 'app.out.jsx')
+    await testDirSetup(t, jx, 'jsx', `${dirBase}/${dir}`, 'app.jsx', 'app.out.jsx')
 }
 
 // only for syntax highlighting
 export const jsx = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
-// const code = jsx`const m = <main> Hello <i>dear</i></main>`
-// const p = await getOutput(sv, 'jsx', code, testFile)
+// const code = jsx`
+// function m() {
+//   return <p>Hello!</p>
+// }
+// `
+// const p = await getOutput(jx, 'jsx', code, testFile, -1)
 // console.log(p.code)
 // // console.log(Object.values(p.catalogs.en))
-// console.log(p.compiled.en?.items)
+// // console.log(p.compiled.en?.items)
