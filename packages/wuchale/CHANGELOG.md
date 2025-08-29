@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.15.3
+
+### Patch Changes
+
+- 076dbbc: Fix broken HMR after splitting reactive vs plain
+
 ## 0.15.2
 
 ### Patch Changes
