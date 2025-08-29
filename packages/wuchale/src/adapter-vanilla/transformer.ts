@@ -344,7 +344,7 @@ export class Transformer {
 
     getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number => {
         for (const node of nodes) {
-            if (node.type === 'ExpressionStatement') {
+            if (node.type === 'ExpressionStatement' && node.expression.type === 'Literal') {
                 continue
             }
             return node.start
