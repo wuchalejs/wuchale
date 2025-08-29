@@ -1,5 +1,31 @@
 # @wuchale/svelte
 
+## 0.14.0
+
+### Minor Changes
+
+- af21188: Optional support for separate loader for SSR
+- 26ce0c3: Separate reactive and plain loader functions
+
+  This is to fix errors happening specifically with React as it doesn't allow
+  using hooks inside non hooks or components. But it opens up finer
+  configurations for Svelte and SolidJS as well for which the defaults have been
+  adjusted as well.
+
+  You can now export different functions from the loader files for reactive (e.g.
+  using hooks) and non reactive (e.g. just simple object lookup) and tell
+  `wuchale` their names using configuration options, and also adjust which one is
+  used when.
+
+  If you want to update your loader(s), you can do `npx wuchale init` and select
+  another one than `existing`.
+
+### Patch Changes
+
+- Updated dependencies [af21188]
+- Updated dependencies [26ce0c3]
+  - wuchale@0.15.0
+
 ## 0.13.5
 
 ### Patch Changes
