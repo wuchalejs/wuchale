@@ -42,10 +42,11 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             client: defaultLoader,
             ssr: defaultLoader,
         } : defaultLoader
-        for (const [side, path] of Object.entries(defaultPaths)) {
-            await mkdir(dirname(path), { recursive: true })
-            await copyFile(path, loaderPath[side])
-            keysByLoaderPath[path] = key
+        for (const [side, fromPath] of Object.entries(defaultPaths)) {
+            const toPath = loaderPath[side]
+            await mkdir(dirname(toPath), { recursive: true })
+            await copyFile(fromPath, toPath)
+            keysByLoaderPath[toPath] = key
         }
         logger.log(`Initial extract for ${adapterName}`)
         await extractAdap(handler, sharedState, adapter.files, locales, false, logger)
