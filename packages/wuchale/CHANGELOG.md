@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.15.5
+
+### Patch Changes
+
+- f698c89: Fix init command ENOENT error when dir doesn't exist
+
 ## 0.15.4
 
 ### Patch Changes
