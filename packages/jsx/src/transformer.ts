@@ -25,7 +25,7 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 }
 
 const nodesWithChildren = ['JSXElement']
-const rtComponent = 'WuchaleTrans'
+const rtComponent = 'W_tx_'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
 
@@ -75,25 +75,29 @@ export class JSXTransformer extends Transformer {
         checkHeuristic: this.checkHeuristicBool,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
-            for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
-                let toAppend: string
-                if (i === 0) {
-                    toAppend = `<${rtComponent} tags={[`
-                } else {
-                    toAppend = ', '
+            let begin = `<${rtComponent}`
+            if (nestedRanges.length > 0) {
+                for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
+                    let toAppend: string
+                    if (i === 0) {
+                        toAppend = `${begin} t={[`
+                    } else {
+                        toAppend = ', '
+                    }
+                    this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
                 }
-                this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
+                begin = `]}`
             }
-            let begin = `]} ctx=`
+            begin += ' x='
             if (this.inCompoundText) {
-                begin += `{${this.vars().nestCtx}} nest`
+                begin += `{${this.vars().nestCtx}} n`
             } else {
                 const index = this.index.get(msgInfo.toKey())
                 begin += `{${this.vars().rtCtx}(${index})}`
             }
             let end = ' />'
             if (hasExprs) {
-                begin += ' args={['
+                begin += ' a={['
                 end = ']}' + end
             }
             this.mstr.appendLeft(lastChildEnd, begin)

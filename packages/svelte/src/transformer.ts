@@ -15,8 +15,8 @@ import { MixedVisitor, nonWhitespaceText } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
-const rtComponent = 'WuchaleTrans'
-const snipPrefix = 'wuchaleSnippet'
+const rtComponent = 'W_tx_'
+const snipPrefix = '_w_snippet_'
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
 
@@ -68,16 +68,20 @@ export class SvelteTransformer extends Transformer {
                 this.mstr.appendRight(childStart, snippetBegin)
                 this.mstr.prependLeft(childEnd, '\n{/snippet}')
             }
-            let begin = `\n<${rtComponent} tags={[${snippets.join(', ')}]} ctx=`
+            let begin = `\n<${rtComponent}`
+            if (snippets.length) {
+                begin += ` t={[${snippets.join(', ')}]}`
+            }
+            begin += ' x='
             if (this.inCompoundText) {
-                begin += `{${this.vars().nestCtx}} nest`
+                begin += `{${this.vars().nestCtx}} n`
             } else {
                 const index = this.index.get(msgInfo.toKey())
                 begin += `{${this.vars().rtCtx}(${index})}`
             }
             let end = ' />\n'
             if (hasExprs) {
-                begin += ' args={['
+                begin += ' a={['
                 end = ']}' + end
             }
             this.mstr.appendLeft(lastChildEnd, begin)

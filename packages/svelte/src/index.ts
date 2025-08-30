@@ -1,3 +1,5 @@
+// $$ cd .. && npm run test
+
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
 import type {
     HeuristicFunc,

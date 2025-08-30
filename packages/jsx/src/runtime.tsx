@@ -1,29 +1,29 @@
 import type { Composite, Mixed } from 'wuchale'
 
 export type WuchaleComponentProps = {
-    nest?: boolean
-    ctx: Composite
-    tags: Function
-    args: any[]
+    n?: boolean
+    x: Composite
+    t: Function
+    a: any[]
 }
 
-export function selectFragment({nest, ctx, tags, args}: WuchaleComponentProps, i: number): string | Mixed | Composite {
-    if (typeof ctx === 'string') {
-        return ctx
-    } if (typeof ctx === 'number') {
-        if (!nest || i > 0) {
-            return args[ctx]
+export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): string | Mixed | Composite {
+    if (typeof x === 'string') {
+        return x
+    } if (typeof x === 'number') {
+        if (!n || i > 0) {
+            return a[x]
         }
     } else {
-        const tag = tags[ctx[0] as number]
+        const tag = t[x[0] as number]
         if (tag == null) {
             return 'i18n-404:tag'
         } else {
-            return tag(ctx)
+            return tag(x)
         }
     }
 }
 
 export default (props: WuchaleComponentProps) => {
-    return props.ctx.map((fragment, i) => selectFragment({...props, ctx: fragment as Composite}, i))
+    return props.x.map((fragment, i) => selectFragment({...props, x: fragment as Composite}, i))
 }

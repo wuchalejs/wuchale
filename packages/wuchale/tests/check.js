@@ -62,7 +62,7 @@ function trimLines(str) {
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {(string | number | (string | number)[])[]} expectedCompiled
+ * @param {(string | (string | number | (string | number)[])[])[]} expectedCompiled
  * @param {string} testFile
  * @param {import("wuchale").Adapter} adapter
  * @param {string} key
@@ -102,7 +102,7 @@ export const basic = adapter(adapterOpts)
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {(string | number | (string | number)[])[]} expectedCompiled
+ * @param {(string | (string | number | (string | number)[])[])[]} expectedCompiled
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, adapter=basic, hmrVersion=-1) {
     try {

@@ -30,7 +30,7 @@ test('React basic', async function(t) {
         'use server'
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
-        import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
             'use client'
@@ -60,7 +60,7 @@ test('SolidJS basic', async function(t) {
     `, jsx`
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
-        import WuchaleTrans from "@wuchale/jsx/runtime.solid.jsx"
+        import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
 
@@ -91,7 +91,7 @@ test('Ignore and include', async function(t) {
     `, jsx`
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
-        import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
             const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
@@ -128,7 +128,7 @@ test('Context', async function(t) {
         }`, jsx`
             import _w_to_rt_ from 'wuchale/runtime'
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
-            import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
@@ -175,7 +175,7 @@ test('Plural', async function(t) {
         jsx`
             import _w_to_rt_ from 'wuchale/runtime'
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
-            import WuchaleTrans from "@wuchale/jsx/runtime.jsx"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
@@ -191,4 +191,39 @@ test('Plural', async function(t) {
     msgstr[0] "One item"
     msgstr[1] "# items"
     `, [ [ 'One item', '# items' ] ])
+})
+
+test('Nested and mixed', async function(t) {
+    await testContent(t,
+        jsx`
+            function m() {
+                return <>
+                    <p>Hello and <b>welcome</b>!</p>
+                    <p>{num} messages</p>
+                </>
+            }`,
+        jsx`
+            import _w_to_rt_ from 'wuchale/runtime'
+            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
+
+            function m() {
+                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                return <>
+                    <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>]} x={_w_runtime_.cx(0)} /></p>
+                    <p><W_tx_ x={_w_runtime_.cx(1)} a={[num]} /></p>
+                </>
+            }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.jsx
+    msgid "Hello and <0>welcome</0>!"
+    msgstr "Hello and <0>welcome</0>!"
+
+    #: test-tmp/test.jsx
+    msgid "{0} messages"
+    msgstr "{0} messages"
+    `, [ ['Hello and ', [0, 'welcome'], '!'], [0, ' messages'] ])
 })

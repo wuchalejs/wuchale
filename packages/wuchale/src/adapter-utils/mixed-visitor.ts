@@ -173,9 +173,9 @@ export class MixedVisitor<NodeT> {
         } else {
             return msgs
         }
-        if (childrenNestedRanges.length) {
+        if (props.scope === 'markup' && iArg > 0 || childrenNestedRanges.length > 0) {
             this.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
-        } else if (hasTextChild) {
+        } else {
             // no need for component use
             let begin = '{'
             let end = ')}'

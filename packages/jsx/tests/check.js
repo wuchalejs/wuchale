@@ -19,7 +19,7 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {string[] | string[][]} expectedCompiled
+ * @param {(string | (string | number | (string | number)[])[])[]} expectedCompiled
  * @param {string} [filename]
  * @param {object} [conf]
  */
