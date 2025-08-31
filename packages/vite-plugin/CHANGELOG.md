@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.14.3
+
+### Patch Changes
+
+- 14a1b1f: Revert to manual types for vite plugin to fix build errors
+
 ## 0.14.2
 
 ### Patch Changes
