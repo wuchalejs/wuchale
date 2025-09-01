@@ -7,13 +7,13 @@ export const varNames = {
     rtWrap: '_w_to_rt_',
 }
 
-export function runtimeVars(wrapFunc: (expr: string) => string) {
+export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.rt) {
     return {
-        rtTrans: `${wrapFunc(varNames.rt)}.t`,
-        rtTPlural: `${wrapFunc(varNames.rt)}.tp`,
-        rtPlural: `${wrapFunc(varNames.rt)}._.p`,
-        rtCtx: `${wrapFunc(varNames.rt)}.cx`,
-        rtTransCtx: `${wrapFunc(varNames.rt)}.tx`,
+        rtTrans: `${wrapFunc(base)}.t`,
+        rtTPlural: `${wrapFunc(base)}.tp`,
+        rtPlural: `${wrapFunc(base)}._.p`,
+        rtCtx: `${wrapFunc(base)}.cx`,
+        rtTransCtx: `${wrapFunc(base)}.tx`,
         /** for when nesting, used in adapters with elements */
         nestCtx: '_w_ctx_',
     }

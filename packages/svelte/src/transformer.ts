@@ -11,12 +11,13 @@ import type {
     CatalogExpr,
     RuntimeConf,
 } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText } from "wuchale/adapter-utils"
+import { MixedVisitor, nonWhitespaceText, varNames } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
 const rtComponent = 'W_tx_'
 const snipPrefix = '_w_snippet_'
+const rtModuleVar = varNames.rt + 'mod_'
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
 
@@ -32,7 +33,7 @@ export class SvelteTransformer extends Transformer {
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
     constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf)
+        super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf, [varNames.rt, rtModuleVar])
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
@@ -232,11 +233,19 @@ export class SvelteTransformer extends Transformer {
         const msgs: Message[] = []
         // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
+            const prevRtVar = this.currentRtVar
+            this.currentRtVar = rtModuleVar
             this.additionalState = {module: true}
             this.commentDirectives = {} // reset
-            // @ts-ignore
+            // @ts-expect-error
             msgs.push(...this.visitProgram(node.module.content))
+            this.mstr.appendRight(
+                // @ts-expect-error
+                this.getRealBodyStart(node.module.content.body),
+                this.initRuntime(this.filename, null, null, {}),
+            )
             this.additionalState = {} // reset
+            this.currentRtVar = prevRtVar // reset
         }
         if (node.instance) {
             this.commentDirectives = {} // reset
@@ -286,28 +295,31 @@ export class SvelteTransformer extends Transformer {
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
         const msgs = this.visitSv(ast)
-        const headerLines = [
-            isComponent ? `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"` : '',
-            this.initRuntime(this.filename, null, null, {}),
-        ]
-        const headerFin = headerLines.join('\n')
+        const initRuntime = this.initRuntime(this.filename, null, null, {})
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body)
-            return this.finalize(msgs, bodyStart, headerFin)
+            this.mstr.appendRight(bodyStart, initRuntime)
+            return this.finalize(msgs, bodyStart)
         }
-        let hmrHeaderIndex = 0
+        let headerIndex = 0
         if (ast.module) {
             // @ts-ignore
-            hmrHeaderIndex = this.getRealBodyStart(ast.module.content.body)
-        } else if (ast.instance) {
-            // @ts-ignore
-            hmrHeaderIndex = this.getRealBodyStart(ast.instance.content.body)
+            headerIndex = this.getRealBodyStart(ast.module.content.body)
+        }
+        if (ast.instance) {
+            if (!ast.module) {
+                // @ts-expect-error
+                headerIndex = this.getRealBodyStart(ast.instance.content.body)
+            }
+            // @ts-expect-error
+            this.mstr.appendRight(this.getRealBodyStart(ast.instance.content.body), initRuntime)
         } else {
             this.mstr.prepend('<script>')
             // account index for hmr data here
-            this.mstr.prependRight(0, `</script>\n`)
+            this.mstr.prependRight(0, `${initRuntime}\n</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
-        return this.finalize(msgs, hmrHeaderIndex, headerFin)
+        const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
+        return this.finalize(msgs, headerIndex, headerAdd)
     }
 }

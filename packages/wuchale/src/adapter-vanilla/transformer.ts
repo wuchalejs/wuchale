@@ -57,18 +57,7 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
     return [ScriptParser.parse(content, opts), comments]
 }
 
-function initRuntimeStmt(rtConf: RuntimeConf, expr: CatalogExpr) {
-    return (file: string, funcName: string, parentFunc: string, additional: object) => {
-        const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional})
-        if (useReactive.init == null) {
-            return
-        }
-        const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
-        const catalogExpr = useReactive.init ? expr.reactive : expr.plain
-        const runtimeExpr = `${varNames.rtWrap}(${catalogExpr})`
-        return `\nconst ${varNames.rt} = ${wrapInit(runtimeExpr)}\n`
-    }
-}
+type InitRuntimeFunc = (file: string, funcName: string, parentFunc: string, additional: object) => string
 
 export class Transformer {
 
@@ -80,7 +69,8 @@ export class Transformer {
     filename: string
     mstr: MagicString
     pluralFunc: string
-    initRuntime: ReturnType<typeof initRuntimeStmt>
+    initRuntime: InitRuntimeFunc
+    currentRtVar: string
     vars: () => RuntimeVars
 
     // state
@@ -94,21 +84,28 @@ export class Transformer {
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
         this.pluralFunc = pluralsFunc
         this.content = content
         this.filename = filename
-        this.initRuntime = initRuntimeStmt(rtConf, catalogExpr)
         const topLevelUseReactive = rtConf.useReactive({
             funcName: null,
             nested: false,
             file: filename,
             additional: this.additionalState,
         })
-        const reactiveVars = rtConf.reactive?.wrapUse && runtimeVars(rtConf.reactive.wrapUse)
-        const plainVars = rtConf.plain?.wrapUse && runtimeVars(rtConf.plain.wrapUse)
+
+        const vars: Record<string, {[key in 'plain' | 'reactive']: RuntimeVars}> = {}
+        // to enable the use of different runtime vars for different places, right now for svelte <script module>s
+        for (const baseVar of rtBaseVars) {
+            vars[baseVar] = {
+                reactive: rtConf.reactive?.wrapUse && runtimeVars(rtConf.reactive.wrapUse, baseVar),
+                plain: rtConf.plain?.wrapUse && runtimeVars(rtConf.plain.wrapUse, baseVar),
+            }
+        }
+        this.currentRtVar = rtBaseVars[0]
         this.vars = () => {
             const useReactive = rtConf.useReactive({
                 funcName: this.currentFuncDef,
@@ -116,7 +113,18 @@ export class Transformer {
                 file: filename,
                 additional: this.additionalState,
             }) ?? topLevelUseReactive
-            return useReactive.use ? reactiveVars : plainVars
+            const currentVars = vars[this.currentRtVar]
+            return useReactive.use ? currentVars.reactive : currentVars.plain
+        }
+        this.initRuntime = (file, funcName, parentFunc, additional) => {
+            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional})
+            if (useReactive.init == null) {
+                return
+            }
+            const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
+            const expr = useReactive.init ? catalogExpr.reactive : catalogExpr.plain
+            const runtimeExpr = `${varNames.rtWrap}(${expr})`
+            return `\nconst ${this.currentRtVar} = ${wrapInit(runtimeExpr)}\n`
         }
     }
 
