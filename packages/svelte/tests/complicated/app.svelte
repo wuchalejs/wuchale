@@ -61,6 +61,10 @@
     })
 </script>
 
+<svelte:head>
+    <title>Extract</title>
+</svelte:head>
+
 <div>{someFunction('foo', 'Bar')}</div>
 
 <p>

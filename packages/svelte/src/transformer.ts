@@ -227,6 +227,8 @@ export class SvelteTransformer extends Transformer {
 
     visitSvelteHead = (node: AST.SvelteHead): Message[] => this.visitSv(node.fragment)
 
+    visitTitleElement = (node: AST.TitleElement): Message[] => this.visitSv(node.fragment)
+
     visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
 
     visitRoot = (node: AST.Root): Message[] => {

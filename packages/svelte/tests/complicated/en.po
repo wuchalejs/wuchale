@@ -2,6 +2,7 @@ msgid ""
 msgstr ""
 
 #: app.svelte
+#: app.svelte
 msgid "Extract"
 msgstr "Extract"
 

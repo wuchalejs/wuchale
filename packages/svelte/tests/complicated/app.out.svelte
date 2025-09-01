@@ -61,6 +61,10 @@
     })
 </script>
 
+<svelte:head>
+    <title>{_w_runtime_.t(0)}</title>
+</svelte:head>
+
 <div>{someFunction('foo', _w_runtime_.t(12))}</div>
 
 <p>
