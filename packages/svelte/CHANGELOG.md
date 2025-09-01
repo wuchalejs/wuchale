@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.14.2
+
+### Patch Changes
+
+- 485f5fe: Fix .svelte files with <script module> stuck translatios on SSR
+- 8f42073: Fix title element in svelte:head not visited
+- Updated dependencies [485f5fe]
+  - wuchale@0.15.6
+
 ## 0.14.1
 
 ### Patch Changes

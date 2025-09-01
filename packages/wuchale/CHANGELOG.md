@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.15.6
+
+### Patch Changes
+
+- 485f5fe: Fix .svelte files with <script module> stuck translatios on SSR
+
 ## 0.15.5
 
 ### Patch Changes
