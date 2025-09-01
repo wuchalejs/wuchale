@@ -20,7 +20,9 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
     if (clean) {
         for (const loc of locales) {
             for (const item of Object.values(handler.sharedState.poFilesByLoc[loc].catalog)) {
-                item.references = []
+                // unreference all files that belong to this adapter
+                // don't touch other adapters' files
+                item.references = item.references.filter(ref => !handler.fileMatches(ref))
             }
         }
     }
