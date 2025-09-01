@@ -175,6 +175,8 @@ export class Transformer {
 
     visitArrayExpression = (node: Estree.ArrayExpression): Message[] => node.elements.map(this.visit).flat()
 
+    visitSequenceExpression = (node: Estree.SequenceExpression): Message[] => node.expressions.map(this.visit).flat()
+
     visitObjectExpression = (node: Estree.ObjectExpression): Message[] => node.properties.map(this.visit).flat()
 
     visitObjectPattern = (node: Estree.ObjectPattern): Message[] => node.properties.map(this.visit).flat()
