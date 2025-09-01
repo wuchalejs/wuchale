@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.15.7
+
+### Patch Changes
+
+- 957574f: Fix sequence expressions not visited
+- 0223e40: Fix cli with --clean removing all messages not belonging to the last adapter out of those sharing a catalog
+
 ## 0.15.6
 
 ### Patch Changes
