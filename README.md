@@ -6,7 +6,7 @@
 <br/>
 <p align="center">
   <a href="https://npmjs.com/package/wuchale"><img src="https://img.shields.io/npm/v/wuchale?logo=npm&logoColor=red&color=blue" alt="npm package"></a>
-  <a href="https://github.com/wuchalejs/wuchale/actions/workflows/node.js.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/node.js.yml/badge.svg?branch=main" alt="build status"></a>
+  <a href="https://github.com/wuchalejs/wuchale/actions/workflows/ci.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/ci.yml/badge.svg?branch=main" alt="build status"></a>
   <a href="https://pr.new/wuchalejs/wuchale"><img src="https://developer.stackblitz.com/img/start_pr_dark_small.svg" alt="Start new PR in StackBlitz Codeflow"></a>
   <a href="https://discord.gg/ypVSZTbzvG"><img src="https://img.shields.io/badge/chat-discord-blue?style=flat&logo=discord" alt="discord chat"></a>
 </p>
