@@ -1,7 +1,7 @@
 import { copyFile, mkdir } from "node:fs/promises"
 import { type Config } from "../config.js"
 import { AdapterHandler, type SharedStates } from "../handler.js"
-import { dirname } from "node:path"
+import { dirname } from "node:path/posix"
 import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"

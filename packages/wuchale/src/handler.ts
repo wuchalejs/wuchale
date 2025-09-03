@@ -1,5 +1,5 @@
 // $$ cd ../.. && npm run test
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, relative, resolve, normalize } from 'node:path/posix'
 import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -7,7 +7,6 @@ import { compileTranslation, type CompiledElement } from "./compile.js"
 import GeminiQueue, { type ItemType } from "./gemini.js"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
-import { normalize } from "node:path"
 import { type ConfigPartial, getLanguageName } from "./config.js"
 import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'

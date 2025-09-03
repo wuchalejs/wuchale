@@ -1,4 +1,4 @@
-import { resolve } from "node:path"
+import { resolve } from "node:path/posix"
 import { type Adapter } from "./adapters.js"
 
 export type ConfigPartial = {
@@ -64,7 +64,7 @@ function checkValidLocale(locale: string) {
 
 export async function getConfig(configPath?: string): Promise<Config> {
     const importPath = (configPath && resolve(configPath)) ?? `${process.cwd()}/${configName}`
-    const module = await import(importPath)
+    const module = await import(`file://${importPath}`)
     const config = deepMergeObjects(<Config>module.default, defaultConfig)
     checkValidLocale(config.sourceLocale)
     for (const loc of config.otherLocales) {
