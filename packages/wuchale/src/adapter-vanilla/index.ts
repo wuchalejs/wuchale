@@ -9,7 +9,7 @@ import type {
     RuntimeConf,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
-import { getDependencies } from '../adapter-utils/index.js'
+import { getDependencies, loaderPathResolver } from '../adapter-utils/index.js'
 
 export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
@@ -36,7 +36,7 @@ const defaultArgs: AdapterArgs = {
     }
 }
 
-const resolveLoaderPath = (name: string) => new URL(`../../src/adapter-vanilla/loaders/${name}.js`, import.meta.url).pathname
+const resolveLoaderPath = loaderPathResolver(import.meta.url, '../../src/adapter-vanilla/loaders', 'js')
 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {

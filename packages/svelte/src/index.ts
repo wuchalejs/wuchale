@@ -9,7 +9,7 @@ import type {
     RuntimeConf,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
-import { getDependencies } from 'wuchale/adapter-utils'
+import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 const ignoreElements = ['style', 'path']
@@ -64,6 +64,8 @@ const defaultArgs: AdapterArgs = {
     },
 }
 
+const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'svelte.js')
+
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
@@ -98,11 +100,11 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
         defaultLoaderPath: loader => {
             if (loader === 'sveltekit') {
                 return {
-                    client: new URL(`../src/loaders/svelte.svelte.js`, import.meta.url).pathname,
-                    ssr: new URL(`../src/loaders/sveltekit.ssr.svelte.js`, import.meta.url).pathname
+                    client: resolveLoaderPath('svelte'),
+                    ssr: resolveLoaderPath('sveltekit.ssr'),
                 }
             }
-            return new URL(`../src/loaders/${loader}.svelte.js`, import.meta.url).pathname
+            return resolveLoaderPath(loader)
         },
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,

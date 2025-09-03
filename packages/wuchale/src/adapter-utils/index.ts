@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises"
 export { MixedVisitor } from './mixed-visitor.js'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const varNames = {
     rt: '_w_runtime_',
@@ -40,4 +42,9 @@ export async function getDependencies() {
         }
     }
     return new Set(Object.keys({ ...json.devDependencies, ...json.dependencies }))
+}
+
+export function loaderPathResolver(importMetaUrl: string, baseDir: string, ext: string) {
+    const dir = dirname(fileURLToPath(importMetaUrl))
+    return (name: string) => resolve(dir, `${baseDir}/${name}.${ext}`)
 }

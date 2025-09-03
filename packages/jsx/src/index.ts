@@ -8,7 +8,7 @@ import type {
     RuntimeConf,
 } from 'wuchale'
 import { JSXTransformer, type JSXLib } from "./transformer.js"
-import { getDependencies } from 'wuchale/adapter-utils'
+import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
 const ignoreElements = ['style', 'path']
 
@@ -82,6 +82,8 @@ const defaultArgs: JSXArgs = {
     variant: 'default',
 }
 
+const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'js')
+
 export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
     let {
         heuristic,
@@ -124,7 +126,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             if (rest.bundleLoad) {
                 loader += '.bundle'
             }
-            return new URL(`../src/loaders/${loader}.js`, import.meta.url).pathname
+            return resolveLoaderPath(loader)
         },
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
