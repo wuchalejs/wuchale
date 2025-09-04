@@ -1,5 +1,6 @@
 // $$ cd ../.. && npm run test
-import { basename, dirname, isAbsolute, relative, resolve, normalize } from 'node:path/posix'
+import { basename, dirname, isAbsolute, resolve, normalize, relative } from 'node:path'
+import { platform } from 'node:process'
 import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -557,6 +558,9 @@ export class AdapterHandler {
             loaderRelTo = resolve(this.outDir + '/' + filename)
         }
         let loaderPath = relative(dirname(loaderRelTo), ssr ? this.loaderPath.ssr : this.loaderPath.client)
+        if (platform === 'win32') {
+            loaderPath = loaderPath.replaceAll('\\', '/')
+        }
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
@@ -611,6 +615,9 @@ export class AdapterHandler {
     }
 
     transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<TransformOutputCode> => {
+        if (platform === 'win32') {
+            filename = filename.replaceAll('\\', '/')
+        }
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         let compiled = this.sharedState.compiled

@@ -1,5 +1,5 @@
 // $$ cd ../.. && npm run test
-import { relative, resolve } from "node:path/posix"
+import { relative, resolve } from "node:path"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, SharedStates } from "wuchale"
 

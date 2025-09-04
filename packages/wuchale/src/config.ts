@@ -1,4 +1,4 @@
-import { resolve } from "node:path/posix"
+import { resolve } from "node:path"
 import { type Adapter } from "./adapters.js"
 
 export type ConfigPartial = {
