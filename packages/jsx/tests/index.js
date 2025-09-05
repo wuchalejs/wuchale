@@ -237,7 +237,7 @@ test('Nested and mixed', async function(t) {
     msgid "Hello and <0>welcome</0> to <1>the app</1>!"
     msgstr "Hello and <0>welcome</0> to <1>the app</1>!"
 
-    # placeholder {0}: num
+    #. placeholder {0}: num
     #: test-tmp/test.jsx
     msgid "{0} messages"
     msgstr "{0} messages"
