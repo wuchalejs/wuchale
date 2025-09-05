@@ -1,5 +1,6 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from "node:path"
+import { platform } from "node:process"
 import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, SharedStates } from "wuchale"
 
@@ -63,7 +64,11 @@ class Wuchale {
             await handler.init(sharedState)
             this.#adapters[key] = handler
             for (const path of Object.values(handler.loaderPath)) {
-                const loaderPath = resolve(path)
+                let loaderPath = resolve(path)
+                if (platform === 'win32') {
+                    // seems vite does this for the importer field in the resolveId hook
+                    loaderPath = loaderPath.replaceAll('\\', '/')
+                }
                 if (loaderPath in this.#adaptersByLoaderPath) {
                     const otherKey = this.#adaptersByLoaderPath[loaderPath].key
                     if (otherKey === key) {
@@ -160,6 +165,7 @@ class Wuchale {
         // loader proxy
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
+                console.log(Object.keys(this.#adaptersByLoaderPath), 'ee')
             this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
