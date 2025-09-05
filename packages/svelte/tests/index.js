@@ -145,6 +145,18 @@ test('Ignore and include', async function(t) {
     `, ['include this'])
 })
 
+test('Ignore file', async function(t) {
+    await testContent(t, svelte`
+        <!-- @wc-ignore-file -->
+        <p>Ignored</p>
+        <p>Ignored</p>
+        <p>Ignored</p>
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
+
 test('Context', async function(t) {
     await testContent(t,
         svelte`
