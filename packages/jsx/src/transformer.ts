@@ -244,6 +244,9 @@ export class JSXTransformer extends Transformer {
             this.commentDirectives = this.commentDirectivesStack.pop()
             this.lastVisitIsComment = false
         }
+        if (this.commentDirectives.ignoreFile) {
+            return []
+        }
         if (this.commentDirectives.forceInclude !== false) {
             msgs = this.visit(node as AnyNode)
         }

@@ -31,9 +31,25 @@ test('Default loader file paths', async function(t){
 
 test('Simple expression and assignment', async function(t) {
     await testContent(t, typescript`
-        'Not translation!' // simple expression
+        'No extraction!' // simple expression
         const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
+
+test('Ignore file', async function(t) {
+    await testContent(t, typescript`
+        // @wc-ignore-file
+        function foo() {
+            const varName = 'No extraction'
+            const noExtract = call('Foo')
+        }
+        function bar() {
+            return 'Ignored'
+        }
     `, undefined, `
     msgid ""
     msgstr ""

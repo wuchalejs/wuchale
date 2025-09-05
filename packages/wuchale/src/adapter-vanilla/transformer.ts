@@ -469,6 +469,9 @@ export class Transformer {
         for (const comment of node.leadingComments ?? comments ?? []) {
             this.commentDirectives = processCommentDirectives(comment.value.trim(), this.commentDirectives)
         }
+        if (this.commentDirectives.ignoreFile) {
+            return []
+        }
         let msgs = []
         if (this.commentDirectives.forceInclude !== false) {
             const methodName = `visit${node.type}`

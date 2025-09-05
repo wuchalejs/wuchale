@@ -53,11 +53,13 @@ export const commentPrefix = '@wc-'
 
 const commentDirectives = {
     ignore: `${commentPrefix}ignore`,
+    ignoreFile: `${commentPrefix}ignore-file`,
     include: `${commentPrefix}include`,
     context: `${commentPrefix}context:`,
 }
 
 export type CommentDirectives = {
+    ignoreFile?: boolean
     forceInclude?: boolean
     context?: string
 }
@@ -69,6 +71,9 @@ export function processCommentDirectives(data: string, current: CommentDirective
     }
     if (data === commentDirectives.include) {
         directives.forceInclude = true
+    }
+    if (data === commentDirectives.ignoreFile) {
+        directives.ignoreFile = true
     }
     if (data.startsWith(commentDirectives.context)) {
         directives.context = data.slice(commentDirectives.context.length).trim()

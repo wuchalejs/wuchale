@@ -114,6 +114,21 @@ test('Ignore and include', async function(t) {
     `, ['include this'])
 })
 
+test('Ignore file', async function(t) {
+    await testContent(t, jsx`
+        // @wc-ignore-file
+        function Foo() {
+            return <p>Ignored</p>
+        }
+        function Bar() {
+            return <p>Ignored</p>
+        }
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
+
 test('Context', async function(t) {
     await testContent(t, jsx`
         const m = () => {
