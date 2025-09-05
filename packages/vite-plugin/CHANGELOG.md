@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.14.4
+
+### Patch Changes
+
+- 36a2821: Fix windows problems with loader paths
+
 ## 0.14.3
 
 ### Patch Changes
