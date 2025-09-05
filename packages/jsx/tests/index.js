@@ -198,7 +198,7 @@ test('Nested and mixed', async function(t) {
         jsx`
             function m() {
                 return <>
-                    <p>Hello and <b>welcome</b>!</p>
+                    <p>Hello and <b>welcome</b> to <i>the app</i>!</p>
                     <p>{num} messages</p>
                 </>
             }`,
@@ -210,7 +210,7 @@ test('Nested and mixed', async function(t) {
             function m() {
                 const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
                 return <>
-                    <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>]} x={_w_runtime_.cx(0)} /></p>
+                    <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>, _w_ctx_ => <i key="_1">{_w_runtime_.tx(_w_ctx_)}</i>]} x={_w_runtime_.cx(0)} /></p>
                     <p><W_tx_ x={_w_runtime_.cx(1)} a={[num]} /></p>
                 </>
             }
@@ -219,11 +219,11 @@ test('Nested and mixed', async function(t) {
     msgstr ""
 
     #: test-tmp/test.jsx
-    msgid "Hello and <0>welcome</0>!"
-    msgstr "Hello and <0>welcome</0>!"
+    msgid "Hello and <0>welcome</0> to <1>the app</1>!"
+    msgstr "Hello and <0>welcome</0> to <1>the app</1>!"
 
     #: test-tmp/test.jsx
     msgid "{0} messages"
     msgstr "{0} messages"
-    `, [ ['Hello and ', [0, 'welcome'], '!'], [0, ' messages'] ])
+    `, [ ['Hello and ', [0, 'welcome'], ' to ', [1, 'the app'], '!'], [0, ' messages'] ])
 })

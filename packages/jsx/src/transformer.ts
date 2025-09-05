@@ -38,7 +38,7 @@ export class JSXTransformer extends Transformer {
     inCompoundText: boolean = false
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
-    currentElementI = 0
+    currentJsxKey = 0
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
@@ -138,8 +138,9 @@ export class JSXTransformer extends Transformer {
             this.mstr.appendLeft(
                 // @ts-expect-error
                 node.openingElement.name.end,
-                ` key="_${this.currentElementI}"`
+                ` key="_${this.currentJsxKey}"`
             )
+            this.currentJsxKey++
         }
         this.currentElement = currentElement
         return msgs
