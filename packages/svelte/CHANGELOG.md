@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.14.3
+
+### Patch Changes
+
+- 3d5d73a: Solve issues with paths on windows
+- Updated dependencies [3d5d73a]
+  - wuchale@0.15.8
+
 ## 0.14.2
 
 ### Patch Changes

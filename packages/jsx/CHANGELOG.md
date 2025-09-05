@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.6.3
+
+### Patch Changes
+
+- 3d5d73a: Solve issues with paths on windows
+- 10e8b0d: Fix duplicate jsx keys on multiple nested messages
+- Updated dependencies [3d5d73a]
+  - wuchale@0.15.8
+
 ## 0.6.2
 
 ### Patch Changes

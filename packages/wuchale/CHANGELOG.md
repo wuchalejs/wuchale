@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.15.8
+
+### Patch Changes
+
+- 3d5d73a: Solve issues with paths on windows
+
 ## 0.15.7
 
 ### Patch Changes
