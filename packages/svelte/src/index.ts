@@ -12,7 +12,7 @@ import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
-const ignoreElements = ['style', 'path']
+const ignoreElements = ['style', 'path', 'code', 'pre']
 
 const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
     if (!defaultHeuristic(msgStr, details)) {
