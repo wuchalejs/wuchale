@@ -423,10 +423,13 @@ export class Transformer {
         // @ts-ignore
         const { start: start0, end: end0 } = quasi0
         let msgStr = quasi0.value?.cooked ?? ''
+        const comments = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
-            msgStr += `{${i}}${quasi.value.cooked}`
+            const placeholder = `{${i}}`
+            msgStr += `${placeholder}${quasi.value.cooked}`
+            comments.push(`placeholder ${placeholder}: ${this.content.slice(expr.start, expr.end)}`)
             // @ts-ignore
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
@@ -436,6 +439,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
+        msgInfo.comments = comments
         let begin = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'
         if (node.expressions.length) {

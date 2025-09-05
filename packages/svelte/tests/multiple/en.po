@@ -21,6 +21,9 @@ msgstr "Nested <0>mixed with {0}</0>"
 msgid "Nested <0/>"
 msgstr "Nested <0/>"
 
+# placeholder {0}: 1
+# placeholder {1}: 2
+# placeholder {2}: 3
 #: app.svelte
 msgid "Result: {0} {1} / {2}..."
 msgstr "Result: {0} {1} / {2}..."

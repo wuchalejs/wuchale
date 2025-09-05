@@ -58,6 +58,7 @@ export class Message {
     plural: boolean = false
     scope: TxtScope
     context: string
+    comments: string[] = []
 
     constructor(msgStr: string | string[], scope: TxtScope, context: string | null) {
         if (typeof msgStr === 'string') {
