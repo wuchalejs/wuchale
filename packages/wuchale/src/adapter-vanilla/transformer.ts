@@ -6,7 +6,6 @@ import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
 import type {
-    CommentDirectives,
     HeuristicDetailsBase,
     HeuristicFunc,
     IndexTracker,
@@ -16,7 +15,7 @@ import type {
     RuntimeConf,
     CatalogExpr,
 } from "../adapters.js"
-import { runtimeVars, varNames, type RuntimeVars } from "../adapter-utils/index.js"
+import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
 export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
@@ -462,28 +461,13 @@ export class Transformer {
         return msgs
     }
 
-    processCommentDirectives = (data: string): CommentDirectives => {
-        const directives: CommentDirectives = { ...this.commentDirectives }
-        if (data === '@wc-ignore') {
-            directives.forceInclude = false
-        }
-        if (data === '@wc-include') {
-            directives.forceInclude = true
-        }
-        const ctxStart = '@wc-context:'
-        if (data.startsWith(ctxStart)) {
-            directives.context = data.slice(ctxStart.length).trim()
-        }
-        return directives
-    }
-
     visit = (node: Estree.AnyNode): Message[] => {
         // for estree
         const commentDirectives = { ...this.commentDirectives }
         const comments = this.comments[node.start]
         // @ts-expect-error
         for (const comment of node.leadingComments ?? comments ?? []) {
-            this.commentDirectives = this.processCommentDirectives(comment.value.trim())
+            this.commentDirectives = processCommentDirectives(comment.value.trim(), this.commentDirectives)
         }
         let msgs = []
         if (this.commentDirectives.forceInclude !== false) {

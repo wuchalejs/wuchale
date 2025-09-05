@@ -76,11 +76,6 @@ export class Message {
 
 }
 
-export type CommentDirectives = {
-    forceInclude?: boolean
-    context?: string
-}
-
 export class IndexTracker {
 
     indices: Record<string, number> = {}
