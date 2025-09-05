@@ -673,7 +673,7 @@ export class AdapterHandler {
                     if (msgInfo.plural) {
                         poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
                     }
-                    poItem.comments = msgInfo.comments
+                    poItem.extractedComments = msgInfo.comments
                     poFile.catalog[key] = poItem
                     newItems = true
                 }
