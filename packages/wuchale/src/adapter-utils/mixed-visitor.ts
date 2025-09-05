@@ -1,8 +1,8 @@
 // Shared logic between adapters for handling nested / mixed elements within elements / fragments
 
 import type MagicString from "magic-string"
-import { IndexTracker, Message, type CommentDirectives, type HeuristicDetailsBase, type HeuristicFunc } from "../adapters.js"
-import { nonWhitespaceText, type RuntimeVars } from "./index.js"
+import { IndexTracker, Message, type HeuristicDetailsBase, type HeuristicFunc } from "../adapters.js"
+import { commentPrefix, nonWhitespaceText, type RuntimeVars, type CommentDirectives } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
 
@@ -56,7 +56,7 @@ export class MixedVisitor<NodeT> {
                 hasTextChild = true
                 heurStr += strContent + ' '
             } else if (this.isComment(child)) {
-                if (this.getCommentData(child).trim().startsWith('@wc-')) {
+                if (this.getCommentData(child).trim().startsWith(commentPrefix)) {
                     hasCommentDirectives = true
                 }
             } else {

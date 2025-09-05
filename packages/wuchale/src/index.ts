@@ -29,6 +29,5 @@ export type {
     HeuristicFunc,
     TransformOutput,
     TransformHeader,
-    CommentDirectives,
     UseReactiveFunc,
 } from './adapters.js'

@@ -48,3 +48,30 @@ export function loaderPathResolver(importMetaUrl: string, baseDir: string, ext: 
     const dir = dirname(fileURLToPath(importMetaUrl))
     return (name: string) => resolve(dir, `${baseDir}/${name}.${ext}`)
 }
+
+export const commentPrefix = '@wc-'
+
+const commentDirectives = {
+    ignore: `${commentPrefix}ignore`,
+    include: `${commentPrefix}include`,
+    context: `${commentPrefix}context:`,
+}
+
+export type CommentDirectives = {
+    forceInclude?: boolean
+    context?: string
+}
+
+export function processCommentDirectives(data: string, current: CommentDirectives) {
+    const directives: CommentDirectives = {...current}
+    if (data === commentDirectives.ignore) {
+        directives.forceInclude = false
+    }
+    if (data === commentDirectives.include) {
+        directives.forceInclude = true
+    }
+    if (data.startsWith(commentDirectives.context)) {
+        directives.context = data.slice(commentDirectives.context.length).trim()
+    }
+    return directives
+}
