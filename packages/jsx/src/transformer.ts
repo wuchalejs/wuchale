@@ -10,11 +10,10 @@ import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
-    CommentDirectives,
     RuntimeConf,
     CatalogExpr,
 } from 'wuchale'
-import { nonWhitespaceText, MixedVisitor } from "wuchale/adapter-utils"
+import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
 import type { AnyNode } from 'acorn'
 
 const JsxParser = Parser.extend(tsPlugin(), jsx())
@@ -222,11 +221,11 @@ export class JSXTransformer extends Transformer {
         if (!commentContents) {
             return []
         }
-        const directives = this.processCommentDirectives(commentContents)
+        this.commentDirectives = processCommentDirectives(commentContents, this.commentDirectives)
         if (this.lastVisitIsComment) {
-            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = directives
+            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = this.commentDirectives
         } else {
-            this.commentDirectivesStack.push(directives)
+            this.commentDirectivesStack.push(this.commentDirectives)
         }
         this.lastVisitIsComment = true
         return []
