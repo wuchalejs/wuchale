@@ -44,14 +44,14 @@ export function defineConfig(config: Config) {
 }
 
 export function deepMergeObjects<Type>(source: Type, target: Type): Type {
-    const full = {...target}
+    const full = { ...target }
     deepAssign(source, full)
     return full
 }
 
-export const configName = 'wuchale.config.js'
+export const defaultConfigNames = ['js', 'mjs'].map(ext => `wuchale.config.${ext}`)
 
-const displayName = new Intl.DisplayNames(['en'], {type: 'language'})
+const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
 export const getLanguageName = (code: string) => displayName.of(code)
 
 function checkValidLocale(locale: string) {
@@ -63,9 +63,21 @@ function checkValidLocale(locale: string) {
 }
 
 export async function getConfig(configPath?: string): Promise<Config> {
-    const importPath = (configPath && resolve(configPath)) ?? `${process.cwd()}/${configName}`
-    const module = await import(`file://${importPath}`)
-    const config = deepMergeObjects(<Config>module.default, defaultConfig)
+    let module: { default: Config }
+    for (const confName of [configPath, ...defaultConfigNames]) {
+        if (!confName) {
+            continue
+        }
+        try {
+            module = await import(`file://${resolve(confName)}`)
+            break
+        } catch (err) {
+            if (err.code !== 'ERR_MODULE_NOT_FOUND') {
+                throw err
+            }
+        }
+    }
+    const config = deepMergeObjects(module.default, defaultConfig)
     checkValidLocale(config.sourceLocale)
     for (const loc of config.otherLocales) {
         checkValidLocale(loc)
