@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { configName, getConfig, type Config } from "../config.js"
+import { defaultConfigNames, getConfig, type Config } from "../config.js"
 import { parseArgs } from 'node:util'
 import { color, Logger } from "../log.js"
 import { extract } from "./extract.js"
@@ -41,7 +41,7 @@ Commands:
     ${color.cyan('status')}  Show current status
 
 Options:
-    ${color.cyan('--config')}     use another config file instead of ${color.cyan(configName)}
+    ${color.cyan('--config')}     use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
     ${color.cyan('--clean')}, ${color.cyan('-c')}  (only when no commands) remove unused messages from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}  (only when no commands) continuously watch for file changes
     ${color.cyan('--help')}, ${color.cyan('-h')}   Show this help

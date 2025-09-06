@@ -114,6 +114,21 @@ test('Ignore and include', async function(t) {
     `, ['include this'])
 })
 
+test('Ignore file', async function(t) {
+    await testContent(t, jsx`
+        // @wc-ignore-file
+        function Foo() {
+            return <p>Ignored</p>
+        }
+        function Bar() {
+            return <p>Ignored</p>
+        }
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
+
 test('Context', async function(t) {
     await testContent(t, jsx`
         const m = () => {
@@ -222,6 +237,7 @@ test('Nested and mixed', async function(t) {
     msgid "Hello and <0>welcome</0> to <1>the app</1>!"
     msgstr "Hello and <0>welcome</0> to <1>the app</1>!"
 
+    #. placeholder {0}: num
     #: test-tmp/test.jsx
     msgid "{0} messages"
     msgstr "{0} messages"

@@ -7,11 +7,10 @@ import type {
     IndexTracker,
     HeuristicFunc,
     TransformOutput,
-    CommentDirectives,
     CatalogExpr,
     RuntimeConf,
 } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText, varNames } from "wuchale/adapter-utils"
+import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -259,11 +258,11 @@ export class SvelteTransformer extends Transformer {
 
     visitSv = (node: AST.SvelteNode | AnyNode): Message[] => {
         if (node.type === 'Comment') {
-            const directives = this.processCommentDirectives(node.data.trim())
+            this.commentDirectives = processCommentDirectives(node.data.trim(), this.commentDirectives)
             if (this.lastVisitIsComment) {
-                this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = directives
+                this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = this.commentDirectives
             } else {
-                this.commentDirectivesStack.push(directives)
+                this.commentDirectivesStack.push(this.commentDirectives)
             }
             this.lastVisitIsComment = true
             return []
@@ -276,6 +275,9 @@ export class SvelteTransformer extends Transformer {
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
             this.lastVisitIsComment = false
+        }
+        if (this.commentDirectives.ignoreFile) {
+            return []
         }
         if (this.commentDirectives.forceInclude !== false) {
             msgs = this.visit(node as AnyNode)

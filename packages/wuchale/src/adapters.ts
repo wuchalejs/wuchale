@@ -58,6 +58,7 @@ export class Message {
     plural: boolean = false
     scope: TxtScope
     context: string
+    comments: string[] = []
 
     constructor(msgStr: string | string[], scope: TxtScope, context: string | null) {
         if (typeof msgStr === 'string') {
@@ -74,11 +75,6 @@ export class Message {
 
     toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
 
-}
-
-export type CommentDirectives = {
-    forceInclude?: boolean
-    context?: string
 }
 
 export class IndexTracker {
