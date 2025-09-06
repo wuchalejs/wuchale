@@ -232,8 +232,8 @@ export class AdapterHandler {
         return this.compiledHead[loc] + (id ?? this.key) + this.#adapter.loaderExts[0]
     }
 
-    #getCompiledImport(loc: string, id: string | null, proxyFilePath?: string) {
-        if (proxyFilePath) {
+    #getCompiledImport(loc: string, id: string | null, forWriteFile: boolean) {
+        if (forWriteFile) {
             return './' + basename(this.#getCompiledFilePath(loc, id))
         }
         return this.virtModEvent(loc, id)
@@ -258,13 +258,13 @@ export class AdapterHandler {
         return loadIDs
     }
 
-    getProxy(proxyFilePath?: string) {
+    getProxy(forWriteFile = false) {
         const imports = []
         const loadIDs = this.getLoadIDs()
         for (const id of loadIDs) {
             const importsByLocale = []
             for (const loc of this.#locales) {
-                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getCompiledImport(loc, id, proxyFilePath)}')`)
+                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getCompiledImport(loc, id, forWriteFile)}')`)
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
@@ -275,7 +275,7 @@ export class AdapterHandler {
         `
     }
 
-    getProxySync(proxyFilePath?: string) {
+    getProxySync(forWriteFile = false) {
         const loadIDs = this.getLoadIDs()
         const imports = []
         const object = []
@@ -283,16 +283,19 @@ export class AdapterHandler {
             const importedByLocale = []
             for (const [i, loc] of this.#locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
-                imports.push(`import * as ${locKey} from '${this.#getCompiledImport(loc, id, proxyFilePath)}'`)
+                imports.push(`import * as ${locKey} from '${this.#getCompiledImport(loc, id, forWriteFile)}'`)
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
+        // because locales are not available from virtual modules with writeFile
+        const locales = forWriteFile ? `export const locales = ['${this.#locales.join(',')}']` : ''
         return `
             ${imports.join('\n')}
             const catalogs = {${object.join(',')}}
             export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]
             ${this.#loaderLoadIDsNKey(loadIDs)}
+            ${locales}
         `
     }
 
@@ -453,7 +456,7 @@ export class AdapterHandler {
         if (!this.#adapter.writeFiles.proxy) {
             return
         }
-        await writeFile(this.proxyPath, this.getProxySync(this.proxyPath))
+        await writeFile(this.proxyPath, this.getProxySync(this.proxyPath != null))
     }
 
     writeTransformed = async (filename: string, content: string) => {
@@ -673,10 +676,10 @@ export class AdapterHandler {
                     if (msgInfo.plural) {
                         poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
                     }
-                    poItem.extractedComments = msgInfo.comments
                     poFile.catalog[key] = poItem
                     newItems = true
                 }
+                poItem.extractedComments = msgInfo.comments
                 if (msgInfo.context) {
                     poItem.msgctxt = msgInfo.context
                 }
