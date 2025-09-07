@@ -338,6 +338,7 @@ export class AdapterHandler {
                     getLanguageName(loc),
                     this.#config.geminiAPIKey,
                     async () => await this.savePoAndCompile(loc),
+                    this.#log,
                 )
             }
             await this.loadCatalogNCompile(loc)
@@ -716,9 +717,7 @@ export class AdapterHandler {
                 }
                 continue
             }
-            const newRequest = this.#geminiQueue[loc].add(untranslated)
-            const opType = `(${newRequest ? color.yellow('new request') : color.green('add to request')})`
-            this.#log.log(`Gemini translate ${color.cyan(untranslated.length)} items to ${color.cyan(getLanguageName(loc))} ${opType}`)
+            this.#geminiQueue[loc].add(untranslated)
             await this.#geminiQueue[loc].running
         }
         let output: TransformOutputCode = {}
