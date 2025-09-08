@@ -639,33 +639,29 @@ export class AdapterHandler {
         })
         const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
-            // clear references to this file first
-            let previousReferences: Record<string, number> = {}
-            let fewerRefs = false
             const poFile = this.sharedState.poFilesByLoc[loc]
+            const previousReferences: Record<string, {count: number, indices: number[]}> = {}
             for (const item of Object.values(poFile.catalog)) {
                 if (!item.references.includes(filename)) {
                     continue
                 }
                 const key = new Message([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
-                const prevRefs = item.references.length
-                item.references = item.references.filter(f => f !== filename)
-                previousReferences[key] = prevRefs - item.references.length
-                item.obsolete = item.references.length === 0
-                fewerRefs = true
-            }
-            if (!msgs.length) {
-                if (fewerRefs) {
-                    this.savePoAndCompile(loc)
+                previousReferences[key] = {count: 0, indices: []}
+                for (const [i, ref] of item.references.entries()) {
+                    if (ref !== filename) {
+                        continue
+                    }
+                    previousReferences[key].count++
+                    previousReferences[key].indices.push(i)
                 }
-                continue
             }
             let newItems: boolean = false
             hmrKeys[loc] = []
             const untranslated: ItemType[] = []
             let newRefs = false
+            let commentsChanged = false
             for (const msgInfo of msgs) {
-                let key = msgInfo.toKey()
+                const key = msgInfo.toKey()
                 hmrKeys[loc].push(key)
                 let poItem = poFile.catalog[key]
                 if (!poItem) {
@@ -680,20 +676,29 @@ export class AdapterHandler {
                     poFile.catalog[key] = poItem
                     newItems = true
                 }
-                poItem.extractedComments = msgInfo.comments
                 if (msgInfo.context) {
                     poItem.msgctxt = msgInfo.context
                 }
-                if (previousReferences[key] > 0) {
-                    if (previousReferences[key] === 1) {
+                const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
+                let iStartComm: number
+                if (key in previousReferences) {
+                    const prevRef = previousReferences[key]
+                    iStartComm = prevRef.indices.pop() * newComments.length
+                    const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
+                    if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
+                        commentsChanged = true
+                    }
+                    if (prevRef.indices.length === 0) {
                         delete previousReferences[key]
-                    } else {
-                        previousReferences[key]--
                     }
                 } else {
+                    iStartComm = poItem.references.length * newComments.length
+                    poItem.references.push(filename)
                     newRefs = true // now it references it
                 }
-                poItem.references.push(filename)
+                if (newComments.length) {
+                    poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
+                }
                 poItem.obsolete = false
                 if (loc === this.#config.sourceLocale) {
                     const msgStr = msgInfo.msgStr.join('\n')
@@ -705,14 +710,26 @@ export class AdapterHandler {
                     untranslated.push(poItem)
                 }
             }
+            const removedRefs = Object.entries(previousReferences)
+            for (const [key, info] of removedRefs) {
+                const item = poFile.catalog[key]
+                const commentPerRef = Math.floor(item.extractedComments.length / item.references.length)
+                for (const index of info.indices) {
+                    item.references.splice(index, 1)
+                    item.extractedComments.splice(index * commentPerRef, commentPerRef)
+                }
+                if (item.references.length === 0) {
+                    item.obsolete = true
+                }
+            }
             if (untranslated.length === 0) {
-                if (newRefs || Object.keys(previousReferences).length) { // or unused refs
+                if (newRefs || removedRefs.length || commentsChanged) {
                     await this.savePoAndCompile(loc)
                 }
                 continue
             }
             if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
-                if (newItems || newRefs) {
+                if (newItems || newRefs || commentsChanged) {
                     await this.savePoAndCompile(loc)
                 }
                 continue
