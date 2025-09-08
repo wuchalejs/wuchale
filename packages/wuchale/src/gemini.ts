@@ -7,9 +7,13 @@ import { color, type Logger } from './log.js'
 const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
 const h = {'Content-Type': 'application/json'}
 const batchLimit = 50
-const logStart = color.cyan('Gemini')
 
 export type ItemType = InstanceType<typeof PO.Item>
+
+type Batch = {
+    id: number
+    messages: ItemType[]
+}
 
 interface GeminiRes {
     error?: {
@@ -27,7 +31,8 @@ interface GeminiRes {
 // as vite can do async transform
 export default class GeminiQueue {
 
-    batches: ItemType[][] = []
+    batches: Batch[] = []
+    nextBatchId: number = 0
     running: Promise<void> | null = null
     sourceLang: string
     targetLang: string
@@ -64,6 +69,8 @@ export default class GeminiQueue {
         this.log = log
     }
 
+    #requestName = (id: number) => `${color.cyan('Gemini')}: ${this.targetLang} [${id}]`
+
     prepareData(fragments: ItemType[]) {
         const po = new PO()
         po.items = fragments
@@ -75,31 +82,34 @@ export default class GeminiQueue {
         }
     }
 
-    async translate(messages: ItemType[]) {
-        const data = this.prepareData(messages)
+    async translate(batch: Batch) {
+        const data = this.prepareData(batch.messages)
         const res = await fetch(this.url, {method: 'POST', headers: h, body: JSON.stringify(data)})
         const json: GeminiRes = await res.json()
+        const logStart = this.#requestName(batch.id)
         if (json.error) {
             this.log.log(`${logStart}: ${color.red(`error: ${json.error.code} ${json.error.message}`)}`)
             return
         }
         const resText = json.candidates[0]?.content.parts[0].text
         const translated = PO.parse(resText).items
-        let unTranslated: ItemType[] = messages.slice(translated.length)
+        let unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
-            if (item.msgid !== messages[i].msgid) {
+            if (item.msgid !== batch.messages[i]?.msgid) {
                 unTranslated.push(item)
                 continue
             }
             if (item.msgstr[0]) {
-                messages[i].msgstr = item.msgstr
+                batch.messages[i].msgstr = item.msgstr
             } else {
                 unTranslated.push(item)
             }
         }
         if (unTranslated.length) {
             this.log.log(`${logStart}: ${unTranslated.length} ${color.yellow('items not translated. Retrying...')}`)
-            await this.translate(unTranslated)
+            await this.translate({id: batch.id, messages: unTranslated})
+        } else {
+            this.log.log(`${logStart}: ${color.green('translated')}`)
         }
     }
 
@@ -112,20 +122,24 @@ export default class GeminiQueue {
         this.running = null
     }
 
-    add(items: ItemType[]) {
+    add(messages: ItemType[]) {
         if (!this.url) {
             return
         }
-        let newRequest = false
         const lastBatch = this.batches.at(-1)
-        if (lastBatch && lastBatch.length < batchLimit) {
-            lastBatch.push(...items)
+        let opType: string
+        let batchId: number
+        if (lastBatch && lastBatch.messages.length < batchLimit) {
+            opType = color.green('(add)')
+            batchId = lastBatch.id
+            lastBatch.messages.push(...messages)
         } else {
-            this.batches.push(items)
-            newRequest = true
+            batchId = this.nextBatchId
+            opType = color.yellow('(new)')
+            this.batches.push({id: this.nextBatchId, messages})
+            this.nextBatchId++
         }
-        const opType = `(${newRequest ? color.yellow('new request') : color.green('add to request')})`
-        this.log.log(`${logStart}: translate ${color.cyan(items.length)} items to ${color.cyan(this.targetLang)} ${opType}`)
+        this.log.log(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(messages.length)} messages`)
         if (!this.running) {
             this.running = this.run()
         }
