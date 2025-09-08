@@ -80,7 +80,7 @@
         "magic-string": "^0.30.18",
         "picomatch": "^4.0.3",
         "pofile": "^1.1.4",
-        "tinyglobby": "^0.2.14"
+        "tinyglobby": "^0.2.15"
     },
     "devDependencies": {
         "@types/node": "^24.3.0",
