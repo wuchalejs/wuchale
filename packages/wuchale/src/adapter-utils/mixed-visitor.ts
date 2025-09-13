@@ -32,6 +32,7 @@ type VisitProps<NodeT> = {
     scope: MixedScope
     element: string
     attribute?: string
+    useComponent?: boolean
 }
 
 export interface MixedVisitor<NodeT> extends InitProps<NodeT> {}
@@ -177,7 +178,7 @@ export class MixedVisitor<NodeT> {
         } else {
             return msgs
         }
-        if (props.scope === 'markup' && iArg > 0 || childrenNestedRanges.length > 0) {
+        if ((props.useComponent ?? true) && props.scope === 'markup' && iArg > 0 || childrenNestedRanges.length > 0) {
             this.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
         } else {
             // no need for component use
