@@ -149,6 +149,8 @@ export class AdapterHandler {
 
     #log: Logger
 
+    onBeforeWritePO: () => void
+
     constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, virtualPrefix: string, projectRoot: string, log: Logger) {
         this.#adapter = adapter
         this.key = key.toString()
@@ -528,6 +530,7 @@ export class AdapterHandler {
                 fullHead[key] = val
             }
         }
+        this.onBeforeWritePO?.()
         await saveCatalogToPO(poFile.catalog, this.#catalogsFname[loc], fullHead)
         if (this.#mode !== 'extract') { // save for the end
             await this.compile(loc)

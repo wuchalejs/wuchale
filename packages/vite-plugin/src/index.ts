@@ -37,7 +37,7 @@ class Wuchale {
     #configPath: string
 
     #hmrVersion = -1
-    #hmrLastTime = 0
+    #lastSourceTriggeredPOWrite: number = 0
 
     constructor(configPath: string) {
         this.#configPath = configPath
@@ -62,6 +62,9 @@ class Wuchale {
                 this.#log,
             )
             await handler.init(sharedState)
+            handler.onBeforeWritePO = () => {
+                this.#lastSourceTriggeredPOWrite = performance.now()
+            }
             this.#adapters[key] = handler
             for (const path of Object.values(handler.loaderPath)) {
                 let loaderPath = resolve(path)
@@ -104,10 +107,9 @@ class Wuchale {
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             this.#hmrVersion++
-            this.#hmrLastTime = performance.now()
             return
         }
-        const sourceTriggered = performance.now() - this.#hmrLastTime < 2000
+        const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < 1000 // long enough threshold
         const invalidatedModules = new Set()
         for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
@@ -165,7 +167,6 @@ class Wuchale {
         // loader proxy
         const adapter = this.#adaptersByLoaderPath[importer]
         if (adapter == null) {
-                console.log(Object.keys(this.#adaptersByLoaderPath), 'ee')
             this.#log.error(`Adapter not found for filename: ${importer}`)
             return
         }
