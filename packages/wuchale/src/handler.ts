@@ -5,7 +5,7 @@ import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
-import GeminiQueue, { type ItemType } from "./gemini.js"
+import AIQueue, { type ItemType } from "./ai/index.js"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { type ConfigPartial, getLanguageName } from "./config.js"
@@ -145,7 +145,7 @@ export class AdapterHandler {
     catalogPathsToLocales: Record<string, string> = {}
 
     #mode: Mode
-    #geminiQueue: Record<string, GeminiQueue> = {}
+    #geminiQueue: Record<string, AIQueue> = {}
 
     #log: Logger
 
@@ -335,10 +335,10 @@ export class AdapterHandler {
             // for handleHotUpdate
             this.catalogPathsToLocales[this.#catalogsFname[loc]] = loc
             if (loc !== this.#config.sourceLocale) {
-                this.#geminiQueue[loc] = new GeminiQueue(
+                this.#geminiQueue[loc] = new AIQueue(
                     sourceLocaleName,
                     getLanguageName(loc),
-                    this.#config.geminiAPIKey,
+                    this.#config.ai,
                     async () => await this.savePoAndCompile(loc),
                     this.#log,
                 )
@@ -731,7 +731,7 @@ export class AdapterHandler {
                 }
                 continue
             }
-            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
+            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.ai) {
                 if (newItems || newRefs || commentsChanged) {
                     await this.savePoAndCompile(loc)
                 }

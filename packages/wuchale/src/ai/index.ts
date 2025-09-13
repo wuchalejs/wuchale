@@ -2,11 +2,7 @@
 // $$ node %f
 
 import PO from 'pofile'
-import { color, type Logger } from './log.js'
-
-const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
-const h = {'Content-Type': 'application/json'}
-const batchLimit = 50
+import { color, type Logger } from '../log.js'
 
 export type ItemType = InstanceType<typeof PO.Item>
 
@@ -15,42 +11,30 @@ type Batch = {
     messages: ItemType[]
 }
 
-interface GeminiRes {
-    error?: {
-        code: number,
-        message: string,
-    },
-    candidates?: {
-        content: {
-            parts: { text: string }[]
-        }
-    }[]
+export type AI = {
+    name: string
+    batchSize: number
+    translate: (messages: ItemType[], instruction: string) => Promise<ItemType[]>
 }
 
 // implements a queue for a sequential translation useful for vite's transform during dev
 // as vite can do async transform
-export default class GeminiQueue {
+export default class AIQueue {
 
     batches: Batch[] = []
     nextBatchId: number = 0
     running: Promise<void> | null = null
     sourceLang: string
     targetLang: string
-    url: string
+    ai: AI
     instruction: string
     onComplete: () => Promise<void>
     log: Logger
 
-    constructor(sourceLang: string, targetLang: string, apiKey: string | null, onComplete: () => Promise<void>, log: Logger) {
-        if (apiKey === 'env') {
-            apiKey = process.env.GEMINI_API_KEY
-        }
-        if (!apiKey) {
-            return
-        }
+    constructor(sourceLang: string, targetLang: string, ai: AI, onComplete: () => Promise<void>, log: Logger) {
         this.sourceLang = sourceLang
         this.targetLang = targetLang
-        this.url = `${baseURL}${apiKey}`
+        this.ai = ai
         this.instruction = `
             You will be given the contents of a gettext .po file for a web app.
             Translate each of the items from ${this.sourceLang} to ${this.targetLang}.
@@ -69,30 +53,17 @@ export default class GeminiQueue {
         this.log = log
     }
 
-    #requestName = (id: number) => `${color.cyan('Gemini')}: ${this.targetLang} [${id}]`
-
-    prepareData(fragments: ItemType[]) {
-        const po = new PO()
-        po.items = fragments
-        return {
-            system_instruction: {
-                parts: [{ text: this.instruction }]
-            },
-            contents: [{parts: [{text: po.toString()}]}]
-        }
-    }
+    #requestName = (id: number) => `${color.cyan(this.ai.name)}: ${this.targetLang} [${id}]`
 
     async translate(batch: Batch) {
-        const data = this.prepareData(batch.messages)
-        const res = await fetch(this.url, {method: 'POST', headers: h, body: JSON.stringify(data)})
-        const json: GeminiRes = await res.json()
         const logStart = this.#requestName(batch.id)
-        if (json.error) {
-            this.log.log(`${logStart}: ${color.red(`error: ${json.error.code} ${json.error.message}`)}`)
+        let translated: ItemType[]
+        try {
+            translated = await this.ai.translate(batch.messages, this.instruction)
+        } catch (err) {
+            this.log.log(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
         }
-        const resText = json.candidates[0]?.content.parts[0].text
-        const translated = PO.parse(resText).items
         let unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             if (item.msgid !== batch.messages[i]?.msgid) {
@@ -123,13 +94,13 @@ export default class GeminiQueue {
     }
 
     add(messages: ItemType[]) {
-        if (!this.url) {
+        if (!this.ai) {
             return
         }
         const lastBatch = this.batches.at(-1)
         let opType: string
         let batchId: number
-        if (lastBatch && lastBatch.messages.length < batchLimit) {
+        if (lastBatch && lastBatch.messages.length < this.ai.batchSize) {
             opType = color.green('(add)')
             batchId = lastBatch.id
             lastBatch.messages.push(...messages)
