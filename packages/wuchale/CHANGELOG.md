@@ -1,5 +1,28 @@
 # wuchale
 
+## 0.16.0
+
+### Minor Changes
+
+- fef0d11: Add the `@wc-ignore-file` comment directive
+
+  As an alternative to ignoring a file in the `files` config value, you can now
+  ignore a whole file by putting this directive at the beginning of the file,
+  before any extractable messages. The advantage is that it doesn't need a
+  restart of the dev server and if you rename/move the file it will always be
+  ignored.
+
+- 4fcf264: Add support for .mjs config as default
+- 46aa3f2: Export locales from proxy when `writeFiles` is enabled for server to not need tweaking the default loader
+- 37367ca: Add placeholder context comments into PO file
+- f07d484: Gemini: translate in batches of 50 max, auto retry with status messages
+
+  This is useful for one off translation, usually just after adding wuchale to a
+  big project. Gemini sometimes doesn't translate all messages when it's given
+  too many, so this update batches the messages into groups of ~50, and when not
+  all of them are translated, shows a message and tries again, until all of them
+  are translated.
+
 ## 0.15.8
 
 ### Patch Changes
