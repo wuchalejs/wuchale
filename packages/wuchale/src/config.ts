@@ -1,10 +1,12 @@
 import { resolve } from "node:path"
 import { type Adapter } from "./adapters.js"
+import type { AI } from "./ai/index.js"
+import { defaultGemini } from "./ai/gemini.js"
 
 export type ConfigPartial = {
     sourceLocale?: string
     otherLocales?: string[]
-    geminiAPIKey?: string,
+    ai?: AI,
     messages?: boolean,
 }
 
@@ -18,7 +20,7 @@ export const defaultConfig: Config = {
     otherLocales: [],
     adapters: {},
     hmr: true,
-    geminiAPIKey: 'env',
+    ai: defaultGemini,
     messages: true,
 }
 
