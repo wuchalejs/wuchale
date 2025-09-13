@@ -1,5 +1,13 @@
 # @wuchale/vite-plugin
 
+## 0.14.6
+
+### Patch Changes
+
+- 973848b: Fix HMR having problems with lazy loaded files
+- Updated dependencies [973848b]
+  - wuchale@0.16.1
+
 ## 0.14.5
 
 ### Patch Changes

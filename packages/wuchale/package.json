@@ -1,6 +1,6 @@
 {
     "name": "wuchale",
-    "version": "0.16.0",
+    "version": "0.16.1",
     "description": "Protobuf-like i18n from plain code",
     "scripts": {
         "dev": "tsc --watch",
