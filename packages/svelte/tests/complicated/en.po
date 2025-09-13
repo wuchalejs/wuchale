@@ -2,7 +2,6 @@ msgid ""
 msgstr ""
 
 #: app.svelte
-#: app.svelte
 msgid "Extract"
 msgstr "Extract"
 
@@ -54,6 +53,11 @@ msgstr "And this"
 #: app.svelte
 msgid "Okay?"
 msgstr "Okay?"
+
+#. placeholder {0}: p.name
+#: app.svelte
+msgid "Extract {0}"
+msgstr "Extract {0}"
 
 #: app.svelte
 msgid "Bar"

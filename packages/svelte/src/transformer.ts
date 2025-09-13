@@ -89,13 +89,13 @@ export class SvelteTransformer extends Transformer {
         },
     })
 
-
     visitFragment = (node: AST.Fragment): Message[] => this.mixedVisitor.visit({
         children: node.nodes,
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
         scope: 'markup',
         element: this.currentElement,
+        useComponent: this.currentElement !== 'title'
     })
 
     visitRegularElement = (node: AST.ElementLike): Message[] => {
@@ -226,7 +226,7 @@ export class SvelteTransformer extends Transformer {
 
     visitSvelteHead = (node: AST.SvelteHead): Message[] => this.visitSv(node.fragment)
 
-    visitTitleElement = (node: AST.TitleElement): Message[] => this.visitSv(node.fragment)
+    visitTitleElement = (node: AST.TitleElement): Message[] => this.visitRegularElement(node)
 
     visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
 

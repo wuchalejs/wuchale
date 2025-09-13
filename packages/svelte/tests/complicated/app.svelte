@@ -62,7 +62,7 @@
 </script>
 
 <svelte:head>
-    <title>Extract</title>
+    <title>Extract {p.name}</title>
 </svelte:head>
 
 <div>{someFunction('foo', 'Bar')}</div>
