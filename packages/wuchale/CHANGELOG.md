@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.16.1
+
+### Patch Changes
+
+- 973848b: Fix HMR having problems with lazy loaded files
+
 ## 0.16.0
 
 ### Minor Changes
