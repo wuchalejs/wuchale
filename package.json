@@ -13,6 +13,6 @@
         "packages/*"
     ],
     "devDependencies": {
-        "@changesets/cli": "^2.29.6"
+        "@changesets/cli": "^2.29.7"
     }
 }
