@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.16.2
+
+### Patch Changes
+
+- f7c0225: Fix class declarations not visited
+
 ## 0.16.1
 
 ### Patch Changes
