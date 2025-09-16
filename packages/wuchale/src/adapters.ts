@@ -8,7 +8,7 @@ export type HeuristicDetailsBase = {
     attribute?: string
 }
 
-export type ScriptDeclType = "variable" | "function" | "expression"
+export type ScriptDeclType = "variable" | "function" | "class" | "expression"
 
 export type HeuristicDetails = HeuristicDetailsBase & {
     file: string

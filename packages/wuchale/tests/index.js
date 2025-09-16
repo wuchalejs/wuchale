@@ -111,6 +111,44 @@ test('Inside function definitions', async function(t) {
     `, ['Hello', 'Extracted', ['Hello ', 0]])
 })
 
+test('Inside class declarations', async function(t) {
+    await testContent(t, typescript`
+        class foo {
+            constructor() {
+                return 'Hello'
+            }
+
+            foo() {
+                return 'Hello'
+            }
+        }
+    `, typescript`
+        import _w_to_rt_ from 'wuchale/runtime'
+        import _w_load_ from "../tests/test-tmp/loader.js"
+
+        class foo {
+            constructor() {
+                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                return _w_runtime_.t(0)
+            }
+
+            foo() {
+                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                return _w_runtime_.t(0)
+            }
+        }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.js
+    #: test-tmp/test.js
+    msgid "Hello"
+    msgstr "Hello"
+
+    `, ['Hello'])
+})
+
 test('HMR', async function(t) {
     await testContent(t, typescript`
         function foo(): string {

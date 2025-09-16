@@ -405,6 +405,26 @@ export class Transformer {
         return msgs
     }
 
+    visitClassDeclaration = (node: Estree.ClassDeclaration): Message[] => {
+        const msgs: Message[] = []
+        const prevDecl = this.declaring
+        this.declaring = 'class'
+        for (const body of node.body.body) {
+            if (body.type === 'MethodDefinition') {
+                msgs.push(...this.visit(body.key))
+                const methodName = this.content.slice(body.key.start, body.key.end)
+                msgs.push(...this.visitFunctionBody(body.value, `${node.id.name}.${methodName}`))
+            } else if (body.type === 'StaticBlock') {
+                const currentFuncDef = this.currentFuncDef
+                this.currentFuncDef = `${node.id.name}.[static]`
+                msgs.push(...body.body.map(this.visit).flat())
+                this.currentFuncDef = currentFuncDef // restore
+            }
+        }
+        this.declaring = prevDecl // restore
+        return msgs
+    }
+
     visitTemplateLiteral = (node: Estree.TemplateLiteral): Message[] => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
