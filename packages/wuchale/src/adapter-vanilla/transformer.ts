@@ -351,14 +351,14 @@ export class Transformer {
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
-    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number => {
+    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
         for (const node of nodes) {
             if (node.type === 'ExpressionStatement' && node.expression.type === 'Literal') {
                 continue
             }
             return node.start
         }
-        return nodes[0].start
+        return nodes[0]?.start
     }
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): Message[] => {
