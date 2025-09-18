@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.16.3
+
+### Patch Changes
+
+- 4210ee1: Fix error on empty body content when trying to get body start (e.g. in empty `<script>`)
+
 ## 0.16.2
 
 ### Patch Changes
