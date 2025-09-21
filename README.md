@@ -156,10 +156,8 @@ package for examples of supported scenarios.
 
 ## ❤️ Sponsors
 
-This project is supported by the community. Become a sponsor on [**GitHub
-Sponsors**](https://github.com/sponsors/K1DV5) or [**Open
-Collective**](https://opencollective.com/wuchale) and get your name or logo
-listed here!
+This project is supported by the community. Become a sponsor and get your name
+or logo listed here!
 
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
 [![Donate on Open Collective](https://img.shields.io/badge/Donate%20on-Open%20Collective-%230092e6?logo=opencollective&logoColor=white)](https://opencollective.com/wuchale)
