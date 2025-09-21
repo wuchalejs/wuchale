@@ -1,5 +1,16 @@
 # @wuchale/svelte
 
+## 0.15.1
+
+### Patch Changes
+
+- 5aa768a: Ignore form method attribute and fetch calls
+- 04e28a3: Fix initialization outside `<script>` when the `<script>` is empty
+- Updated dependencies [5aa768a]
+- Updated dependencies [0352c60]
+- Updated dependencies [04e28a3]
+  - wuchale@0.16.4
+
 ## 0.15.0
 
 ### Minor Changes

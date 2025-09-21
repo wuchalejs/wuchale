@@ -1,5 +1,15 @@
 # @wuchale/jsx
 
+## 0.7.1
+
+### Patch Changes
+
+- 5aa768a: Ignore form method attribute and fetch calls
+- Updated dependencies [5aa768a]
+- Updated dependencies [0352c60]
+- Updated dependencies [04e28a3]
+  - wuchale@0.16.4
+
 ## 0.7.0
 
 ### Minor Changes
