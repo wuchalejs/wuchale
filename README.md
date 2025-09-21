@@ -154,15 +154,23 @@ fast.
 Contributions are welcome! Please check out our test suites located inside each
 package for examples of supported scenarios.
 
-## ❤️ Support & Acknowledgments
+## ❤️ Sponsors
 
-> Thank you **[@hayzamjs](https://github.com/hayzamjs)** for making a donation
-and using it in [Sylve](https://github.com/AlchemillaHQ/Sylve), and giving
-valuable feedback!
+This project is supported by the community. Become a sponsor on [**GitHub
+Sponsors**](https://github.com/sponsors/K1DV5) or [**Open
+Collective**](https://opencollective.com/wuchale) and get your name or logo
+listed here!
 
-If you find `wuchale` valuable and you enjoy working with it, supporting it on
-[Github Sponsors](https://github.com/sponsors/K1DV5) or [Open
-Collective](https://opencollective.com/wuchale) would mean a lot.
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
+[![Donate on Open Collective](https://img.shields.io/badge/Donate%20on-Open%20Collective-%230092e6?logo=opencollective&logoColor=white)](https://opencollective.com/wuchale)
+
+### Early supporters
+
+Special thanks to our early supporters:
+
+[![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&size=48)](https://github.com/hayzamjs)
+
+And one private donor 🙏.
 
 ## Inspiration
 
