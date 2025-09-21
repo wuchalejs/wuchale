@@ -24,9 +24,9 @@ const defaultArgs: AdapterArgs = {
     generateLoadID: defaultGenerateLoadID,
     writeFiles: {},
     runtime: {
-        useReactive: () => ({
-            init: false,
-            use: false
+        useReactive: ({nested}) => ({
+            init: nested ? null : false,
+            use: nested ? null : false,
         }),
         plain: {
             importName: 'default',

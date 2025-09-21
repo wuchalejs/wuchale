@@ -323,9 +323,8 @@ export class Transformer {
                 continue
             }
             msgs.push(...this.visit(dec.id))
-            // store the name of the function after =
             if (atTopLevelDefn) {
-                if (dec.init.type === 'ArrowFunctionExpression') {
+                if (dec.init.type === 'ArrowFunctionExpression' || dec.init.type === 'FunctionExpression') {
                     this.declaring = 'function'
                 } else {
                     this.declaring = 'variable'
@@ -361,19 +360,37 @@ export class Transformer {
         return nodes[0]?.start
     }
 
-    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null): Message[] => {
+    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null, end?: number): Message[] => {
         const prevFuncDef = this.currentFuncDef
         const prevFuncNested = this.currentFuncNested
-        const isBlock = node.type === 'BlockStatement'
-        this.currentFuncDef = isBlock ? name : prevFuncDef
-        this.currentFuncNested = isBlock && name != null && prevFuncDef != null
+        this.currentFuncDef = name
+        this.currentFuncNested = name != null && prevFuncDef != null
         const msgs = this.visit(node)
-        if (msgs.length > 0 && isBlock) {
+        if (msgs.length > 0) {
             const initRuntime = this.initRuntime(this.filename, this.currentFuncDef, prevFuncDef, this.additionalState)
-            initRuntime && this.mstr.prependLeft(
-                this.getRealBodyStart(node.body),
-                initRuntime,
-            )
+            if (initRuntime) {
+                if (node.type === 'BlockStatement') {
+                    this.mstr.prependLeft(
+                        this.getRealBodyStart(node.body),
+                        initRuntime,
+                    )
+                } else {
+                    // get real start if surrounded by parens
+                    let start = node.start - 1
+                    for (; start > 0; start--) {
+                        const char = this.content[start]
+                        if (char === '(') {
+                            break
+                        }
+                        if (!/\s/.test(char)) {
+                            start = node.start
+                            break
+                        }
+                    }
+                    this.mstr.prependLeft(start, `{${initRuntime}return `)
+                    this.mstr.appendRight(end ?? node.end, '\n}')
+                }
+            }
         }
         this.currentFuncNested = prevFuncNested
         this.currentFuncDef = prevFuncDef
@@ -388,7 +405,7 @@ export class Transformer {
         return msgs
     }
 
-    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
+    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): Message[] => this.visitFunctionBody(node.body, '', node.end)
 
     visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
@@ -413,7 +430,7 @@ export class Transformer {
             if (body.type === 'MethodDefinition') {
                 msgs.push(...this.visit(body.key))
                 const methodName = this.content.slice(body.key.start, body.key.end)
-                msgs.push(...this.visitFunctionBody(body.value, `${node.id.name}.${methodName}`))
+                msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
             } else if (body.type === 'StaticBlock') {
                 const currentFuncDef = this.currentFuncDef
                 this.currentFuncDef = `${node.id.name}.[static]`

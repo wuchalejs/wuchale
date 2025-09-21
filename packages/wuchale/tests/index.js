@@ -64,7 +64,7 @@ test('Inside function definitions', async function(t) {
             return varName
         }
         const insideObj = {
-            method: () => 'Not inside func def',
+            method: () => 'Inside func property',
         }
         const bar: (a: string) => string = (a) => {
             const foo = {
@@ -83,14 +83,17 @@ test('Inside function definitions', async function(t) {
             return varName
         }
         const insideObj = {
-            method: () => 'Not inside func def',
+            method: () => {
+                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                return _w_runtime_.t(1)
+            },
         }
         const bar: (a: string) => string = (a) => {
             const _w_runtime_ = _w_to_rt_(_w_load_('main'))
             const foo = {
-                [_w_runtime_.t(1)]: 42,
+                [_w_runtime_.t(2)]: 42,
             }
-            return _w_runtime_.t(2, [a])
+            return _w_runtime_.t(3, [a])
         }
     `, `
     msgid ""
@@ -101,6 +104,10 @@ test('Inside function definitions', async function(t) {
     msgstr "Hello"
 
     #: test-tmp/test.js
+    msgid "Inside func property"
+    msgstr "Inside func property"
+
+    #: test-tmp/test.js
     msgid "Extracted"
     msgstr "Extracted"
 
@@ -108,7 +115,7 @@ test('Inside function definitions', async function(t) {
     #: test-tmp/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
-    `, ['Hello', 'Extracted', ['Hello ', 0]])
+    `, ['Hello', 'Inside func property', 'Extracted', ['Hello ', 0]])
 })
 
 test('Inside class declarations', async function(t) {
