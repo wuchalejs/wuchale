@@ -156,6 +156,30 @@ test('Inside class declarations', async function(t) {
     `, ['Hello'])
 })
 
+test('Plural', async function(t) {
+    await testContent(t,
+        typescript`
+            const f = () => plural(items, ['One item', '# items'])
+        `,
+        typescript`
+            import _w_to_rt_ from 'wuchale/runtime'
+            import _w_load_ from "../tests/test-tmp/loader.js"
+            const f = () => {
+                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
+            }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.js
+    msgid "One item"
+    msgid_plural "# items"
+    msgstr[0] "One item"
+    msgstr[1] "# items"
+    `, [ [ 'One item', '# items' ] ])
+})
+
 test('HMR', async function(t) {
     await testContent(t, typescript`
         function foo(): string {

@@ -206,29 +206,6 @@ test('Context', async function(t) {
     `, [ 'String', 'String', 'Close', 'Close',  ])
 })
 
-test('Plural', async function(t) {
-    await testContent(t,
-        svelte`<p>{plural(items, ['One item', '# items'])}</p>`,
-        svelte`
-            <script>
-                import _w_to_rt_ from 'wuchale/runtime'
-                import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
-                import W_tx_ from "@wuchale/svelte/runtime.svelte"
-                const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
-            </script>
-            <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
-    `, `
-    msgid ""
-    msgstr ""
-
-    #: test-tmp/test.svelte
-    msgid "One item"
-    msgid_plural "# items"
-    msgstr[0] "One item"
-    msgstr[1] "# items"
-    `, [ [ 'One item', '# items' ] ])
-})
-
 test('Multiple in one file', async t => await testDir(t, 'multiple'))
 
 test('Complicated', async t => await testDir(t, 'complicated'))
