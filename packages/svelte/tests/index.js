@@ -78,6 +78,9 @@ test('JS module files', async function(t) {
 
 test('Simple element with new lines', async function(t) {
     await testContent(t, svelte`
+        <script>
+            // Intentionally empty
+        </script>
         <p title={loggedIn && 'Hello'}>
             Hello
             There
@@ -88,6 +91,7 @@ test('Simple element with new lines', async function(t) {
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            // Intentionally empty
         </script>
         <p title={loggedIn && _w_runtime_.t(0)}>
             {_w_runtime_.t(1)}

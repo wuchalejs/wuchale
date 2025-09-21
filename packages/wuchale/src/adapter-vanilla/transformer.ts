@@ -371,7 +371,7 @@ export class Transformer {
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
                     this.mstr.prependLeft(
-                        this.getRealBodyStart(node.body),
+                        this.getRealBodyStart(node.body) ?? node.start,
                         initRuntime,
                     )
                 } else {
@@ -541,6 +541,6 @@ export class Transformer {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
-        return this.finalize(this.visit(ast), this.getRealBodyStart(ast.body))
+        return this.finalize(this.visit(ast), this.getRealBodyStart(ast.body) ?? 0)
     }
 }

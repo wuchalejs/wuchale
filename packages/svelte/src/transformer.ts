@@ -242,7 +242,7 @@ export class SvelteTransformer extends Transformer {
             msgs.push(...this.visitProgram(node.module.content))
             this.mstr.appendRight(
                 // @ts-expect-error
-                this.getRealBodyStart(node.module.content.body),
+                this.getRealBodyStart(node.module.content.body) ?? node.module.content.start,
                 this.initRuntime(this.filename, null, null, {}),
             )
             this.additionalState = {} // reset
@@ -301,26 +301,27 @@ export class SvelteTransformer extends Transformer {
         const msgs = this.visitSv(ast)
         const initRuntime = this.initRuntime(this.filename, null, null, {})
         if (ast.type === 'Program') {
-            const bodyStart = this.getRealBodyStart(ast.body)
+            const bodyStart = this.getRealBodyStart(ast.body) ?? 0
             this.mstr.appendRight(bodyStart, initRuntime)
             return this.finalize(msgs, bodyStart)
         }
         let headerIndex = 0
         if (ast.module) {
             // @ts-ignore
-            headerIndex = this.getRealBodyStart(ast.module.content.body)
+            headerIndex = this.getRealBodyStart(ast.module.content.body) ?? ast.module.content.start
         }
         if (ast.instance) {
-            if (!ast.module) {
-                // @ts-expect-error
-                headerIndex = this.getRealBodyStart(ast.instance.content.body)
-            }
             // @ts-expect-error
-            this.mstr.appendRight(this.getRealBodyStart(ast.instance.content.body), initRuntime)
+            const instanceBodyStart = this.getRealBodyStart(ast.instance.content.body) ?? ast.instance.content.start
+            if (!ast.module) {
+                headerIndex = instanceBodyStart
+            }
+            this.mstr.appendRight(instanceBodyStart, initRuntime)
         } else {
-            this.mstr.prepend('<script>')
+            const instanceStart = ast.module?.end ?? 0
+            this.mstr.prependLeft(instanceStart, '\n<script>')
             // account index for hmr data here
-            this.mstr.prependRight(0, `${initRuntime}\n</script>\n`)
+            this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
         const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
