@@ -24,9 +24,22 @@ export type HeuristicDetails = HeuristicDetailsBase & {
 
 export type HeuristicFunc<T = HeuristicDetails> = (msgStr: string, details: T) => boolean | null | undefined
 
+const ignoreElements = ['style', 'path', 'code', 'pre']
+const ignoreAttribs = [['form', 'method']]
+
 export function defaultHeuristic(msgStr: string, details: HeuristicDetails) {
     if (msgStr.search(/\p{L}/u) === -1) {
         return false
+    }
+    if (details.element && ignoreElements.includes(details.element)) {
+        return false
+    }
+    if (details.scope === 'attribute') {
+        for (const [element, attrib] of ignoreAttribs) {
+            if (details.element === element && details.attribute === attrib) {
+                return false
+            }
+        }
     }
     if (details.scope === 'markup') {
         return true
@@ -42,7 +55,7 @@ export function defaultHeuristic(msgStr: string, details: HeuristicDetails) {
     if (details.declaring === 'expression' && !details.funcName) {
         return false
     }
-    return !details.call?.startsWith('console.')
+    return !details.call?.startsWith('console.') && details.call !== 'fetch'
 }
 
 // only allow inside function definitions for script scope

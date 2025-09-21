@@ -10,13 +10,8 @@ import type {
 import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
-const ignoreElements = ['style', 'path', 'code', 'pre']
-
 const jsxHeuristic: HeuristicFunc = (msgStr, details) => {
     if (!defaultHeuristic(msgStr, details)) {
-        return false
-    }
-    if (ignoreElements.includes(details.element)) {
         return false
     }
     if (details.scope !== 'script') {

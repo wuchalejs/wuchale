@@ -1,5 +1,3 @@
-// $$ cd .. && npm run test
-
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
 import type {
     HeuristicFunc,
@@ -12,13 +10,9 @@ import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
-const ignoreElements = ['style', 'path', 'code', 'pre']
 
 const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
     if (!defaultHeuristic(msgStr, details)) {
-        return false
-    }
-    if (ignoreElements.includes(details.element)) {
         return false
     }
     if (details.scope !== 'script') {
