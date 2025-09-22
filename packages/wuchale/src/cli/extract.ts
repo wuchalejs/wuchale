@@ -15,7 +15,7 @@ function extractor(handler: AdapterHandler, logger: Logger) {
     }
 }
 
-export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, logger: Logger) {
+export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, sync: boolean, logger: Logger) {
     await handler.init(sharedState)
     if (clean) {
         for (const loc of locales) {
@@ -26,7 +26,15 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
             }
         }
     }
-    await Promise.all((await glob(...handler.globConfToArgs(files))).map(extractor(handler, logger)))
+    const filePaths = await glob(...handler.globConfToArgs(files))
+    const extract = extractor(handler, logger)
+    if (sync) {
+        for (const fPath of filePaths) {
+            await extract(fPath)
+        }
+    } else {
+        await Promise.all(filePaths.map(extract))
+    }
     if (clean) {
         logger.log('Cleaning...')
         for (const loc of locales) {
@@ -41,13 +49,13 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
     }
 }
 
-export async function extract(config: Config, locales: string[], logger: Logger, clean: boolean, watch: boolean) {
+export async function extract(config: Config, locales: string[], logger: Logger, clean: boolean, watch: boolean, sync: boolean) {
     !watch && logger.info('Extracting...')
     const handlers = []
     const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
-        await extractAdap(handler, sharedState, adapter.files, locales, clean, logger)
+        await extractAdap(handler, sharedState, adapter.files, locales, clean, sync, logger)
         handlers.push(handler)
     }
     if (!watch) {
