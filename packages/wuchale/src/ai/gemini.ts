@@ -1,7 +1,7 @@
 import PO from 'pofile'
 import type { AI, ItemType } from './index.js'
 
-const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
+const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 const headers = {'Content-Type': 'application/json'}
 
 interface GeminiRes {
@@ -16,31 +16,45 @@ interface GeminiRes {
     }[]
 }
 
-function prepareData(fragments: ItemType[], instruction: string) {
+function prepareData(fragments: ItemType[], instruction: string, think: boolean) {
     const po = new PO()
     po.items = fragments
     return {
         system_instruction: {
             parts: [{ text: instruction }]
         },
-        contents: [{parts: [{text: po.toString()}]}]
+        contents: [{ parts: [{ text: po.toString() }] }],
+        generationConfig: think ? undefined : {
+            thinkingConfig: {
+                thinkingBudget: 0
+            }
+        }
     }
 }
 
-export function gemini(apiKey: string = 'env', batchLimit = 50): AI {
+type GeminiOpts = {
+    apiKey?: string
+    batchLimit?: number
+    think?: boolean
+}
+
+export function gemini({apiKey = 'env', batchLimit = 50, think = false}: GeminiOpts = {}): AI {
     if (apiKey === 'env') {
         apiKey = process.env.GEMINI_API_KEY
     }
     if (!apiKey) {
         return null
     }
-    const url = `${baseURL}${apiKey}`
     return {
         name: 'Gemini',
         batchSize: batchLimit,
         translate: async (messages: ItemType[], instruction: string) => {
-            const data = prepareData(messages, instruction)
-            const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(data) })
+            const data = prepareData(messages, instruction, think)
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {...headers, 'x-goog-api-key': apiKey},
+                body: JSON.stringify(data)
+            })
             const json: GeminiRes = await res.json()
             if (json.error) {
                 throw new Error(`error: ${json.error.code} ${json.error.message}`)
