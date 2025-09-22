@@ -50,7 +50,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             keysByLoaderPath[toPath] = key
         }
         logger.log(`Initial extract for ${adapterName}`)
-        await extractAdap(handler, sharedState, adapter.files, locales, false, logger)
+        await extractAdap(handler, sharedState, adapter.files, locales, false, false, logger)
         extractedNew = true
         logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }
