@@ -31,12 +31,12 @@ function prepareData(content: string, instruction: string, think: boolean) {
 
 type GeminiOpts = {
     apiKey?: string
-    batchLimit?: number
+    batchSize?: number
     think?: boolean
     parallel?: number
 }
 
-export function gemini({apiKey = 'env', batchLimit = 50, think = false, parallel = 4}: GeminiOpts = {}): AI {
+export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI {
     if (apiKey === 'env') {
         apiKey = process.env.GEMINI_API_KEY
     }
@@ -45,7 +45,7 @@ export function gemini({apiKey = 'env', batchLimit = 50, think = false, parallel
     }
     return {
         name: 'Gemini',
-        batchSize: batchLimit,
+        batchSize,
         parallel,
         translate: async (content: string, instruction: string) => {
             const data = prepareData(content, instruction, think)

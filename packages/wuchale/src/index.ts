@@ -31,3 +31,4 @@ export type {
     TransformHeader,
     UseReactiveFunc,
 } from './adapters.js'
+export { gemini } from './ai/gemini.js'
