@@ -15,6 +15,7 @@ export type AI = {
     name: string
     batchSize: number
     translate: (messages: string, instruction: string) => Promise<string>
+    parallel: number
 }
 
 // implements a queue for a sequential translation useful for vite's transform during dev
@@ -55,7 +56,7 @@ export default class AIQueue {
 
     #requestName = (id: number) => `${color.cyan(this.ai.name)}: ${this.targetLang} [${id}]`
 
-    async translate(batch: Batch) {
+    translate = async (batch: Batch) => {
         const logStart = this.#requestName(batch.id)
         let translated: ItemType[]
         try {
@@ -87,16 +88,19 @@ export default class AIQueue {
         }
     }
 
-    async run() {
+    run = async () => {
         while (this.batches.length > 0) {
-            const b = this.batches.pop()
-            await this.translate(b)
+            const allBatches: Batch[] = []
+            while (this.batches.length > 0 && allBatches.length < this.ai.parallel) {
+                allBatches.push(this.batches.pop())
+            }
+            await Promise.all(allBatches.map(this.translate))
         }
         await this.onComplete()
         this.running = null
     }
 
-    add(messages: ItemType[]) {
+    add = (messages: ItemType[]) => {
         if (!this.ai) {
             return
         }
