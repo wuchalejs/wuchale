@@ -291,7 +291,7 @@ export class AdapterHandler {
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
         // because locales are not available from virtual modules with writeFile
-        const locales = forWriteFile ? `export const locales = ['${this.#locales.join(',')}']` : ''
+        const locales = forWriteFile ? `export const locales = ['${this.#locales.join("','")}']` : ''
         return `
             ${imports.join('\n')}
             const catalogs = {${object.join(',')}}
