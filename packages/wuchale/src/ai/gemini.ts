@@ -1,5 +1,4 @@
-import PO from 'pofile'
-import type { AI, ItemType } from './index.js'
+import type { AI } from './index.js'
 
 const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 const headers = {'Content-Type': 'application/json'}
@@ -16,14 +15,12 @@ interface GeminiRes {
     }[]
 }
 
-function prepareData(fragments: ItemType[], instruction: string, think: boolean) {
-    const po = new PO()
-    po.items = fragments
+function prepareData(content: string, instruction: string, think: boolean) {
     return {
         system_instruction: {
             parts: [{ text: instruction }]
         },
-        contents: [{ parts: [{ text: po.toString() }] }],
+        contents: [{ parts: [{ text: content }] }],
         generationConfig: think ? undefined : {
             thinkingConfig: {
                 thinkingBudget: 0
@@ -48,8 +45,8 @@ export function gemini({apiKey = 'env', batchLimit = 50, think = false}: GeminiO
     return {
         name: 'Gemini',
         batchSize: batchLimit,
-        translate: async (messages: ItemType[], instruction: string) => {
-            const data = prepareData(messages, instruction, think)
+        translate: async (content: string, instruction: string) => {
+            const data = prepareData(content, instruction, think)
             const res = await fetch(url, {
                 method: 'POST',
                 headers: {...headers, 'x-goog-api-key': apiKey},
@@ -59,8 +56,7 @@ export function gemini({apiKey = 'env', batchLimit = 50, think = false}: GeminiO
             if (json.error) {
                 throw new Error(`error: ${json.error.code} ${json.error.message}`)
             }
-            const resText = json.candidates[0]?.content.parts[0].text
-            return PO.parse(resText).items as any
+            return json.candidates[0]?.content.parts[0].text
         }
     }
 }

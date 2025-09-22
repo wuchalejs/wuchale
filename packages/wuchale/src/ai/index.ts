@@ -14,7 +14,7 @@ type Batch = {
 export type AI = {
     name: string
     batchSize: number
-    translate: (messages: ItemType[], instruction: string) => Promise<ItemType[]>
+    translate: (messages: string, instruction: string) => Promise<string>
 }
 
 // implements a queue for a sequential translation useful for vite's transform during dev
@@ -59,7 +59,10 @@ export default class AIQueue {
         const logStart = this.#requestName(batch.id)
         let translated: ItemType[]
         try {
-            translated = await this.ai.translate(batch.messages, this.instruction)
+            const po = new PO()
+            po.items = batch.messages
+            const translatedstr = await this.ai.translate(po.toString(), this.instruction)
+            translated = PO.parse(translatedstr).items
         } catch (err) {
             this.log.log(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
