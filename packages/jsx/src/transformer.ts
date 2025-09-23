@@ -37,7 +37,7 @@ export class JSXTransformer extends Transformer {
     inCompoundText: boolean = false
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
-    currentJsxKey = 0
+    currentJsxKey?: number
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
@@ -133,13 +133,16 @@ export class JSXTransformer extends Transformer {
         for (const attr of node.openingElement.attributes) {
             msgs.push(...this.visitJx(attr))
         }
-        if (this.inCompoundText) {
-            this.mstr.appendLeft(
-                // @ts-expect-error
-                node.openingElement.name.end,
-                ` key="_${this.currentJsxKey}"`
-            )
-            this.currentJsxKey++
+        if (this.inCompoundText && this.currentJsxKey != null) {
+            const key = node.openingElement.attributes.find(attr => attr.type === 'JSXAttribute' && attr.name.name === 'key')
+            if (!key) {
+                this.mstr.appendLeft(
+                    // @ts-expect-error
+                    node.openingElement.name.end,
+                    ` key="_${this.currentJsxKey}"`
+                )
+                this.currentJsxKey++
+            }
         }
         this.currentElement = currentElement
         return msgs
@@ -259,6 +262,9 @@ export class JSXTransformer extends Transformer {
         this.comments = comments
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
+        if (lib === 'default') {
+            this.currentJsxKey = 0
+        }
         const msgs = this.visitJx(ast)
         const header = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
