@@ -1,5 +1,13 @@
 # @wuchale/jsx
 
+## 0.7.2
+
+### Patch Changes
+
+- b97163a: Don't add a key attribute if there is one already, or if the variant is SolidJS
+- Updated dependencies [1d57789]
+  - wuchale@0.16.5
+
 ## 0.7.1
 
 ### Patch Changes

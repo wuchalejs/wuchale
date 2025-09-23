@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.16.5
+
+### Patch Changes
+
+- 1d57789: Fix locales not separate when written to proxy
+
 ## 0.16.4
 
 ### Patch Changes
