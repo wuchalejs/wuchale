@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, jsx, adapterOpts } from './check.js'
+import { testContent, testDir, tsx, adapterOpts } from './check.js'
 import { adapter } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
 
@@ -17,7 +17,7 @@ test('Default loader file paths', async function(t){
 })
 
 test('React basic', async function(t) {
-    await testContent(t, jsx`
+    await testContent(t, tsx`
         'use server'
         function Foo() {
             'use client'
@@ -26,7 +26,7 @@ test('React basic', async function(t) {
         function m() {
             return <p data-novalue>Hello</p>
         }
-    `, jsx`
+    `, tsx`
         'use server'
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
@@ -53,18 +53,18 @@ test('React basic', async function(t) {
 })
 
 test('SolidJS basic', async function(t) {
-    await testContent(t, jsx`
-        function Foo() {
+    await testContent(t, tsx`
+        function Foo(): Component {
             return <p>Hello</p>
         }
-    `, jsx`
+    `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
 
-        function Foo() {
+        function Foo(): Component {
             return <p>{_w_runtime_().t(0)}</p>
         }
     `, `
@@ -77,7 +77,7 @@ test('SolidJS basic', async function(t) {
 })
 
 test('Ignore and include', async function(t) {
-    await testContent(t, jsx`
+    await testContent(t, tsx`
         function foo() {
             return <div>
                 <svg><path d="M100 200" /></svg>
@@ -88,7 +88,7 @@ test('Ignore and include', async function(t) {
                 {'include this'}
             </div>
         }
-    `, jsx`
+    `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
         import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
@@ -115,7 +115,7 @@ test('Ignore and include', async function(t) {
 })
 
 test('Ignore file', async function(t) {
-    await testContent(t, jsx`
+    await testContent(t, tsx`
         // @wc-ignore-file
         function Foo() {
             return <p>Ignored</p>
@@ -130,7 +130,7 @@ test('Ignore file', async function(t) {
 })
 
 test('Context', async function(t) {
-    await testContent(t, jsx`
+    await testContent(t, tsx`
         const m = () => {
             return <>
                 <p>{/* @wc-context: music */ 'String'}</p>
@@ -140,7 +140,7 @@ test('Context', async function(t) {
                 {/* @wc-context: distance */}
                 <p>Close</p>
             </>
-        }`, jsx`
+        }`, tsx`
             import _w_to_rt_ from 'wuchale/runtime'
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
@@ -183,11 +183,11 @@ test('Context', async function(t) {
 
 test('Plural', async function(t) {
     await testContent(t,
-        jsx`
+        tsx`
             function m() {
                 return <p>{plural(items, ['One item', '# items'])}</p>
             }`,
-        jsx`
+        tsx`
             import _w_to_rt_ from 'wuchale/runtime'
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
@@ -210,14 +210,14 @@ test('Plural', async function(t) {
 
 test('Nested and mixed', async function(t) {
     await testContent(t,
-        jsx`
+        tsx`
             function m() {
                 return <>
                     <p>Hello and <b>welcome</b> to <i>the app</i>!</p>
                     <p>{num} messages</p>
                 </>
             }`,
-        jsx`
+        tsx`
             import _w_to_rt_ from 'wuchale/runtime'
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"

@@ -44,7 +44,7 @@ export async function testDir(t, dir) {
 }
 
 // only for syntax highlighting
-export const jsx = typescript
+export const tsx = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = jsx`
