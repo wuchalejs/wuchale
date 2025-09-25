@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.7.3
+
+### Patch Changes
+
+- aa6df1e: Fix error on TypeScript in JSX (TSX)
+
 ## 0.7.2
 
 ### Patch Changes
