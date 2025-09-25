@@ -71,7 +71,6 @@
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.5",
         "acorn": "^8.15.0",
-        "acorn-jsx": "^5.3.2",
         "wuchale": "^0.16.5"
     },
     "devDependencies": {

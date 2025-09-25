@@ -4,7 +4,6 @@ import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
 import type * as Estree from 'acorn'
-import jsx from 'acorn-jsx'
 import { Transformer, scriptParseOptionsWithComments } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
@@ -16,7 +15,7 @@ import type {
 import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
 import type { AnyNode } from 'acorn'
 
-const JsxParser = Parser.extend(tsPlugin(), jsx())
+const JsxParser = Parser.extend(tsPlugin({jsx: true}))
 
 export function parseScript(content: string): [Estree.Program, Estree.Comment[][]] {
     const [opts, comments] = scriptParseOptionsWithComments()
