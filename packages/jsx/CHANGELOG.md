@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.7.4
+
+### Patch Changes
+
+- 9d0acc1: Fix syntax error caused by JSX vs types ambiguity by checking file extension
+
 ## 0.7.3
 
 ### Patch Changes
