@@ -4,7 +4,7 @@ import { Message } from 'wuchale'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as JX from 'estree-jsx'
 import type * as Estree from 'acorn'
-import { Transformer, scriptParseOptionsWithComments } from 'wuchale/adapter-vanilla'
+import { Transformer, scriptParseOptionsWithComments, parseScript } from 'wuchale/adapter-vanilla'
 import type {
     IndexTracker,
     HeuristicFunc,
@@ -17,7 +17,7 @@ import type { AnyNode } from 'acorn'
 
 const JsxParser = Parser.extend(tsPlugin({jsx: true}))
 
-export function parseScript(content: string): [Estree.Program, Estree.Comment[][]] {
+export function parseScriptJSX(content: string): [Estree.Program, Estree.Comment[][]] {
     const [opts, comments] = scriptParseOptionsWithComments()
     return [JsxParser.parse(content, opts), comments]
 }
@@ -257,7 +257,8 @@ export class JSXTransformer extends Transformer {
     }
 
     transformJx = (lib: JSXLib): TransformOutput => {
-        const [ast, comments] = parseScript(this.content)
+        // jsx vs type casting is not ambiguous in all files except .ts files
+        const [ast, comments] = (this.filename.endsWith('.ts') ? parseScript : parseScriptJSX)(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()

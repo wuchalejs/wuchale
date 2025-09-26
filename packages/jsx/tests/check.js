@@ -47,7 +47,7 @@ export async function testDir(t, dir) {
 export const tsx = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
-// const code = jsx`
+// const code = tsx`
 // function m() {
 //   return <p>Hello!</p>
 // }
