@@ -8,6 +8,7 @@ import type {
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
+import { pluralPattern } from 'wuchale/adapter-vanilla'
 
 const topLevelDeclarationsInside = ['$derived', '$derived.by']
 
@@ -30,7 +31,7 @@ const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
 const defaultArgs: AdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     catalog: './src/locales/{locale}',
-    pluralsFunc: 'plural',
+    patterns: [pluralPattern],
     heuristic: svelteHeuristic,
     granularLoad: false,
     bundleLoad: false,
@@ -63,7 +64,7 @@ const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
-        pluralsFunc,
+        patterns,
         runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
@@ -74,7 +75,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 filename,
                 index,
                 heuristic,
-                pluralsFunc,
+                patterns,
                 expr,
                 runtime as RuntimeConf,
             ).transformSv()
