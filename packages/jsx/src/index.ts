@@ -1,5 +1,5 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
+import { pluralPattern, adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
@@ -67,7 +67,7 @@ const defaultRuntimeSolid: RuntimeConf = {
 const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
-    pluralsFunc: 'plural',
+    patterns: [pluralPattern],
     heuristic: jsxHeuristic,
     granularLoad: false,
     bundleLoad: false,
@@ -82,7 +82,7 @@ const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 
 export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
     let {
         heuristic,
-        pluralsFunc,
+        patterns,
         variant,
         runtime,
         ...rest
@@ -97,7 +97,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
                 filename,
                 index,
                 heuristic,
-                pluralsFunc,
+                patterns,
                 expr,
                 runtime as RuntimeConf,
             ).transformJx(variant)

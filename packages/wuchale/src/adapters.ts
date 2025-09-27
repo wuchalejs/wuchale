@@ -197,7 +197,12 @@ export type Adapter = AdapterPassThruOpts & {
     docsUrl: string
 }
 
+export type CodePattern = {
+    name: string
+    args: ('message' | 'pluralFunc' | 'other')[]
+}
+
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
-    pluralsFunc?: string
+    patterns?: CodePattern[]
 }

@@ -14,6 +14,7 @@ import type {
     HeuristicDetails,
     RuntimeConf,
     CatalogExpr,
+    CodePattern,
 } from "../adapters.js"
 import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
@@ -67,7 +68,7 @@ export class Transformer {
     comments: Estree.Comment[][] = []
     filename: string
     mstr: MagicString
-    pluralFunc: string
+    patterns: CodePattern[]
     initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
@@ -83,10 +84,10 @@ export class Transformer {
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf, rtBaseVars = [varNames.rt]) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
-        this.pluralFunc = pluralsFunc
+        this.patterns = patterns
         this.content = content
         this.filename = filename
         const topLevelUseReactive = rtConf.useReactive({
@@ -213,28 +214,69 @@ export class Transformer {
     }
 
     visitCallExpression = (node: Estree.CallExpression): Message[] => {
-        if (node.callee.type !== 'Identifier' || node.callee.name !== this.pluralFunc) {
+        if (node.callee.type !== 'Identifier') {
             return this.defaultVisitCallExpression(node)
         }
-        // plural(num, ['Form one', 'Form two'])
-        const secondArg = node.arguments[1]
-        if (secondArg === null || secondArg.type !== 'ArrayExpression') {
+        const calleeName = node.callee.name
+        const pattern = this.patterns.find(p => p.name === calleeName)
+        if (!pattern) {
             return this.defaultVisitCallExpression(node)
         }
-        const candidates = []
-        for (const elm of secondArg.elements) {
-            if (elm.type !== 'Literal' || typeof elm.value !== 'string') {
+        const msgs: Message[] = []
+        let lastArgEnd: number
+        for (const [i, arg] of pattern.args.entries()) {
+            const argVal = node.arguments[i]
+            let argInsertIndex: number
+            if (argVal == null) {
+                if (lastArgEnd == null) {
+                    return this.defaultVisitCallExpression(node)
+                }
+                argInsertIndex = lastArgEnd
+            } else {
+                lastArgEnd = argVal.end
+            }
+            if (arg === 'other') {
+                continue
+            }
+            if (arg === 'pluralFunc') {
+                if (argVal) {
+                    this.mstr.update(argVal.start, argVal.end, this.vars().rtPlural)
+                } else {
+                    this.mstr.appendRight(argInsertIndex, `, ${this.vars().rtPlural}`)
+                }
+                continue
+            }
+            // message, always required
+            if (argVal === null) {
                 return this.defaultVisitCallExpression(node)
             }
-            candidates.push(elm.value)
+            if (argVal.type === 'Literal') {
+                if (typeof argVal.value !== 'string') {
+                    return this.defaultVisitCallExpression(node)
+                }
+                const msgInfo = new Message(argVal.value, 'script', this.commentDirectives.context)
+                this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
+                msgs.push(msgInfo)
+                continue
+            }
+            if (argVal.type !== 'ArrayExpression') {
+                return this.defaultVisitCallExpression(node)
+            }
+            const candidates = []
+            for (const elm of argVal.elements) {
+                if (elm.type !== 'Literal' || typeof elm.value !== 'string') {
+                    return this.defaultVisitCallExpression(node)
+                }
+                candidates.push(elm.value)
+            }
+            // plural(num, ['Form one', 'Form two'])
+            const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
+            msgInfo.plural = true
+            const index = this.index.get(msgInfo.toKey())
+            msgs.push(msgInfo)
+            this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`)
         }
-        const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
-        msgInfo.plural = true
-        const index = this.index.get(msgInfo.toKey())
-        const pluralUpdate = `${this.vars().rtTPlural}(${index}), ${this.vars().rtPlural}`
-        // @ts-ignore
-        this.mstr.update(secondArg.start, node.end - 1, pluralUpdate)
-        return [msgInfo]
+        return msgs
     }
 
     visitBinaryExpression = (node: Estree.BinaryExpression): Message[] => [

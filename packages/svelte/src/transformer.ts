@@ -9,6 +9,7 @@ import type {
     TransformOutput,
     CatalogExpr,
     RuntimeConf,
+    CodePattern,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
 
@@ -31,8 +32,8 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf, [varNames.rt, rtModuleVar])
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
+        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, [varNames.rt, rtModuleVar])
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)

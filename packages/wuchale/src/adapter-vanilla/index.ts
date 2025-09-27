@@ -7,6 +7,7 @@ import type {
     Adapter,
     AdapterPassThruOpts,
     RuntimeConf,
+    CodePattern,
 } from "../adapters.js"
 import { Transformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from '../adapter-utils/index.js'
@@ -14,10 +15,15 @@ import { getDependencies, loaderPathResolver } from '../adapter-utils/index.js'
 export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
 
+export const pluralPattern: CodePattern = {
+    name: 'plural',
+    args: ['other', 'message', 'pluralFunc'],
+}
+
 const defaultArgs: AdapterArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
-    pluralsFunc: 'plural',
+    patterns: [pluralPattern],
     heuristic: defaultHeuristicFuncOnly,
     granularLoad: false,
     bundleLoad: false,
@@ -41,7 +47,7 @@ const resolveLoaderPath = loaderPathResolver(import.meta.url, '../../src/adapter
 export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
     const {
         heuristic,
-        pluralsFunc,
+        patterns,
         runtime,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
@@ -51,7 +57,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             filename,
             index,
             heuristic,
-            pluralsFunc,
+            patterns,
             expr,
             runtime as RuntimeConf,
         ).transform(),
