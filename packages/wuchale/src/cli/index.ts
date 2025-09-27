@@ -20,6 +20,9 @@ const { positionals, values } = parseArgs({
             type: 'boolean',
             short: 'w',
         },
+        sync: {
+            type: 'boolean',
+        },
         help: {
             type: 'boolean',
             short: 'h',
@@ -44,6 +47,7 @@ Options:
     ${color.cyan('--config')}     use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
     ${color.cyan('--clean')}, ${color.cyan('-c')}  (only when no commands) remove unused messages from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}  (only when no commands) continuously watch for file changes
+    ${color.cyan('--sync')}       (only when no commands) extract sequentially instead of in parallel
     ${color.cyan('--help')}, ${color.cyan('-h')}   Show this help
 `
 
@@ -59,7 +63,7 @@ if (values.help) {
     logger.log('wuchale cli')
     logger.log(help.trimEnd())
 } else if (cmd == null) {
-    await extract(...await getConfigNLocales(), logger, values.clean, values.watch)
+    await extract(...await getConfigNLocales(), logger, values.clean, values.watch, values.sync)
 } else if (cmd === 'init') {
     await init(...await getConfigNLocales(), logger)
 } else if (cmd === 'status') {

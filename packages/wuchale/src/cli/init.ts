@@ -6,6 +6,7 @@ import { color, Logger } from "../log.js"
 import { ask, setupInteractive } from "./input.js"
 import { extractAdap } from "./extract.js"
 import type { LoaderPath } from "../adapters.js"
+import { defaultGemini } from "../ai/gemini.js"
 
 export async function init(config: Config, locales: string[], logger: Logger) {
     logger.info('Initializing...')
@@ -49,7 +50,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             keysByLoaderPath[toPath] = key
         }
         logger.log(`Initial extract for ${adapterName}`)
-        await extractAdap(handler, sharedState, adapter.files, locales, false, logger)
+        await extractAdap(handler, sharedState, adapter.files, locales, false, false, logger)
         extractedNew = true
         logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }
@@ -59,7 +60,7 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         '1. Finish the setup for each adapter following its docs URL above.',
         '2. Start the dev server and you\'re good to go!',
     )
-    if (config.geminiAPIKey === 'env') {
+    if (config.ai === defaultGemini) {
         msgs.push(
             '\n(Optional):',
             `  Set the ${color.cyan('GEMINI_API_KEY')} environment variable before starting the server`,

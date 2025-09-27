@@ -24,6 +24,7 @@ export type {
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
+    CodePattern,
     RuntimeConf,
     CatalogExpr,
     HeuristicFunc,
@@ -31,3 +32,4 @@ export type {
     TransformHeader,
     UseReactiveFunc,
 } from './adapters.js'
+export { gemini } from './ai/gemini.js'

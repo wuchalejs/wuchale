@@ -2,8 +2,9 @@ import type { Mixed, CompiledElement } from "./compile.js"
 
 export const catalogVarName = 'c' as 'c'
 export type CatalogModule = {
-    [catalogVarName]: CompiledElement[],
-    p?: (n: number) => number,
+    [catalogVarName]: CompiledElement[]
+    p?: (n: number) => number
+    l?: string
     onUpdate?: (callback: (newData: CompiledElement[]) => void) => void
 }
 

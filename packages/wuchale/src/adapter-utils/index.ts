@@ -14,6 +14,7 @@ export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.
         rtTrans: `${wrapFunc(base)}.t`,
         rtTPlural: `${wrapFunc(base)}.tp`,
         rtPlural: `${wrapFunc(base)}._.p`,
+        rtLocale: `${wrapFunc(base)}._.l`,
         rtCtx: `${wrapFunc(base)}.cx`,
         rtTransCtx: `${wrapFunc(base)}.tx`,
         /** for when nesting, used in adapters with elements */
