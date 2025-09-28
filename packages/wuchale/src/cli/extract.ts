@@ -6,16 +6,16 @@ import { readFile } from "node:fs/promises"
 import type { GlobConf } from "../adapters.js"
 import { watch as watchFS } from 'chokidar'
 
-function extractor(handler: AdapterHandler, logger: Logger) {
+function extractor(handler: AdapterHandler) {
     const adapterName = color.magenta(handler.key)
     return async (filename: string) => {
-        logger.log(`${adapterName}: Extract from ${color.cyan(filename)}`)
+        console.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
         const contents = await readFile(filename)
         await handler.transform(contents.toString(), filename)
     }
 }
 
-export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, sync: boolean, logger: Logger) {
+export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, sync: boolean) {
     await handler.init(sharedState)
     if (clean) {
         for (const loc of locales) {
@@ -27,7 +27,7 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
         }
     }
     const filePaths = await glob(...handler.globConfToArgs(files))
-    const extract = extractor(handler, logger)
+    const extract = extractor(handler)
     if (sync) {
         for (const fPath of filePaths) {
             await extract(fPath)
@@ -36,7 +36,7 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
         await Promise.all(filePaths.map(extract))
     }
     if (clean) {
-        logger.log('Cleaning...')
+        console.info('Cleaning...')
         for (const loc of locales) {
             const catalog = handler.sharedState.poFilesByLoc[loc].catalog
             for (const [key, item] of Object.entries(catalog)) {
@@ -49,22 +49,22 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
     }
 }
 
-export async function extract(config: Config, locales: string[], logger: Logger, clean: boolean, watch: boolean, sync: boolean) {
-    !watch && logger.info('Extracting...')
+export async function extract(config: Config, locales: string[], clean: boolean, watch: boolean, sync: boolean) {
+    !watch && console.info('Extracting...')
     const handlers = []
     const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.messages))
-        await extractAdap(handler, sharedState, adapter.files, locales, clean, sync, logger)
+        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.logLevel))
+        await extractAdap(handler, sharedState, adapter.files, locales, clean, sync)
         handlers.push(handler)
     }
     if (!watch) {
-        logger.info('Extraction finished.')
+        console.info('Extraction finished.')
         return
     }
     // watch
-    logger.info('Watching for changes')
-    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h, logger)])
+    console.info('Watching for changes')
+    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h)])
     watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
         if (!['add', 'change'].includes(event)) {
             return

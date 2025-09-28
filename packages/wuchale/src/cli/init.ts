@@ -8,11 +8,11 @@ import { extractAdap } from "./extract.js"
 import type { LoaderPath } from "../adapters.js"
 import { defaultGemini } from "../ai/gemini.js"
 
-export async function init(config: Config, locales: string[], logger: Logger) {
-    logger.info('Initializing...')
+export async function init(config: Config, locales: string[]) {
+    console.info('Initializing...')
     let extractedNew = false
     setupInteractive()
-    const adapLogger = new Logger(config.messages)
+    const adapLogger = new Logger(config.logLevel)
     const sharedState: SharedStates = {}
     const keysByLoaderPath: Record<string, string> = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
@@ -29,13 +29,13 @@ export async function init(config: Config, locales: string[], logger: Logger) {
         } else {
             loaderPath = handler.getLoaderPaths()[0]
         }
-        logger.log(`${existing ? 'Edit' : 'Create'} loader for ${adapterName}`)
+        console.info(`${existing ? 'Edit' : 'Create'} loader for ${adapterName}`)
         let loader = loaders[0]
         if (loaders.length > 1) {
-            loader = await ask(loaders, `Select default loader for adapter: ${adapterName}`, logger)
+            loader = await ask(loaders, `Select default loader for adapter: ${adapterName}`)
         }
         if (existing && loader === loaders[0]) {
-            logger.log('Keep existing loader')
+            console.info('Keep existing loader')
             continue
         }
         const defaultLoader = adapter.defaultLoaderPath(loader)
@@ -49,10 +49,10 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             await copyFile(fromPath, toPath)
             keysByLoaderPath[toPath] = key
         }
-        logger.log(`Initial extract for ${adapterName}`)
-        await extractAdap(handler, sharedState, adapter.files, locales, false, false, logger)
+        console.info(`Initial extract for ${adapterName}`)
+        await extractAdap(handler, sharedState, adapter.files, locales, false, false)
         extractedNew = true
-        logger.log(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
+        console.info(`\n${adapterName}: Read more at ${color.cyan(adapter.docsUrl)}.`)
     }
     const msgs = ['\nInitialization complete!\n']
     msgs.push(
@@ -68,5 +68,5 @@ export async function init(config: Config, locales: string[], logger: Logger) {
             `\nYou can always run ${color.cyan('npx wuchale')}`
         )
     }
-    logger.log(msgs.join('\n'))
+    console.info(msgs.join('\n'))
 }

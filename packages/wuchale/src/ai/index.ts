@@ -65,7 +65,7 @@ export default class AIQueue {
             const translatedstr = await this.ai.translate(po.toString(), this.instruction)
             translated = PO.parse(translatedstr).items
         } catch (err) {
-            this.log.log(`${logStart}: ${color.red(`error: ${err}`)}`)
+            this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
         }
         let unTranslated: ItemType[] = batch.messages.slice(translated.length)
@@ -81,10 +81,10 @@ export default class AIQueue {
             }
         }
         if (unTranslated.length) {
-            this.log.log(`${logStart}: ${unTranslated.length} ${color.yellow('items not translated. Retrying...')}`)
+            this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('items not translated. Retrying...')}`)
             await this.translate({id: batch.id, messages: unTranslated})
         } else {
-            this.log.log(`${logStart}: ${color.green('translated')}`)
+            this.log.info(`${logStart}: ${color.green('translated')}`)
         }
     }
 
@@ -117,7 +117,7 @@ export default class AIQueue {
             this.batches.push({id: this.nextBatchId, messages})
             this.nextBatchId++
         }
-        this.log.log(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(messages.length)} messages`)
+        this.log.info(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(messages.length)} messages`)
         if (!this.running) {
             this.running = this.run()
         }
