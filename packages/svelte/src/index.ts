@@ -96,7 +96,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             if (loader === 'sveltekit') {
                 return {
                     client: resolveLoaderPath('svelte'),
-                    ssr: resolveLoaderPath('sveltekit.ssr'),
+                    server: resolveLoaderPath('sveltekit.ssr'),
                 }
             }
             return resolveLoaderPath(loader)

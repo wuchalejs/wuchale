@@ -77,7 +77,7 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
             if (loader === 'vite') {
                 return {
                     client: resolveLoaderPath('vite'),
-                    ssr: resolveLoaderPath('vite.ssr'),
+                    server: resolveLoaderPath('vite.ssr'),
                 }
             }
             return resolveLoaderPath(loader)

@@ -41,7 +41,7 @@ export async function init(config: Config, locales: string[]) {
         const defaultLoader = adapter.defaultLoaderPath(loader)
         const defaultPaths: LoaderPath = typeof defaultLoader === 'string' ? {
             client: defaultLoader,
-            ssr: defaultLoader,
+            server: defaultLoader,
         } : defaultLoader
         for (const [side, fromPath] of Object.entries(defaultPaths)) {
             const toPath = loaderPath[side]
