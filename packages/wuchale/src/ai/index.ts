@@ -81,7 +81,7 @@ export default class AIQueue {
             }
         }
         if (unTranslated.length) {
-            this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('items not translated. Retrying...')}`)
+            this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
             await this.translate({id: batch.id, messages: unTranslated})
         } else {
             this.log.info(`${logStart}: ${color.green('translated')}`)
@@ -104,20 +104,23 @@ export default class AIQueue {
         if (!this.ai) {
             return
         }
+        const opInfo: [string, number, number][] = []
         const lastBatch = this.batches.at(-1)
-        let opType: string
-        let batchId: number
         if (lastBatch && lastBatch.messages.length < this.ai.batchSize) {
-            opType = color.green('(add)')
-            batchId = lastBatch.id
-            lastBatch.messages.push(...messages)
-        } else {
-            batchId = this.nextBatchId
-            opType = color.yellow('(new)')
+            const lastBatchFree = this.ai.batchSize - lastBatch.messages.length
+            const msgs = messages.slice(0, lastBatchFree)
+            opInfo.push(['(add)', lastBatch.id, msgs.length])
+            lastBatch.messages.push(...msgs)
+            messages = messages.slice(lastBatchFree)
+        }
+        if (messages.length > 0) {
+            opInfo.push([color.yellow('(new)'), this.nextBatchId, messages.length])
             this.batches.push({id: this.nextBatchId, messages})
             this.nextBatchId++
         }
-        this.log.info(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(messages.length)} messages`)
+        for (const [opType, batchId, msgsLen] of opInfo) {
+            this.log.info(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(msgsLen)} messages`)
+        }
         if (!this.running) {
             this.running = this.run()
         }
