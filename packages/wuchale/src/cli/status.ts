@@ -30,6 +30,16 @@ export async function status(config: Config, locales: string[]) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.logLevel))
         const {path: loaderPath, empty} = await handler.getLoaderPath()
         console.log(`${color.magenta(key)}:`)
+        if (loaderPath) {
+            console.log(`  Loader files:`)
+            for (const [side, path] of Object.entries(loaderPath)) {
+                console.log(`    ${color.cyan(side)}: ${color.cyan(path)}${empty[side] ? color.yellow(' (empty)') : ''}`)
+            }
+        } else {
+            console.warn(color.yellow('  No loader file found.'))
+            console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
+        }
+        const statsData: Record<string, {Total: number, Untranslated: number, Obsolete: number}> = {}
         for (const locale of locales) {
             let stats: POStats
             try {
@@ -43,21 +53,12 @@ export async function status(config: Config, locales: string[]) {
             }
             const {total, obsolete, untranslated} = stats
             const locName = getLanguageName(locale)
-            console.log([
-                `  ${locName}: ${color.cyan(`total: ${total}`)}`,
-                color.yellow(`untranslated: ${untranslated}`),
-                color.grey(`obsolete: ${obsolete}`),
-            ].join(', '))
-        }
-        if (loaderPath) {
-            console.log(`  Loader files:`)
-            for (const [side, path] of Object.entries(loaderPath)) {
-                console.log(`    ${color.cyan(side)}: ${color.cyan(path)}${empty[side] ? color.yellow(' (empty)') : ''}`)
+            statsData[locName] = {
+                Total: total,
+                Untranslated: untranslated,
+                Obsolete: obsolete,
             }
-            continue
-        } else {
-            console.warn(color.yellow('  No loader file found.'))
         }
-        console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
+        console.table(statsData)
     }
 }
