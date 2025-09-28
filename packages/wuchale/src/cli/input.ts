@@ -2,7 +2,7 @@
 // @ts-check
 
 import readline from 'readline'
-import { color, type Logger } from '../log.js'
+import { color } from '../log.js'
 
 export function setupInteractive() {
     readline.emitKeypressEvents(process.stdin)
@@ -11,24 +11,24 @@ export function setupInteractive() {
     }
 }
 
-export async function ask(choices: string[], question: string, logger: Logger): Promise<string> {
+export async function ask(choices: string[], question: string): Promise<string> {
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
     })
     if (question) {
-        logger.log(question)
+        console.log(question)
     }
     const data = {}
     for (const [i, c] of choices.entries()) {
         const key = i + 1
-        logger.log(`  ${color.cyan(key)}: ${c}`)
+        console.log(`  ${color.cyan(key)}: ${c}`)
         data[key] = c
     }
     process.stdout.write(` > ${color.grey('(enter to select the first one)\x1b[3G')}`)
     return new Promise((res, rej) => {
         const select = (choice: string) => {
-            logger.log(` \x1b[K${color.cyan(choice)} selected\r`)
+            console.log(` \x1b[K${color.cyan(choice)} selected\r`)
             res(choice)
         }
         const listener = (_: any, key: {name: string}) => {
@@ -50,8 +50,8 @@ export async function ask(choices: string[], question: string, logger: Logger): 
                         select(data[key.name])
                         return
                     }
-                    logger.warn(`Wrong key: ${color.cyan(key.name)}`)
-                    ask(choices, question, logger).then(res, rej)
+                    console.warn(`Wrong key: ${color.cyan(key.name)}`)
+                    ask(choices, question).then(res, rej)
             }
         }
         process.stdin.on('keypress', listener)

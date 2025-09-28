@@ -356,7 +356,7 @@ export class AdapterHandler {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            this.#log.log(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
+            this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
         }
     }
 
@@ -640,6 +640,12 @@ export class AdapterHandler {
             index: indexTracker,
             expr: this.#prepareRuntimeExpr(loadID),
         })
+        if (this.#log.checkLevel('verbose')) {
+            this.#log.verbose(`Extracted from ${filename}:`)
+            for (const msg of msgs) {
+                this.#log.verbose(`  ${msg.msgStr.join(', ')} (${msg.scope})`)
+            }
+        }
         const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
             const poFile = this.sharedState.poFilesByLoc[loc]
