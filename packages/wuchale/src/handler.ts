@@ -166,7 +166,7 @@ export class AdapterHandler {
             if (typeof this.#adapter.loaderPath === 'string') {
                 return [{
                     client: this.#adapter.loaderPath,
-                    ssr: this.#adapter.loaderPath,
+                    server: this.#adapter.loaderPath,
                 }]
             }
             return [this.#adapter.loaderPath]
@@ -180,15 +180,16 @@ export class AdapterHandler {
             }
             const pathClient = path + ext
             paths.push(
-                { client: pathClient, ssr: path + '.ssr' + ext},
-                { client: pathClient, ssr: pathClient },
+                { client: pathClient, server: path + '.server' + ext},
+                { client: pathClient, server: path + '.ssr' + ext},
+                { client: pathClient, server: pathClient },
             )
         }
         return paths
     }
 
     async getLoaderPath(): Promise<{ path: LoaderPath | null, empty: LoaderPathEmpty }> {
-        const empty: LoaderPathEmpty = {client: true, ssr: true}
+        const empty: LoaderPathEmpty = {client: true, server: true}
         for (const path of this.getLoaderPaths()) {
             let bothExist = true
             for (const side in empty) {
@@ -474,7 +475,7 @@ export class AdapterHandler {
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
-        const options = { ignore: [this.loaderPath.client, this.loaderPath.ssr] }
+        const options = { ignore: [this.loaderPath.client, this.loaderPath.server] }
         if (this.#adapter.writeFiles.proxy) {
             options.ignore.push(this.proxyPath)
         }
@@ -559,12 +560,12 @@ export class AdapterHandler {
         `
     }
 
-    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, ssr: boolean): string => {
+    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, forServer: boolean): string => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
         }
-        let loaderPath = relative(dirname(loaderRelTo), ssr ? this.loaderPath.ssr : this.loaderPath.client)
+        let loaderPath = relative(dirname(loaderRelTo), forServer ? this.loaderPath.server : this.loaderPath.client)
         if (platform === 'win32') {
             loaderPath = loaderPath.replaceAll('\\', '/')
         }
@@ -621,7 +622,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<TransformOutputCode> => {
+    transform = async (content: string, filename: string, hmrVersion = -1, forServer = false): Promise<TransformOutputCode> => {
         if (platform === 'win32') {
             filename = filename.replaceAll('\\', '/')
         }
@@ -758,7 +759,7 @@ export class AdapterHandler {
                     })
                 }
             }
-            output = result.output(this.#prepareHeader(filename, loadID, hmrData, ssr))
+            output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
         }
         await this.writeTransformed(filename, output.code ?? content)
         return output

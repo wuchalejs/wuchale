@@ -166,7 +166,7 @@ export type RuntimeConf = {
 
 export type LoaderPath = {
     client: string
-    ssr: string
+    server: string
 }
 
 export type AdapterPassThruOpts = {
