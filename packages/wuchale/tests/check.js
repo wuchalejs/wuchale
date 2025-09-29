@@ -33,7 +33,7 @@ export async function getOutput(adapter, key, content, filename, hmrVersion) {
         'prod',
         'virtual',
         process.cwd(),
-        new Logger(false),
+        new Logger('error'),
     )
     await handler.init({})
     const { code } = await handler.transform(content, filename, hmrVersion)

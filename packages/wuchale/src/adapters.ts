@@ -166,7 +166,7 @@ export type RuntimeConf = {
 
 export type LoaderPath = {
     client: string
-    ssr: string
+    server: string
 }
 
 export type AdapterPassThruOpts = {
@@ -197,7 +197,12 @@ export type Adapter = AdapterPassThruOpts & {
     docsUrl: string
 }
 
+export type CodePattern = {
+    name: string
+    args: ('message' | 'pluralFunc' | 'other')[]
+}
+
 export type AdapterArgs = Partial<AdapterPassThruOpts> & {
     heuristic?: HeuristicFunc
-    pluralsFunc?: string
+    patterns?: CodePattern[]
 }

@@ -11,6 +11,7 @@ import type {
     TransformOutput,
     RuntimeConf,
     CatalogExpr,
+    CodePattern,
 } from 'wuchale'
 import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
 import type { AnyNode } from 'acorn'
@@ -40,8 +41,8 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, pluralsFunc: string, catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, pluralsFunc, catalogExpr, rtConf)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
+        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf)
     }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({

@@ -2,11 +2,7 @@
 // $$ node %f
 
 import PO from 'pofile'
-import { color, type Logger } from './log.js'
-
-const baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
-const h = {'Content-Type': 'application/json'}
-const batchLimit = 50
+import { color, type Logger } from '../log.js'
 
 export type ItemType = InstanceType<typeof PO.Item>
 
@@ -15,42 +11,31 @@ type Batch = {
     messages: ItemType[]
 }
 
-interface GeminiRes {
-    error?: {
-        code: number,
-        message: string,
-    },
-    candidates?: {
-        content: {
-            parts: { text: string }[]
-        }
-    }[]
+export type AI = {
+    name: string
+    batchSize: number
+    translate: (messages: string, instruction: string) => Promise<string>
+    parallel: number
 }
 
 // implements a queue for a sequential translation useful for vite's transform during dev
 // as vite can do async transform
-export default class GeminiQueue {
+export default class AIQueue {
 
     batches: Batch[] = []
     nextBatchId: number = 0
     running: Promise<void> | null = null
     sourceLang: string
     targetLang: string
-    url: string
+    ai: AI
     instruction: string
     onComplete: () => Promise<void>
     log: Logger
 
-    constructor(sourceLang: string, targetLang: string, apiKey: string | null, onComplete: () => Promise<void>, log: Logger) {
-        if (apiKey === 'env') {
-            apiKey = process.env.GEMINI_API_KEY
-        }
-        if (!apiKey) {
-            return
-        }
+    constructor(sourceLang: string, targetLang: string, ai: AI, onComplete: () => Promise<void>, log: Logger) {
         this.sourceLang = sourceLang
         this.targetLang = targetLang
-        this.url = `${baseURL}${apiKey}`
+        this.ai = ai
         this.instruction = `
             You will be given the contents of a gettext .po file for a web app.
             Translate each of the items from ${this.sourceLang} to ${this.targetLang}.
@@ -69,30 +54,20 @@ export default class GeminiQueue {
         this.log = log
     }
 
-    #requestName = (id: number) => `${color.cyan('Gemini')}: ${this.targetLang} [${id}]`
+    #requestName = (id: number) => `${color.cyan(this.ai.name)}: ${this.targetLang} [${id}]`
 
-    prepareData(fragments: ItemType[]) {
-        const po = new PO()
-        po.items = fragments
-        return {
-            system_instruction: {
-                parts: [{ text: this.instruction }]
-            },
-            contents: [{parts: [{text: po.toString()}]}]
-        }
-    }
-
-    async translate(batch: Batch) {
-        const data = this.prepareData(batch.messages)
-        const res = await fetch(this.url, {method: 'POST', headers: h, body: JSON.stringify(data)})
-        const json: GeminiRes = await res.json()
+    translate = async (batch: Batch) => {
         const logStart = this.#requestName(batch.id)
-        if (json.error) {
-            this.log.log(`${logStart}: ${color.red(`error: ${json.error.code} ${json.error.message}`)}`)
+        let translated: ItemType[]
+        try {
+            const po = new PO()
+            po.items = batch.messages
+            const translatedstr = await this.ai.translate(po.toString(), this.instruction)
+            translated = PO.parse(translatedstr).items
+        } catch (err) {
+            this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
         }
-        const resText = json.candidates[0]?.content.parts[0].text
-        const translated = PO.parse(resText).items
         let unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             if (item.msgid !== batch.messages[i]?.msgid) {
@@ -106,40 +81,46 @@ export default class GeminiQueue {
             }
         }
         if (unTranslated.length) {
-            this.log.log(`${logStart}: ${unTranslated.length} ${color.yellow('items not translated. Retrying...')}`)
+            this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
             await this.translate({id: batch.id, messages: unTranslated})
         } else {
-            this.log.log(`${logStart}: ${color.green('translated')}`)
+            this.log.info(`${logStart}: ${color.green('translated')}`)
         }
     }
 
-    async run() {
+    run = async () => {
         while (this.batches.length > 0) {
-            const b = this.batches.pop()
-            await this.translate(b)
+            const allBatches: Batch[] = []
+            while (this.batches.length > 0 && allBatches.length < this.ai.parallel) {
+                allBatches.push(this.batches.pop())
+            }
+            await Promise.all(allBatches.map(this.translate))
         }
         await this.onComplete()
         this.running = null
     }
 
-    add(messages: ItemType[]) {
-        if (!this.url) {
+    add = (messages: ItemType[]) => {
+        if (!this.ai) {
             return
         }
+        const opInfo: [string, number, number][] = []
         const lastBatch = this.batches.at(-1)
-        let opType: string
-        let batchId: number
-        if (lastBatch && lastBatch.messages.length < batchLimit) {
-            opType = color.green('(add)')
-            batchId = lastBatch.id
-            lastBatch.messages.push(...messages)
-        } else {
-            batchId = this.nextBatchId
-            opType = color.yellow('(new)')
+        if (lastBatch && lastBatch.messages.length < this.ai.batchSize) {
+            const lastBatchFree = this.ai.batchSize - lastBatch.messages.length
+            const msgs = messages.slice(0, lastBatchFree)
+            opInfo.push(['(add)', lastBatch.id, msgs.length])
+            lastBatch.messages.push(...msgs)
+            messages = messages.slice(lastBatchFree)
+        }
+        if (messages.length > 0) {
+            opInfo.push([color.yellow('(new)'), this.nextBatchId, messages.length])
             this.batches.push({id: this.nextBatchId, messages})
             this.nextBatchId++
         }
-        this.log.log(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(messages.length)} messages`)
+        for (const [opType, batchId, msgsLen] of opInfo) {
+            this.log.info(`${this.#requestName(batchId)}: ${opType} translate ${color.cyan(msgsLen)} messages`)
+        }
         if (!this.running) {
             this.running = this.run()
         }

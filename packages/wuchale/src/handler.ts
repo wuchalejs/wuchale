@@ -5,7 +5,7 @@ import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
-import GeminiQueue, { type ItemType } from "./gemini.js"
+import AIQueue, { type ItemType } from "./ai/index.js"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
 import { type ConfigPartial, getLanguageName } from "./config.js"
@@ -145,7 +145,7 @@ export class AdapterHandler {
     catalogPathsToLocales: Record<string, string> = {}
 
     #mode: Mode
-    #geminiQueue: Record<string, GeminiQueue> = {}
+    #geminiQueue: Record<string, AIQueue> = {}
 
     #log: Logger
 
@@ -166,7 +166,7 @@ export class AdapterHandler {
             if (typeof this.#adapter.loaderPath === 'string') {
                 return [{
                     client: this.#adapter.loaderPath,
-                    ssr: this.#adapter.loaderPath,
+                    server: this.#adapter.loaderPath,
                 }]
             }
             return [this.#adapter.loaderPath]
@@ -180,15 +180,16 @@ export class AdapterHandler {
             }
             const pathClient = path + ext
             paths.push(
-                { client: pathClient, ssr: path + '.ssr' + ext},
-                { client: pathClient, ssr: pathClient },
+                { client: pathClient, server: path + '.server' + ext},
+                { client: pathClient, server: path + '.ssr' + ext},
+                { client: pathClient, server: pathClient },
             )
         }
         return paths
     }
 
     async getLoaderPath(): Promise<{ path: LoaderPath | null, empty: LoaderPathEmpty }> {
-        const empty: LoaderPathEmpty = {client: true, ssr: true}
+        const empty: LoaderPathEmpty = {client: true, server: true}
         for (const path of this.getLoaderPaths()) {
             let bothExist = true
             for (const side in empty) {
@@ -335,10 +336,10 @@ export class AdapterHandler {
             // for handleHotUpdate
             this.catalogPathsToLocales[this.#catalogsFname[loc]] = loc
             if (loc !== this.#config.sourceLocale) {
-                this.#geminiQueue[loc] = new GeminiQueue(
+                this.#geminiQueue[loc] = new AIQueue(
                     sourceLocaleName,
                     getLanguageName(loc),
-                    this.#config.geminiAPIKey,
+                    this.#config.ai,
                     async () => await this.savePoAndCompile(loc),
                     this.#log,
                 )
@@ -356,7 +357,7 @@ export class AdapterHandler {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            this.#log.log(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
+            this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
         }
     }
 
@@ -474,7 +475,7 @@ export class AdapterHandler {
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
-        const options = { ignore: [this.loaderPath.client, this.loaderPath.ssr] }
+        const options = { ignore: [this.loaderPath.client, this.loaderPath.server] }
         if (this.#adapter.writeFiles.proxy) {
             options.ignore.push(this.proxyPath)
         }
@@ -559,12 +560,12 @@ export class AdapterHandler {
         `
     }
 
-    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, ssr: boolean): string => {
+    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, forServer: boolean): string => {
         let loaderRelTo = filename
         if (this.#adapter.writeFiles.transformed) {
             loaderRelTo = resolve(this.outDir + '/' + filename)
         }
-        let loaderPath = relative(dirname(loaderRelTo), ssr ? this.loaderPath.ssr : this.loaderPath.client)
+        let loaderPath = relative(dirname(loaderRelTo), forServer ? this.loaderPath.server : this.loaderPath.client)
         if (platform === 'win32') {
             loaderPath = loaderPath.replaceAll('\\', '/')
         }
@@ -621,7 +622,7 @@ export class AdapterHandler {
         }
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1, ssr = false): Promise<TransformOutputCode> => {
+    transform = async (content: string, filename: string, hmrVersion = -1, forServer = false): Promise<TransformOutputCode> => {
         if (platform === 'win32') {
             filename = filename.replaceAll('\\', '/')
         }
@@ -640,6 +641,12 @@ export class AdapterHandler {
             index: indexTracker,
             expr: this.#prepareRuntimeExpr(loadID),
         })
+        if (this.#log.checkLevel('verbose')) {
+            this.#log.verbose(`Extracted from ${filename}:`)
+            for (const msg of msgs) {
+                this.#log.verbose(`  ${msg.msgStr.join(', ')} (${msg.scope})`)
+            }
+        }
         const hmrKeys: Record<string, string[]> = {}
         for (const loc of this.#locales) {
             const poFile = this.sharedState.poFilesByLoc[loc]
@@ -731,7 +738,7 @@ export class AdapterHandler {
                 }
                 continue
             }
-            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.url) {
+            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.ai) {
                 if (newItems || newRefs || commentsChanged) {
                     await this.savePoAndCompile(loc)
                 }
@@ -752,7 +759,7 @@ export class AdapterHandler {
                     })
                 }
             }
-            output = result.output(this.#prepareHeader(filename, loadID, hmrData, ssr))
+            output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
         }
         await this.writeTransformed(filename, output.code ?? content)
         return output

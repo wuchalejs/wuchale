@@ -1,11 +1,15 @@
 import { resolve } from "node:path"
 import { type Adapter } from "./adapters.js"
+import type { AI } from "./ai/index.js"
+import { defaultGemini } from "./ai/gemini.js"
+
+export type LogLevel = 'error' | 'warn' | 'info' | 'verbose'
 
 export type ConfigPartial = {
     sourceLocale?: string
     otherLocales?: string[]
-    geminiAPIKey?: string,
-    messages?: boolean,
+    ai?: AI
+    logLevel?: LogLevel
 }
 
 export type Config = ConfigPartial & {
@@ -18,8 +22,8 @@ export const defaultConfig: Config = {
     otherLocales: [],
     adapters: {},
     hmr: true,
-    geminiAPIKey: 'env',
-    messages: true,
+    ai: defaultGemini,
+    logLevel: 'info',
 }
 
 function deepAssign<Type>(fromObj: Type, toObj: Type) {

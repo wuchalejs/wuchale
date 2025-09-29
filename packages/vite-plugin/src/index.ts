@@ -46,7 +46,7 @@ class Wuchale {
     #init = async (mode: Mode) => {
         this.#config = await getConfig(this.#configPath)
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
-        this.#log = new Logger(this.#config.messages)
+        this.#log = new Logger(this.#config.logLevel)
         if (Object.keys(this.#config.adapters).length === 0) {
             throw Error('At least one adapter is needed.')
         }
