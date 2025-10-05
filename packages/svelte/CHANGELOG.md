@@ -1,5 +1,71 @@
 # @wuchale/svelte
 
+## 0.16.0
+
+### Minor Changes
+
+- 0b5c207: Svelte: auto wrap variable declarations by `$derived` as needed instead of requiring it in the code
+- d531bcc: Add support for multiple custom patterns to support full l10n
+
+  For example, if you want to use [`Intl.MessageFormat`](https://formatjs.github.io/docs/intl-messageformat/) for everything it supports including plurals, you add a signature pattern for a utility function in the config:
+
+  ```js
+  // ...
+  adapters: js({
+    patterns: [
+      {
+        name: "formatMsg",
+        args: ["message", "other"],
+      },
+    ],
+  });
+  //...
+  ```
+
+  Then you create your reusable utility function with that name:
+
+  ```js
+  // where you get the locale
+  let locale = "en";
+
+  export function formatMsg(msg, args) {
+    return new IntlMessageFormat(msg, locale).format(args);
+  }
+  ```
+
+  And use it anywhere:
+
+  ```js
+  const msg = formatMsg(
+    `{numPhotos, plural,
+        =0 {You have no photos.}
+        =1 {You have one photo.}
+        other {You have # photos.}
+      }`,
+    { numPhotos: 1000 }
+  );
+  ```
+
+  Then wuchale will extract and transform it into:
+
+  ```js
+  const msg = formatMsg(_w_runtime_.t(0), { numPhotos: 1000 });
+  ```
+
+### Patch Changes
+
+- 15cf377: Pass whole message to heuristic function, with context
+- 16b116c: Customizable log levels, add verbose level where all extracted messages are shown
+- Updated dependencies [5a221a2]
+- Updated dependencies [15cf377]
+- Updated dependencies [0b5c207]
+- Updated dependencies [16b116c]
+- Updated dependencies [22198c1]
+- Updated dependencies [6d0a4d3]
+- Updated dependencies [d531bcc]
+- Updated dependencies [9f997c2]
+  - wuchale@0.17.0
+
 ## 0.15.1
 
 ### Patch Changes

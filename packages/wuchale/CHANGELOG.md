@@ -1,5 +1,102 @@
 # wuchale
 
+## 0.17.0
+
+### Minor Changes
+
+- 5a221a2: Expose interface to make AI translator customizable
+
+  You can now use a custom translator model other than Gemini by supplying the info in the config:
+
+  ```js
+  export default {
+    //...
+    ai: {
+      name: "ChatGPT", // e.g.
+      batchSize: 50,
+      parallel: 10,
+      translate: (content, instruction) => {
+        // logic
+        return translatedContent;
+      },
+    },
+    //...
+  };
+  ```
+
+  Gemini is still the default, but now it's separated out and was made customizable:
+
+  ```js
+  import { gemini } from "wuchale";
+
+  export default {
+    //...
+    ai: gemini({
+      batchSize: 40,
+      parallel: 5,
+      think: true, // default: false
+    }),
+    //...
+  };
+  ```
+
+- 15cf377: Pass whole message to heuristic function, with context
+- 0b5c207: Svelte: auto wrap variable declarations by `$derived` as needed instead of requiring it in the code
+- 16b116c: Customizable log levels, add verbose level where all extracted messages are shown
+- 22198c1: Redesign status command output with tables
+- d531bcc: Add support for multiple custom patterns to support full l10n
+
+  For example, if you want to use [`Intl.MessageFormat`](https://formatjs.github.io/docs/intl-messageformat/) for everything it supports including plurals, you add a signature pattern for a utility function in the config:
+
+  ```js
+  // ...
+  adapters: js({
+    patterns: [
+      {
+        name: "formatMsg",
+        args: ["message", "other"],
+      },
+    ],
+  });
+  //...
+  ```
+
+  Then you create your reusable utility function with that name:
+
+  ```js
+  // where you get the locale
+  let locale = "en";
+
+  export function formatMsg(msg, args) {
+    return new IntlMessageFormat(msg, locale).format(args);
+  }
+  ```
+
+  And use it anywhere:
+
+  ```js
+  const msg = formatMsg(
+    `{numPhotos, plural,
+        =0 {You have no photos.}
+        =1 {You have one photo.}
+        other {You have # photos.}
+      }`,
+    { numPhotos: 1000 }
+  );
+  ```
+
+  Then wuchale will extract and transform it into:
+
+  ```js
+  const msg = formatMsg(_w_runtime_.t(0), { numPhotos: 1000 });
+  ```
+
+- 9f997c2: Add `--sync` flag for the CLI command to process files sequentially
+
+### Patch Changes
+
+- 6d0a4d3: Make `wuchale --clean` idempotent and write once at the end
+
 ## 0.16.5
 
 ### Patch Changes

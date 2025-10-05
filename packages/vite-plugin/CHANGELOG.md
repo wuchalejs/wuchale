@@ -1,5 +1,20 @@
 # @wuchale/vite-plugin
 
+## 0.14.7
+
+### Patch Changes
+
+- 16b116c: Customizable log levels, add verbose level where all extracted messages are shown
+- Updated dependencies [5a221a2]
+- Updated dependencies [15cf377]
+- Updated dependencies [0b5c207]
+- Updated dependencies [16b116c]
+- Updated dependencies [22198c1]
+- Updated dependencies [6d0a4d3]
+- Updated dependencies [d531bcc]
+- Updated dependencies [9f997c2]
+  - wuchale@0.17.0
+
 ## 0.14.6
 
 ### Patch Changes
