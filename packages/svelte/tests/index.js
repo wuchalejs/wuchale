@@ -37,9 +37,9 @@ test('Simple text', async function(t) {
 
 test('JS module files', async function(t) {
     await testContent(t, javascript`
-        const varName = 'No extraction' // simple assignment
-        'Not translation!' // simple expression
-        const noExtract = call('Foo')
+        const varName = 'Simple bare assign'
+        'No translation!' // simple expression
+        const alreadyDerived = $derived(call('Foo'))
         noExtract('Foo')
         const msg = $derived('Hello')
 
@@ -52,19 +52,27 @@ test('JS module files', async function(t) {
         import _w_load_rx_,{get as _w_load_} from "./tests/test-tmp/loader.svelte.js"
         const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 
-        const varName = 'No extraction' // simple assignment
-        'Not translation!' // simple expression
-        const noExtract = call('Foo')
+        const varName = $derived(_w_runtime_.t(0))
+        'No translation!' // simple expression
+        const alreadyDerived = $derived(call(_w_runtime_.t(1)))
         noExtract('Foo')
-        const msg = $derived(_w_runtime_.t(0))
+        const msg = $derived(_w_runtime_.t(2))
 
         function foo() {
             const _w_runtime_ = _w_to_rt_(_w_load_('svelte'))
-            return _w_runtime_.t(1)
+            return _w_runtime_.t(3)
         }
     `, `
         msgid ""
         msgstr ""
+
+        #: test.svelte.js
+        msgid "Simple bare assign"
+        msgstr "Simple bare assign"
+
+        #: test.svelte.js
+        msgid "Foo"
+        msgstr "Foo"
 
         #: test.svelte.js
         msgid "Hello"
@@ -73,7 +81,7 @@ test('JS module files', async function(t) {
         #: test.svelte.js
         msgid "Should extract"
         msgstr "Should extract"
-    `, ['Hello', 'Should extract'], 'test.svelte.js')
+    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], 'test.svelte.js')
 })
 
 test('Simple element with new lines', async function(t) {

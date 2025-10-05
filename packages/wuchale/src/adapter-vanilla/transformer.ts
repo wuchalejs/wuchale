@@ -357,36 +357,33 @@ export class Transformer {
         return `[${callee.type}]`
     }
 
-    visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] => {
-        const msgs = []
+    defaultVisitVariableDeclarator = (node: Estree.VariableDeclarator): Message[] => {
         let atTopLevelDefn = this.insideProgram && !this.declaring
-        for (const dec of node.declarations) {
-            if (!dec.init) {
-                continue
-            }
-            msgs.push(...this.visit(dec.id))
-            if (atTopLevelDefn) {
-                if (dec.init.type === 'ArrowFunctionExpression' || dec.init.type === 'FunctionExpression') {
-                    this.declaring = 'function'
-                } else {
-                    this.declaring = 'variable'
-                    if (dec.init.type === 'CallExpression') {
-                        this.currentTopLevelCall = this.getCalleeName(dec.init.callee)
-                    }
+        if (!node.init) {
+            return []
+        }
+        if (atTopLevelDefn) {
+            if (node.init.type === 'ArrowFunctionExpression' || node.init.type === 'FunctionExpression') {
+                this.declaring = 'function'
+            } else {
+                this.declaring = 'variable'
+                if (node.init.type === 'CallExpression') {
+                    this.currentTopLevelCall = this.getCalleeName(node.init.callee)
                 }
             }
-            const decVisit = this.visit(dec.init)
-            if (!decVisit.length) {
-                continue
-            }
-            msgs.push(...decVisit)
         }
+        const msgs = [...this.visit(node.id), ...this.visit(node.init)]
         if (atTopLevelDefn) {
             this.currentTopLevelCall = null // reset
             this.declaring = null
         }
         return msgs
     }
+
+    // for e.g. svelte to surrounded with $derived
+    visitVariableDeclarator = this.defaultVisitVariableDeclarator
+
+    visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] => node.declarations.map(this.visitVariableDeclarator).flat()
 
     visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] => node.declaration ? this.visit(node.declaration) : []
 
