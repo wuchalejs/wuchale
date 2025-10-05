@@ -36,7 +36,7 @@ function deepAssign<Type>(fromObj: Type, toObj: Type) {
             continue
         }
         // objects
-        if (!toObj[key]) {
+        if (!toObj[key] || Array.isArray(toObj[key]) || typeof toObj[key] !== 'object') {
             toObj[key] = {}
         }
         deepAssign(fromObj[key], toObj[key])

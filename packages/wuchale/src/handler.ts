@@ -648,12 +648,12 @@ export class AdapterHandler {
         })
         if (this.#log.checkLevel('verbose')) {
             if (msgs.length) {
-                this.#log.verbose(`Extracted ${msgs.length} messages from ${filename}:`)
+                this.#log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
                 for (const msg of msgs) {
                     this.#log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
                 }
             } else {
-                this.#log.verbose(`No messages extracted from ${filename}.`)
+                this.#log.verbose(`${this.key}: No messages from ${filename}.`)
             }
         }
         const hmrKeys: Record<string, string[]> = {}
