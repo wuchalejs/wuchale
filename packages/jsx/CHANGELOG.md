@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.8.1
+
+### Patch Changes
+
+- 8e2611d: Export and document all default heuristic functions
+- Updated dependencies [6a9b651]
+- Updated dependencies [8e2611d]
+  - wuchale@0.17.1
+
 ## 0.8.0
 
 ### Minor Changes

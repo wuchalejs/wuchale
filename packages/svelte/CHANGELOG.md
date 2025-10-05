@@ -1,5 +1,15 @@
 # @wuchale/svelte
 
+## 0.16.1
+
+### Patch Changes
+
+- 8e2611d: Export and document all default heuristic functions
+- 088c748: Fix errors when exporting snippets with messages
+- Updated dependencies [6a9b651]
+- Updated dependencies [8e2611d]
+  - wuchale@0.17.1
+
 ## 0.16.0
 
 ### Minor Changes
