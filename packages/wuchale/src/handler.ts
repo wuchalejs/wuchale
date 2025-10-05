@@ -506,7 +506,7 @@ export class AdapterHandler {
         return [patterns, options]
     }
 
-    savePoAndCompile = async (loc: string) => {
+    savePO = async (loc: string) => {
         const poFile = this.sharedState.poFilesByLoc[loc]
         const fullHead = { ...poFile.headers ?? {} }
         const updateHeaders = [
@@ -531,11 +531,16 @@ export class AdapterHandler {
                 fullHead[key] = val
             }
         }
-        this.onBeforeWritePO?.()
         await saveCatalogToPO(poFile.catalog, this.#catalogsFname[loc], fullHead)
-        if (this.#mode !== 'extract') { // save for the end
-            await this.compile(loc)
+    }
+
+    savePoAndCompile = async (loc: string) => {
+        this.onBeforeWritePO?.()
+        if (this.#mode === 'extract') { // save for the end
+            return
         }
+        await this.savePO(loc)
+        await this.compile(loc)
     }
 
     #putImportSpec = (varName: string | null, alias: string, importsFuncs: string[]) => {
@@ -704,6 +709,7 @@ export class AdapterHandler {
                 } else {
                     iStartComm = poItem.references.length * newComments.length
                     poItem.references.push(filename)
+                    poItem.references.sort() // make it deterministic
                     newRefs = true // now it references it
                 }
                 if (newComments.length) {
