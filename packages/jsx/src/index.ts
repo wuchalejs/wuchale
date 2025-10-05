@@ -10,14 +10,14 @@ import type {
 import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
-const jsxHeuristic: HeuristicFunc = (msgStr, details) => {
-    if (!defaultHeuristic(msgStr, details)) {
+const jsxHeuristic: HeuristicFunc = msg => {
+    if (!defaultHeuristic(msg)) {
         return false
     }
-    if (details.scope !== 'script') {
+    if (msg.details.scope !== 'script') {
         return true
     }
-    if (details.declaring === 'variable') {
+    if (msg.details.declaring === 'variable') {
         return false
     }
     return true

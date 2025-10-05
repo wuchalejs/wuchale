@@ -71,6 +71,7 @@ export class JSXTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitJSXExpressionContainer,
+        fullHeuristicDetails: this.fullHeuristicDetails,
         checkHeuristic: this.checkHeuristicBool,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {

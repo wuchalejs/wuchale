@@ -128,25 +128,30 @@ export class Transformer {
         }
     }
 
-    checkHeuristicBool: HeuristicFunc<HeuristicDetailsBase> = (msgStr, detailsBase): boolean => {
+    fullHeuristicDetails = (detailsBase: HeuristicDetailsBase): HeuristicDetails => {
+        const details: HeuristicDetails = {
+            file: this.filename,
+            call: this.currentCall,
+            declaring: this.declaring,
+            funcName: this.currentFuncDef,
+            topLevelCall: this.currentTopLevelCall,
+            ...detailsBase
+        }
+        if (details.declaring == null && this.insideProgram) {
+            details.declaring = 'expression'
+        }
+        return details
+    }
+
+    checkHeuristicBool = (msg: Message) => {
+        const msgStr = msg.msgStr.join('\n')
         if (!msgStr) {
             // nothing to ask
             return false
         }
         let extract = this.commentDirectives.forceInclude
         if (extract == null) {
-            const details: HeuristicDetails = {
-                file: this.filename,
-                call: this.currentCall,
-                declaring: this.declaring,
-                funcName: this.currentFuncDef,
-                topLevelCall: this.currentTopLevelCall,
-                ...detailsBase,
-            }
-            if (details.declaring == null && this.insideProgram) {
-                details.declaring = 'expression'
-            }
-            extract = this.heuristic(msgStr, details) ?? defaultHeuristicFuncOnly(msgStr, details) ?? true
+            extract = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? true
         }
         return extract
     }
@@ -156,8 +161,8 @@ export class Transformer {
             // nothing to ask
             return [false, null]
         }
-        let extract = this.checkHeuristicBool(msgStr, detailsBase)
-        return [extract, new Message(msgStr, detailsBase.scope, this.commentDirectives.context)]
+        const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
+        return [this.checkHeuristicBool(msg), msg]
     }
 
     visitLiteral = (node: Estree.Literal & { start: number; end: number }): Message[] => {
@@ -254,7 +259,7 @@ export class Transformer {
                 if (typeof argVal.value !== 'string') {
                     return this.defaultVisitCallExpression(node)
                 }
-                const msgInfo = new Message(argVal.value, 'script', this.commentDirectives.context)
+                const msgInfo = new Message(argVal.value, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
                 this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
                 msgs.push(msgInfo)
                 continue
@@ -270,7 +275,7 @@ export class Transformer {
                 candidates.push(elm.value)
             }
             // plural(num, ['Form one', 'Form two'])
-            const msgInfo = new Message(candidates, 'script', this.commentDirectives.context)
+            const msgInfo = new Message(candidates, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
             msgInfo.plural = true
             const index = this.index.get(msgInfo.toKey())
             msgs.push(msgInfo)
@@ -514,7 +519,7 @@ export class Transformer {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const msgInfo = new Message(msgStr, 'script', this.commentDirectives.context)
+        const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
         msgInfo.comments = comments
         let begin = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
         let end = ')'

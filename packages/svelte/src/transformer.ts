@@ -75,6 +75,7 @@ export class SvelteTransformer extends Transformer {
             return childTxts
         },
         visitExpressionTag: this.visitExpressionTag,
+        fullHeuristicDetails: this.fullHeuristicDetails,
         checkHeuristic: this.checkHeuristicBool,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
