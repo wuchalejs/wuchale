@@ -169,6 +169,42 @@ test('Ignore file', async function(t) {
     `, [])
 })
 
+test('Exported snippet', async function(t) {
+    await testContent(t, svelte`
+        <script module>
+            export {foo}
+        </script>
+
+        {#snippet foo()}
+            <div>Hello</div>
+        {/snippet}
+    `, svelte`
+        <script module>
+            import _w_to_rt_ from 'wuchale/runtime'
+            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_mod_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            export {foo}
+        </script>
+
+        <script>
+            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+        </script>
+
+        {#snippet foo()}
+            <div>{_w_runtime_mod_.t(0)}</div>
+        {/snippet}
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: test-tmp/test.svelte
+    msgid "Hello"
+    msgstr "Hello"
+    `, ['Hello'])
+})
+
+
 test('Context', async function(t) {
     await testContent(t,
         svelte`

@@ -29,6 +29,7 @@ export class SvelteTransformer extends Transformer {
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
+    hasModuleScript: boolean = false // to choose which runtime var to use for snippets
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
@@ -190,7 +191,16 @@ export class SvelteTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitSnippetBlock = (node: AST.SnippetBlock): Message[] => this.visitFragment(node.body)
+    visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
+        // use module runtime var because the snippet may be exported from the module
+        const prevRtVar = this.currentRtVar
+        if (this.hasModuleScript) {
+            this.currentRtVar = rtModuleVar
+        }
+        const msgs = this.visitFragment(node.body)
+        this.currentRtVar = prevRtVar
+        return msgs
+    }
 
     visitIfBlock = (node: AST.IfBlock): Message[] => {
         const msgs = this.visit(node.test as AnyNode)
@@ -255,7 +265,6 @@ export class SvelteTransformer extends Transformer {
 
     visitRoot = (node: AST.Root): Message[] => {
         const msgs: Message[] = []
-        // @ts-ignore: module is a reserved keyword, not sure how to specify the type
         if (node.module) {
             const prevRtVar = this.currentRtVar
             this.currentRtVar = rtModuleVar
@@ -321,6 +330,7 @@ export class SvelteTransformer extends Transformer {
         }
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
+        this.hasModuleScript = ast.type === 'Root' && ast.module != null
         const msgs = this.visitSv(ast)
         const initRuntime = this.initRuntime(this.filename, null, null, {})
         if (ast.type === 'Program') {
@@ -330,7 +340,7 @@ export class SvelteTransformer extends Transformer {
         }
         let headerIndex = 0
         if (ast.module) {
-            // @ts-ignore
+            // @ts-expect-error
             headerIndex = this.getRealBodyStart(ast.module.content.body) ?? ast.module.content.start
         }
         if (ast.instance) {
