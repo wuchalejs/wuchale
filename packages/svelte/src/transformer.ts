@@ -43,14 +43,16 @@ export class SvelteTransformer extends Transformer {
         if (!msgs.length || this.declaring != null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(node.init.type)) {
             return msgs
         }
-        const alreadyDerived = node.init.type === 'CallExpression' && (
-            node.init.callee.type === 'Identifier'
-                && node.init.callee.name === '$derived'
-            || node.init.callee.type === 'MemberExpression'
-                    && node.init.callee.object.type === 'Identifier'
-                    && node.init.callee.object.name === '$derived'
-        )
-        if (!alreadyDerived) {
+        const needsWrapping = msgs.some(msg => {
+            if (['$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+                return false
+            }
+            if (msg.details.declaring !== 'variable') {
+                return false
+            }
+            return true
+        })
+        if (needsWrapping) {
             this.mstr.appendLeft(node.init.start, '$derived(')
             this.mstr.appendRight(node.init.end, ')')
         }
