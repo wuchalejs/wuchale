@@ -22,58 +22,15 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
-export type HeuristicFunc<T = HeuristicDetails> = (msgStr: string, details: T) => boolean | null | undefined
-
-const ignoreElements = ['style', 'path', 'code', 'pre']
-const ignoreAttribs = [['form', 'method']]
-
-export function defaultHeuristic(msgStr: string, details: HeuristicDetails) {
-    if (msgStr.search(/\p{L}/u) === -1) {
-        return false
-    }
-    if (details.element && ignoreElements.includes(details.element)) {
-        return false
-    }
-    if (details.scope === 'attribute') {
-        for (const [element, attrib] of ignoreAttribs) {
-            if (details.element === element && details.attribute === attrib) {
-                return false
-            }
-        }
-    }
-    if (details.scope === 'markup') {
-        return true
-    }
-    // script and attribute
-    // only allow non lower-case English letter beginnings
-    if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
-        return false
-    }
-    if (details.scope !== 'script') {
-        return true
-    }
-    if (details.declaring === 'expression' && !details.funcName) {
-        return false
-    }
-    return !details.call?.startsWith('console.') && details.call !== 'fetch'
-}
-
-// only allow inside function definitions for script scope
-export const defaultHeuristicFuncOnly: HeuristicFunc = (msgStr, details) => {
-    return defaultHeuristic(msgStr, details) && (details.scope !== 'script' || details.funcName != null)
-}
-
-export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
-
 export class Message {
 
     msgStr: string[] // array for plurals
     plural: boolean = false
-    scope: TxtScope
     context: string
     comments: string[] = []
+    details: HeuristicDetails
 
-    constructor(msgStr: string | string[], scope: TxtScope, context: string | null) {
+    constructor(msgStr: string | string[], heuristicDetails: HeuristicDetails, context: string | null) {
         if (typeof msgStr === 'string') {
             this.msgStr = [msgStr]
         } else {
@@ -82,13 +39,57 @@ export class Message {
         this.msgStr = this.msgStr.map(
             msg => msg.split('\n').map(line => line.trim()).join('\n')
         )
-        this.scope = scope
+        this.details = heuristicDetails
         this.context = context ?? null
     }
 
     toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
 
 }
+
+export type HeuristicFunc = (msg: Message) => boolean | null | undefined
+
+const ignoreElements = ['style', 'path', 'code', 'pre']
+const ignoreAttribs = [['form', 'method']]
+
+export function defaultHeuristic(msg: Message) {
+    const msgStr = msg.msgStr.join('\n')
+    if (msgStr.search(/\p{L}/u) === -1) {
+        return false
+    }
+    if (msg.details.element && ignoreElements.includes(msg.details.element)) {
+        return false
+    }
+    if (msg.details.scope === 'attribute') {
+        for (const [element, attrib] of ignoreAttribs) {
+            if (msg.details.element === element && msg.details.attribute === attrib) {
+                return false
+            }
+        }
+    }
+    if (msg.details.scope === 'markup') {
+        return true
+    }
+    // script and attribute
+    // only allow non lower-case English letter beginnings
+    if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
+        return false
+    }
+    if (msg.details.scope !== 'script') {
+        return true
+    }
+    if (msg.details.declaring === 'expression' && !msg.details.funcName) {
+        return false
+    }
+    return !msg.details.call?.startsWith('console.') && msg.details.call !== 'fetch'
+}
+
+// only allow inside function definitions for script scope
+export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
+    return defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)
+}
+
+export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
 
 export class IndexTracker {
 

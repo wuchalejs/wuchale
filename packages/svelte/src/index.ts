@@ -10,14 +10,14 @@ import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
-const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
-    if (!defaultHeuristic(msgStr, details)) {
+const svelteHeuristic: HeuristicFunc = msg => {
+    if (!defaultHeuristic(msg)) {
         return false
     }
-    if (details.scope !== 'script') {
+    if (msg.details.scope !== 'script') {
         return true
     }
-    if (details.call === '$inspect') {
+    if (msg.details.call === '$inspect') {
         return false
     }
     return true

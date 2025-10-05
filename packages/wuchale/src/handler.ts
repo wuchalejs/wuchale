@@ -647,9 +647,13 @@ export class AdapterHandler {
             expr: this.#prepareRuntimeExpr(loadID),
         })
         if (this.#log.checkLevel('verbose')) {
-            this.#log.verbose(`Extracted from ${filename}:`)
-            for (const msg of msgs) {
-                this.#log.verbose(`  ${msg.msgStr.join(', ')} (${msg.scope})`)
+            if (msgs.length) {
+                this.#log.verbose(`Extracted ${msgs.length} messages from ${filename}:`)
+                for (const msg of msgs) {
+                    this.#log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
+                }
+            } else {
+                this.#log.verbose(`No messages extracted from ${filename}.`)
             }
         }
         const hmrKeys: Record<string, string[]> = {}

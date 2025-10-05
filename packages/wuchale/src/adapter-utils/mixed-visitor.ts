@@ -1,7 +1,7 @@
 // Shared logic between adapters for handling nested / mixed elements within elements / fragments
 
 import type MagicString from "magic-string"
-import { IndexTracker, Message, type HeuristicDetailsBase, type HeuristicFunc } from "../adapters.js"
+import { IndexTracker, Message, type HeuristicDetails, type HeuristicDetailsBase, type HeuristicFunc } from "../adapters.js"
 import { commentPrefix, nonWhitespaceText, type RuntimeVars, type CommentDirectives } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
@@ -18,7 +18,8 @@ type InitProps<NodeT> = {
     getCommentData: (node: NodeT) => string
     visitFunc: (node: NodeT, inCompoundText: boolean) => Message[]
     visitExpressionTag: (node: NodeT) => Message[]
-    checkHeuristic: HeuristicFunc<HeuristicDetailsBase>
+    fullHeuristicDetails: (details: HeuristicDetailsBase) => HeuristicDetails
+    checkHeuristic: HeuristicFunc
     wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
     index: IndexTracker
 }
@@ -66,11 +67,12 @@ export class MixedVisitor<NodeT> {
             }
         }
         heurStr = heurStr.trimEnd()
-        const passHeuristic = this.checkHeuristic(heurStr, {
+        const msg = new Message(heurStr, this.fullHeuristicDetails({
             scope: props.scope,
             element: props.element,
             attribute: props.attribute,
-        })
+        }), null)
+        const passHeuristic = this.checkHeuristic(msg)
         let hasCompoundText = hasTextChild && hasNonTextChild
         const visitAsOne = passHeuristic && !hasCommentDirectives
         if (props.inCompoundText || hasCompoundText && visitAsOne) {
@@ -109,7 +111,7 @@ export class MixedVisitor<NodeT> {
             const chRange = this.getRange(child)
             if (this.isText(child)) {
                 const [startWh, trimmed, endWh] = nonWhitespaceText(this.getTextContent(child))
-                const msgInfo = new Message(trimmed, props.scope, props.commentDirectives.context)
+                const msgInfo = new Message(trimmed, this.fullHeuristicDetails({scope: props.scope}), props.commentDirectives.context)
                 if (startWh && !msgStr.endsWith(' ')) {
                     msgStr += ' '
                 }
@@ -149,7 +151,7 @@ export class MixedVisitor<NodeT> {
             let nestedNeedsCtx = false
             let chTxt = ''
             for (const msgInfo of childMsgs) {
-                if (canHaveChildren && msgInfo.scope === props.scope) {
+                if (canHaveChildren && msgInfo.details.scope === props.scope) {
                     chTxt += msgInfo.msgStr[0]
                     hasTextDescendants = true
                     nestedNeedsCtx = true
@@ -171,7 +173,7 @@ export class MixedVisitor<NodeT> {
         if (!msgStr) {
             return msgs
         }
-        const msgInfo = new Message(msgStr, props.scope, props.commentDirectives.context)
+        const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: props.scope}), props.commentDirectives.context)
         msgInfo.comments = comments
         if (hasTextChild || hasTextDescendants) {
             msgs.push(msgInfo)
