@@ -264,6 +264,10 @@ export class Transformer {
                 msgs.push(msgInfo)
                 continue
             }
+            if (argVal.type === 'TemplateLiteral') {
+                msgs.push(...this.visitTemplateLiteral(argVal, true))
+                continue
+            }
             if (argVal.type !== 'ArrayExpression') {
                 return this.defaultVisitCallExpression(node)
             }
@@ -486,18 +490,20 @@ export class Transformer {
         return msgs
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral): Message[] => {
-        let heurTxt = ''
-        for (const quasi of node.quasis) {
-            heurTxt += quasi.value.cooked ?? ''
-            if (!quasi.tail) {
-                heurTxt += '#'
+    visitTemplateLiteral = (node: Estree.TemplateLiteral, ignoreHeuristic = false): Message[] => {
+        if (!ignoreHeuristic) {
+            let heurTxt = ''
+            for (const quasi of node.quasis) {
+                heurTxt += quasi.value.cooked ?? ''
+                if (!quasi.tail) {
+                    heurTxt += '#'
+                }
             }
-        }
-        heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
-        if (!pass) {
-            return node.expressions.map(this.visit).flat()
+            heurTxt = heurTxt.trim()
+            const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
+            if (!pass) {
+                return node.expressions.map(this.visit).flat()
+            }
         }
         const msgs = []
         const quasi0 = node.quasis[0]
