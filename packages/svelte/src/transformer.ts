@@ -1,5 +1,5 @@
 import MagicString from "magic-string"
-import type { Program, AnyNode } from "acorn"
+import type { Program, AnyNode, VariableDeclarator } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
@@ -37,6 +37,25 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
+
+    visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
+        const msgs = this.defaultVisitVariableDeclarator(node)
+        if (!msgs.length || this.declaring != null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(node.init.type)) {
+            return msgs
+        }
+        const alreadyDerived = node.init.type === 'CallExpression' && (
+            node.init.callee.type === 'Identifier'
+                && node.init.callee.name === '$derived'
+            || node.init.callee.type === 'MemberExpression'
+                    && node.init.callee.object.type === 'Identifier'
+                    && node.init.callee.object.name === '$derived'
+        )
+        if (!alreadyDerived) {
+            this.mstr.appendLeft(node.init.start, '$derived(')
+            this.mstr.appendRight(node.init.end, ')')
+        }
+        return msgs
+    }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
         mstr: this.mstr,

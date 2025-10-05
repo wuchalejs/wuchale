@@ -10,17 +10,12 @@ import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
-const topLevelDeclarationsInside = ['$derived', '$derived.by']
-
 const svelteHeuristic: HeuristicFunc = (msgStr, details) => {
     if (!defaultHeuristic(msgStr, details)) {
         return false
     }
     if (details.scope !== 'script') {
         return true
-    }
-    if (details.declaring === 'variable' && !topLevelDeclarationsInside.includes(details.topLevelCall)) {
-        return false
     }
     if (details.call === '$inspect') {
         return false
