@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.17.2
+
+### Patch Changes
+
+- 51778eb: Fix patterns not working for template literals
+
 ## 0.17.1
 
 ### Patch Changes
