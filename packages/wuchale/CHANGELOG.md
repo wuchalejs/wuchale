@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.17.1
+
+### Patch Changes
+
+- 6a9b651: Fix config with `files: {include: ..., ignore: ...}` not working, and improve verbose output
+- 8e2611d: Export and document all default heuristic functions
+
 ## 0.17.0
 
 ### Minor Changes
