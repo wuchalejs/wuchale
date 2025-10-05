@@ -5,6 +5,8 @@ import { color, Logger } from "../log.js"
 import { readFile } from "node:fs/promises"
 import type { GlobConf } from "../adapters.js"
 import { watch as watchFS } from 'chokidar'
+import PO from "pofile"
+import type { ItemType } from "../ai/index.js"
 
 function extractor(handler: AdapterHandler) {
     const adapterName = color.magenta(handler.key)
@@ -15,15 +17,25 @@ function extractor(handler: AdapterHandler) {
     }
 }
 
+function poDump(items: ItemType[]) {
+    const po = new PO()
+    po.items = items
+    return po.toString()
+}
+
 export async function extractAdap(handler: AdapterHandler, sharedState: SharedStates, files: GlobConf, locales: string[], clean: boolean, sync: boolean) {
     await handler.init(sharedState)
-    if (clean) {
-        for (const loc of locales) {
-            for (const item of Object.values(handler.sharedState.poFilesByLoc[loc].catalog)) {
-                // unreference all files that belong to this adapter
-                // don't touch other adapters' files
-                item.references = item.references.filter(ref => !handler.fileMatches(ref))
-            }
+    const dumps: Record<string, string> = {}
+    for (const loc of locales) {
+        const items = Object.values(handler.sharedState.poFilesByLoc[loc].catalog)
+        dumps[loc] = poDump(items)
+        if (!clean) {
+            continue
+        }
+        for (const item of items) {
+            // unreference all files that belong to this adapter
+            // don't touch other adapters' files
+            item.references = item.references.filter(ref => !handler.fileMatches(ref))
         }
     }
     const filePaths = await glob(...handler.globConfToArgs(files))
@@ -37,14 +49,19 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
     }
     if (clean) {
         console.info('Cleaning...')
-        for (const loc of locales) {
+    }
+    for (const loc of locales) {
+        if (clean) {
             const catalog = handler.sharedState.poFilesByLoc[loc].catalog
             for (const [key, item] of Object.entries(catalog)) {
                 if (item.references.length === 0) {
                     delete catalog[key]
                 }
             }
-            await handler.savePoAndCompile(loc)
+        }
+        const newDump = poDump(Object.values(handler.sharedState.poFilesByLoc[loc].catalog))
+        if (newDump !== dumps[loc]) {
+            await handler.savePO(loc)
         }
     }
 }
