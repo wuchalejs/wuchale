@@ -10,7 +10,8 @@ import { SvelteTransformer } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
-const svelteHeuristic: HeuristicFunc = msg => {
+/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
+export const svelteDefaultHeuristic: HeuristicFunc = msg => {
     if (!defaultHeuristic(msg)) {
         return false
     }
@@ -23,11 +24,25 @@ const svelteHeuristic: HeuristicFunc = msg => {
     return true
 }
 
+/** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
+export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
+    if (!svelteDefaultHeuristic(msg)) {
+        return false
+    }
+    if (msg.details.scope !== 'script' || msg.details.declaring !== 'variable') {
+        return true
+    }
+    if (!msg.details.topLevelCall) {
+        return false
+    }
+    return ['$derived', '$derived.by'].includes(msg.details.topLevelCall)
+}
+
 const defaultArgs: AdapterArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     catalog: './src/locales/{locale}',
     patterns: [pluralPattern],
-    heuristic: svelteHeuristic,
+    heuristic: svelteDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,

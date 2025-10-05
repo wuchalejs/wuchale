@@ -10,7 +10,7 @@ import type {
 import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
 
-const jsxHeuristic: HeuristicFunc = msg => {
+export const jsxDefaultHeuristic: HeuristicFunc = msg => {
     if (!defaultHeuristic(msg)) {
         return false
     }
@@ -68,7 +68,7 @@ const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     catalog: './src/locales/{locale}',
     patterns: [pluralPattern],
-    heuristic: jsxHeuristic,
+    heuristic: jsxDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,

@@ -52,6 +52,7 @@ export type HeuristicFunc = (msg: Message) => boolean | null | undefined
 const ignoreElements = ['style', 'path', 'code', 'pre']
 const ignoreAttribs = [['form', 'method']]
 
+/** Default heuristic */
 export function defaultHeuristic(msg: Message) {
     const msgStr = msg.msgStr.join('\n')
     if (msgStr.search(/\p{L}/u) === -1) {
@@ -84,7 +85,7 @@ export function defaultHeuristic(msg: Message) {
     return !msg.details.call?.startsWith('console.') && msg.details.call !== 'fetch'
 }
 
-// only allow inside function definitions for script scope
+/** Default heuristic which ignores messages outside functions in the `script` scope */
 export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
     return defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)
 }
