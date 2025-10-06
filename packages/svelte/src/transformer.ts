@@ -339,7 +339,7 @@ export class SvelteTransformer extends Transformer {
                 this.moduleExportRanges.push([declaration.start, declaration.end])
                 continue
             }
-            for (const decl of declaration.declarations) {
+            for (const decl of declaration?.declarations ?? []) {
                 if (!decl.init) {
                     continue
                 }
