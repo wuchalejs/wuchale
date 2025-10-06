@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.16.2",
+    "version": "0.16.3",
     "description": "Protobuf-like i18n from plain code: Svelte adapter",
     "scripts": {
         "dev": "tsc --watch",

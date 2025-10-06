@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.16.3
+
+### Patch Changes
+
+- 77430e7: Fix error when exporting types from script modules
+
 ## 0.16.2
 
 ### Patch Changes
