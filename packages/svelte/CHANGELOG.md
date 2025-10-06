@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.16.2
+
+### Patch Changes
+
+- b30885a: Fix `$props` being wrapped in `$derived` when it shouldn't
+
 ## 0.16.1
 
 ### Patch Changes
