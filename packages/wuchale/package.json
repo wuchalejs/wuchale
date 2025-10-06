@@ -85,7 +85,7 @@
     "devDependencies": {
         "@types/node": "^24.6.2",
         "@types/picomatch": "^4.0.1",
-        "typescript": "^5.8.3"
+        "typescript": "^5.9.3"
     },
     "type": "module"
 }
