@@ -1,5 +1,5 @@
 import MagicString from "magic-string"
-import type { Program, AnyNode, VariableDeclarator } from "acorn"
+import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
@@ -29,7 +29,7 @@ export class SvelteTransformer extends Transformer {
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
     currentSnippet: number = 0
-    hasModuleScript: boolean = false // to choose which runtime var to use for snippets
+    moduleExportRanges: [number, number][] = [] // to choose which runtime var to use for snippets
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
@@ -194,7 +194,8 @@ export class SvelteTransformer extends Transformer {
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
         // use module runtime var because the snippet may be exported from the module
         const prevRtVar = this.currentRtVar
-        if (this.hasModuleScript) {
+        const pattern = new RegExp(`\\b${node.expression.name}\\b`)
+        if (this.moduleExportRanges.some(([start, end]) => pattern.test(this.content.slice(start, end)))) {
             this.currentRtVar = rtModuleVar
         }
         const msgs = this.visitFragment(node.body)
@@ -318,6 +319,35 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
+    /** collects the ranges that will be checked if a snippet identifier is exported using RegExp test to simplify */
+    collectModuleExportRanges = (script: AST.Script) => {
+        for (const stmt of script.content.body) {
+            if (stmt.type !== 'ExportNamedDeclaration') {
+                continue
+            }
+            for (const spec of stmt.specifiers) {
+                if (spec.local.type === 'Identifier') {
+                    const local = spec.local as Identifier
+                    this.moduleExportRanges.push([local.start, local.end])
+                }
+            }
+            const declaration = stmt.declaration as Declaration
+            if (!declaration) {
+                continue
+            }
+            if (declaration.type === 'FunctionDeclaration' || declaration.type === 'ClassDeclaration') {
+                this.moduleExportRanges.push([declaration.start, declaration.end])
+                continue
+            }
+            for (const decl of declaration.declarations) {
+                if (!decl.init) {
+                    continue
+                }
+                this.moduleExportRanges.push([decl.init.start, decl.init.end])
+            }
+        }
+    }
+
     transformSv = (): TransformOutput => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
@@ -330,7 +360,9 @@ export class SvelteTransformer extends Transformer {
         }
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
-        this.hasModuleScript = ast.type === 'Root' && ast.module != null
+        if (ast.type === 'Root' && ast.module) {
+            this.collectModuleExportRanges(ast.module)
+        }
         const msgs = this.visitSv(ast)
         const initRuntime = this.initRuntime(this.filename, null, null, {})
         if (ast.type === 'Program') {

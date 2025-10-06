@@ -172,7 +172,11 @@ test('Ignore file', async function(t) {
 test('Exported snippet', async function(t) {
     await testContent(t, svelte`
         <script module>
-            export {foo}
+            export const bar = {
+                feel: () => {
+                    return foo
+                }
+            }
         </script>
 
         {#snippet foo()}
@@ -184,7 +188,11 @@ test('Exported snippet', async function(t) {
             import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_mod_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
-            export {foo}
+            export const bar = {
+                feel: () => {
+                    return foo
+                }
+            }
         </script>
 
         <script>
