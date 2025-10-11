@@ -14,9 +14,10 @@
 
 # 📜`wuchale`🪶
 
-**`wuchale`** is a compile-time internationalization (i18n) toolkit that
-requires zero code changes. Write your components naturally, and `wuchale`
-automatically extracts and replaces translatable strings at build time.
+**`wuchale`** (pronounced "wuh-cha-lay") is a compile-time internationalization
+(i18n) toolkit that requires zero code changes. Write your components
+naturally, and `wuchale` automatically extracts and replaces translatable
+strings at build time.
 
 - **✨ No extra syntax!** - Your normal code is enough
 - **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
@@ -176,8 +177,8 @@ This project was inspired by [Lingui](https://lingui.dev/) especially some of
 its workflow. If you've used Lingui before, you'll find familiar concepts like
 extraction and compilation.
 
-`wuchale` takes a different approach: you don't need to change your code,
-catalogs compile smaller than any other tool (including Lingui's), and it
+Where `wuchale` differs, among other things, is that you don't need to change your
+code, catalogs compile smaller than any other tool (including Lingui's), and it
 integrates with a wider range of frameworks.
 
 ## License
