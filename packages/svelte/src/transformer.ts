@@ -45,7 +45,7 @@ export class SvelteTransformer extends Transformer {
             return msgs
         }
         const needsWrapping = msgs.some(msg => {
-            if (['$props', '$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+            if (['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
                 return false
             }
             if (msg.details.declaring !== 'variable') {
