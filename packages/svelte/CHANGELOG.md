@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.16.4
+
+### Patch Changes
+
+- f18aeda: Fix $state being wrapped in $derived when it has messages
+
 ## 0.16.3
 
 ### Patch Changes
