@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.17.3
+
+### Patch Changes
+
+- 280ad8d: Fix tagged template strings not extracted
+
 ## 0.17.2
 
 ### Patch Changes
