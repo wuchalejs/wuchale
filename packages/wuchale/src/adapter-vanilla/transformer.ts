@@ -490,26 +490,22 @@ export class Transformer {
         return msgs
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral, ignoreHeuristic = false): Message[] => {
-        if (!ignoreHeuristic) {
-            let heurTxt = ''
-            for (const quasi of node.quasis) {
-                heurTxt += quasi.value.cooked ?? ''
-                if (!quasi.tail) {
-                    heurTxt += '#'
-                }
-            }
-            heurTxt = heurTxt.trim()
-            const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
-            if (!pass) {
-                return node.expressions.map(this.visit).flat()
+    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral): boolean => {
+        let heurTxt = ''
+        for (const quasi of node.quasis) {
+            heurTxt += quasi.value.cooked ?? ''
+            if (!quasi.tail) {
+                heurTxt += '#'
             }
         }
+        heurTxt = heurTxt.trim()
+        const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
+        return pass
+    }
+
+    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral): [number, Message[]] => {
         const msgs = []
-        const quasi0 = node.quasis[0]
-        // @ts-ignore
-        const { start: start0, end: end0 } = quasi0
-        let msgStr = quasi0.value?.cooked ?? ''
+        let msgStr = node.quasis[0].value?.cooked ?? ''
         const comments = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
@@ -517,7 +513,6 @@ export class Transformer {
             const placeholder = `{${i}}`
             msgStr += `${placeholder}${quasi.value.cooked}`
             comments.push(`placeholder ${placeholder}: ${this.content.slice(expr.start, expr.end)}`)
-            // @ts-ignore
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
@@ -527,7 +522,20 @@ export class Transformer {
         }
         const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
         msgInfo.comments = comments
-        let begin = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
+        const index = this.index.get(msgInfo.toKey())
+        msgs.push(msgInfo)
+        return [index, msgs]
+    }
+
+    visitTemplateLiteral = (node: Estree.TemplateLiteral, ignoreHeuristic = false): Message[] => {
+        if (!ignoreHeuristic) {
+            if (!this.checkHeuristicTemplateLiteral(node)) {
+                return node.expressions.map(this.visit).flat()
+            }
+        }
+        const [index, msgs] = this.visitTemplateLiteralQuasis(node)
+        const {start: start0, end: end0} = node.quasis[0]
+        let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
@@ -538,7 +546,27 @@ export class Transformer {
         } else {
             this.mstr.update(start0 - 1, end0 + 1, begin + end)
         }
-        msgs.push(msgInfo)
+        return msgs
+    }
+
+    visitTaggedTemplateExpression = (node: Estree.TaggedTemplateExpression): Message[] => {
+        const prevCall = this.currentCall
+        this.currentCall = this.getCalleeName(node.tag)
+        let msgs = []
+        if (this.checkHeuristicTemplateLiteral(node.quasi)) {
+            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
+            msgs = msgsNew
+            this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
+            const {start, end, expressions} = node.quasi
+            if (expressions.length > 0) {
+                this.mstr.update(start, expressions[0].start, `, ${index}, [`)
+                this.mstr.update(end - 1, end, `])`)
+            } else {
+                this.mstr.remove(start, start + 1)
+                this.mstr.update(start, end, `, ${index})`)
+            }
+        }
+        this.currentCall = prevCall
         return msgs
     }
 

@@ -69,6 +69,8 @@ test('Inside function definitions', async function(t) {
         const bar: (a: string) => string = (a) => {
             const foo = {
                 'Extracted': 42,
+                tagged: tag\`Hello\`,
+                taggedWithExpr: tag\`Hello \${a}\`
             }
             return \`Hello \${a\}\`
         }
@@ -92,6 +94,8 @@ test('Inside function definitions', async function(t) {
             const _w_runtime_ = _w_to_rt_(_w_load_('main'))
             const foo = {
                 [_w_runtime_.t(2)]: 42,
+                tagged: _w_runtime_.tt(tag, 0),
+                taggedWithExpr: _w_runtime_.tt(tag, 3, [a])
             }
             return _w_runtime_.t(3, [a])
         }
@@ -99,6 +103,7 @@ test('Inside function definitions', async function(t) {
     msgid ""
     msgstr ""
 
+    #: test-tmp/test.js
     #: test-tmp/test.js
     msgid "Hello"
     msgstr "Hello"
@@ -112,6 +117,8 @@ test('Inside function definitions', async function(t) {
     msgstr "Extracted"
 
     #. placeholder {0}: a
+    #. placeholder {0}: a
+    #: test-tmp/test.js
     #: test-tmp/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
@@ -237,11 +244,21 @@ test('Loading and runtime', async t => {
     t.assert.equal(wrapRT(cPure['foo']).t(0), 'Hello')
 })
 
+/**
+ * @param {TemplateStringsArray} msgs
+ * @param {any[]} args
+ */
+function taggedHandler(msgs, ...args) {
+    return msgs.join('_') + args.join('_')
+}
+
 test('Runtime', t => {
     const rt = new Runtime(testCatalog)
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
+    t.assert.equal(taggedHandler`foo ${1} bar ${2}`, 'foo _ bar _1_2')
+    t.assert.equal(rt.tt(taggedHandler, 1, [3]), 'Hello _!3')
 })
 
 // This should be run AFTER the test Runtime completes

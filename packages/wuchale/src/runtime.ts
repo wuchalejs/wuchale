@@ -60,6 +60,15 @@ export class Runtime {
         return msgStr
     }
 
+    /** for tagged template strings */
+    tt = (tag: CallableFunction, id: number, args?: any[]) => {
+        const ctx = this.cx(id) as Mixed
+        return tag(
+            ctx.filter(m => typeof m === 'string'),
+            ...ctx.filter(m => typeof m === 'number').map(a => args?.[a])
+        )
+    }
+
     /** get translation for plural */
     tp = (id: number) => this._.c[id] ?? []
 
