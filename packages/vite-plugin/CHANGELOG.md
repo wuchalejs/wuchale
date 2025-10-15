@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.14.8
+
+### Patch Changes
+
+- 0e3fcd6: Avoid load hook path importer collisions causing problems with vitest
+
 ## 0.14.7
 
 ### Patch Changes
