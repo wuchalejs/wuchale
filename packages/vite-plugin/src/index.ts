@@ -138,7 +138,7 @@ class Wuchale {
         if (!source.startsWith(virtualPrefix)) {
             return null
         }
-        return `${virtualResolvedPrefix}${source}?importer=${importer}`
+        return `${virtualResolvedPrefix}${source}?_w_i_=${importer}`
     }
 
     load = (id: string) => {
@@ -146,7 +146,7 @@ class Wuchale {
         if (!id.startsWith(prefix)) {
             return null
         }
-        const [path, importer] = id.slice(prefix.length).split('?importer=')
+        const [path, importer] = id.slice(prefix.length).split('?_w_i_=')
         const [part, ...rest] = path.split('/')
         if (part === 'catalog') {
             const [adapterKey, loadID, locale] = rest
