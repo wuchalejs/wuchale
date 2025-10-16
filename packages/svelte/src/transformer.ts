@@ -66,6 +66,7 @@ export class SvelteTransformer extends Transformer {
         getRange: node => ({ start: node.start, end: node.end }),
         isText: node => node.type === 'Text',
         isComment: node => node.type === 'Comment',
+        leaveInPlace: node => node.type === 'ConstTag',
         isExpression: node => node.type === 'ExpressionTag',
         getTextContent: (node: AST.Text) => node.data,
         getCommentData: (node: AST.Comment) => node.data,
@@ -189,6 +190,11 @@ export class SvelteTransformer extends Transformer {
             this.mstr.remove(value.end, value.end + 1)
         }
         return [msgInfo]
+    }
+
+    visitConstTag = (node: AST.ConstTag): Message[] => {
+        // @ts-expect-error
+        return this.visitVariableDeclaration(node.declaration)
     }
 
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {

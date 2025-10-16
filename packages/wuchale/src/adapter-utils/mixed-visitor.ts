@@ -13,6 +13,7 @@ type InitProps<NodeT> = {
     isText: (node: NodeT) => boolean
     isExpression: (node: NodeT) => boolean
     isComment: (node: NodeT) => boolean
+    leaveInPlace: (node: NodeT) => boolean
     canHaveChildren: (node: NodeT) => boolean
     getTextContent: (node: NodeT) => string
     getCommentData: (node: NodeT) => string
@@ -61,7 +62,7 @@ export class MixedVisitor<NodeT> {
                 if (this.getCommentData(child).trim().startsWith(commentPrefix)) {
                     hasCommentDirectives = true
                 }
-            } else {
+            } else if (!this.leaveInPlace(child)) {
                 hasNonTextChild = true
                 heurStr += `# `
             }
@@ -143,6 +144,10 @@ export class MixedVisitor<NodeT> {
                 this.mstr.move(moveStart, chRange.end - 1, lastChildEnd)
                 this.mstr.remove(chRange.end - 1, chRange.end)
                 iArg++
+                continue
+            }
+            if (this.leaveInPlace(child)) {
+                msgs.push(...this.visitFunc(child, this.canHaveChildren(child)))
                 continue
             }
             // elements, components and other things as well

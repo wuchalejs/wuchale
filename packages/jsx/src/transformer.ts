@@ -59,6 +59,7 @@ export class JSXTransformer extends Transformer {
             // @ts-expect-error
             && node.expression.end > node.expression.start,
         isText: node => node.type === 'JSXText',
+        leaveInPlace: () => false,
         isExpression: node => node.type === 'JSXExpressionContainer',
         getTextContent: (node: JX.JSXText) => node.value,
         getCommentData: (node: JX.JSXExpressionContainer) => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),

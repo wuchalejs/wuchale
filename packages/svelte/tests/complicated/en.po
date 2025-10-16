@@ -42,6 +42,7 @@ msgid "Check extracted"
 msgstr "Check extracted"
 
 #: app.svelte
+#: app.svelte
 msgid "That"
 msgstr "That"
 
@@ -86,9 +87,10 @@ msgid "{0} other blocks"
 msgstr "{0} other blocks"
 
 #. placeholder {0}: member
+#. placeholder {1}: x
 #: app.svelte
-msgid "Loops and {0} <0/> Supported"
-msgstr "Loops and {0} <0/> Supported"
+msgid "Loops and {0} {1} <0/> Supported"
+msgstr "Loops and {0} {1} <0/> Supported"
 
 #: app.svelte
 msgid "Conditionals, <0/>"

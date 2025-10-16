@@ -78,7 +78,8 @@
     {#if someFunction("Extracted Text", normalParam, [/* @wc-include */ "extracted anyway"])}
         Conditionals,
         {#each collection.members as member}
-            Loops and {member}
+            {@const x = member['That']}
+            Loops and {member} {x}
             <!-- What not -->
             {#await someFunctionAsync(derive) then json}
                 <b>{json.title} other blocks</b>

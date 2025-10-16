@@ -87,6 +87,7 @@
         {#if someFunction(_w_runtime_.t(16), normalParam, [/* @wc-include */ _w_runtime_.t(17)])}
             {#snippet _w_snippet_3()}
                 {#each collection.members as member}
+                    {@const x = member[_w_runtime_.t(9)]}
                     <!-- What not -->
                     {#snippet _w_snippet_2()}
                         {#await someFunctionAsync(derive) then json}
@@ -95,7 +96,7 @@
                             </b>
                         {/await}
                     {/snippet}
-                    <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.cx(19)} a={[member]} />
+                    <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.cx(19)} a={[member, x]} />
                 {/each}
             {/snippet}
             <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.cx(20)} />
