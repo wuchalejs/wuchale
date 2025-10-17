@@ -53,10 +53,14 @@ export class SvelteTransformer extends Transformer {
             }
             return true
         })
-        if (needsWrapping) {
-            this.mstr.appendLeft(node.init.start, '$derived(')
-            this.mstr.appendRight(node.init.end, ')')
+        if (!needsWrapping) {
+			return msgs
         }
+		const isExported = this.moduleExportRanges.some(([start, end]) => node.init.start >= start && node.init.end <= end)
+		if (!isExported) {
+			this.mstr.appendLeft(node.init.start, '$derived(')
+			this.mstr.appendRight(node.init.end, ')')
+		}
         return msgs
     }
 

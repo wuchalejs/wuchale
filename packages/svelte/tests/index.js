@@ -174,6 +174,7 @@ test('Exported snippet', async function(t) {
         <script module>
             export const bar = {
                 feel: () => {
+					const msg = 'Hello'
                     return foo
                 }
             }
@@ -190,6 +191,8 @@ test('Exported snippet', async function(t) {
             const _w_runtime_mod_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             export const bar = {
                 feel: () => {
+					const _w_runtime_mod_ = _w_to_rt_(_w_load_('svelte'))
+					const msg = _w_runtime_mod_.t(0)
                     return foo
                 }
             }
@@ -206,6 +209,7 @@ test('Exported snippet', async function(t) {
     msgid ""
     msgstr ""
 
+    #: test-tmp/test.svelte
     #: test-tmp/test.svelte
     msgid "Hello"
     msgstr "Hello"
