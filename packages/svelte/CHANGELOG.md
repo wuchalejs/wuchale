@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.16.5
+
+### Patch Changes
+
+- d790b4b: Fix auto wrapping exported variables with `$derived` causing errors
+- a955579: Visit @const declarations in svelte, more compatibility
+- Updated dependencies [a955579]
+  - wuchale@0.17.4
+
 ## 0.16.4
 
 ### Patch Changes

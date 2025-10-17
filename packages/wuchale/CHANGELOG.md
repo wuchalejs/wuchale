@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.17.4
+
+### Patch Changes
+
+- a955579: Visit @const declarations in svelte, more compatibility
+
 ## 0.17.3
 
 ### Patch Changes

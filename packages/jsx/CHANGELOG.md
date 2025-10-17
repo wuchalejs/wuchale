@@ -1,5 +1,13 @@
 # @wuchale/jsx
 
+## 0.8.2
+
+### Patch Changes
+
+- a955579: Visit @const declarations in svelte, more compatibility
+- Updated dependencies [a955579]
+  - wuchale@0.17.4
+
 ## 0.8.1
 
 ### Patch Changes
