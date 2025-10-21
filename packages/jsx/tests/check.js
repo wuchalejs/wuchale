@@ -9,7 +9,8 @@ import { adapter } from '@wuchale/jsx'
 const dirBase = absDir(import.meta.url)
 export const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`
+    catalog: `${dirBase}/test-tmp/{locale}`,
+    loader: 'default',
 }
 
 const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)

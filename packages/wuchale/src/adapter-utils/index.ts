@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises"
 export { MixedVisitor } from './mixed-visitor.js'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,19 +34,6 @@ export function nonWhitespaceText(msgStr: string): [number, string, number] {
     let trimmed = trimmedS.trimEnd()
     const endWh = trimmedS.length - trimmed.length
     return [startWh, trimmed, endWh]
-}
-
-export async function getDependencies() {
-    let json = { devDependencies: {}, dependencies: {} }
-    try {
-        const pkgJson = await readFile('package.json')
-        json = JSON.parse(pkgJson.toString())
-    } catch (err) {
-        if (err.code !== 'ENOENT') {
-            throw err
-        }
-    }
-    return new Set(Object.keys({ ...json.devDependencies, ...json.dependencies }))
 }
 
 export function loaderPathResolver(importMetaUrl: string, baseDir: string, ext: string) {

@@ -2,16 +2,17 @@
 
 import { test } from 'node:test'
 import { testContent, testDir, tsx, adapterOpts } from './check.js'
-import { adapter } from '@wuchale/jsx'
+import { getDefaultLoaderPath } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
 
 test('Default loader file paths', async function(t){
-    const adap = adapter()
-    for (const loader of ['default', 'react', 'react.bundle', 'solidjs', 'solidjs.bundle']) {
-        const path = adap.defaultLoaderPath(loader)
-        const paths = typeof path === 'string' ? [path] : Object.values(path)
-        for (const path of paths) {
-            await statfs(path) // no error
+    for (const loader of ['default', 'react', 'solidjs']) {
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
         }
     }
 })
@@ -29,7 +30,7 @@ test('React basic', async function(t) {
     `, tsx`
         'use server'
         import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
@@ -59,7 +60,7 @@ test('SolidJS basic', async function(t) {
         }
     `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
@@ -90,7 +91,7 @@ test('Ignore and include', async function(t) {
         }
     `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
@@ -142,7 +143,7 @@ test('Context', async function(t) {
             </>
         }`, tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
@@ -189,7 +190,7 @@ test('Plural', async function(t) {
             }`,
         tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
@@ -219,7 +220,7 @@ test('Nested and mixed', async function(t) {
             }`,
         tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {

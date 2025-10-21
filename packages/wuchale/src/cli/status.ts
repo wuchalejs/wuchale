@@ -28,12 +28,12 @@ export async function status(config: Config, locales: string[]) {
     console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.logLevel))
-        const {path: loaderPath, empty} = await handler.getLoaderPath()
+        const loaderPath = await handler.getLoaderPath()
         console.log(`${color.magenta(key)}:`)
         if (loaderPath) {
             console.log(`  Loader files:`)
             for (const [side, path] of Object.entries(loaderPath)) {
-                console.log(`    ${color.cyan(side)}: ${color.cyan(path)}${empty[side] ? color.yellow(' (empty)') : ''}`)
+                console.log(`    ${color.cyan(side)}: ${color.cyan(path)}`)
             }
         } else {
             console.warn(color.yellow('  No loader file found.'))

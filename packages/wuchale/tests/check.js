@@ -13,6 +13,7 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
 export const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
     catalog: `${dirBase}/test-tmp/{locale}`,
+    loader: 'vite',
     initInsideFunc: false,
 }
 
