@@ -303,7 +303,7 @@ export class AdapterHandler {
             // using custom loaders
             return
         }
-        await mkdir(dirname(this.catalogFileName(this.#config.sourceLocale)), {recursive: true})
+        await mkdir(dirname(this.loaderPath.client), {recursive: true})
         for (const side in this.loaderPath) {
             let toCopy: string
             if (typeof this.#adapter.defaultLoaderPath === 'string') {
