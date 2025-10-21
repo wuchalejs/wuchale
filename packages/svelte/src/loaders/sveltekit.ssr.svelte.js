@@ -9,7 +9,7 @@ import { currentCatalog } from 'wuchale/load-utils/server'
 export { loadCatalog, loadIDs, key } // for hooks.server.{js,ts}
 
 // for non-reactive
-export const get = (/** @type {string} */ loadID) => currentCatalog(key, loadID)
+export const getCatalog = (/** @type {string} */ loadID) => currentCatalog(key, loadID)
 
 // same function, only will be inside $derived when used
-export default get
+export const getCatalogRx = getCatalog

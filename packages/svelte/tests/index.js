@@ -20,7 +20,7 @@ test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
         </script>
@@ -49,7 +49,7 @@ test('JS module files', async function(t) {
 
     `, javascript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "./tests/test-tmp/loader.svelte.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "./tests/test-tmp/loader.svelte.js"
         const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 
         const varName = $derived(_w_runtime_.t(0))
@@ -96,7 +96,7 @@ test('Simple element with new lines', async function(t) {
     svelte`
         <script>
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             // Intentionally empty
@@ -135,7 +135,7 @@ test('Ignore and include', async function(t) {
     `, svelte`
         <script>
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
         </script>
@@ -186,7 +186,7 @@ test('Exported snippet', async function(t) {
     `, svelte`
         <script module>
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_mod_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             export const bar = {
@@ -230,7 +230,7 @@ test('Context', async function(t) {
         svelte`
             <script>
                 import _w_to_rt_ from 'wuchale/runtime'
-                import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+                import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.svelte.js"
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
             </script>

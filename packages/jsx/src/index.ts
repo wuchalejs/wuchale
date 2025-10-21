@@ -37,12 +37,10 @@ const defaultRuntime: RuntimeConf = {
         }
     },
     reactive: {
-        importName: 'default',
         wrapInit: expr => expr,
         wrapUse: expr => expr,
     },
     plain: {
-        importName: 'get',
         wrapInit: expr => expr,
         wrapUse: expr => expr,
     },
@@ -58,7 +56,6 @@ const defaultRuntimeSolid: RuntimeConf = {
         }
     },
     reactive: {
-        importName: 'default',
         wrapInit: expr => `() => ${expr}`,
         wrapUse: expr => `${expr}()`
     }

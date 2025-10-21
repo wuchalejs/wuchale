@@ -32,6 +32,9 @@ type POFile = {
     loaded: boolean
 }
 
+const loaderImportGetCatalog = 'getCatalog'
+const loaderImportGetCatalogRx = 'getCatalogRx'
+
 const getFuncPlain = '_w_load_'
 const getFuncReactive = getFuncPlain + 'rx_'
 const catalogsVarName = '_w_catalogs_'
@@ -543,17 +546,6 @@ export class AdapterHandler {
         await this.compile(loc)
     }
 
-    #putImportSpec = (varName: string | null, alias: string, importsFuncs: string[]) => {
-        if (!varName) {
-            return
-        }
-        if (varName === 'default') {
-            importsFuncs.unshift(alias) // default imports are first
-        } else {
-            importsFuncs.push(`{${varName} as ${alias}}`)
-        }
-    }
-
     #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
         const catalogVar = '_w_catalog_'
         return `
@@ -577,8 +569,6 @@ export class AdapterHandler {
         if (!loaderPath.startsWith('.')) {
             loaderPath = `./${loaderPath}`
         }
-        const importsFuncs = []
-        const runtimeConf = this.#adapter.runtime
         let head = []
         let getFuncImportPlain = getFuncPlain
         let getFuncImportReactive = getFuncReactive
@@ -586,18 +576,18 @@ export class AdapterHandler {
             head.push(`const ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}`)
             getFuncImportPlain += 'hmr_'
             getFuncImportReactive += 'hmr_'
-            if (runtimeConf.plain?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncPlain, getFuncImportPlain))
-            }
-            if (runtimeConf.reactive?.importName) {
-                head.push(this.#hmrUpdateFunc(getFuncReactive, getFuncImportReactive))
-            }
+            head.push(
+                this.#hmrUpdateFunc(getFuncPlain, getFuncImportPlain),
+                this.#hmrUpdateFunc(getFuncReactive, getFuncImportReactive),
+            )
         }
-        this.#putImportSpec(runtimeConf.plain?.importName, getFuncImportPlain, importsFuncs)
-        this.#putImportSpec(runtimeConf.reactive?.importName, getFuncImportReactive, importsFuncs)
+        const importsFuncs = [
+            `${loaderImportGetCatalog} as ${getFuncImportPlain}`,
+            `${loaderImportGetCatalogRx} as ${getFuncImportReactive}`,
+        ]
         head = [
             `import ${varNames.rtWrap} from 'wuchale/runtime'`,
-            `import ${importsFuncs.join(',')} from "${loaderPath}"`,
+            `import {${importsFuncs.join(', ')}} from "${loaderPath}"`,
             ...head,
         ]
         if (!this.#adapter.bundleLoad) {

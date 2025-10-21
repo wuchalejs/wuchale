@@ -157,7 +157,6 @@ export type UseReactiveFunc = (details: {funcName?: string, nested: boolean, fil
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
     wrapUse: WrapFunc
-    importName: 'default' | string
 }
 
 export type RuntimeConf = {

@@ -14,7 +14,7 @@ export function setLocale(newLocale) {
 /**
  * @param {{ [locale: string]: import("wuchale/runtime").CatalogModule }} catalogs
 */ 
-export const get = catalogs => catalogs[locale]
+export const getCatalog = catalogs => catalogs[locale]
 
 // same function, only will be inside $derived when used
-export default get
+export const getCatalogRx = getCatalog

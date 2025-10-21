@@ -18,7 +18,7 @@ export function setLocale(locale) {
     }
 }
 
-export default (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
+export const getCatalogRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
     const [locale, setLocale] = useState('en')
     useEffect(() => {
         const cb = (/** @type {string} */ locale) => setLocale(locale)
@@ -29,4 +29,4 @@ export default (/** @type {{[locale: string]: import('wuchale/runtime').CatalogM
 }
 
 // non-reactive
-export const get = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => catalogs[locale]
+export const getCatalog = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => catalogs[locale]
