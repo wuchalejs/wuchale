@@ -9,7 +9,8 @@ import { adapter } from '@wuchale/svelte'
 const dirBase = absDir(import.meta.url)
 const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`
+    catalog: `${dirBase}/test-tmp/{locale}`,
+    loader: 'svelte',
 }
 
 const sv = adapter(adapterOpts)

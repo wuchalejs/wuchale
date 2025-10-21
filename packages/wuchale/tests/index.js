@@ -3,10 +3,11 @@
 import { test } from 'node:test'
 import wrapRT, { Runtime } from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
+import { getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
-import { testContent, basic, typescript, adapterOpts } from './check.js'
+import { testContent, basic, typescript } from './check.js'
 import { statfs } from 'fs/promises'
 
 test('Compile nested', function(t) {
@@ -21,10 +22,12 @@ test('Compile nested', function(t) {
 
 test('Default loader file paths', async function(t){
     for (const loader of ['server', 'vite', 'bundle']) {
-        const path = basic.defaultLoaderPath(loader)
-        const paths = typeof path === 'string' ? [path] : Object.values(path)
-        for (const path of paths) {
-            await statfs(path) // no error
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
         }
     }
 })
@@ -77,8 +80,7 @@ test('Inside function definitions', async function(t) {
     `, typescript`
         'use strict'
         import _w_to_rt_ from 'wuchale/runtime'
-
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
 
         function foo(): string {
             const _w_runtime_ = _w_to_rt_(_w_load_('main'))
@@ -139,7 +141,7 @@ test('Inside class declarations', async function(t) {
         }
     `, typescript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
 
         class foo {
             constructor() {
@@ -171,7 +173,7 @@ test('Plural', async function(t) {
         `,
         typescript`
             import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
             const f = () => {
                 const _w_runtime_ = _w_to_rt_(_w_load_('main'))
                 return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
@@ -196,7 +198,7 @@ test('HMR', async function(t) {
         }
     `, typescript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_hmr_, getCatalogRx as _w_load_rx_hmr_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_hmr_, getCatalogRx as _w_load_rx_hmr_} from "../tests/test-tmp/main.loader.js"
 
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 

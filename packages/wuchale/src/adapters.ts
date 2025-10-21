@@ -176,7 +176,6 @@ export type AdapterPassThruOpts = {
     granularLoad: boolean
     bundleLoad: boolean,
     generateLoadID: (filename: string) => string
-    loaderPath?: string | LoaderPath
     writeFiles: {
         compiled?: boolean
         proxy?: boolean
@@ -190,11 +189,9 @@ export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
-    /** available loader names, can do auto detection logic to sort, dependencies given */
-    defaultLoaders: () => string[] | Promise<string[]>
-    /* Can return different file paths based on conditions */
-    defaultLoaderPath: (loaderName: string) => LoaderPath | string
-    /* docs specific to the adapter */
+    /** default loaders to copy, `null` means custom */
+    defaultLoaderPath: LoaderPath | string | null
+    /** docs specific to the adapter */
     docsUrl: string
 }
 
@@ -203,7 +200,10 @@ export type CodePattern = {
     args: ('message' | 'pluralFunc' | 'other')[]
 }
 
-export type AdapterArgs = Partial<AdapterPassThruOpts> & {
+export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
+
+export type AdapterArgs<LoadersAvailable> = Partial<AdapterPassThruOpts> & {
+    loader: LoaderChoice<LoadersAvailable>
     heuristic?: HeuristicFunc
     patterns?: CodePattern[]
 }

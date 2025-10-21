@@ -1,6 +1,6 @@
 <script>
     import _w_to_rt_ from 'wuchale/runtime'
-    import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "./tests/test-tmp/loader.svelte.js"
+    import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "./tests/test-tmp/svelte.loader.svelte.js"
     import W_tx_ from "@wuchale/svelte/runtime.svelte"
     const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
 </script>

@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, resolve, normalize, relative } from 'nod
 import { platform } from 'node:process'
 import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, statfs, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement } from "./compile.js"
 import AIQueue, { type ItemType } from "./ai/index.js"
 import pm, { type Matcher } from 'picomatch'
@@ -116,8 +116,6 @@ type GranularState = {
     indexTracker: IndexTracker
 }
 
-type LoaderPathEmpty = {[K in keyof LoaderPath]: boolean}
-
 type TransformOutputCode = { code?: string, map?: any }
 
 export class AdapterHandler {
@@ -165,40 +163,31 @@ export class AdapterHandler {
     }
 
     getLoaderPaths(): LoaderPath[] {
-        if (this.#adapter.loaderPath != null) {
-            if (typeof this.#adapter.loaderPath === 'string') {
-                return [{
-                    client: this.#adapter.loaderPath,
-                    server: this.#adapter.loaderPath,
-                }]
-            }
-            return [this.#adapter.loaderPath]
-        }
-        const catalogToLoader = this.#adapter.catalog.replace('{locale}', 'loader')
+        const catalogToLoader = this.#adapter.catalog.replace('{locale}', `${this.key}.loader`)
         const paths: LoaderPath[] = []
         for (const ext of this.#adapter.loaderExts) {
             let path = catalogToLoader
-            if (path.startsWith('./')) {
-                path = path.slice(2)
-            }
             const pathClient = path + ext
-            paths.push(
-                { client: pathClient, server: path + '.server' + ext},
-                { client: pathClient, server: path + '.ssr' + ext},
-                { client: pathClient, server: pathClient },
-            )
+            const same = { client: pathClient, server: pathClient }
+            const diff = { client: pathClient, server: path + '.server' + ext}
+            if (this.#adapter.defaultLoaderPath == null) {
+                paths.push(diff, same)
+            } else if (typeof this.#adapter.defaultLoaderPath === 'string') { // same file for both
+                paths.push(same)
+            } else {
+                paths.push(diff)
+            }
         }
         return paths
     }
 
-    async getLoaderPath(): Promise<{ path: LoaderPath | null, empty: LoaderPathEmpty }> {
-        const empty: LoaderPathEmpty = {client: true, server: true}
-        for (const path of this.getLoaderPaths()) {
+    async getLoaderPath(): Promise<LoaderPath> {
+        const paths = this.getLoaderPaths()
+        for (const path of paths) {
             let bothExist = true
-            for (const side in empty) {
+            for (const side in path) {
                 try {
-                    const contents = await readFile(path[side])
-                    empty[side] = contents.toString().trim() === ''
+                    await statfs(path[side])
                 } catch (err: any) {
                     if (err.code !== 'ENOENT') {
                         throw err
@@ -210,17 +199,13 @@ export class AdapterHandler {
             if (!bothExist) {
                 continue
             }
-            return {path, empty}
+            return path
         }
-        return { path: null, empty }
+        return paths[0]
     }
 
     async #initPaths() {
-        const { path: loaderPath, empty } = await this.getLoaderPath()
-        if (!loaderPath || Object.values(empty).some(side => side)) {
-            throw new Error('No valid loader file found.')
-        }
-        this.loaderPath = loaderPath
+        this.loaderPath = await this.getLoaderPath()
         this.proxyPath = this.#adapter.catalog.replace('{locale}', 'proxy') + this.#adapter.loaderExts[0]
         this.outDir = this.#adapter.writeFiles.outDir
         if (!this.outDir) {
@@ -313,9 +298,27 @@ export class AdapterHandler {
         return `${catalog}.po`
     }
 
+    #initLoader = async () => {
+        if (this.#adapter.defaultLoaderPath == null) {
+            // using custom loaders
+            return
+        }
+        await mkdir(dirname(this.catalogFileName(this.#config.sourceLocale)), {recursive: true})
+        for (const side in this.loaderPath) {
+            let toCopy: string
+            if (typeof this.#adapter.defaultLoaderPath === 'string') {
+                toCopy = this.#adapter.defaultLoaderPath
+            } else {
+                toCopy = this.#adapter.defaultLoaderPath[side]
+            }
+            await copyFile(toCopy, this.loaderPath[side])
+        }
+    }
+
     init = async (sharedStates: SharedStates) => {
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         await this.#initPaths()
+        await this.#initLoader()
         this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
         const sourceLocaleName = getLanguageName(this.#config.sourceLocale)
         this.sharedState = sharedStates[this.#adapter.catalog]
