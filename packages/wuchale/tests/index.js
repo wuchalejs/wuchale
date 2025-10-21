@@ -77,7 +77,8 @@ test('Inside function definitions', async function(t) {
     `, typescript`
         'use strict'
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
 
         function foo(): string {
             const _w_runtime_ = _w_to_rt_(_w_load_('main'))
@@ -138,7 +139,7 @@ test('Inside class declarations', async function(t) {
         }
     `, typescript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
 
         class foo {
             constructor() {
@@ -170,7 +171,7 @@ test('Plural', async function(t) {
         `,
         typescript`
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
             const f = () => {
                 const _w_runtime_ = _w_to_rt_(_w_load_('main'))
                 return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
@@ -195,11 +196,18 @@ test('HMR', async function(t) {
         }
     `, typescript`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_hmr_ from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_hmr_, getCatalogRx as _w_load_rx_hmr_} from "../tests/test-tmp/loader.js"
+
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 
         function _w_load_(loadID) {
             const _w_catalog_ = _w_load_hmr_(loadID)
+            _w_catalog_?.update?.(_w_hmrUpdate_)
+            return _w_catalog_
+        }
+
+        function _w_load_rx_(loadID) {
+            const _w_catalog_ = _w_load_rx_hmr_(loadID)
             _w_catalog_?.update?.(_w_hmrUpdate_)
             return _w_catalog_
         }

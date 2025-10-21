@@ -5,5 +5,5 @@ import { loadCatalog, loadIDs, key, locales } from './proxy.js'
 import { loadLocales } from 'wuchale/load-utils/server'
 
 // two exports
-export const get = await loadLocales(key, loadIDs, loadCatalog, locales)
-export default get
+export const getCatalog = await loadLocales(key, loadIDs, loadCatalog, locales)
+export const getCatalogRx = getCatalog

@@ -10,8 +10,8 @@ import { createStore } from 'solid-js/store'
 const [store, setStore] = createStore({})
 
 // two exports. can be the same because solid-js can use them anywhere unlike react
-export const get = registerLoaders(key, loadCatalog, loadIDs, {
+export const getCatalogRx = registerLoaders(key, loadCatalog, loadIDs, {
     get: loadID => store[loadID],
     set: setStore,
 })
-export default get
+export const getCatalog = getCatalogRx

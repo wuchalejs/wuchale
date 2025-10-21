@@ -57,12 +57,10 @@ const defaultArgs: AdapterArgs = {
             }
         },
         reactive: {
-            importName: 'default',
             wrapInit: expr => `$derived(${expr})`,
             wrapUse: expr => expr,
         },
         plain: {
-            importName: 'get',
             wrapInit: expr => expr,
             wrapUse: expr => expr,
         },

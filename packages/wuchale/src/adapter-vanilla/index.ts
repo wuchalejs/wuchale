@@ -35,7 +35,6 @@ const defaultArgs: AdapterArgs = {
             use: nested ? null : false,
         }),
         plain: {
-            importName: 'default',
             wrapInit: expr => expr,
             wrapUse: expr => expr,
         }

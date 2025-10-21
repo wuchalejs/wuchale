@@ -29,7 +29,7 @@ test('React basic', async function(t) {
     `, tsx`
         'use server'
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
@@ -59,7 +59,7 @@ test('SolidJS basic', async function(t) {
         }
     `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
@@ -90,7 +90,7 @@ test('Ignore and include', async function(t) {
         }
     `, tsx`
         import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
@@ -142,7 +142,7 @@ test('Context', async function(t) {
             </>
         }`, tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
@@ -189,7 +189,7 @@ test('Plural', async function(t) {
             }`,
         tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
@@ -219,7 +219,7 @@ test('Nested and mixed', async function(t) {
             }`,
         tsx`
             import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
