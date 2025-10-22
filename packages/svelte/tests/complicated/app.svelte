@@ -9,6 +9,7 @@
 </script>
 
 <script>
+    import {someSnippet} from './foo'
 
     async function someFunctionAsync(name) {
         const json = {}
@@ -36,7 +37,7 @@
     }
 
     const derive = $derived.by(() => {
-        const f = obj.property["Extract this"]
+        const f = obj?.property?.["Extract this"]
         if (!f) return
         let e = {}
         if (f == 'something else') {
@@ -82,6 +83,7 @@
             Loops and {member} {x}
             <!-- What not -->
             {#await someFunctionAsync(derive) then json}
+                {@render someSnippet('Bar')}
                 <b>{json.title} other blocks</b>
             {/await}
             Supported

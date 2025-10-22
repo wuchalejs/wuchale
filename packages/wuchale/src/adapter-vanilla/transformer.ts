@@ -205,6 +205,8 @@ export class Transformer {
         ...this.visit(node.property),
     ]
 
+    visitChainExpression = (node: Estree.ChainExpression): Message[] => this.visit(node.expression)
+
     visitNewExpression = (node: Estree.NewExpression): Message[] => node.arguments.map(this.visit).flat()
 
     defaultVisitCallExpression = (node: Estree.CallExpression): Message[] => {

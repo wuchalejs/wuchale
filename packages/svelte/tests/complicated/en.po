@@ -61,6 +61,7 @@ msgid "Extract {0}"
 msgstr "Extract {0}"
 
 #: app.svelte
+#: app.svelte
 msgid "Bar"
 msgstr "Bar"
 

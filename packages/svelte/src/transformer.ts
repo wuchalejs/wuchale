@@ -201,6 +201,11 @@ export class SvelteTransformer extends Transformer {
         return this.visitVariableDeclaration(node.declaration)
     }
 
+    visitRenderTag = (node: AST.RenderTag): Message[] => {
+        // @ts-expect-error
+        return this.visit(node.expression)
+    }
+
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
         // use module runtime var because the snippet may be exported from the module
         const prevRtVar = this.currentRtVar

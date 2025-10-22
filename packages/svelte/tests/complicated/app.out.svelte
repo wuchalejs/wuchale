@@ -16,6 +16,7 @@
 
 <script>
     const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+    import {someSnippet} from './foo'
     async function someFunctionAsync(name) {
         const json = {}
         json.name = name ?? _w_runtime_.t(2)
@@ -36,7 +37,7 @@
         name: 'foo',
     }
     const derive = $derived.by(() => {
-        const f = obj.property[_w_runtime_.t(5)]
+        const f = obj?.property?.[_w_runtime_.t(5)]
         if (!f) return
         let e = {}
         if (f == 'something else') {
@@ -91,6 +92,7 @@
                     <!-- What not -->
                     {#snippet _w_snippet_2()}
                         {#await someFunctionAsync(derive) then json}
+                            {@render someSnippet(_w_runtime_.t(13))}
                             <b>
                                 <W_tx_ x={_w_runtime_.cx(18)} a={[json.title]} />
                             </b>
