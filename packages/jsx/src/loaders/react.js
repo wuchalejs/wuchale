@@ -11,23 +11,23 @@ const callbacks = {}
 const store = {}
 
 // non-reactive
-export const getCatalog = (/** @type {string} */ loadID) => store[loadID]
+export const getRuntime = (/** @type {string} */ loadID) => store[loadID]
 
 const collection = {
-    get: getCatalog,
-    set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').CatalogModule} */ catalog) => {
-        store[loadID] = catalog // for when useEffect hasn't run yet
-        callbacks[loadID]?.(catalog)
+    get: getRuntime,
+    set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').Runtime} */ runtime) => {
+        store[loadID] = runtime // for when useEffect hasn't run yet
+        callbacks[loadID]?.(runtime)
     }
 }
 
 registerLoaders(key, loadCatalog, loadIDs, collection)
 
-export const getCatalogRx = (/** @type {string} */ loadID) => {
-    const [catalog, setCatalog] = useState(collection.get(loadID))
+export const getRuntimeRx = (/** @type {string} */ loadID) => {
+    const [runtime, setRuntime] = useState(collection.get(loadID))
     useEffect(() => {
-        callbacks[loadID] = (/** @type {import('wuchale/runtime').CatalogModule} */ catalog) => setCatalog(catalog)
+        callbacks[loadID] = (/** @type {import('wuchale/runtime').Runtime} */ runtime) => setRuntime(runtime)
         return () => delete callbacks[loadID]
     }, [loadID])
-    return catalog
+    return runtime
 }

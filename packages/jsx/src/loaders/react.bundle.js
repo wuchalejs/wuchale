@@ -3,7 +3,8 @@
 
 /// <reference types="wuchale/virtual" />
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import toRuntime from 'wuchale/runtime'
 
 let locale = 'en'
 
@@ -18,15 +19,15 @@ export function setLocale(locale) {
     }
 }
 
-export const getCatalogRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
+export const getRuntimeRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
     const [locale, setLocale] = useState('en')
     useEffect(() => {
         const cb = (/** @type {string} */ locale) => setLocale(locale)
         callbacks.add(cb)
         return () => callbacks.delete(cb)
     }, [catalogs])
-    return catalogs[locale]
+    return useMemo(() => toRuntime(catalogs[locale], locale), [locale, catalogs])
 }
 
 // non-reactive
-export const getCatalog = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => catalogs[locale]
+export const getRuntime = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => toRuntime(catalogs[locale], locale)

@@ -4,10 +4,10 @@
 /// <reference types="wuchale/virtual" />
 
 import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy/sync' // because it's on the server
-import { currentCatalog } from 'wuchale/load-utils/server'
+import { currentRuntime } from 'wuchale/load-utils/server'
 
 export { loadCatalog, loadIDs, key } // for loading before runWithLocale
 
 // two exports, same function
-export const getCatalog = (/** @type {string} */ loadID) => currentCatalog(key, loadID)
-export const getCatalogRx = getCatalog
+export const getRuntime = (/** @type {string} */ loadID) => currentRuntime(key, loadID)
+export const getRuntimeRx = getRuntime

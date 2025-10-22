@@ -123,8 +123,7 @@ export class Transformer {
             }
             const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
             const expr = useReactive.init ? catalogExpr.reactive : catalogExpr.plain
-            const runtimeExpr = `${varNames.rtWrap}(${expr})`
-            return `\nconst ${this.currentRtVar} = ${wrapInit(runtimeExpr)}\n`
+            return `\nconst ${this.currentRtVar} = ${wrapInit(expr)}\n`
         }
     }
 

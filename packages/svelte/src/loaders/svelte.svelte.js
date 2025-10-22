@@ -6,10 +6,10 @@
 import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
 import { registerLoaders, defaultCollection } from 'wuchale/load-utils'
 
-const catalogs = $state({})
+const runtimes = $state({})
 
 // for non-reactive
-export const getCatalog = registerLoaders(key, loadCatalog, loadIDs, defaultCollection(catalogs))
+export const getRuntime = registerLoaders(key, loadCatalog, loadIDs, defaultCollection(runtimes))
 
 // same function, only will be inside $derived when used
-export const getCatalogRx = getCatalog
+export const getRuntimeRx = getRuntime

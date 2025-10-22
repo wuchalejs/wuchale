@@ -5,11 +5,6 @@ import { fileURLToPath } from 'node:url'
 export const varNames = {
     rt: '_w_runtime_',
     hmrUpdate: '_w_hmrUpdate_',
-    rtWrap: '_w_to_rt_',
-    loader: {
-        getCatalog: 'getCatalog',
-        getCatalogRx: 'getCatalogRx',
-    }
 }
 
 export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.rt) {

@@ -1,6 +1,8 @@
 // This is just the default loader.
 // You can customize it however you want, it will not be overwritten once it exists and is not empty.
 
+import toRuntime from "wuchale/runtime"
+
 let locale = 'en'
 
 /**
@@ -13,5 +15,5 @@ export function setLocale(newLocale) {
 /**
  * @param {{ [locale: string]: import("wuchale/runtime").CatalogModule }} catalogs
 */ 
-export const getCatalog = catalogs => catalogs[locale]
-export const getCatalogRx = getCatalog
+export const getRuntime = catalogs => toRuntime(catalogs[locale], locale)
+export const getRuntimeRx = getRuntime

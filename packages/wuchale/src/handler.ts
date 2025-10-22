@@ -32,15 +32,15 @@ type POFile = {
     loaded: boolean
 }
 
-const loaderImportGetCatalog = 'getCatalog'
-const loaderImportGetCatalogRx = 'getCatalogRx'
+const loaderImportGetRuntime = 'getRuntime'
+const loaderImportGetRuntimeRx = 'getRuntimeRx'
 
 const getFuncPlain = '_w_load_'
 const getFuncReactive = getFuncPlain + 'rx_'
-const catalogsVarName = '_w_catalogs_'
+const bundleCatalogsVarName = '_w_catalogs_'
 const bundledCatalogExpr: CatalogExpr = {
-    plain: `${getFuncPlain}(${catalogsVarName})`,
-    reactive: `${getFuncReactive}(${catalogsVarName})`,
+    plain: `${getFuncPlain}(${bundleCatalogsVarName})`,
+    reactive: `${getFuncReactive}(${bundleCatalogsVarName})`,
 }
 
 const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
@@ -550,12 +550,12 @@ export class AdapterHandler {
     }
 
     #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
-        const catalogVar = '_w_catalog_'
+        const rtVar = '_w_rt_'
         return `
             function ${getFuncName}(loadID) {
-                const ${catalogVar} = ${getFuncNameHmr}(loadID)
-                ${catalogVar}?.update?.(${varNames.hmrUpdate})
-                return ${catalogVar}
+                const ${rtVar} = ${getFuncNameHmr}(loadID)
+                ${rtVar}?._?.update?.(${varNames.hmrUpdate})
+                return ${rtVar}
             }
         `
     }
@@ -585,11 +585,10 @@ export class AdapterHandler {
             )
         }
         const importsFuncs = [
-            `${loaderImportGetCatalog} as ${getFuncImportPlain}`,
-            `${loaderImportGetCatalogRx} as ${getFuncImportReactive}`,
+            `${loaderImportGetRuntime} as ${getFuncImportPlain}`,
+            `${loaderImportGetRuntimeRx} as ${getFuncImportReactive}`,
         ]
         head = [
-            `import ${varNames.rtWrap} from 'wuchale/runtime'`,
             `import {${importsFuncs.join(', ')}} from "${loaderPath}"`,
             ...head,
         ]
@@ -606,7 +605,7 @@ export class AdapterHandler {
         return [
             ...imports,
             ...head,
-            `const ${catalogsVarName} = {${objElms.join(',')}}`
+            `const ${bundleCatalogsVarName} = {${objElms.join(',')}}`
         ].join('\n')
     }
 
