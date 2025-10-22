@@ -24,7 +24,7 @@ export const getCatalogRx = (/** @type {{[locale: string]: import('wuchale/runti
         const cb = (/** @type {string} */ locale) => setLocale(locale)
         callbacks.add(cb)
         return () => callbacks.delete(cb)
-    })
+    }, [catalogs])
     return catalogs[locale]
 }
 
