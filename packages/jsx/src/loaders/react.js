@@ -28,6 +28,6 @@ export const getCatalogRx = (/** @type {string} */ loadID) => {
     useEffect(() => {
         callbacks[loadID] = (/** @type {import('wuchale/runtime').CatalogModule} */ catalog) => setCatalog(catalog)
         return () => delete callbacks[loadID]
-    })
+    }, [loadID])
     return catalog
 }
