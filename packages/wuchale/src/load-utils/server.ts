@@ -1,17 +1,19 @@
 import type { LoaderFunc } from './index.js'
-import type { CatalogModule } from '../runtime.js'
+import toRuntime, { type Runtime } from '../runtime.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-type LoadedCatalogs = Record<string, Record<string, CatalogModule>>
-const catalogs: Record<string, LoadedCatalogs> = {}
-const catalogCtx: AsyncLocalStorage<LoadedCatalogs> = new AsyncLocalStorage()
+// by key, by loadID
+type LoadedRuntimes = Record<string, Record<string, Runtime>>
+// by locale
+const runtimes: Record<string, LoadedRuntimes> = {}
+const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
 
 let warningShown = {}
 
-export function currentCatalog(key: string, loadID: string) {
-    const catalog = catalogCtx.getStore()?.[key]?.[loadID]
-    if (catalog != null) {
-        return catalog
+export function currentRuntime(key: string, loadID: string) {
+    const runtime = runtimeCtx.getStore()?.[key]?.[loadID]
+    if (runtime != null) {
+        return runtime
     }
     const warnKey = `${key}.${loadID}`
     if (warningShown[warnKey]) {
@@ -21,25 +23,25 @@ export function currentCatalog(key: string, loadID: string) {
     warningShown[warnKey] = true
 }
 
-export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => CatalogModule> {
+export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => Runtime> {
     if (loadIDs == null) {
         loadIDs = [key]
     }
     for (const locale of locales) {
-        if (!(locale in catalogs)) {
-            catalogs[locale] = {}
+        if (!(locale in runtimes)) {
+            runtimes[locale] = {}
         }
-        const loaded = catalogs[locale]
+        const loaded = runtimes[locale]
         if (!(key in loaded)) {
             loaded[key] = {}
         }
         for (const id of loadIDs) {
-            loaded[key][id] = await load(id, locale)
+            loaded[key][id] = toRuntime(await load(id, locale), locale)
         }
     }
-    return (loadID: string) => currentCatalog(key, loadID)
+    return (loadID: string) => currentRuntime(key, loadID)
 }
 
 export async function runWithLocale<T>(locale: string, func: () => T): Promise<T> {
-    return await catalogCtx.run(catalogs[locale], func)
+    return await runtimeCtx.run(runtimes[locale], func)
 }

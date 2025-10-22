@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import wrapRT, { Runtime } from 'wuchale/runtime'
+import toRuntime from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
 import { getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
@@ -79,22 +79,21 @@ test('Inside function definitions', async function(t) {
         }
     `, typescript`
         'use strict'
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const varName = _w_runtime_.t(0)
             return varName
         }
         const insideObj = {
             method: () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(1)
             },
         }
         const bar: (a: string) => string = (a) => {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const foo = {
                 [_w_runtime_.t(2)]: 42,
                 tagged: _w_runtime_.tt(tag, 0),
@@ -140,17 +139,16 @@ test('Inside class declarations', async function(t) {
             }
         }
     `, typescript`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
 
         class foo {
             constructor() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(0)
             }
 
             foo() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(0)
             }
         }
@@ -172,10 +170,9 @@ test('Plural', async function(t) {
             const f = () => plural(items, ['One item', '# items'])
         `,
         typescript`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/main.loader.js"
             const f = () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
             }
     `, `
@@ -197,25 +194,24 @@ test('HMR', async function(t) {
             return varName
         }
     `, typescript`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_hmr_, getCatalogRx as _w_load_rx_hmr_} from "../tests/test-tmp/main.loader.js"
+        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../tests/test-tmp/main.loader.js"
 
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 
         function _w_load_(loadID) {
-            const _w_catalog_ = _w_load_hmr_(loadID)
-            _w_catalog_?.update?.(_w_hmrUpdate_)
-            return _w_catalog_
+            const _w_rt_ = _w_load_hmr_(loadID)
+            _w_rt_?._?.update?.(_w_hmrUpdate_)
+            return _w_rt_
         }
 
         function _w_load_rx_(loadID) {
-            const _w_catalog_ = _w_load_rx_hmr_(loadID)
-            _w_catalog_?.update?.(_w_hmrUpdate_)
-            return _w_catalog_
+            const _w_rt_ = _w_load_rx_hmr_(loadID)
+            _w_rt_?._?.update?.(_w_hmrUpdate_)
+            return _w_rt_
         }
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const varName = _w_runtime_.t(0)
             return varName
         }
@@ -241,17 +237,18 @@ const testCatalog = {
 const loaderFunc = () => testCatalog
 
 test('Loading and runtime', async t => {
+    /** @type {object} */
     const collection = {}
-    // @ts-expect-error
-    const getCatalog = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
+    const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called
-    const rt = wrapRT(getCatalog('foo'))
+    const rt = getRT('foo')
+    t.assert.equal(rt.l, 'en')
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(wrapRT(cPure['foo']).t(0), 'Hello')
+    t.assert.equal(toRuntime(cPure['foo']).t(0), 'Hello')
 })
 
 /**
@@ -263,7 +260,7 @@ function taggedHandler(msgs, ...args) {
 }
 
 test('Runtime', t => {
-    const rt = new Runtime(testCatalog)
+    const rt = toRuntime(testCatalog)
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
@@ -273,9 +270,9 @@ test('Runtime', t => {
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
-    const getCatalog = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
+    const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return wrapRT(getCatalog('main')).t(1, ['server user'])
+        return getRT('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })

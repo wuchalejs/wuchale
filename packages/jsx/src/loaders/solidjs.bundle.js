@@ -3,6 +3,7 @@
 // The content is this way because you have enabled bundleLoad in the config.
 
 import { createSignal } from "solid-js"
+import toRuntime from "wuchale/runtime"
 
 const [locale, setLocale] = createSignal('en')
 
@@ -11,6 +12,6 @@ export { setLocale }
 /**
  * @param {{ [locale: string]: import('wuchale/runtime').CatalogModule }} catalogs
  */
-export const getCatalogRx = catalogs => catalogs[locale()]
+export const getRuntimeRx = catalogs => toRuntime(catalogs[locale()], locale())
 // same function, because solid-js can use them anywhere
-export const getCatalog = getCatalogRx
+export const getRuntime = getRuntimeRx

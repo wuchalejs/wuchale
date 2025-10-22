@@ -4,7 +4,7 @@
 "@wuchale/jsx": minor
 ---
 
-Removed the `init` cli command. Loaders are now specified in the config.
+Removed the `init` CLI command. Loaders are now specified in the config. And they have to export `getRuntime` and `getRuntimeRx`.
 
 The interactive `init` command was mainly created to scaffold loaders. But
 since most devs don't touch the loaders and since updates to what the loaders
@@ -33,3 +33,7 @@ For example, for a SvelteKit project, it can be:  `main.loader.svelte.js`
 (client) and `main.loader.server.svelte.js` (server). Therefore, if you take
 ownership of these files and do custom stuff, you can specify `custom` in the
 adapter config.
+
+And next, the (custom) loaders have to export functions `getRuntime` and
+`getRuntimeRx` after wrapping the loaded catalogs with `toRuntime` from
+`wuchale/runtime`.

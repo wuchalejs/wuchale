@@ -29,18 +29,17 @@ test('React basic', async function(t) {
         }
     `, tsx`
         'use server'
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
             'use client'
-            const _w_runtime_ = _w_to_rt_(_w_load_rx_('jsx'))
+            const _w_runtime_ = _w_load_rx_('jsx')
             return <p>{_w_runtime_.t(0)}</p>
         }
 
         function m() {
-            const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+            const _w_runtime_ = _w_load_('jsx')
             return <p data-novalue>{_w_runtime_.t(0)}</p>
         }
     `, `
@@ -59,11 +58,10 @@ test('SolidJS basic', async function(t) {
             return <p>Hello</p>
         }
     `, tsx`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
-        const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
+        const _w_runtime_ = () => _w_load_rx_('jsx')
 
         function Foo(): Component {
             return <p>{_w_runtime_().t(0)}</p>
@@ -90,12 +88,11 @@ test('Ignore and include', async function(t) {
             </div>
         }
     `, tsx`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
-            const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+            const _w_runtime_ = _w_load_('jsx')
             return <div>
                 <svg><path d="M100 200" /></svg>
                 <p>{'hello there'}</p>
@@ -142,12 +139,11 @@ test('Context', async function(t) {
                 <p>Close</p>
             </>
         }`, tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <>
                     <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
                     <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
@@ -189,12 +185,11 @@ test('Plural', async function(t) {
                 return <p>{plural(items, ['One item', '# items'])}</p>
             }`,
         tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
             }
     `, `
@@ -219,12 +214,11 @@ test('Nested and mixed', async function(t) {
                 </>
             }`,
         tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import {getCatalog as _w_load_, getCatalogRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <>
                     <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>, _w_ctx_ => <i key="_1">{_w_runtime_.tx(_w_ctx_)}</i>]} x={_w_runtime_.cx(0)} /></p>
                     <p><W_tx_ x={_w_runtime_.cx(1)} a={[num]} /></p>
