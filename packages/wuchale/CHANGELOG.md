@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.17.5
+
+### Patch Changes
+
+- 5c8cea6: Fix chain expressions (JS) and render tags (Svelte) not being visited
+
 ## 0.17.4
 
 ### Patch Changes
