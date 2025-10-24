@@ -246,6 +246,14 @@ export class Transformer {
             if (arg === 'other') {
                 continue
             }
+            if (arg === 'locale') {
+                if (argVal) {
+                    this.mstr.update(argVal.start, argVal.end, this.vars().rtLocale)
+                } else {
+                    this.mstr.appendRight(argInsertIndex, `, ${this.vars().rtLocale}`)
+                }
+                continue
+            }
             if (arg === 'pluralFunc') {
                 if (argVal) {
                     this.mstr.update(argVal.start, argVal.end, this.vars().rtPlural)
