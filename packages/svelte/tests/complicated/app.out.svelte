@@ -1,9 +1,10 @@
 <script module>
+    const normalParam = 44;
+
     import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./tests/test-tmp/svelte.loader.svelte.js"
     import W_tx_ from "@wuchale/svelte/runtime.svelte"
     const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
 
-    const normalParam = 44;
 
     function someFunction(a, b, c) {
         const _w_runtime_mod_ = _w_load_('svelte')
@@ -14,8 +15,8 @@
 </script>
 
 <script>
-    const _w_runtime_ = $derived(_w_load_rx_('svelte'))
     import {someSnippet} from './foo'
+    const _w_runtime_ = $derived(_w_load_rx_('svelte'))
     async function someFunctionAsync(name) {
         const json = {}
         json.name = name ?? _w_runtime_.t(2)

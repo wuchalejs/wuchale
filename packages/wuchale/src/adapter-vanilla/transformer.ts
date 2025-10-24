@@ -81,6 +81,8 @@ export class Transformer {
     currentFuncDef: string | null = null
     currentCall: string
     currentTopLevelCall: string
+    /** .start of the first statements in their respective parents, to put the runtime init before */
+    realBodyStarts = new Set<number>()
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
@@ -399,14 +401,39 @@ export class Transformer {
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
-    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
-        for (const node of nodes) {
-            if (node.type === 'ExpressionStatement' && node.expression.type === 'Literal') {
+    visitStatementsNSaveRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Message[] => {
+        const msgs: Message[] = []
+        let bodyStart: number = null
+        for (const bod of nodes) {
+            const msgsBod = this.visit(bod)
+            if (!msgsBod.length) {
                 continue
             }
-            return node.start
+            if (bodyStart == null) {
+                bodyStart = bod.start
+            }
+            msgs.push(...msgsBod)
         }
-        return nodes[0]?.start
+        if (bodyStart) {
+            this.realBodyStarts.add(bodyStart)
+        }
+        return msgs
+    }
+
+    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
+        let nonLiteralStart: number = null
+        for (const node of nodes) {
+            if (this.realBodyStarts.has(node.start)) {
+                return node.start
+            }
+            if (nonLiteralStart == null
+                && node.type !== 'ImportDeclaration'
+                && (node.type !== 'ExpressionStatement' || node.expression.type !== 'Literal')
+            ) {
+                nonLiteralStart = node.start
+            }
+        }
+        return nonLiteralStart ?? nodes[0]?.start
     }
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null, end?: number): Message[] => {
@@ -458,7 +485,7 @@ export class Transformer {
 
     visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
-    visitBlockStatement = (node: Estree.BlockStatement): Message[] => node.body.map(this.visit).flat()
+    visitBlockStatement = (node: Estree.BlockStatement): Message[] => this.visitStatementsNSaveRealBodyStart(node.body)
 
     visitReturnStatement = (node: Estree.ReturnStatement): Message[] => node.argument ? this.visit(node.argument) : []
 
@@ -572,11 +599,8 @@ export class Transformer {
     }
 
     visitProgram = (node: Estree.Program): Message[] => {
-        const msgs = []
         this.insideProgram = true
-        for (const child of node.body) {
-            msgs.push(...this.visit(child))
-        }
+        const msgs = this.visitStatementsNSaveRealBodyStart(node.body)
         this.insideProgram = false
         return msgs
     }
