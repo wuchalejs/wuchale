@@ -298,6 +298,7 @@ export class AdapterHandler {
             return
         }
         await mkdir(this.#generatedDir, {recursive: true})
+        const dataFile = 'data.js'
         for (const side in this.loaderPath) {
             let loaderTemplate: string
             if (typeof this.#adapter.defaultLoaderPath === 'string') {
@@ -308,10 +309,11 @@ export class AdapterHandler {
             const loaderContent = (await readFile(loaderTemplate)).toString()
                 .replace('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replace('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
+                .replace('${DATA}', `./${dataFile}`)
                 .replace('${KEY}', this.key)
             await writeFile(this.loaderPath[side], loaderContent)
         }
-        await writeFile(join(this.#adapter.localesDir, 'data.js'), this.getData())
+        await writeFile(join(this.#adapter.localesDir, dataFile), this.getData())
     }
 
     init = async (sharedStates: SharedStates) => {
@@ -382,6 +384,7 @@ export class AdapterHandler {
         }
         return `
             ${module}
+            // only during dev, for HMR
             let latestVersion = ${hmrVersion}
             export function update({ version, data }) {
                 if (latestVersion >= version) {

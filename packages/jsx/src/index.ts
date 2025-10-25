@@ -117,6 +117,5 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
-        docsUrl: 'https://wuchale.dev/adapters/jsx'
     }
 }

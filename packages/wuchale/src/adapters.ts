@@ -187,8 +187,6 @@ export type Adapter = AdapterPassThruOpts & {
     loaderExts: string[]
     /** default loaders to copy, `null` means custom */
     defaultLoaderPath: LoaderPath | string | null
-    /** docs specific to the adapter */
-    docsUrl: string
 }
 
 export type CodePattern = {

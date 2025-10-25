@@ -81,6 +81,5 @@ export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adap
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
-        docsUrl: 'https://wuchale.dev/adapters/vanilla'
     }
 }
