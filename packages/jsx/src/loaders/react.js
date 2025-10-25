@@ -5,7 +5,7 @@ import { loadCatalog, loadIDs } from '${PROXY}'
 import { registerLoaders } from 'wuchale/load-utils'
 import { useState, useEffect } from 'react'
 
-const key = '${KEY}'
+export const key = '${KEY}'
 const callbacks = {}
 const store = {}
 

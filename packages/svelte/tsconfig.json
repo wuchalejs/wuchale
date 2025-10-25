@@ -7,5 +7,5 @@
     "references": [
         { "path": "../wuchale" }
     ],
-    "include": ["src", "tests", "../wuchale/tests"]
+    "include": ["src", "tests", "../wuchale/tests", "../wuchale/ambient.d.ts"]
 }
