@@ -66,14 +66,13 @@ const defaultRuntimeSolid: RuntimeConf = {
 
 const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
-    catalog: './src/locales/{locale}',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
     heuristic: jsxDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     loader: 'default',
     generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
     runtime: defaultRuntime,
     variant: 'default',
 }

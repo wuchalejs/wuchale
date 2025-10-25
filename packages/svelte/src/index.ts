@@ -43,13 +43,12 @@ type LoadersAvailable = 'svelte' | 'sveltekit'
 
 const defaultArgs: AdapterArgs<LoadersAvailable> = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-    catalog: './src/locales/{locale}',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
     heuristic: svelteDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
     loader: 'svelte',
     runtime: {
         useReactive: ({file, funcName, additional}) => {

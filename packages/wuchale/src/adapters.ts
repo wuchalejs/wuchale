@@ -172,16 +172,12 @@ export type LoaderPath = {
 
 export type AdapterPassThruOpts = {
     files: GlobConf
-    catalog: string
+    localesDir: string
+    /** if writing transformed code to a directory is desired, specify this */
+    outDir?: string
     granularLoad: boolean
     bundleLoad: boolean,
     generateLoadID: (filename: string) => string
-    writeFiles: {
-        compiled?: boolean
-        proxy?: boolean
-        transformed?: boolean
-        outDir?: string
-    }
     runtime: Partial<RuntimeConf>
 }
 

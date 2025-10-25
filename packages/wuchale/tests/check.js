@@ -12,7 +12,7 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
 
 export const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`,
+    localesDir: `${dirBase}/test-tmp/`,
     loader: 'vite',
     initInsideFunc: false,
 }
@@ -26,13 +26,11 @@ export const adapterOpts = {
  * @returns {Promise<object>}
  */
 export async function getOutput(adapter, key, content, filename, hmrVersion) {
-    adapter.catalog
     const handler = new AdapterHandler(
         adapter,
         key,
         defaultConfig,
         'prod',
-        'virtual',
         process.cwd(),
         new Logger('error'),
     )
@@ -107,7 +105,7 @@ export const basic = adapter(adapterOpts)
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, adapter=basic, hmrVersion=-1) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
 }
@@ -118,7 +116,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
  */
 export async function testDir(t, dir, adapter=basic) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testDirSetup(t, adapter, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }

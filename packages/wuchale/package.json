@@ -28,8 +28,7 @@
     ],
     "files": [
         "dist",
-        "src/adapter-vanilla/loaders",
-        "src/virtual.d.ts"
+        "src/adapter-vanilla/loaders"
     ],
     "exports": {
         ".": {

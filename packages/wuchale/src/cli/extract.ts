@@ -71,7 +71,7 @@ export async function extract(config: Config, locales: string[], clean: boolean,
     const handlers = []
     const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', 'extract', process.cwd(), new Logger(config.logLevel))
+        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.logLevel))
         await extractAdap(handler, sharedState, adapter.files, locales, clean, sync)
         handlers.push(handler)
     }
