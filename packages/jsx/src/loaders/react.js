@@ -1,33 +1,32 @@
 // This is just the default loader.
 // You can customize it however you want, it will not be overwritten once it exists and is not empty.
 
-/// <reference types="wuchale/virtual" />
-
-import { loadCatalog, loadIDs, key } from 'virtual:wuchale/proxy' // or proxy/sync
+import { loadCatalog, loadIDs } from '${PROXY}'
 import { registerLoaders } from 'wuchale/load-utils'
 import { useState, useEffect } from 'react'
 
+export const key = '${KEY}'
 const callbacks = {}
 const store = {}
 
 // non-reactive
-export const get = (/** @type {string} */ loadID) => store[loadID]
+export const getRuntime = (/** @type {string} */ loadID) => store[loadID]
 
 const collection = {
-    get,
-    set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').CatalogModule} */ catalog) => {
-        store[loadID] = catalog // for when useEffect hasn't run yet
-        callbacks[loadID]?.(catalog)
+    get: getRuntime,
+    set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').Runtime} */ runtime) => {
+        store[loadID] = runtime // for when useEffect hasn't run yet
+        callbacks[loadID]?.(runtime)
     }
 }
 
 registerLoaders(key, loadCatalog, loadIDs, collection)
 
-export default (/** @type {string} */ loadID) => {
-    const [catalog, setCatalog] = useState(collection.get(loadID))
+export const getRuntimeRx = (/** @type {string} */ loadID) => {
+    const [runtime, setRuntime] = useState(collection.get(loadID))
     useEffect(() => {
-        callbacks[loadID] = (/** @type {import('wuchale/runtime').CatalogModule} */ catalog) => setCatalog(catalog)
+        callbacks[loadID] = (/** @type {import('wuchale/runtime').Runtime} */ runtime) => setRuntime(runtime)
         return () => delete callbacks[loadID]
-    })
-    return catalog
+    }, [loadID])
+    return runtime
 }

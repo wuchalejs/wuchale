@@ -10,5 +10,5 @@
         { "path": "tsconfig/solid.json" },
         { "path": "../wuchale" }
     ],
-    "include": ["src", "tests", "../wuchale/tests"]
+    "include": ["src", "tests", "../wuchale/tests", "../wuchale/ambient.d.ts"]
 }

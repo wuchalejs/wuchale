@@ -1,9 +1,8 @@
 // This is just the default loader.
 // You can customize it however you want, it will not be overwritten once it exists and is not empty.
 
-/// <reference types="wuchale/virtual" />
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import toRuntime from 'wuchale/runtime'
 
 let locale = 'en'
 
@@ -18,15 +17,15 @@ export function setLocale(locale) {
     }
 }
 
-export default (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
+export const getRuntimeRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
     const [locale, setLocale] = useState('en')
     useEffect(() => {
         const cb = (/** @type {string} */ locale) => setLocale(locale)
         callbacks.add(cb)
         return () => callbacks.delete(cb)
-    })
-    return catalogs[locale]
+    }, [catalogs])
+    return useMemo(() => toRuntime(catalogs[locale], locale), [locale, catalogs])
 }
 
 // non-reactive
-export const get = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => catalogs[locale]
+export const getRuntime = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => toRuntime(catalogs[locale], locale)

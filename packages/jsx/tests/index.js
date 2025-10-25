@@ -2,16 +2,17 @@
 
 import { test } from 'node:test'
 import { testContent, testDir, tsx, adapterOpts } from './check.js'
-import { adapter } from '@wuchale/jsx'
+import { getDefaultLoaderPath } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
 
 test('Default loader file paths', async function(t){
-    const adap = adapter()
-    for (const loader of ['default', 'react', 'react.bundle', 'solidjs', 'solidjs.bundle']) {
-        const path = adap.defaultLoaderPath(loader)
-        const paths = typeof path === 'string' ? [path] : Object.values(path)
-        for (const path of paths) {
-            await statfs(path) // no error
+    for (const loader of ['default', 'react', 'solidjs']) {
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
         }
     }
 })
@@ -28,18 +29,17 @@ test('React basic', async function(t) {
         }
     `, tsx`
         'use server'
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
             'use client'
-            const _w_runtime_ = _w_to_rt_(_w_load_rx_('jsx'))
+            const _w_runtime_ = _w_load_rx_('jsx')
             return <p>{_w_runtime_.t(0)}</p>
         }
 
         function m() {
-            const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+            const _w_runtime_ = _w_load_('jsx')
             return <p data-novalue>{_w_runtime_.t(0)}</p>
         }
     `, `
@@ -58,11 +58,10 @@ test('SolidJS basic', async function(t) {
             return <p>Hello</p>
         }
     `, tsx`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
-        const _w_runtime_ = () => _w_to_rt_(_w_load_rx_('jsx'))
+        const _w_runtime_ = () => _w_load_rx_('jsx')
 
         function Foo(): Component {
             return <p>{_w_runtime_().t(0)}</p>
@@ -89,12 +88,11 @@ test('Ignore and include', async function(t) {
             </div>
         }
     `, tsx`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
-            const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+            const _w_runtime_ = _w_load_('jsx')
             return <div>
                 <svg><path d="M100 200" /></svg>
                 <p>{'hello there'}</p>
@@ -141,12 +139,11 @@ test('Context', async function(t) {
                 <p>Close</p>
             </>
         }`, tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <>
                     <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
                     <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
@@ -188,12 +185,11 @@ test('Plural', async function(t) {
                 return <p>{plural(items, ['One item', '# items'])}</p>
             }`,
         tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
             }
     `, `
@@ -218,12 +214,11 @@ test('Nested and mixed', async function(t) {
                 </>
             }`,
         tsx`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('jsx'))
+                const _w_runtime_ = _w_load_('jsx')
                 return <>
                     <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>, _w_ctx_ => <i key="_1">{_w_runtime_.tx(_w_ctx_)}</i>]} x={_w_runtime_.cx(0)} /></p>
                     <p><W_tx_ x={_w_runtime_.cx(1)} a={[num]} /></p>

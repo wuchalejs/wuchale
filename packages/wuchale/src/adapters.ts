@@ -157,7 +157,6 @@ export type UseReactiveFunc = (details: {funcName?: string, nested: boolean, fil
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
     wrapUse: WrapFunc
-    importName: 'default' | string
 }
 
 export type RuntimeConf = {
@@ -173,17 +172,12 @@ export type LoaderPath = {
 
 export type AdapterPassThruOpts = {
     files: GlobConf
-    catalog: string
+    localesDir: string
+    /** if writing transformed code to a directory is desired, specify this */
+    outDir?: string
     granularLoad: boolean
     bundleLoad: boolean,
     generateLoadID: (filename: string) => string
-    loaderPath?: string | LoaderPath
-    writeFiles: {
-        compiled?: boolean
-        proxy?: boolean
-        transformed?: boolean
-        outDir?: string
-    }
     runtime: Partial<RuntimeConf>
 }
 
@@ -191,20 +185,19 @@ export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
-    /** available loader names, can do auto detection logic to sort, dependencies given */
-    defaultLoaders: () => string[] | Promise<string[]>
-    /* Can return different file paths based on conditions */
-    defaultLoaderPath: (loaderName: string) => LoaderPath | string
-    /* docs specific to the adapter */
-    docsUrl: string
+    /** default loaders to copy, `null` means custom */
+    defaultLoaderPath: LoaderPath | string | null
 }
 
 export type CodePattern = {
     name: string
-    args: ('message' | 'pluralFunc' | 'other')[]
+    args: ('message' | 'pluralFunc' | 'locale' | 'other')[]
 }
 
-export type AdapterArgs = Partial<AdapterPassThruOpts> & {
+export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
+
+export type AdapterArgs<LoadersAvailable> = Partial<AdapterPassThruOpts> & {
+    loader: LoaderChoice<LoadersAvailable>
     heuristic?: HeuristicFunc
     patterns?: CodePattern[]
 }

@@ -1,14 +1,15 @@
 import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
-import { pluralPattern, adapter as vanillaAdapter } from 'wuchale/adapter-vanilla'
+import { pluralPattern, getDefaultLoaderPath as getDefaultLoaderPathVanilla } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
     RuntimeConf,
+    LoaderChoice,
 } from 'wuchale'
 import { JSXTransformer, type JSXLib } from "./transformer.js"
-import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
+import { loaderPathResolver } from 'wuchale/adapter-utils'
 
 export const jsxDefaultHeuristic: HeuristicFunc = msg => {
     if (!defaultHeuristic(msg)) {
@@ -23,7 +24,9 @@ export const jsxDefaultHeuristic: HeuristicFunc = msg => {
     return true
 }
 
-type JSXArgs = AdapterArgs & {
+type LoadersAvailable = 'default' | 'react' | 'solidjs'
+
+type JSXArgs = AdapterArgs<LoadersAvailable> & {
     variant?: JSXLib
 }
 
@@ -37,12 +40,10 @@ const defaultRuntime: RuntimeConf = {
         }
     },
     reactive: {
-        importName: 'default',
         wrapInit: expr => expr,
         wrapUse: expr => expr,
     },
     plain: {
-        importName: 'get',
         wrapInit: expr => expr,
         wrapUse: expr => expr,
     },
@@ -58,7 +59,6 @@ const defaultRuntimeSolid: RuntimeConf = {
         }
     },
     reactive: {
-        importName: 'default',
         wrapInit: expr => `() => ${expr}`,
         wrapUse: expr => `${expr}()`
     }
@@ -66,18 +66,28 @@ const defaultRuntimeSolid: RuntimeConf = {
 
 const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
-    catalog: './src/locales/{locale}',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
     heuristic: jsxDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
+    loader: 'default',
     generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
     runtime: defaultRuntime,
     variant: 'default',
 }
 
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'js')
+
+export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean) {
+    if (loader === 'default') {
+        return getDefaultLoaderPathVanilla('bundle', bundle)
+    }
+    if (bundle) {
+        loader += '.bundle'
+    }
+    return resolveLoaderPath(loader)
+}
 
 export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
     let {
@@ -85,6 +95,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         patterns,
         variant,
         runtime,
+        loader,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     if (variant === 'solidjs' && args.runtime == null) {
@@ -103,28 +114,8 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
             ).transformJx(variant)
         },
         loaderExts: ['.js', '.ts'],
-        defaultLoaders: async () => {
-            const deps = await getDependencies()
-            const loaders = ['default']
-            if (deps.has('react') || deps.has('preact')) {
-                loaders.unshift('react')
-            }
-            if (deps.has('solid-js')) {
-                loaders.unshift('solidjs')
-            }
-            return loaders
-        },
-        defaultLoaderPath: (loader: string) => {
-            if (loader === 'default') {
-                return vanillaAdapter({bundleLoad: rest.bundleLoad}).defaultLoaderPath('vite')
-            }
-            if (rest.bundleLoad) {
-                loader += '.bundle'
-            }
-            return resolveLoaderPath(loader)
-        },
+        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
-        docsUrl: 'https://wuchale.dev/adapters/jsx'
     }
 }

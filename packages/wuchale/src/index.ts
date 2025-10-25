@@ -25,6 +25,7 @@ export type {
     AdapterArgs,
     AdapterPassThruOpts,
     CodePattern,
+    LoaderChoice,
     RuntimeConf,
     CatalogExpr,
     HeuristicFunc,
