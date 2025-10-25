@@ -25,13 +25,12 @@ type LoadersAvailable = 'bundle' | 'server' | 'vite'
 
 const defaultArgs: AdapterArgs<LoadersAvailable> = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
-    catalog: './src/locales/{locale}',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
     heuristic: defaultHeuristicFuncOnly,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
     loader: 'vite',
     runtime: {
         useReactive: ({nested}) => ({

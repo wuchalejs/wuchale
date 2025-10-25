@@ -5,7 +5,7 @@ export default defineConfig({
     adapters: {
         main: adapter({
             files: './*.test.js',
-            catalog: './tests/test-tmp/{locale}',
+            localesDir: './tests/test-tmp/',
             loader: 'server',
         }),
     }

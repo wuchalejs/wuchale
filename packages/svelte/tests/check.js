@@ -9,7 +9,7 @@ import { adapter } from '@wuchale/svelte'
 const dirBase = absDir(import.meta.url)
 const adapterOpts = {
     files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`,
+    localesDir: `${dirBase}/test-tmp/`,
     loader: 'svelte',
 }
 
@@ -27,7 +27,7 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.svelte`)
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testContentSetup(t, sv, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
@@ -38,7 +38,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
  */
 export async function testDir(t, dir) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testDirSetup(t, sv, 'svelte', `${dirBase}/${dir}`, 'app.svelte', 'app.out.svelte')
 }

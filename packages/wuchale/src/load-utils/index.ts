@@ -1,3 +1,5 @@
+/// <reference types="../../ambient.d.ts" />
+
 import toRuntime, { type CatalogModule, type Runtime } from '../runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>

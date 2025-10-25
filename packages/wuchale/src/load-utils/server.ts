@@ -1,3 +1,5 @@
+/// <reference types="../../ambient.d.ts" />
+
 import type { LoaderFunc } from './index.js'
 import toRuntime, { type Runtime } from '../runtime.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
