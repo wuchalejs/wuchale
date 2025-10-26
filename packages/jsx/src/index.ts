@@ -1,4 +1,4 @@
-import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
+import { defaultGenerateLoadID, deepMergeObjects, createHeuristic, defaultHeuristicOpts } from 'wuchale'
 import { pluralPattern, getDefaultLoaderPath as getDefaultLoaderPathVanilla } from 'wuchale/adapter-vanilla'
 import type {
     HeuristicFunc,
@@ -7,22 +7,28 @@ import type {
     AdapterPassThruOpts,
     RuntimeConf,
     LoaderChoice,
+    CreateHeuristicOpts,
 } from 'wuchale'
 import { JSXTransformer, type JSXLib } from "./transformer.js"
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 
-export const jsxDefaultHeuristic: HeuristicFunc = msg => {
-    if (!defaultHeuristic(msg)) {
-        return false
-    }
-    if (msg.details.scope !== 'script') {
+export function createJsxHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
+    const defaultHeuristic = createHeuristic(opts)
+    return msg => {
+        if (!defaultHeuristic(msg)) {
+            return false
+        }
+        if (msg.details.scope !== 'script') {
+            return true
+        }
+        if (msg.details.declaring === 'variable') {
+            return false
+        }
         return true
     }
-    if (msg.details.declaring === 'variable') {
-        return false
-    }
-    return true
 }
+
+export const jsxDefaultHeuristic: HeuristicFunc = createJsxHeuristic(defaultHeuristicOpts)
 
 type LoadersAvailable = 'default' | 'react' | 'solidjs'
 

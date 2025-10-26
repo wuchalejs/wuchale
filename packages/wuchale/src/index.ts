@@ -19,12 +19,15 @@ export {
     IndexTracker,
     defaultGenerateLoadID,
     defaultHeuristic,
+    defaultHeuristicOpts,
+    createHeuristic,
 } from './adapters.js'
 export type {
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
     CodePattern,
+    CreateHeuristicOpts,
     LoaderChoice,
     RuntimeConf,
     CatalogExpr,
