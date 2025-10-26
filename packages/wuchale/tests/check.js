@@ -5,13 +5,14 @@ import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
+import { cwd } from 'process'
 
-export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
+export const absDir = (/** @type {string} */ fileurl) => relative(cwd(), dirname(fileURLToPath(fileurl)))
 const dirBase = absDir(import.meta.url)
-const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
+const testFile = `${dirBase}/test-dir/test.js`
 
 export const adapterOpts = {
-    files: `${dirBase}/test-tmp/*`,
+    files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'vite',
     initInsideFunc: false,
