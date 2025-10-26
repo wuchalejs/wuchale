@@ -1,4 +1,4 @@
-import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
+import { defaultGenerateLoadID, deepMergeObjects, createHeuristic, defaultHeuristicOpts } from 'wuchale'
 import type {
     HeuristicFunc,
     Adapter,
@@ -6,24 +6,30 @@ import type {
     AdapterPassThruOpts,
     RuntimeConf,
     LoaderChoice,
+    CreateHeuristicOpts,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
-/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
-export const svelteDefaultHeuristic: HeuristicFunc = msg => {
-    if (!defaultHeuristic(msg)) {
-        return false
-    }
-    if (msg.details.scope !== 'script') {
+export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
+    const defaultHeuristic = createHeuristic(opts)
+    return msg => {
+        if (!defaultHeuristic(msg)) {
+            return false
+        }
+        if (msg.details.scope !== 'script') {
+            return true
+        }
+        if (msg.details.call === '$inspect') {
+            return false
+        }
         return true
     }
-    if (msg.details.call === '$inspect') {
-        return false
-    }
-    return true
 }
+
+/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
+export const svelteDefaultHeuristic = createSvelteHeuristic(defaultHeuristicOpts)
 
 /** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
 export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {

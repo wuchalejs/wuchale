@@ -50,56 +50,64 @@ export class Message {
 
 export type HeuristicFunc = (msg: Message) => boolean | null | undefined
 
-const ignoreElements = ['style', 'path', 'code', 'pre']
-const ignoreAttribs = [['form', 'method']]
-const urlAttribs = [['a', 'href']]
-const urlCalls = ['fetch', 'new EventSource']
+export const defaultHeuristicOpts = {
+    ignoreElements: ['style', 'path', 'code', 'pre'],
+    ignoreAttribs: [['form', 'method']],
+    urlAttribs: [['a', 'href']],
+    urlCalls: ['navigate'],
+}
 
-/** Default heuristic */
-export const defaultHeuristic: HeuristicFunc = msg => {
-    const msgStr = msg.msgStr.join('\n')
-    if (msgStr.search(/\p{L}/u) === -1) {
-        return false
-    }
-    if (msg.details.element && ignoreElements.includes(msg.details.element)) {
-        return false
-    }
-    if (msg.details.scope === 'attribute') {
-        for (const [element, attrib] of ignoreAttribs) {
-            if (msg.details.element === element && msg.details.attribute === attrib) {
-                return false
+export type CreateHeuristicOpts = typeof defaultHeuristicOpts
+
+export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
+    return msg => {
+        const msgStr = msg.msgStr.join('\n')
+        if (msgStr.search(/\p{L}/u) === -1) {
+            return false
+        }
+        if (msg.details.element && opts.ignoreElements.includes(msg.details.element)) {
+            return false
+        }
+        if (msg.details.scope === 'attribute') {
+            for (const [element, attrib] of opts.ignoreAttribs) {
+                if (msg.details.element === element && msg.details.attribute === attrib) {
+                    return false
+                }
             }
         }
-    }
-    if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
-        for (const [element, attrib] of urlAttribs) {
-            if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
+        if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
+            for (const [element, attrib] of opts.urlAttribs) {
+                if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
+                    msg.url = true
+                    return true
+                }
+            }
+        if (msg.details.scope === 'markup') {
+            return true
+        }
+        // script and attribute
+        // only allow non lower-case English letter beginnings
+        if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
+            return false
+        }
+        if (msg.details.scope !== 'script') {
+            return true
+        }
+        for (const call of opts.urlCalls) {
+            if (msg.details.call === call && msgStr.startsWith('/') && !msgStr.includes(' ')) {
                 msg.url = true
                 return true
             }
         }
-    if (msg.details.scope === 'markup') {
-        return true
-    }
-    // script and attribute
-    // only allow non lower-case English letter beginnings
-    if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
-        return false
-    }
-    if (msg.details.scope !== 'script') {
-        return true
-    }
-    for (const call of urlCalls) {
-        if (msg.details.call === call && msgStr.startsWith('/') && !msgStr.includes(' ')) {
-            msg.url = true
-            return true
+        if (msg.details.declaring === 'expression' && !msg.details.funcName) {
+            return false
         }
+        return !msg.details.call?.startsWith('console.') && msg.details.call !== 'fetch'
     }
-    if (msg.details.declaring === 'expression' && !msg.details.funcName) {
-        return false
-    }
-    return !msg.details.call?.startsWith('console.') && msg.details.call !== 'fetch'
 }
+
+/** Default heuristic */
+export const defaultHeuristic = createHeuristic(defaultHeuristicOpts)
 
 /** Default heuristic which ignores messages outside functions in the `script` scope */
 export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
