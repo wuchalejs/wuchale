@@ -198,7 +198,6 @@ export type AdapterPassThruOpts = {
     url: {
         patterns?: string[]
         localize?: (url: string, locale: string) => string
-        deLocalize?: (url: string) => {locale: string, url: string}
     }
     generateLoadID: (filename: string) => string
     runtime: Partial<RuntimeConf>

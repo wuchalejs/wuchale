@@ -13,6 +13,7 @@ import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
 import { varNames } from './adapter-utils/index.js'
 import { match as matchUrlPattern, compile as compileUrlPattern } from 'path-to-regexp'
+import type { URLManifest } from './url.js'
 
 type PluralRule = {
     nplurals: number
@@ -30,7 +31,6 @@ type POFile = {
     catalog: Catalog
     headers: Record<string, string>
     pluralRule: PluralRule
-    loaded: boolean
 }
 
 const generatedDir = '.wuchale'
@@ -77,7 +77,7 @@ async function loadCatalogFromPO(filename: string): Promise<POFile> {
     } else {
         pluralRule = defaultPluralRule
     }
-    return { catalog, pluralRule, headers: po.headers, loaded: true }
+    return { catalog, pluralRule, headers: po.headers }
 }
 
 async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
@@ -148,6 +148,8 @@ export class AdapterHandler {
     granularStateByID: Record<string, GranularState> = {}
 
     #catalogsFname: Record<string, string> = {}
+    #urlManifestFname: string
+    #urlsFname: string
     #generatedDir: string
     catalogPathsToLocales: Record<string, string> = {}
 
@@ -221,6 +223,8 @@ export class AdapterHandler {
         this.loaderPath = await this.getLoaderPath()
         this.proxyPath = join(this.#generatedDir, this.#proxyFileName())
         this.proxySyncPath = join(this.#generatedDir, this.#proxyFileName(true))
+        this.#urlManifestFname = join(this.#generatedDir, `${this.key}.urls.js`)
+        this.#urlsFname = join(this.#adapter.localesDir, `${this.key}.url.js`)
     }
 
     getCompiledFilePath(loc: string, id: string | null) {
@@ -326,6 +330,33 @@ export class AdapterHandler {
         await writeFile(join(this.#adapter.localesDir, dataFile), this.getData())
     }
 
+    writeUrls = async () => {
+        const patterns = this.#adapter.url?.patterns
+        if (!patterns) {
+            return
+        }
+        const manifest: URLManifest = patterns.map(patt => [
+            patt,
+            this.#locales.map(loc => {
+                const item = this.sharedState.poFilesByLoc[loc].catalog[patt]
+                const pattern = item.msgstr[0] || item.msgid
+                return [loc, this.#adapter.url.localize?.(pattern, loc) ?? pattern]
+            })
+        ])
+        const urlManifestData = [
+            `/** @type {import('wuchale/url').URLManifest} */`,
+            `export default ${JSON.stringify(manifest)}`,
+        ].join('\n')
+        await writeFile(this.#urlManifestFname, urlManifestData)
+        const urlFileContent = [
+            'import {URLMatcher} from "wuchale/url"',
+            `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
+            'import {locales} from "./data.js"',
+            `export default URLMatcher(manifest, locales)`
+        ].join('\n')
+        await writeFile(this.#urlsFname, urlFileContent)
+    }
+
     init = async (sharedStates: SharedStates) => {
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         await this.#initPaths()
@@ -362,13 +393,13 @@ export class AdapterHandler {
                     catalog: {},
                     pluralRule: defaultPluralRule,
                     headers: {},
-                    loaded: false,
                 }
                 this.sharedState.extractedUrls[loc] = {}
             }
             await this.loadCatalogNCompile(loc)
         }
         await this.writeProxies()
+        await this.writeUrls()
     }
 
     loadCatalogNCompile = async (loc: string): Promise<void> => {
