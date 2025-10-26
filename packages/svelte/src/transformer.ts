@@ -33,8 +33,17 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, [varNames.rt, rtModuleVar])
+    constructor(
+        content: string,
+        filename: string,
+        index: IndexTracker,
+        heuristic: HeuristicFunc,
+        patterns: CodePattern[],
+        catalogExpr: CatalogExpr,
+        rtConf: RuntimeConf,
+        matchUrl: (url: string) => string,
+    ) {
+        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)

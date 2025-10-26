@@ -15,6 +15,7 @@ import type {
     RuntimeConf,
     CatalogExpr,
     CodePattern,
+    UrlMatcher,
 } from "../adapters.js"
 import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
@@ -69,6 +70,7 @@ export class Transformer {
     filename: string
     mstr: MagicString
     patterns: CodePattern[]
+    matchUrl: UrlMatcher
     initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
@@ -86,12 +88,13 @@ export class Transformer {
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, rtBaseVars = [varNames.rt]) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: (url: string) => string, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
         this.patterns = patterns
         this.content = content
         this.filename = filename
+        this.matchUrl = matchUrl
         const topLevelUseReactive = rtConf.useReactive({
             funcName: null,
             nested: false,
@@ -153,6 +156,9 @@ export class Transformer {
         let extract = this.commentDirectives.forceInclude
         if (extract == null) {
             extract = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? true
+            if (extract && msg.url) {
+                extract = this.matchUrl(msgStr) != null
+            }
         }
         return extract
     }

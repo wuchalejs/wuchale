@@ -29,6 +29,7 @@ export class Message {
     context: string
     comments: string[] = []
     details: HeuristicDetails
+    url: boolean = false
 
     constructor(msgStr: string | string[], heuristicDetails: HeuristicDetails, context: string | null) {
         if (typeof msgStr === 'string') {
@@ -51,9 +52,11 @@ export type HeuristicFunc = (msg: Message) => boolean | null | undefined
 
 const ignoreElements = ['style', 'path', 'code', 'pre']
 const ignoreAttribs = [['form', 'method']]
+const urlAttribs = [['a', 'href'], ['img', 'src'], ['form', 'action']]
+const urlCalls = ['fetch', 'new EventSource']
 
 /** Default heuristic */
-export function defaultHeuristic(msg: Message) {
+export const defaultHeuristic: HeuristicFunc = msg => {
     const msgStr = msg.msgStr.join('\n')
     if (msgStr.search(/\p{L}/u) === -1) {
         return false
@@ -67,6 +70,12 @@ export function defaultHeuristic(msg: Message) {
                 return false
             }
         }
+        for (const [element, attrib] of urlAttribs) {
+            if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
+                msg.url = true
+                return true
+            }
+        }
     }
     if (msg.details.scope === 'markup') {
         return true
@@ -78,6 +87,12 @@ export function defaultHeuristic(msg: Message) {
     }
     if (msg.details.scope !== 'script') {
         return true
+    }
+    for (const call of urlCalls) {
+        if (msg.details.call === call && msgStr.startsWith('/') && !msgStr.includes(' ')) {
+            msg.url = true
+            return true
+        }
     }
     if (msg.details.declaring === 'expression' && !msg.details.funcName) {
         return false
@@ -122,11 +137,14 @@ export type TransformHeader = {
     head: string
 }
 
+export type UrlMatcher = (url: string) => string | null | undefined
+
 type TransformCtx = {
     content: string
     filename: string
     index: IndexTracker
     expr: CatalogExpr
+    matchUrl: UrlMatcher
 }
 
 export type HMRData = {
@@ -176,7 +194,12 @@ export type AdapterPassThruOpts = {
     /** if writing transformed code to a directory is desired, specify this */
     outDir?: string
     granularLoad: boolean
-    bundleLoad: boolean,
+    bundleLoad: boolean
+    url: {
+        patterns?: string[]
+        localize?: (url: string, locale: string) => string
+        deLocalize?: (url: string) => {locale: string, url: string}
+    }
     generateLoadID: (filename: string) => string
     runtime: Partial<RuntimeConf>
 }
