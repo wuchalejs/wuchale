@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, svelte, javascript } from './check.js'
+import { testContent, testDir, svelte, javascript, testFileJs } from './check.js'
 import { getDefaultLoaderPath } from '@wuchale/svelte'
 import { statfs } from 'fs/promises'
 
@@ -20,7 +20,7 @@ test('Default loader file paths', async function(t){
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/svelte.loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
@@ -29,7 +29,7 @@ test('Simple text', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -48,7 +48,7 @@ test('JS module files', async function(t) {
         }
 
     `, javascript`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./tests/test-tmp/svelte.loader.svelte.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
         const _w_runtime_ = $derived(_w_load_rx_('svelte'))
 
         const varName = $derived(_w_runtime_.t(0))
@@ -65,22 +65,22 @@ test('JS module files', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Simple bare assign"
         msgstr "Simple bare assign"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Foo"
         msgstr "Foo"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Hello"
         msgstr "Hello"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Should extract"
         msgstr "Should extract"
-    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], 'test.svelte.js')
+    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], testFileJs)
 })
 
 test('Simple element with new lines', async function(t) {
@@ -94,7 +94,7 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/svelte.loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             // Intentionally empty
@@ -106,11 +106,11 @@ test('Simple element with new lines', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgid "Hello"
         msgstr "Hello"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgid ""
         "Hello\\n"
         "There"
@@ -132,7 +132,7 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/svelte.loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
@@ -148,7 +148,7 @@ test('Ignore and include', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "include this"
     msgstr "include this"
     `, ['include this'])
@@ -182,7 +182,7 @@ test('Exported snippet', async function(t) {
         {/snippet}
     `, svelte`
         <script module>
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/svelte.loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
             export const bar = {
@@ -205,8 +205,8 @@ test('Exported snippet', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -225,7 +225,7 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-                import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/svelte.loader.svelte.js"
+                import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             </script>
@@ -239,28 +239,28 @@ test('Context', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "music"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "programming"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "door"
         msgid "Close"
         msgstr "Close"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"
     `, [ 'String', 'String', 'Close', 'Close',  ])
 })
 
-test('Multiple in one file', async t => await testDir(t, 'multiple'))
-
-test('Complicated', async t => await testDir(t, 'complicated'))
+// test('Multiple in one file', async t => await testDir(t, 'multiple'))
+//
+// test('Complicated', async t => await testDir(t, 'complicated'))

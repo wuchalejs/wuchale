@@ -3,17 +3,16 @@
 // @ts-ignore
 import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
 import { rm } from 'fs/promises'
-import { relative } from 'path'
 import { adapter } from '@wuchale/jsx'
 
 const dirBase = absDir(import.meta.url)
 export const adapterOpts = {
-    files: `${dirBase}/test-tmp/*`,
+    files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'default',
 }
 
-const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
+const testFile = `${dirBase}/test-dir/test.jsx`
 
 /**
  * @param {any} t

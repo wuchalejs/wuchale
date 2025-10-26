@@ -29,7 +29,7 @@ test('React basic', async function(t) {
         }
     `, tsx`
         'use server'
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
@@ -45,8 +45,8 @@ test('React basic', async function(t) {
     `, `
     msgid ""
     msgstr ""
-    #: test-tmp/test.jsx
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -58,7 +58,7 @@ test('SolidJS basic', async function(t) {
             return <p>Hello</p>
         }
     `, tsx`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         const _w_runtime_ = () => _w_load_rx_('jsx')
@@ -69,7 +69,7 @@ test('SolidJS basic', async function(t) {
     `, `
     msgid ""
     msgstr ""
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'], null, {...adapterOpts, variant: 'solidjs'})
@@ -88,7 +88,7 @@ test('Ignore and include', async function(t) {
             </div>
         }
     `, tsx`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
@@ -106,7 +106,7 @@ test('Ignore and include', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "include this"
     msgstr "include this"
     `, ['include this'])
@@ -139,7 +139,7 @@ test('Context', async function(t) {
                 <p>Close</p>
             </>
         }`, tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
@@ -156,22 +156,22 @@ test('Context', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test-tmp/test.jsx
+        #: tests/test-dir/test.jsx
         msgctxt "music"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.jsx
+        #: tests/test-dir/test.jsx
         msgctxt "programming"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.jsx
+        #: tests/test-dir/test.jsx
         msgctxt "door"
         msgid "Close"
         msgstr "Close"
 
-        #: test-tmp/test.jsx
+        #: tests/test-dir/test.jsx
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"
@@ -185,7 +185,7 @@ test('Plural', async function(t) {
                 return <p>{plural(items, ['One item', '# items'])}</p>
             }`,
         tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
@@ -196,7 +196,7 @@ test('Plural', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "One item"
     msgid_plural "# items"
     msgstr[0] "One item"
@@ -214,7 +214,7 @@ test('Nested and mixed', async function(t) {
                 </>
             }`,
         tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tests/test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
@@ -228,12 +228,12 @@ test('Nested and mixed', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "Hello and <0>welcome</0> to <1>the app</1>!"
     msgstr "Hello and <0>welcome</0> to <1>the app</1>!"
 
     #. placeholder {0}: num
-    #: test-tmp/test.jsx
+    #: tests/test-dir/test.jsx
     msgid "{0} messages"
     msgstr "{0} messages"
     `, [ ['Hello and ', [0, 'welcome'], ' to ', [1, 'the app'], '!'], [0, ' messages'] ])

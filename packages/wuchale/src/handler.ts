@@ -592,13 +592,7 @@ export class AdapterHandler {
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
-        const options = {
-            ignore: [
-                this.loaderPath.client,
-                this.loaderPath.server,
-                this.#adapter.localesDir,
-            ]
-        }
+        const options = { ignore: [ this.#adapter.localesDir ] }
         if (this.#adapter.outDir) {
             options.ignore.push(this.#adapter.outDir)
         }
