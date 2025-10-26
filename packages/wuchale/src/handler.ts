@@ -402,39 +402,52 @@ export class AdapterHandler {
         await this.writeUrls()
     }
 
-    loadCatalogNCompile = async (loc: string): Promise<void> => {
+    loadAndTranslateUrlPatterns = async (loc: string) => {
+        const catalog = this.sharedState.poFilesByLoc[loc].catalog
+        const urlPatterns = this.#adapter.url?.patterns ?? []
+        const untranslated: ItemType[] = []
+        for (const [key, item] of Object.entries(catalog)) {
+            if (!item.flags[urlPatternFlag]) {
+                continue
+            }
+            if (urlPatterns.includes(item.msgid)) {
+                if (!item.references.includes(this.key)) {
+                    item.references.push(this.key)
+                }
+            } else {
+                item.references = item.references.filter(r => r !== this.key)
+                if (item.references.length === 0) {
+                    delete catalog[key]
+                }
+            }
+            if (!item.msgstr[0]) {
+                untranslated.push(item)
+            }
+        }
+        for (const pattern of urlPatterns) {
+            if (pattern in catalog) {
+                continue
+            }
+            const item = new PO.Item()
+            item.msgid = pattern
+            item.flags[urlPatternFlag] = true
+            item.references = [this.key]
+            catalog[pattern] = item
+            untranslated.push(item)
+        }
+        if (untranslated.length && loc !== this.#config.sourceLocale) {
+            this.#geminiQueue[loc].add(untranslated)
+            await this.#geminiQueue[loc].running
+        }
+    }
+
+    loadCatalogNCompile = async (loc: string) => {
         try {
             if (this.sharedState.ownerKey === this.key) {
                 this.sharedState.poFilesByLoc[loc] = await loadCatalogFromPO(this.#catalogsFname[loc])
             }
-            const catalog = this.sharedState.poFilesByLoc[loc].catalog
-            const urlPatterns = this.#adapter.url?.patterns ?? []
-            for (const [key, item] of Object.entries(catalog)) {
-                if (!item.flags[urlPatternFlag]) {
-                    continue
-                }
-                if (urlPatterns.includes(item.msgid)) {
-                    if (!item.references.includes(this.key)) {
-                        item.references.push(this.key)
-                    }
-                } else {
-                    item.references = item.references.filter(r => r !== this.key)
-                    if (item.references.length === 0) {
-                        delete catalog[key]
-                    }
-                }
-            }
-            for (const pattern of urlPatterns) {
-                if (pattern in catalog) {
-                    continue
-                }
-                const item = new PO.Item()
-                item.msgid = pattern
-                item.flags[urlPatternFlag] = true
-                item.references = [this.key]
-                catalog[pattern] = item
-            }
-            this.compile(loc)
+            await this.loadAndTranslateUrlPatterns(loc)
+            await this.compile(loc)
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
