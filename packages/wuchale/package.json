@@ -59,6 +59,10 @@
         "./adapter-utils": {
             "types": "./dist/adapter-utils/index.d.ts",
             "default": "./dist/adapter-utils/index.js"
+        },
+        "./url": {
+            "types": "./dist/url.d.ts",
+            "default": "./dist/url.js"
         }
     },
     "bin": {
