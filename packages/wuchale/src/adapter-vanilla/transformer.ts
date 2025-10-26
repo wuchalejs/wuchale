@@ -172,12 +172,12 @@ export class Transformer {
         return [this.checkHeuristicBool(msg), msg]
     }
 
-    visitLiteral = (node: Estree.Literal & { start: number; end: number }): Message[] => {
+    visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {
         if (typeof node.value !== 'string') {
             return []
         }
         const { start, end } = node
-        const [pass, msgInfo] = this.checkHeuristic(node.value, { scope: 'script' })
+        const [pass, msgInfo] = this.checkHeuristic(node.value, heuristicDetailsBase ?? { scope: 'script' })
         if (!pass) {
             return []
         }
@@ -532,7 +532,7 @@ export class Transformer {
         return msgs
     }
 
-    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral): boolean => {
+    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails?: HeuristicDetailsBase): boolean => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -541,7 +541,7 @@ export class Transformer {
             }
         }
         heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
+        const [pass] = this.checkHeuristic(heurTxt, heurDetails ?? { scope: 'script' })
         return pass
     }
 
@@ -569,9 +569,9 @@ export class Transformer {
         return [index, msgs]
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral, ignoreHeuristic = false): Message[] => {
-        if (!ignoreHeuristic) {
-            if (!this.checkHeuristicTemplateLiteral(node)) {
+    visitTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails: HeuristicDetailsBase | boolean = false): Message[] => {
+        if (heurDetails !== true) {
+            if (!this.checkHeuristicTemplateLiteral(node, typeof heurDetails === 'boolean' ? undefined : heurDetails)) {
                 return node.expressions.map(this.visit).flat()
             }
         }

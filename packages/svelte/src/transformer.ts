@@ -1,5 +1,5 @@
 import MagicString from "magic-string"
-import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration } from "acorn"
+import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration, Literal, TemplateLiteral } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
@@ -186,14 +186,21 @@ export class SvelteTransformer extends Transformer {
             })
         }
         const value = values[0]
-        if (value.type !== 'Text') {
-            return this.visitSv(value)
-        }
-        const [pass, msgInfo] = this.checkHeuristic(value.data, {
-            scope: 'attribute',
+        const heuDetails = {
+            scope: 'script' as 'script',
             element: this.currentElement,
             attribute: node.name,
-        })
+        }
+        if (value.type === 'ExpressionTag') {
+            if (value.expression.type === 'Literal') {
+                return this.visitLiteral(value.expression as Literal, heuDetails)
+            }
+            if (value.expression.type === 'TemplateLiteral') {
+                return this.visitTemplateLiteral(value.expression as TemplateLiteral, heuDetails)
+            }
+            return this.visitSv(value)
+        }
+        const [pass, msgInfo] = this.checkHeuristic(value.data, heuDetails)
         if (!pass) {
             return []
         }
