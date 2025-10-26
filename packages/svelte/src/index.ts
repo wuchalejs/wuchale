@@ -94,7 +94,7 @@ export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adap
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr }) => {
+        transform: ({ content, filename, index, expr, matchUrl }) => {
             return new SvelteTransformer(
                 content,
                 filename,
@@ -103,6 +103,7 @@ export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adap
                 patterns,
                 expr,
                 runtime as RuntimeConf,
+                matchUrl,
             ).transformSv()
         },
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],

@@ -32,5 +32,6 @@ export type {
     TransformOutput,
     TransformHeader,
     UseReactiveFunc,
+    UrlMatcher,
 } from './adapters.js'
 export { gemini } from './ai/gemini.js'

@@ -102,7 +102,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         runtime = defaultRuntimeSolid
     }
     return {
-        transform: ({ content, filename, index, expr }) => {
+        transform: ({ content, filename, index, expr, matchUrl }) => {
             return new JSXTransformer(
                 content,
                 filename,
@@ -111,6 +111,7 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
                 patterns,
                 expr,
                 runtime as RuntimeConf,
+                matchUrl,
             ).transformJx(variant)
         },
         loaderExts: ['.js', '.ts'],

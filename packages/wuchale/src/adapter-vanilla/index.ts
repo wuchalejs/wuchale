@@ -68,7 +68,7 @@ export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adap
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr }) => new Transformer(
+        transform: ({ content, filename, index, expr, matchUrl }) => new Transformer(
             content,
             filename,
             index,
@@ -76,6 +76,7 @@ export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adap
             patterns,
             expr,
             runtime as RuntimeConf,
+            matchUrl,
         ).transform(),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
