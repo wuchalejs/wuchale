@@ -52,7 +52,7 @@ export type HeuristicFunc = (msg: Message) => boolean | null | undefined
 
 const ignoreElements = ['style', 'path', 'code', 'pre']
 const ignoreAttribs = [['form', 'method']]
-const urlAttribs = [['a', 'href'], ['img', 'src'], ['form', 'action']]
+const urlAttribs = [['a', 'href']]
 const urlCalls = ['fetch', 'new EventSource']
 
 /** Default heuristic */
@@ -70,13 +70,14 @@ export const defaultHeuristic: HeuristicFunc = msg => {
                 return false
             }
         }
+    }
+    if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
         for (const [element, attrib] of urlAttribs) {
             if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
                 msg.url = true
                 return true
             }
         }
-    }
     if (msg.details.scope === 'markup') {
         return true
     }

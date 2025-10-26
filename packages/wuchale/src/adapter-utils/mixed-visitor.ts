@@ -57,14 +57,14 @@ export class MixedVisitor<NodeT> {
                     continue
                 }
                 hasTextChild = true
-                heurStr += strContent + ' '
+                heurStr += strContent
             } else if (this.isComment(child)) {
                 if (this.getCommentData(child).trim().startsWith(commentPrefix)) {
                     hasCommentDirectives = true
                 }
             } else if (!this.leaveInPlace(child)) {
                 hasNonTextChild = true
-                heurStr += `# `
+                heurStr += `#`
             }
         }
         heurStr = heurStr.trimEnd()

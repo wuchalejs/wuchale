@@ -189,24 +189,33 @@ export class JSXTransformer extends Transformer {
         if (node.value == null) {
             return []
         }
-        if (node.value.type !== 'Literal') {
-            return this.visitJx(node.value)
-        }
-        if (typeof node.value.value !== 'string') {
-            return []
-        }
-        const value = node.value
         let name: string
         if (node.name.type === 'JSXIdentifier') {
             name = node.name.name
         } else {
             name = node.name.name.name
         }
-        const [pass, msgInfo] = this.checkHeuristic(node.value.value, {
-            scope: 'attribute',
+        const heurBase = {
+            scope: 'script' as 'script',
             element: this.currentElement,
             attribute: name,
-        })
+        }
+        if (node.value.type !== 'Literal') {
+            if (node.value.type === 'JSXExpressionContainer') {
+                if (node.value.expression.type === 'Literal' && typeof node.value.expression.value === 'string') {
+                    return this.visitLiteral(node.value.expression as Estree.Literal, heurBase)
+                }
+                if (node.value.expression.type === 'TemplateLiteral') {
+                    return this.visitTemplateLiteral(node.value.expression as Estree.TemplateLiteral, heurBase)
+                }
+            }
+            return this.visitJx(node.value)
+        }
+        if (typeof node.value.value !== 'string') {
+            return []
+        }
+        const value = node.value
+        const [pass, msgInfo] = this.checkHeuristic(node.value.value, heurBase)
         if (!pass) {
             return []
         }
