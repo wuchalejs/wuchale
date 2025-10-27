@@ -9,55 +9,56 @@ import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
 import { testContent, basic, typescript } from './check.js'
 import { statfs } from 'fs/promises'
+import { URLMatcher } from 'wuchale/url'
 
-// test('Compile nested', function(t) {
-//     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
-//     t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', 'foo'), ['Foo ', [0, 'bar ', 0]])
-//     t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', 'foo'), ['Foo ', [0, 'bar ', 0, [0]]])
-//     t.assert.deepEqual(
-//         compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', 'foo'),
-//         ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
-//     )
-// })
+test('Compile nested', function(t) {
+    t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', 'foo'), ['Foo ', [0, 'bar ', 0]])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', 'foo'), ['Foo ', [0, 'bar ', 0, [0]]])
+    t.assert.deepEqual(
+        compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', 'foo'),
+        ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
+    )
+})
 
-// test('Default loader file paths', async function(t){
-//     for (const loader of ['server', 'vite', 'bundle']) {
-//         for (const bundle of [false, true]) {
-//             const path = getDefaultLoaderPath(loader, bundle)
-//             const paths = typeof path === 'string' ? [path] : Object.values(path)
-//             for (const path of paths) {
-//                 await statfs(path) // no error
-//             }
-//         }
-//     }
-// })
+test('Default loader file paths', async function(){
+    for (const loader of ['server', 'vite', 'bundle']) {
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
+        }
+    }
+})
 
-// test('Simple expression and assignment', async function(t) {
-//     await testContent(t, typescript`
-//         'No extraction!' // simple expression
-//         const varName = 'No extraction' // simple assignment
-//         const noExtract = call('Foo')
-//     `, undefined, `
-//     msgid ""
-//     msgstr ""
-//     `, [])
-// })
+test('Simple expression and assignment', async function(t) {
+    await testContent(t, typescript`
+        'No extraction!' // simple expression
+        const varName = 'No extraction' // simple assignment
+        const noExtract = call('Foo')
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
 
-// test('Ignore file', async function(t) {
-//     await testContent(t, typescript`
-//         // @wc-ignore-file
-//         function foo() {
-//             const varName = 'No extraction'
-//             const noExtract = call('Foo')
-//         }
-//         function bar() {
-//             return 'Ignored'
-//         }
-//     `, undefined, `
-//     msgid ""
-//     msgstr ""
-//     `, [])
-// })
+test('Ignore file', async function(t) {
+    await testContent(t, typescript`
+        // @wc-ignore-file
+        function foo() {
+            const varName = 'No extraction'
+            const noExtract = call('Foo')
+        }
+        function bar() {
+            return 'Ignored'
+        }
+    `, undefined, `
+    msgid ""
+    msgstr ""
+    `, [])
+})
 
 test('Inside function definitions', async function(t) {
     await testContent(t, typescript`
@@ -275,4 +276,25 @@ test('Runtime server side', async t => {
         return getRT('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
+})
+
+test('URL matcher', t => {
+    const matcher = URLMatcher([
+        [
+            "/path",
+            [["en","/en/path"],["es","/es/ruta"]]
+        ],
+        [
+            "/",
+            [["en","/en"],["es","/es"]]
+        ],
+        [
+            "/*rest",
+            [["en","/en/*rest"],["es","/es/*rest"]]
+        ],
+    ], ['en', 'es'])
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: null, locale: null})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en'})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en'})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en/')), {path: '/', locale: 'en'})
 })

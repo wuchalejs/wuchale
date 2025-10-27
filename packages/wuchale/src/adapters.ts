@@ -1,4 +1,5 @@
 import type { CompiledElement } from "./compile.js"
+import type { URLLocalizer } from "./url.js"
 
 type TxtScope = "script" | "markup" | "attribute"
 
@@ -206,7 +207,7 @@ export type AdapterPassThruOpts = {
     bundleLoad: boolean
     url: {
         patterns?: string[]
-        localize?: (url: string, locale: string) => string
+        localize?: boolean | URLLocalizer
     }
     generateLoadID: (filename: string) => string
     runtime: Partial<RuntimeConf>

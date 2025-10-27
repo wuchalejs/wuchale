@@ -13,7 +13,7 @@ import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
 import { varNames } from './adapter-utils/index.js'
 import { match as matchUrlPattern, compile as compileUrlPattern } from 'path-to-regexp'
-import type { URLManifest } from './url.js'
+import { localizeDefault, type URLLocalizer, type URLManifest } from './url.js'
 
 type PluralRule = {
     nplurals: number
@@ -137,6 +137,7 @@ export class AdapterHandler {
     #config: ConfigPartial
     #locales: string[]
     fileMatches: Matcher
+    localizeUrl?: URLLocalizer
     #projectRoot: string
 
     #adapter: Adapter
@@ -168,6 +169,11 @@ export class AdapterHandler {
         this.#config = config
         this.#log = log
         this.#generatedDir = `${adapter.localesDir}/${generatedDir}`
+        if (typeof adapter.url?.localize === 'function') {
+            this.localizeUrl = adapter.url.localize
+        } else if (adapter.url?.localize) {
+            this.localizeUrl = localizeDefault
+        }
     }
 
     getLoaderPaths(): LoaderPath[] {
@@ -340,7 +346,7 @@ export class AdapterHandler {
             this.#locales.map(loc => {
                 const item = this.sharedState.poFilesByLoc[loc].catalog[patt]
                 const pattern = item.msgstr[0] || item.msgid
-                return [loc, this.#adapter.url.localize?.(pattern, loc) ?? pattern]
+                return [loc, this.localizeUrl?.(pattern, loc) ?? pattern]
             })
         ])
         const urlManifestData = [
@@ -531,8 +537,8 @@ export class AdapterHandler {
             const compileTranslated = compileUrlPattern(patternItem.msgstr[0] || key, {encode: false})
             toCompile = compileTranslated(matchedUrl.params)
         }
-        if (this.#adapter.url?.localize) {
-            toCompile = this.#adapter.url.localize(toCompile || key, locale)
+        if (this.localizeUrl) {
+            toCompile = this.localizeUrl(toCompile || key, locale)
         }
         return toCompile
     }
