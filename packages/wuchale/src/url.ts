@@ -9,8 +9,21 @@ export type URLManifest = URLManifestItem[]
 
 type GetLocale = (url: URL, locales: string[]) => string | null
 
-const getLocaleDefault: GetLocale = (url, locales) => {
-    const iSecondSlash = url.pathname.indexOf('/', 2)
+export type URLLocalizer = (url: string, locale: string) => string
+
+export const localizeDefault: URLLocalizer = (url, loc) => {
+    const localized = `/${loc}${url}`
+    if (!localized.endsWith('/')) {
+        return localized
+    }
+    return localized.slice(0, -1)
+}
+
+export const getLocaleDefault: GetLocale = (url, locales) => {
+    let iSecondSlash = url.pathname.indexOf('/', 2)
+    if (iSecondSlash === -1) {
+        iSecondSlash = url.pathname.length
+    }
     const locale = url.pathname.slice(1, iSecondSlash)
     if (locales.includes(locale)) {
         return locale
