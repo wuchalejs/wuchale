@@ -93,7 +93,7 @@ export class SvelteTransformer extends Transformer {
         },
         visitExpressionTag: this.visitExpressionTag,
         fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.checkHeuristicBool,
+        checkHeuristic: this.getHeuristicMessageType,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             const snippets = []

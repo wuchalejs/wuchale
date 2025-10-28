@@ -447,18 +447,18 @@ export class AdapterHandler {
     }
 
     loadCatalogNCompile = async (loc: string) => {
-        try {
-            if (this.sharedState.ownerKey === this.key) {
+        if (this.sharedState.ownerKey === this.key) {
+            try {
                 this.sharedState.poFilesByLoc[loc] = await loadCatalogFromPO(this.#catalogsFname[loc])
+            } catch (err) {
+                if (err.code !== 'ENOENT') {
+                    throw err
+                }
+                this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
             }
-            await this.loadAndTranslateUrlPatterns(loc)
-            await this.compile(loc)
-        } catch (err) {
-            if (err.code !== 'ENOENT') {
-                throw err
-            }
-            this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
         }
+        await this.loadAndTranslateUrlPatterns(loc)
+        await this.compile(loc)
     }
 
     loadCatalogModule = (locale: string, loadID: string, hmrVersion = -1) => {
@@ -798,7 +798,7 @@ export class AdapterHandler {
             for (const msgInfo of msgs) {
                 const key = msgInfo.toKey()
                 hmrKeys[loc].push(key)
-                const collection = msgInfo.url ? extractedUrls : poFile.catalog
+                const collection = msgInfo.type === 'url' ? extractedUrls : poFile.catalog
                 let poItem = collection[key]
                 if (!poItem) {
                     // @ts-expect-error
@@ -837,7 +837,7 @@ export class AdapterHandler {
                     poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
                 }
                 poItem.obsolete = false
-                if (msgInfo.url) {
+                if (msgInfo.type === 'url') {
                     poItem.flags[urlExtractedFlag] = true // important in compile, but not written to po file
                     continue
                 }

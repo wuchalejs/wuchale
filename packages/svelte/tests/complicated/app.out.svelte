@@ -1,7 +1,7 @@
 <script module>
     const normalParam = 44;
 
-    import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./tests/test-tmp/svelte.loader.svelte.js"
+    import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
     import W_tx_ from "@wuchale/svelte/runtime.svelte"
     const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
 

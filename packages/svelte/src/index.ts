@@ -15,16 +15,17 @@ import { pluralPattern } from 'wuchale/adapter-vanilla'
 export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
     return msg => {
-        if (!defaultHeuristic(msg)) {
+        const defRes = defaultHeuristic(msg)
+        if (!defRes) {
             return false
         }
         if (msg.details.scope !== 'script') {
-            return true
+            return defRes
         }
         if (msg.details.call === '$inspect') {
             return false
         }
-        return true
+        return defRes
     }
 }
 
@@ -33,16 +34,20 @@ export const svelteDefaultHeuristic = createSvelteHeuristic(defaultHeuristicOpts
 
 /** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
 export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
-    if (!svelteDefaultHeuristic(msg)) {
+    const defRes = svelteDefaultHeuristic(msg)
+    if (!defRes) {
         return false
     }
     if (msg.details.scope !== 'script' || msg.details.declaring !== 'variable') {
-        return true
+        return defRes
     }
     if (!msg.details.topLevelCall) {
         return false
     }
-    return ['$derived', '$derived.by'].includes(msg.details.topLevelCall)
+    if (['$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+        return defRes
+    }
+    return false
 }
 
 type LoadersAvailable = 'svelte' | 'sveltekit'
