@@ -21,7 +21,7 @@ test('Compile nested', function(t) {
     )
 })
 
-test('Default loader file paths', async function(){
+test('Default loader file paths', async function(t){
     for (const loader of ['server', 'vite', 'bundle']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
@@ -285,16 +285,17 @@ test('URL matcher', t => {
             [["en","/en/path"],["es","/es/ruta"]]
         ],
         [
-            "/",
-            [["en","/en"],["es","/es"]]
-        ],
-        [
             "/*rest",
             [["en","/en/*rest"],["es","/es/*rest"]]
         ],
-    ], ['en', 'es'])
-    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: null, locale: null})
+        [
+            "/",
+            [["en","/en"],["es","/es"]]
+        ],
+    ])
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en'})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en'})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en/')), {path: '/', locale: 'en'})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es'})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {path: '/path', locale: 'es'})
 })

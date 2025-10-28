@@ -31,22 +31,34 @@ export const getLocaleDefault: GetLocale = (url, locales) => {
     return null
 }
 
-export function URLMatcher(manifest: URLManifest, locales: string[], getLocale: GetLocale = getLocaleDefault) {
+export function URLMatcher(manifest: URLManifest) {
+    const matchPattern = (path: string, srcPattern: string, destPattern?: string) => {
+        const matched = match(srcPattern, {decode: false})(path)
+        if (!matched) {
+            return
+        }
+        if (!destPattern) {
+            return matched.path
+        }
+        const compiled = compile(destPattern, {encode: false})
+        return compiled(matched.params)
+    }
+    const sourcePatterns = manifest.map(([patt]) => patt)
     return (url: URL) => {
-        const locale = getLocale(url, locales)
         for (const [pattern, localized] of manifest) {
-            for (const [loc, path] of localized) {
-                if (locale != null && locale !== loc) {
-                    continue
+            for (const [locale, locPattern] of localized) {
+                const path = matchPattern(url.pathname, locPattern, pattern)
+                if (path) {
+                    return {path, locale}
                 }
-                const matched = match(path, {decode: false})(url.pathname)
-                if (!matched) {
-                    continue
-                }
-                const compiled = compile(pattern, {encode: false})
-                return {path: compiled(matched.params), locale}
             }
         }
-        return {locale, path: null}
+        for (const pattern of sourcePatterns) {
+            const path = matchPattern(url.pathname, pattern)
+            if (path) {
+                return {path, locale: null}
+            }
+        }
+        return {path: null, locale: null}
     }
 }
