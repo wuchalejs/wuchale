@@ -261,6 +261,6 @@ test('Context', async function(t) {
     `, [ 'String', 'String', 'Close', 'Close',  ])
 })
 
-// test('Multiple in one file', async t => await testDir(t, 'multiple'))
-//
-// test('Complicated', async t => await testDir(t, 'complicated'))
+test('Multiple in one file', async t => await testDir(t, 'multiple'))
+
+test('Complicated', async t => await testDir(t, 'complicated'))

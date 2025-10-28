@@ -15,16 +15,17 @@ import { loaderPathResolver } from 'wuchale/adapter-utils'
 export function createJsxHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
     return msg => {
-        if (!defaultHeuristic(msg)) {
+        const defRes = defaultHeuristic(msg)
+        if (!defRes) {
             return false
         }
         if (msg.details.scope !== 'script') {
-            return true
+            return defRes
         }
         if (msg.details.declaring === 'variable') {
             return false
         }
-        return true
+        return defRes
     }
 }
 

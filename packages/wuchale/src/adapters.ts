@@ -23,6 +23,8 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     call?: string
 }
 
+export type MessageType = 'message' | 'url'
+
 export class Message {
 
     msgStr: string[] // array for plurals
@@ -30,7 +32,7 @@ export class Message {
     context: string
     comments: string[] = []
     details: HeuristicDetails
-    url: boolean = false
+    type: MessageType = 'message'
 
     constructor(msgStr: string | string[], heuristicDetails: HeuristicDetails, context: string | null) {
         if (typeof msgStr === 'string') {
@@ -49,11 +51,15 @@ export class Message {
 
 }
 
-export type HeuristicFunc = (msg: Message) => boolean | null | undefined
+export type HeuristicResultChecked = MessageType | false // after checking all heuristic functions
+export type HeuristicResult = HeuristicResultChecked | null | undefined
+
+export type HeuristicFunc = (msg: Message) => HeuristicResult
 
 export const defaultHeuristicOpts = {
     ignoreElements: ['style', 'path', 'code', 'pre'],
     ignoreAttribs: [['form', 'method']],
+    ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
     urlCalls: ['navigate'],
 }
@@ -79,12 +85,11 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
             for (const [element, attrib] of opts.urlAttribs) {
                 if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
-                    msg.url = true
-                    return true
+                    return 'url'
                 }
             }
         if (msg.details.scope === 'markup') {
-            return true
+            return 'message'
         }
         // script and attribute
         // only allow non lower-case English letter beginnings
@@ -92,18 +97,20 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             return false
         }
         if (msg.details.scope !== 'script') {
-            return true
+            return 'message'
         }
         for (const call of opts.urlCalls) {
             if (msg.details.call === call && msgStr.startsWith('/') && !msgStr.includes(' ')) {
-                msg.url = true
-                return true
+                return 'url'
             }
         }
         if (msg.details.declaring === 'expression' && !msg.details.funcName) {
             return false
         }
-        return !msg.details.call?.startsWith('console.') && msg.details.call !== 'fetch'
+        if (!msg.details.call?.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call)) {
+            return 'message'
+        }
+        return false
     }
 }
 
@@ -112,7 +119,10 @@ export const defaultHeuristic = createHeuristic(defaultHeuristicOpts)
 
 /** Default heuristic which ignores messages outside functions in the `script` scope */
 export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
-    return defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)
+    if (defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)) {
+        return 'message'
+    }
+    return false
 }
 
 export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')

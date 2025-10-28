@@ -16,6 +16,8 @@ import type {
     CatalogExpr,
     CodePattern,
     UrlMatcher,
+    HeuristicResultChecked,
+    MessageType,
 } from "../adapters.js"
 import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
@@ -147,29 +149,32 @@ export class Transformer {
         return details
     }
 
-    checkHeuristicBool = (msg: Message) => {
+    getHeuristicMessageType = (msg: Message): HeuristicResultChecked => {
         const msgStr = msg.msgStr.join('\n')
         if (!msgStr) {
             // nothing to ask
             return false
         }
-        let extract = this.commentDirectives.forceInclude
-        if (extract == null) {
-            extract = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? true
-            if (extract && msg.url) {
-                extract = this.matchUrl(msgStr) != null
-            }
+        if (this.commentDirectives.forceInclude === false) {
+            return false
         }
-        return extract
+        const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
+        if (this.commentDirectives.forceInclude == null && heuRes === 'url' && this.matchUrl(msgStr) == null) {
+            return false
+        }
+        if (this.commentDirectives.forceInclude) {
+            return heuRes || 'message'
+        }
+        return heuRes
     }
 
-    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
+    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [HeuristicResultChecked, Message] => {
         if (!msgStr) {
             // nothing to ask
             return [false, null]
         }
         const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
-        return [this.checkHeuristicBool(msg), msg]
+        return [this.getHeuristicMessageType(msg), msg]
     }
 
     visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {
@@ -532,7 +537,7 @@ export class Transformer {
         return msgs
     }
 
-    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails?: HeuristicDetailsBase): boolean => {
+    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails?: HeuristicDetailsBase): HeuristicResultChecked => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -545,7 +550,7 @@ export class Transformer {
         return pass
     }
 
-    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral): [number, Message[]] => {
+    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
         const msgs = []
         let msgStr = node.quasis[0].value?.cooked ?? ''
         const comments = []
@@ -563,6 +568,7 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
+        msgInfo.type = msgTyp
         msgInfo.comments = comments
         const index = this.index.get(msgInfo.toKey())
         msgs.push(msgInfo)
@@ -570,12 +576,15 @@ export class Transformer {
     }
 
     visitTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails: HeuristicDetailsBase | boolean = false): Message[] => {
+        let msgTyp: MessageType = 'message'
         if (heurDetails !== true) {
-            if (!this.checkHeuristicTemplateLiteral(node, typeof heurDetails === 'boolean' ? undefined : heurDetails)) {
+            const heuRes = this.checkHeuristicTemplateLiteral(node, typeof heurDetails === 'boolean' ? undefined : heurDetails)
+            if (!heuRes) {
                 return node.expressions.map(this.visit).flat()
             }
+            msgTyp = heuRes
         }
-        const [index, msgs] = this.visitTemplateLiteralQuasis(node)
+        const [index, msgs] = this.visitTemplateLiteralQuasis(node, msgTyp)
         const {start: start0, end: end0} = node.quasis[0]
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
@@ -595,8 +604,9 @@ export class Transformer {
         const prevCall = this.currentCall
         this.currentCall = this.getCalleeName(node.tag)
         let msgs = []
-        if (this.checkHeuristicTemplateLiteral(node.quasi)) {
-            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
+        const heuRes = this.checkHeuristicTemplateLiteral(node.quasi)
+        if (heuRes) {
+            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi, heuRes)
             msgs = msgsNew
             this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
             const {start, end, expressions} = node.quasi

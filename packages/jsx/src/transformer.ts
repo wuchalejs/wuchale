@@ -74,7 +74,7 @@ export class JSXTransformer extends Transformer {
         },
         visitExpressionTag: this.visitJSXExpressionContainer,
         fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.checkHeuristicBool,
+        checkHeuristic: this.getHeuristicMessageType,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             let begin = `<${rtComponent}`

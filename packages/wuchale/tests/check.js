@@ -87,11 +87,12 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
  * @param {string} testFileOut
  */
 export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) {
-    const content = (await readFile(`${dir}/${testFile}`)).toString()
+    const fnameIn = `${dir}/${testFile}`
+    const content = (await readFile(fnameIn)).toString()
     const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
     const poContents = (await readFile(`${dir}/en.po`)).toString()
     const compiledContents = JSON.parse((await readFile(`${dir}/en.json`)).toString())
-    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, testFile, -1)
+    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, fnameIn, -1)
 }
 
 export const basic = adapter(adapterOpts)

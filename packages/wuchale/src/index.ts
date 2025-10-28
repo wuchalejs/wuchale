@@ -29,6 +29,8 @@ export type {
     CodePattern,
     CreateHeuristicOpts,
     LoaderChoice,
+    MessageType,
+    HeuristicResult,
     RuntimeConf,
     CatalogExpr,
     HeuristicFunc,

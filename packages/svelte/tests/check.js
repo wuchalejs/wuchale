@@ -6,9 +6,13 @@ import { rm } from 'fs/promises'
 import { adapter } from '@wuchale/svelte'
 
 const dirBase = absDir(import.meta.url)
-const adapterOpts = {
-    files: `${dirBase}/test-dir/*`,
+export const adapterOpts = {
+    files: `${dirBase}/**/*`,
     localesDir: `${dirBase}/test-tmp/`,
+    // url: {
+    //     patterns: ['/*rest'],
+    //     localize: true
+    // },
     loader: 'svelte',
 }
 
@@ -24,12 +28,14 @@ export const testFileJs = `${dirBase}/test-dir/test.svelte.js`
  * @param {string} expectedTranslations
  * @param {string[] | string[][]} expectedCompiled
  * @param {string} [filename]
+ * @param {object} [config]
  */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename) {
+export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename, config) {
     try {
         await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
-    await testContentSetup(t, sv, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
+    const adap = config ? adapter(config) : sv
+    await testContentSetup(t, adap, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
 
 /**
@@ -49,9 +55,9 @@ export const javascript = typescript
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = svelte`
-//   <main>Hello</main>
+//   <a href="/foo/{44}">Hello</a>
 // `
 // const p = await getOutput(sv, 'svelte', code, testFile, -1)
 // console.log(p.code)
-// console.log(Object.values(p.catalogs.en))
-// console.log(p.compiled.en)
+// // console.log(Object.values(p.catalogs.en))
+// // console.log(p.compiled.en)
