@@ -357,8 +357,7 @@ export class AdapterHandler {
         const urlFileContent = [
             'import {URLMatcher} from "wuchale/url"',
             `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
-            'import {locales} from "./data.js"',
-            `export default URLMatcher(manifest, locales)`
+            `export default URLMatcher(manifest)`
         ].join('\n')
         await writeFile(this.#urlsFname, urlFileContent)
     }
