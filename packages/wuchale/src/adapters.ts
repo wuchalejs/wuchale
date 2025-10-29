@@ -68,10 +68,6 @@ export type CreateHeuristicOpts = typeof defaultHeuristicOpts
 
 export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     return msg => {
-        const msgStr = msg.msgStr.join('\n')
-        if (msgStr.search(/\p{L}/u) === -1) {
-            return false
-        }
         if (msg.details.element && opts.ignoreElements.includes(msg.details.element)) {
             return false
         }
@@ -82,20 +78,29 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 }
             }
         }
+        const msgStr = msg.msgStr.join('\n')
         const looksLikeUrlPath = msgStr.startsWith('/') && !msgStr.includes(' ')
-        if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
-            for (const [element, attrib] of opts.urlAttribs) {
-                if (msg.details.element === element && msg.details.attribute === attrib && looksLikeUrlPath) {
-                    return 'url'
+        if (looksLikeUrlPath && (msg.details.scope === 'script' || msg.details.scope === 'attribute')) {
+            if (msg.details.call) {
+                for (const call of opts.urlCalls) {
+                    if (msg.details.call === call) {
+                        return 'url'
+                    }
                 }
             }
+            if (msg.details.attribute) {
+                for (const [element, attrib] of opts.urlAttribs) {
+                    if (msg.details.element === element && msg.details.attribute === attrib) {
+                        return 'url'
+                    }
+                }
+            }
+        }
+        if (msgStr.search(/\p{L}/u) === -1) {
+            return false
+        }
         if (msg.details.scope === 'markup') {
             return 'message'
-        }
-        for (const call of opts.urlCalls) {
-            if (msg.details.call === call && looksLikeUrlPath) {
-                return 'url'
-            }
         }
         // script and attribute
         // only allow non lower-case English letter beginnings

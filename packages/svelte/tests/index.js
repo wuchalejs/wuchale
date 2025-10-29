@@ -176,6 +176,7 @@ test('URLs', async function(t) {
         <a href="/translated/{44}">Hello</a>
         <a href={\`/translated/\${44}\`}>Hello</a>
         <a href="/notinpattern">Hello</a>
+        <a href="/">Hello</a>
     `, svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
@@ -188,6 +189,7 @@ test('URLs', async function(t) {
         <a href="{_w_runtime_.t(0, [44])}">{_w_runtime_.t(2)}</a>
         <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(2)}</a>
         <a href="/notinpattern">{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(3)}>{_w_runtime_.t(2)}</a>
     `, `
         msgid ""
         msgstr ""
@@ -197,6 +199,12 @@ test('URLs', async function(t) {
         msgid "/translated/*rest"
         msgstr ""
 
+        #: svelte
+        #, url-pattern
+        msgid "/"
+        msgstr ""
+
+        #: tests/test-dir/test.svelte
         #: tests/test-dir/test.svelte
         #: tests/test-dir/test.svelte
         #: tests/test-dir/test.svelte
@@ -205,11 +213,11 @@ test('URLs', async function(t) {
         msgid "Hello"
         msgstr "Hello"
     `,
-        [['/en/translated/', 0], '/en/translated/hello', 'Hello'],
+        [['/en/translated/', 0], '/en/translated/hello', 'Hello', '/en'],
         null,
         {
             ...adapterOpts, url: {
-            patterns: ['/translated/*rest'],
+            patterns: ['/translated/*rest', '/'],
             localize: true
         }
     })
