@@ -194,14 +194,10 @@ test('URLs', async function(t) {
         msgid ""
         msgstr ""
 
+        #. original: /translated/*rest
         #: svelte
         #, url-pattern
-        msgid "/translated/*rest"
-        msgstr ""
-
-        #: svelte
-        #, url-pattern
-        msgid "/"
+        msgid "/translated/{0}"
         msgstr ""
 
         #: tests/test-dir/test.svelte
