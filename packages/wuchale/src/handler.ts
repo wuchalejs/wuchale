@@ -3,7 +3,7 @@ import { platform } from 'node:process'
 import { IndexTracker, Message } from "./adapters.js"
 import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
-import { compileTranslation, type CompiledElement } from "./compile.js"
+import { compileTranslation, type CompiledElement, type Mixed } from "./compile.js"
 import AIQueue, { type ItemType } from "./ai/index.js"
 import pm, { type Matcher } from 'picomatch'
 import PO from "pofile"
@@ -11,7 +11,7 @@ import { type ConfigPartial, getLanguageName } from "./config.js"
 import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
 import { varNames } from './adapter-utils/index.js'
-import { match as matchUrlPattern, compile as compileUrlPattern } from 'path-to-regexp'
+import { match as matchUrlPattern, compile as compileUrlPattern, pathToRegexp, type Token, stringify } from 'path-to-regexp'
 import { localizeDefault, type URLLocalizer, type URLManifest } from './url.js'
 
 type PluralRule = {
@@ -335,19 +335,43 @@ export class AdapterHandler {
         await writeFile(join(this.#adapter.localesDir, dataFile), this.getData())
     }
 
+    urlPatternFromTranslate = (patternTranslated: string, keys: Token[]) => {
+        const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
+        if (typeof compiledTranslatedPatt === 'string') {
+            return compiledTranslatedPatt
+        }
+        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
+            if (typeof part === 'number') {
+                return keys[part]
+            }
+            return {type: 'text', value: part}
+        })
+        return stringify({tokens: urlTokens})
+    }
+
     writeUrls = async () => {
         const patterns = this.#adapter.url?.patterns
         if (!patterns) {
             return
         }
-        const manifest: URLManifest = patterns.map(patt => [
+        const manifest: URLManifest = patterns.map(patt => {
+            const {keys} = pathToRegexp(patt)
+            const transPatt = this.urlPatternToTranslate(patt)
+            return [
             patt,
             this.#locales.map(loc => {
+                let pattern = patt
                 const item = this.sharedState.poFilesByLoc[loc].catalog[patt]
-                const pattern = item.msgstr[0] || item.msgid
+                if (item) {
+                    const patternTranslated = item.msgstr[0] || item.msgid
+                    if (patternTranslated !== transPatt) {
+                        pattern = this.urlPatternFromTranslate(patternTranslated, keys)
+                    }
+                }
                 return [loc, this.localizeUrl?.(pattern, loc) ?? pattern]
             })
-        ])
+        ]
+        })
         const urlManifestData = [
             `/** @type {import('wuchale/url').URLManifest} */`,
             `export default ${JSON.stringify(manifest)}`,
@@ -406,15 +430,26 @@ export class AdapterHandler {
         await this.writeUrls()
     }
 
+    urlPatternToTranslate = (pattern: string) => {
+        const {keys} = pathToRegexp(pattern)
+        const compile = compileUrlPattern(pattern, {encode: false})
+        const paramsReplace = {}
+        for (const [i, {name}] of keys.entries()) {
+            paramsReplace[name] = `{${i}}`
+        }
+        return compile(paramsReplace)
+    }
+
     loadAndTranslateUrlPatterns = async (loc: string) => {
         const catalog = this.sharedState.poFilesByLoc[loc].catalog
         const urlPatterns = this.#adapter.url?.patterns ?? []
+        const urlPatternsForTranslate = urlPatterns.map(this.urlPatternToTranslate)
         const untranslated: ItemType[] = []
         for (const [key, item] of Object.entries(catalog)) {
             if (!item.flags[urlPatternFlag]) {
                 continue
             }
-            if (urlPatterns.includes(item.msgid)) {
+            if (urlPatternsForTranslate.includes(item.msgid)) {
                 if (!item.references.includes(this.key)) {
                     item.references.push(this.key)
                 }
@@ -428,12 +463,13 @@ export class AdapterHandler {
                 untranslated.push(item)
             }
         }
-        for (const pattern of urlPatterns) {
-            if (pattern in catalog) {
+        for (const [i, pattern] of urlPatterns.entries()) {
+            if (urlPatternsForTranslate[i].search(/\p{L}/u) === -1 || pattern in catalog) {
                 continue
             }
             const item = new PO.Item()
-            item.msgid = pattern
+            item.msgid = urlPatternsForTranslate[i]
+            item.extractedComments = [`original: ${pattern}`]
             item.flags[urlPatternFlag] = true
             item.references = [this.key]
             catalog[pattern] = item
@@ -523,17 +559,29 @@ export class AdapterHandler {
     }
 
     getUrlToCompile = (key: string, locale: string) => {
+        // e.g. key: /items/foo/{0}
         const catalog = this.sharedState.poFilesByLoc[locale].catalog
         let toCompile = key
         const relevantPattern = this.matchUrl(key)
         if (relevantPattern == null) {
             return toCompile
         }
+        // e.g. relevantPattern: /items/:rest
         const patternItem = catalog[relevantPattern]
-        const matchedUrl = matchUrlPattern(patternItem.msgid, {decode: false})(key)
-        if (matchedUrl) {
-            const compileTranslated = compileUrlPattern(patternItem.msgstr[0] || patternItem.msgid, {encode: false})
-            toCompile = compileTranslated(matchedUrl.params)
+        if (patternItem) {
+            // e.g. patternItem.msgid: /items/{0}
+            const matchedUrl = matchUrlPattern(relevantPattern, {decode: false})(key)
+            // e.g. matchUrl.params: {rest: 'foo/{0}'}
+            if (matchedUrl) {
+                const translatedPattern = patternItem.msgstr[0] || patternItem.msgid
+                // e.g. translatedPattern: /elementos/{0}
+                const {keys} = pathToRegexp(relevantPattern)
+                const translatedPattUrl = this.urlPatternFromTranslate(translatedPattern, keys)
+                // e.g. translatedPattUrl: /elementos/:rest
+                const compileTranslated = compileUrlPattern(translatedPattUrl, {encode: false})
+                toCompile = compileTranslated(matchedUrl.params)
+                // e.g. toCompile: /elementos/foo/{0}
+            }
         }
         if (this.localizeUrl) {
             toCompile = this.localizeUrl(toCompile || key, locale)
