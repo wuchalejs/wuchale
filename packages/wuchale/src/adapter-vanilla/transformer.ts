@@ -155,17 +155,14 @@ export class Transformer {
             // nothing to ask
             return false
         }
-        if (this.commentDirectives.forceInclude === false) {
+        if (this.commentDirectives.forceType === false) {
             return false
         }
         const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
-        if (this.commentDirectives.forceInclude == null && heuRes === 'url' && this.matchUrl(msgStr) == null) {
+        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(msgStr) == null) {
             return false
         }
-        if (this.commentDirectives.forceInclude) {
-            return heuRes || 'message'
-        }
-        return heuRes
+        return this.commentDirectives.forceType || heuRes
     }
 
     checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [HeuristicResultChecked, Message] => {
@@ -645,7 +642,7 @@ export class Transformer {
             return []
         }
         let msgs = []
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 msgs = this[methodName](node)
