@@ -61,7 +61,7 @@ export const defaultHeuristicOpts = {
     ignoreAttribs: [['form', 'method']],
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
-    urlCalls: ['navigate'],
+    urlCalls: [],
 }
 
 export type CreateHeuristicOpts = typeof defaultHeuristicOpts
@@ -82,14 +82,20 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 }
             }
         }
+        const looksLikeUrlPath = msgStr.startsWith('/') && !msgStr.includes(' ')
         if ((msg.details.scope === 'attribute' || msg.details.scope === 'script') && msg.details.attribute != null)
             for (const [element, attrib] of opts.urlAttribs) {
-                if (msg.details.element === element && msg.details.attribute === attrib && msgStr.startsWith('/') && !msgStr.includes(' ')) {
+                if (msg.details.element === element && msg.details.attribute === attrib && looksLikeUrlPath) {
                     return 'url'
                 }
             }
         if (msg.details.scope === 'markup') {
             return 'message'
+        }
+        for (const call of opts.urlCalls) {
+            if (msg.details.call === call && looksLikeUrlPath) {
+                return 'url'
+            }
         }
         // script and attribute
         // only allow non lower-case English letter beginnings
@@ -98,11 +104,6 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         }
         if (msg.details.scope !== 'script') {
             return 'message'
-        }
-        for (const call of opts.urlCalls) {
-            if (msg.details.call === call && msgStr.startsWith('/') && !msgStr.includes(' ')) {
-                return 'url'
-            }
         }
         if (msg.details.declaring === 'expression' && !msg.details.funcName) {
             return false

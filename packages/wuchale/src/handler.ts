@@ -1,4 +1,3 @@
-// $$ cd ../.. && npm run test
 import { basename, dirname, isAbsolute, resolve, normalize, relative, join } from 'node:path'
 import { platform } from 'node:process'
 import { IndexTracker, Message } from "./adapters.js"
@@ -533,7 +532,7 @@ export class AdapterHandler {
         const patternItem = catalog[relevantPattern]
         const matchedUrl = matchUrlPattern(patternItem.msgid, {decode: false})(key)
         if (matchedUrl) {
-            const compileTranslated = compileUrlPattern(patternItem.msgstr[0] || key, {encode: false})
+            const compileTranslated = compileUrlPattern(patternItem.msgstr[0] || patternItem.msgid, {encode: false})
             toCompile = compileTranslated(matchedUrl.params)
         }
         if (this.localizeUrl) {

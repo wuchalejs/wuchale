@@ -10,6 +10,7 @@ import type {
     CatalogExpr,
     RuntimeConf,
     CodePattern,
+    HeuristicDetailsBase,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
 
@@ -186,8 +187,8 @@ export class SvelteTransformer extends Transformer {
             })
         }
         const value = values[0]
-        const heuDetails = {
-            scope: 'script' as 'script',
+        const heuDetails: HeuristicDetailsBase = {
+            scope: 'script',
             element: this.currentElement,
             attribute: node.name,
         }
@@ -200,6 +201,7 @@ export class SvelteTransformer extends Transformer {
             }
             return this.visitSv(value)
         }
+        heuDetails.scope = 'attribute'
         const [pass, msgInfo] = this.checkHeuristic(value.data, heuDetails)
         if (!pass) {
             return []

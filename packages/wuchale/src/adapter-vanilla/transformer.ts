@@ -174,7 +174,11 @@ export class Transformer {
             return [false, null]
         }
         const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
-        return [this.getHeuristicMessageType(msg), msg]
+        const heuRes = this.getHeuristicMessageType(msg)
+        if (heuRes) {
+            msg.type = heuRes
+        }
+        return [heuRes, msg]
     }
 
     visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {

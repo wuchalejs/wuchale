@@ -26,7 +26,7 @@ export const testFileJs = `${dirBase}/test-dir/test.svelte.js`
  * @param {string} content
  * @param {string} expectedContent
  * @param {string} expectedTranslations
- * @param {string[] | string[][]} expectedCompiled
+ * @param {(string | (string | number)[])[]} expectedCompiled
  * @param {string} [filename]
  * @param {object} [config]
  */
