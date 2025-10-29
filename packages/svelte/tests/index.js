@@ -170,6 +170,8 @@ test('URLs', async function(t) {
     await testContent(t, svelte`
         <script>
             goto(\`/translated/\${44}\`)
+            // @wc-url
+            const url = '/translated/somewhere'
         </script>
         <a href="/translated/hello">Hello</a>
         <a href={'/translated/hello/there'}>Hello</a>
@@ -183,13 +185,15 @@ test('URLs', async function(t) {
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             goto(_w_runtime_.t(0, [44]))
+            // @wc-url
+            const url = $derived(_w_runtime_.t(1))
         </script>
-        <a href={_w_runtime_.t(1)}>{_w_runtime_.t(2)}</a>
-        <a href={_w_runtime_.t(3)}>{_w_runtime_.t(2)}</a>
-        <a href="{_w_runtime_.t(4, [44])}">{_w_runtime_.t(2)}</a>
-        <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(2)}</a>
-        <a href="/notinpattern">{_w_runtime_.t(2)}</a>
-        <a href={_w_runtime_.t(5)}>{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(2)}>{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(4)}>{_w_runtime_.t(3)}</a>
+        <a href="{_w_runtime_.t(5, [44])}">{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(3)}</a>
+        <a href="/notinpattern">{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(6)}>{_w_runtime_.t(3)}</a>
     `, `
         msgid ""
         msgstr ""
@@ -211,6 +215,7 @@ test('URLs', async function(t) {
     `,
         [
             [ '/en/translated/', 0 ],
+            '/en/translated/somewhere',
             '/en/translated/hello',
             'Hello',
             '/en/translated/hello/there',

@@ -253,7 +253,7 @@ export class JSXTransformer extends Transformer {
         if (node.type === 'JSXExpressionContainer' && node.expression.type === 'JSXEmptyExpression') { // markup comment
             return this.visitJSXEmptyExpression(node.expression)
         }
-        let msgs = []
+        let msgs: Message[] = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
@@ -262,7 +262,7 @@ export class JSXTransformer extends Transformer {
         if (this.commentDirectives.ignoreFile) {
             return []
         }
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev

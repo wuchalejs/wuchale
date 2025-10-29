@@ -1,6 +1,7 @@
 export { MixedVisitor } from './mixed-visitor.js'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { HeuristicResultChecked } from '../adapters.js'
 
 export const varNames = {
     rt: '_w_runtime_',
@@ -42,22 +43,26 @@ const commentDirectives = {
     ignore: `${commentPrefix}ignore`,
     ignoreFile: `${commentPrefix}ignore-file`,
     include: `${commentPrefix}include`,
+    url: `${commentPrefix}url`,
     context: `${commentPrefix}context:`,
 }
 
 export type CommentDirectives = {
     ignoreFile?: boolean
-    forceInclude?: boolean
+    forceType?: HeuristicResultChecked
     context?: string
 }
 
 export function processCommentDirectives(data: string, current: CommentDirectives) {
     const directives: CommentDirectives = {...current}
     if (data === commentDirectives.ignore) {
-        directives.forceInclude = false
+        directives.forceType = false
     }
     if (data === commentDirectives.include) {
-        directives.forceInclude = true
+        directives.forceType = 'message'
+    }
+    if (data === commentDirectives.url) {
+        directives.forceType = 'url'
     }
     if (data === commentDirectives.ignoreFile) {
         directives.ignoreFile = true

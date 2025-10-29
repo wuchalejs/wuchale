@@ -345,7 +345,7 @@ export class SvelteTransformer extends Transformer {
         if (this.commentDirectives.ignoreFile) {
             return []
         }
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev
