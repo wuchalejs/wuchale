@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, svelte, javascript, testFileJs } from './check.js'
+import { testContent, testDir, svelte, javascript, testFileJs, adapterOpts } from './check.js'
 import { getDefaultLoaderPath } from '@wuchale/svelte'
 import { statfs } from 'fs/promises'
 
@@ -164,6 +164,55 @@ test('Ignore file', async function(t) {
     msgid ""
     msgstr ""
     `, [])
+})
+
+test('URLs', async function(t) {
+    await testContent(t, svelte`
+        <script>
+            goto(\`/translated/\${44}\`)
+        </script>
+        <a href="/translated/hello">Hello</a>
+        <a href={'/translated/hello'}>Hello</a>
+        <a href="/translated/{44}">Hello</a>
+        <a href={\`/translated/\${44}\`}>Hello</a>
+        <a href="/notinpattern">Hello</a>
+    `, svelte`
+        <script>
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
+            goto(_w_runtime_.t(0, [44]))
+        </script>
+        <a href={_w_runtime_.t(1)}>{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(1)}>{_w_runtime_.t(2)}</a>
+        <a href="{_w_runtime_.t(0, [44])}">{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(2)}</a>
+        <a href="/notinpattern">{_w_runtime_.t(2)}</a>
+    `, `
+        msgid ""
+        msgstr ""
+
+        #: svelte
+        #, url-pattern
+        msgid "/translated/*rest"
+        msgstr ""
+
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        msgid "Hello"
+        msgstr "Hello"
+    `,
+        [['/en/translated/', 0], '/en/translated/hello', 'Hello'],
+        null,
+        {
+            ...adapterOpts, url: {
+            patterns: ['/translated/*rest'],
+            localize: true
+        }
+    })
 })
 
 test('Exported snippet', async function(t) {

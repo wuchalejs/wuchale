@@ -33,6 +33,8 @@ export type {
     HeuristicResult,
     RuntimeConf,
     CatalogExpr,
+    HeuristicDetails,
+    HeuristicDetailsBase,
     HeuristicFunc,
     TransformOutput,
     TransformHeader,
