@@ -775,7 +775,7 @@ export class AdapterHandler {
             const poFile = this.sharedState.poFilesByLoc[loc]
             const extractedUrls = this.sharedState.extractedUrls[loc]
             const previousReferences: Record<string, {count: number, indices: number[]}> = {}
-            for (const item of [...Object.values(poFile.catalog), ...Object.values(extractedUrls)]) {
+            for (const item of Object.values(poFile.catalog)) {
                 if (!item.references.includes(filename)) {
                     continue
                 }
