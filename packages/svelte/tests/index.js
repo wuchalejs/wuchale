@@ -172,8 +172,8 @@ test('URLs', async function(t) {
             goto(\`/translated/\${44}\`)
         </script>
         <a href="/translated/hello">Hello</a>
-        <a href={'/translated/hello'}>Hello</a>
-        <a href="/translated/{44}">Hello</a>
+        <a href={'/translated/hello/there'}>Hello</a>
+        <a href="/translated/very/deep/link/{44}">Hello</a>
         <a href={\`/translated/\${44}\`}>Hello</a>
         <a href="/notinpattern">Hello</a>
         <a href="/">Hello</a>
@@ -185,11 +185,11 @@ test('URLs', async function(t) {
             goto(_w_runtime_.t(0, [44]))
         </script>
         <a href={_w_runtime_.t(1)}>{_w_runtime_.t(2)}</a>
-        <a href={_w_runtime_.t(1)}>{_w_runtime_.t(2)}</a>
-        <a href="{_w_runtime_.t(0, [44])}">{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(3)}>{_w_runtime_.t(2)}</a>
+        <a href="{_w_runtime_.t(4, [44])}">{_w_runtime_.t(2)}</a>
         <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(2)}</a>
         <a href="/notinpattern">{_w_runtime_.t(2)}</a>
-        <a href={_w_runtime_.t(3)}>{_w_runtime_.t(2)}</a>
+        <a href={_w_runtime_.t(5)}>{_w_runtime_.t(2)}</a>
     `, `
         msgid ""
         msgstr ""
@@ -209,7 +209,14 @@ test('URLs', async function(t) {
         msgid "Hello"
         msgstr "Hello"
     `,
-        [['/en/translated/', 0], '/en/translated/hello', 'Hello', '/en'],
+        [
+            [ '/en/translated/', 0 ],
+            '/en/translated/hello',
+            'Hello',
+            '/en/translated/hello/there',
+            [ '/en/translated/very/deep/link/', 0 ],
+            '/en'
+        ],
         null,
         {
             ...adapterOpts, url: {
