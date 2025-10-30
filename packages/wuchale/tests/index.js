@@ -3,11 +3,11 @@
 import { test } from 'node:test'
 import toRuntime from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
-import { getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
+import { adapter, getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
-import { testContent, basic, typescript } from './check.js'
+import { testContent, basic, typescript, adapterOpts } from './check.js'
 import { statfs } from 'fs/promises'
 import { URLMatcher } from 'wuchale/url'
 
@@ -165,16 +165,28 @@ test('Inside class declarations', async function(t) {
     `, ['Hello'])
 })
 
-test('Plural', async function(t) {
+test('Plural and patterns', async function(t) {
     await testContent(t,
         typescript`
             const f = () => plural(items, ['One item', '# items'])
+            function foo() {
+                return [
+                    format0(44),
+                    format1(44),
+                ]
+            }
         `,
         typescript`
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
             const f = () => {
                 const _w_runtime_ = _w_load_('main')
                 return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
+            }
+            function foo() {
+                return [
+                    format0(44, _w_runtime_.l),
+                    format1(44, undefined, _w_runtime_.l),
+                ]
             }
     `, `
     msgid ""
@@ -185,7 +197,15 @@ test('Plural', async function(t) {
     msgid_plural "# items"
     msgstr[0] "One item"
     msgstr[1] "# items"
-    `, [ [ 'One item', '# items' ] ])
+    `, [ [ 'One item', '# items' ] ], adapter({
+            ...adapterOpts,
+            patterns: [
+                {name: 'plural', args: ['other', 'message', 'pluralFunc']},
+                {name: 'format0', args: ['other', 'locale']},
+                {name: 'format1', args: ['other', 'other', 'locale', 'other']},
+            ],
+        })
+    )
 })
 
 test('HMR', async function(t) {
