@@ -57,7 +57,7 @@ export type HeuristicResult = HeuristicResultChecked | null | undefined
 export type HeuristicFunc = (msg: Message) => HeuristicResult
 
 export const defaultHeuristicOpts = {
-    ignoreElements: ['style', 'path', 'code', 'pre'],
+    ignoreElements: ['script', 'style', 'path', 'code', 'pre'],
     ignoreAttribs: [['form', 'method']],
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
@@ -96,18 +96,21 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 }
             }
         }
-        if (msgStr.search(/\p{L}/u) === -1) {
+        if (!/\p{L}/u.test(msgStr)) {
             return false
         }
         if (msg.details.scope === 'markup') {
             return 'message'
         }
         // script and attribute
-        // only allow non lower-case English letter beginnings
-        if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0])) {
+        // ignore:
+        //  non-letter beginnings
+        //  lower-case English letter beginnings
+        //  containing only upper-case English and non-letters
+        if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0]) || /^([A-Z]|\P{L})+$/u.test(msgStr)) {
             return false
         }
-        if (msg.details.scope !== 'script') {
+        if (msg.details.scope === 'attribute') {
             return 'message'
         }
         if (msg.details.declaring === 'expression' && !msg.details.funcName) {
