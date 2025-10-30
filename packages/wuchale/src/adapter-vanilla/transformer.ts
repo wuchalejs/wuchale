@@ -242,7 +242,15 @@ export class Transformer {
         if (!pattern) {
             return this.defaultVisitCallExpression(node)
         }
+        let iLastNonOther = pattern.args.length - 1 // after this no change will be made
+        for (; iLastNonOther >= 0; iLastNonOther--) {
+            if (pattern.args[iLastNonOther] !== 'other') {
+                break
+            }
+        }
         const msgs: Message[] = []
+        const updates: [number, number, string][] = []
+        const appends: [number, string][] = []
         let lastArgEnd: number
         for (const [i, arg] of pattern.args.entries()) {
             const argVal = node.arguments[i]
@@ -255,22 +263,26 @@ export class Transformer {
             } else {
                 lastArgEnd = argVal.end
             }
+            const comma = i > 0 ? ', ' : ''
             if (arg === 'other') {
+                if (argVal == null && i < iLastNonOther) {
+                    appends.push([argInsertIndex, `${comma}undefined`])
+                }
                 continue
             }
             if (arg === 'locale') {
                 if (argVal) {
-                    this.mstr.update(argVal.start, argVal.end, this.vars().rtLocale)
+                    updates.push([argVal.start, argVal.end, this.vars().rtLocale])
                 } else {
-                    this.mstr.appendRight(argInsertIndex, `, ${this.vars().rtLocale}`)
+                    appends.push([argInsertIndex, `${comma}${this.vars().rtLocale}`])
                 }
                 continue
             }
             if (arg === 'pluralFunc') {
                 if (argVal) {
-                    this.mstr.update(argVal.start, argVal.end, this.vars().rtPlural)
+                    updates.push([argVal.start, argVal.end, this.vars().rtPlural])
                 } else {
-                    this.mstr.appendRight(argInsertIndex, `, ${this.vars().rtPlural}`)
+                    appends.push([argInsertIndex, `${comma}${this.vars().rtPlural}`])
                 }
                 continue
             }
@@ -283,7 +295,7 @@ export class Transformer {
                     return this.defaultVisitCallExpression(node)
                 }
                 const msgInfo = new Message(argVal.value, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
-                this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
+                updates.push([argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`])
                 msgs.push(msgInfo)
                 continue
             }
@@ -306,7 +318,13 @@ export class Transformer {
             msgInfo.plural = true
             const index = this.index.get(msgInfo.toKey())
             msgs.push(msgInfo)
-            this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`)
+            updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
+        }
+        for (const [start, end, by] of updates) {
+            this.mstr.update(start, end, by)
+        }
+        for (const [index, insert] of appends) {
+            this.mstr.appendRight(index, insert)
         }
         return msgs
     }
