@@ -293,9 +293,9 @@ test('URL matcher', t => {
             [["en","/en"],["es","/es"]]
         ],
     ])
-    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en'})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en'})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es'})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {path: '/path', locale: 'es'})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, alternatives: {}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en', alternatives: { en: '/en/foo', es: '/es/foo' }})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en', alternatives: { en: '/en', es: '/es' }})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es', alternatives: { en: '/en', es: '/es' }})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {path: '/path', locale: 'es', alternatives: { en: '/en/path', es: '/es/ruta' }})
 })
