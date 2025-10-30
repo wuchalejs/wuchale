@@ -170,8 +170,10 @@ test('URLs', async function(t) {
     await testContent(t, svelte`
         <script>
             goto(\`/translated/\${44}\`)
-            // @wc-url
-            const url = '/translated/somewhere'
+            const url = {
+                // @wc-url
+                something: [\`/translated/somewhere/\${45}\`]
+            }
         </script>
         <a href="/translated/hello">Hello</a>
         <a href={'/translated/hello/there'}>Hello</a>
@@ -185,8 +187,10 @@ test('URLs', async function(t) {
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             goto(_w_runtime_.t(0, [44]))
-            // @wc-url
-            const url = $derived(_w_runtime_.t(1))
+            const url = $derived({
+                // @wc-url
+                something: [_w_runtime_.t(1, [45])]
+            })
         </script>
         <a href={_w_runtime_.t(2)}>{_w_runtime_.t(3)}</a>
         <a href={_w_runtime_.t(4)}>{_w_runtime_.t(3)}</a>
@@ -215,7 +219,7 @@ test('URLs', async function(t) {
     `,
         [
             [ '/en/translated/', 0 ],
-            '/en/translated/somewhere',
+            [ '/en/translated/somewhere/', 0 ],
             '/en/translated/hello',
             'Hello',
             '/en/translated/hello/there',
