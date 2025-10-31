@@ -35,7 +35,7 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
                 if (item.flags[urlPatternFlag]) {
                     item.references = item.references.filter(ref => ref !== handler.key)
                 } else {
-                    // don't touch other adapters' files
+                    // don't touch other adapters' files. related extracted comments handled by handler
                     item.references = item.references.filter(ref => !handler.fileMatches(ref))
                 }
             }
