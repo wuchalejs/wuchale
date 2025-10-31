@@ -1,8 +1,8 @@
 import { compile, match } from "path-to-regexp"
 
 export type URLManifestItem = [
-    string, // pattern
-    [string, string][] // locale, localizedPath
+    string, // /foo
+    string[] // /en/foo, /es/foo
 ]
 
 export type URLManifest = URLManifestItem[]
@@ -56,10 +56,16 @@ type MatchResult = {
     alternates: Record<string, string>
 }
 
-export function URLMatcher(manifest: URLManifest) {
+export function URLMatcher(manifest: URLManifest, locales: string[]) {
     const sourcePatterns = manifest.map(([patt]) => patt)
+    const manifestWithLocales = manifest.map(([pattern, localized]) => {
+        return [
+            pattern,
+            locales.map((loc, i) => [loc, localized[i]] as [string, string])
+        ] as [string, [string, string][]]
+    })
     return (url: URL): MatchResult => {
-        for (const [pattern, localized] of manifest) {
+        for (const [pattern, localized] of manifestWithLocales) {
             for (const [locale, locPattern] of localized) {
                 const params = getParams(url.pathname, locPattern)
                 if (params) {
