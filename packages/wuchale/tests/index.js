@@ -302,17 +302,17 @@ test('URL matcher', t => {
     const matcher = URLMatcher([
         [
             "/path",
-            [["en","/en/path"],["es","/es/ruta"]]
+            ["/en/path","/es/ruta"]
         ],
         [
             "/*rest",
-            [["en","/en/*rest"],["es","/es/*rest"]]
+            ["/en/*rest","/es/*rest"]
         ],
         [
             "/",
-            [["en","/en"],["es","/es"]]
+            ["/en","/es"]
         ],
-    ])
+    ], ['en', 'es'])
     t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, alternates: {}})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en', alternates: { en: '/en/foo', es: '/es/foo' }})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en', alternates: { en: '/en', es: '/es' }})

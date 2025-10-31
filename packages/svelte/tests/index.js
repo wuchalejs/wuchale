@@ -202,11 +202,11 @@ test('URLs', async function(t) {
         msgid ""
         msgstr ""
 
-        #. original: /translated/*rest
         #: svelte
         #, url-pattern
+        msgctxt "original: /translated/*rest"
         msgid "/translated/{0}"
-        msgstr ""
+        msgstr "/translated/{0}"
 
         #: tests/test-dir/test.svelte
         #: tests/test-dir/test.svelte
