@@ -350,7 +350,7 @@ export class AdapterHandler {
         return stringify({tokens: urlTokens})
     }
 
-    writeUrlManifest = async () => {
+    writeUrlFiles = async () => {
         const patterns = this.#adapter.url?.patterns
         if (!patterns) {
             return
@@ -377,10 +377,11 @@ export class AdapterHandler {
         ].join('\n')
         await writeFile(this.#urlManifestFname, urlManifestData)
         const urlFileContent = [
-            'import {URLMatcher} from "wuchale/url"',
+            'import {URLMatcher, getLocaleDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
             `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
-            `export default URLMatcher(manifest, locales)`
+            `export const getLocale = (/** @type {URL} */ url) => getLocaleDefault(url, locales) ?? '${this.#config.sourceLocale}'`,
+            `export const matchUrl = URLMatcher(manifest, locales)`
         ].join('\n')
         await writeFile(this.#urlsFname, urlFileContent)
     }
@@ -501,7 +502,7 @@ export class AdapterHandler {
         if (needWriteCatalog) {
             await this.savePoAndCompile(loc)
         }
-        await this.writeUrlManifest()
+        await this.writeUrlFiles()
     }
 
     loadCatalogNCompile = async (loc: string) => {
