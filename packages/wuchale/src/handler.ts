@@ -114,7 +114,7 @@ type SharedState = {
     indexTracker: IndexTracker
 }
 
-/* shared states among multiple adapters handlers */
+/* shared states among multiple adapters handlers, by localesDir */
 export type SharedStates = Record<string, SharedState>
 
 type GranularState = {
@@ -482,6 +482,7 @@ export class AdapterHandler {
             }
             if (!item.references.includes(this.key)) {
                 item.references.push(this.key)
+                item.references.sort()
                 needWriteCatalog = true
             }
             item.msgctxt = urlPatternMsgs[i].context
@@ -887,7 +888,7 @@ export class AdapterHandler {
                 let iStartComm: number
                 if (key in previousReferences) {
                     const prevRef = previousReferences[key]
-                    iStartComm = prevRef.indices.pop() * newComments.length
+                    iStartComm = prevRef.indices.shift() * newComments.length // cannot be pop for determinism
                     const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
                     if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
                         commentsChanged = true
@@ -896,17 +897,18 @@ export class AdapterHandler {
                         delete previousReferences[key]
                     }
                 } else {
-                    iStartComm = poItem.references.length * newComments.length
                     poItem.references.push(filename)
-                    poItem.references.sort() // make it deterministic
+                    poItem.references.sort() // make deterministic
+                    iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
                     newRefs = true // now it references it
                 }
                 if (newComments.length) {
                     poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
+                    poItem.extractedComments.sort() // make deterministic
                 }
                 poItem.obsolete = false
                 if (msgInfo.type === 'url') {
-                    poItem.flags[urlExtractedFlag] = true // important in compile, but not written to po file
+                    poItem.flags[urlExtractedFlag] = true // included in compiled, but not written to po file
                     continue
                 }
                 if (loc === this.#config.sourceLocale) {
