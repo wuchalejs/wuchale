@@ -61,6 +61,9 @@ class Wuchale {
                 this.#log,
             )
             await handler.init(sharedState)
+            for (const loc of this.#locales) {
+                await handler.initUrlPatterns(loc)
+            }
             handler.onBeforeWritePO = () => {
                 this.#lastSourceTriggeredPOWrite = performance.now()
             }

@@ -32,8 +32,9 @@ type POFile = {
     pluralRule: PluralRule
 }
 
+const dataFileName = 'data.js'
 const generatedDir = '.wuchale'
-const urlPatternFlag = 'url-pattern'
+export const urlPatternFlag = 'url-pattern'
 const urlExtractedFlag = 'url-extracted'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -96,7 +97,7 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
     })
 }
 
-export type Mode = 'dev' | 'prod' | 'extract'
+export type Mode = 'dev' | 'prod' | 'cli'
 
 type Compiled = {
     hasPlurals: boolean
@@ -148,6 +149,7 @@ export class AdapterHandler {
     granularStateByID: Record<string, GranularState> = {}
 
     #catalogsFname: Record<string, string> = {}
+    #urlPatternKeys: Record<string, string> = {}
     #urlManifestFname: string
     #urlsFname: string
     #generatedDir: string
@@ -317,7 +319,6 @@ export class AdapterHandler {
             return
         }
         await mkdir(this.#generatedDir, {recursive: true})
-        const dataFile = 'data.js'
         for (const side in this.loaderPath) {
             let loaderTemplate: string
             if (typeof this.#adapter.defaultLoaderPath === 'string') {
@@ -328,11 +329,11 @@ export class AdapterHandler {
             const loaderContent = (await readFile(loaderTemplate)).toString()
                 .replace('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replace('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
-                .replace('${DATA}', `./${dataFile}`)
+                .replace('${DATA}', `./${dataFileName}`)
                 .replace('${KEY}', this.key)
             await writeFile(this.loaderPath[side], loaderContent)
         }
-        await writeFile(join(this.#adapter.localesDir, dataFile), this.getData())
+        await writeFile(join(this.#adapter.localesDir, dataFileName), this.getData())
     }
 
     urlPatternFromTranslate = (patternTranslated: string, keys: Token[]) => {
@@ -349,28 +350,26 @@ export class AdapterHandler {
         return stringify({tokens: urlTokens})
     }
 
-    writeUrls = async () => {
+    writeUrlManifest = async () => {
         const patterns = this.#adapter.url?.patterns
         if (!patterns) {
             return
         }
         const manifest: URLManifest = patterns.map(patt => {
+            const catalogPattKey = this.#urlPatternKeys[patt]
             const {keys} = pathToRegexp(patt)
-            const transPatt = this.urlPatternToTranslate(patt)
             return [
-            patt,
-            this.#locales.map(loc => {
-                let pattern = patt
-                const item = this.sharedState.poFilesByLoc[loc].catalog[patt]
-                if (item) {
-                    const patternTranslated = item.msgstr[0] || item.msgid
-                    if (patternTranslated !== transPatt) {
+                patt,
+                this.#locales.map(loc => {
+                    let pattern = patt
+                    const item = this.sharedState.poFilesByLoc[loc].catalog[catalogPattKey]
+                    if (item) {
+                        const patternTranslated = item.msgstr[0] || item.msgid
                         pattern = this.urlPatternFromTranslate(patternTranslated, keys)
                     }
-                }
-                return [loc, this.localizeUrl?.(pattern, loc) ?? pattern]
-            })
-        ]
+                    return this.localizeUrl?.(pattern, loc) ?? pattern
+                })
+            ]
         })
         const urlManifestData = [
             `/** @type {import('wuchale/url').URLManifest} */`,
@@ -379,8 +378,9 @@ export class AdapterHandler {
         await writeFile(this.#urlManifestFname, urlManifestData)
         const urlFileContent = [
             'import {URLMatcher} from "wuchale/url"',
+            `import {locales} from "./${dataFileName}"`,
             `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
-            `export default URLMatcher(manifest)`
+            `export default URLMatcher(manifest, locales)`
         ].join('\n')
         await writeFile(this.#urlsFname, urlFileContent)
     }
@@ -427,7 +427,6 @@ export class AdapterHandler {
             await this.loadCatalogNCompile(loc)
         }
         await this.writeProxies()
-        await this.writeUrls()
     }
 
     urlPatternToTranslate = (pattern: string) => {
@@ -440,45 +439,68 @@ export class AdapterHandler {
         return compile(paramsReplace)
     }
 
-    loadAndTranslateUrlPatterns = async (loc: string) => {
+    initUrlPatterns = async (loc: string) => {
         const catalog = this.sharedState.poFilesByLoc[loc].catalog
         const urlPatterns = this.#adapter.url?.patterns ?? []
         const urlPatternsForTranslate = urlPatterns.map(this.urlPatternToTranslate)
-        const untranslated: ItemType[] = []
+        const urlPatternMsgs = urlPatterns.map((patt, i) => {
+            const locPattern = urlPatternsForTranslate[i]
+            let context = null
+            if (locPattern !== patt) {
+                context = `original: ${patt}`
+            }
+            return new Message(locPattern, null, context)
+        })
+        const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
         for (const [key, item] of Object.entries(catalog)) {
             if (!item.flags[urlPatternFlag]) {
                 continue
             }
-            if (urlPatternsForTranslate.includes(item.msgid)) {
-                if (!item.references.includes(this.key)) {
-                    item.references.push(this.key)
-                }
-            } else {
+            if (!urlPatternCatKeys.includes(key)) {
                 item.references = item.references.filter(r => r !== this.key)
                 if (item.references.length === 0) {
-                    delete catalog[key]
+                    item.obsolete = true
                 }
             }
-            if (!item.msgstr[0]) {
-                untranslated.push(item)
-            }
         }
-        for (const [i, pattern] of urlPatterns.entries()) {
-            if (urlPatternsForTranslate[i].search(/\p{L}/u) === -1 || pattern in catalog) {
+        const untranslated: ItemType[] = []
+        let needWriteCatalog = false
+        for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
+            const key = urlPatternCatKeys[i]
+            this.#urlPatternKeys[urlPatterns[i]] = key // save for href translate
+            if (locPattern.search(/\p{L}/u) === -1) {
                 continue
             }
-            const item = new PO.Item()
-            item.msgid = urlPatternsForTranslate[i]
-            item.extractedComments = [`original: ${pattern}`]
+            let item = catalog[key]
+            if (!item || !item.flags[urlPatternFlag]) {
+                item = new PO.Item()
+                needWriteCatalog = true
+            }
+            item.msgid = locPattern
+            if (loc === this.#config.sourceLocale) {
+                item.msgstr = [locPattern]
+            }
+            if (!item.references.includes(this.key)) {
+                item.references.push(this.key)
+                needWriteCatalog = true
+            }
+            item.msgctxt = urlPatternMsgs[i].context
             item.flags[urlPatternFlag] = true
-            item.references = [this.key]
-            catalog[pattern] = item
-            untranslated.push(item)
+            item.obsolete = false
+            catalog[key] = item
+            if (!item.msgstr[0]) {
+                untranslated.push(item)
+                needWriteCatalog = true
+            }
         }
         if (untranslated.length && loc !== this.#config.sourceLocale) {
             this.#geminiQueue[loc].add(untranslated)
             await this.#geminiQueue[loc].running
         }
+        if (needWriteCatalog) {
+            await this.savePoAndCompile(loc)
+        }
+        await this.writeUrlManifest()
     }
 
     loadCatalogNCompile = async (loc: string) => {
@@ -492,7 +514,6 @@ export class AdapterHandler {
                 this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
             }
         }
-        await this.loadAndTranslateUrlPatterns(loc)
         await this.compile(loc)
     }
 
@@ -567,7 +588,7 @@ export class AdapterHandler {
             return toCompile
         }
         // e.g. relevantPattern: /items/:rest
-        const patternItem = catalog[relevantPattern]
+        const patternItem = catalog[this.#urlPatternKeys[relevantPattern]]
         if (patternItem) {
             // e.g. patternItem.msgid: /items/{0}
             const matchedUrl = matchUrlPattern(relevantPattern, {decode: false})(key)
@@ -710,7 +731,7 @@ export class AdapterHandler {
 
     savePoAndCompile = async (loc: string) => {
         this.onBeforeWritePO?.()
-        if (this.#mode === 'extract') { // save for the end
+        if (this.#mode === 'cli') { // save for the end
             return
         }
         await this.savePO(loc)

@@ -1,6 +1,6 @@
 import type { Config } from "../config.js"
 import { glob } from "tinyglobby"
-import { AdapterHandler, type SharedStates } from "../handler.js"
+import { AdapterHandler, urlPatternFlag, type SharedStates } from "../handler.js"
 import { color, Logger } from "../log.js"
 import { readFile } from "node:fs/promises"
 import type { GlobConf } from "../adapters.js"
@@ -29,14 +29,18 @@ export async function extractAdap(handler: AdapterHandler, sharedState: SharedSt
     for (const loc of locales) {
         const items = Object.values(handler.sharedState.poFilesByLoc[loc].catalog)
         dumps[loc] = poDump(items)
-        if (!clean) {
-            continue
+        if (clean) {
+            for (const item of items) {
+                // unreference all references that belong to this adapter
+                if (item.flags[urlPatternFlag]) {
+                    item.references = item.references.filter(ref => ref !== handler.key)
+                } else {
+                    // don't touch other adapters' files
+                    item.references = item.references.filter(ref => !handler.fileMatches(ref))
+                }
+            }
         }
-        for (const item of items) {
-            // unreference all files that belong to this adapter
-            // don't touch other adapters' files
-            item.references = item.references.filter(ref => !handler.fileMatches(ref))
-        }
+        await handler.initUrlPatterns(loc)
     }
     const filePaths = await glob(...handler.globConfToArgs(files))
     const extract = extractor(handler)
@@ -71,7 +75,7 @@ export async function extract(config: Config, locales: string[], clean: boolean,
     const handlers = []
     const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'extract', process.cwd(), new Logger(config.logLevel))
+        const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
         await extractAdap(handler, sharedState, adapter.files, locales, clean, sync)
         handlers.push(handler)
     }
