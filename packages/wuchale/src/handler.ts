@@ -386,6 +386,37 @@ export class AdapterHandler {
         await writeFile(this.#urlsFname, urlFileContent)
     }
 
+    indexFilePath = (loadID: string | null) => {
+        return `${this.#generatedDir}/${this.key}.${loadID ?? this.key}.indices.json`
+    }
+
+    loadIndices = async (loadID: string | null): Promise<string[]> => {
+        try {
+            const contents = await readFile(this.indexFilePath(loadID))
+            return JSON.parse(contents.toString())
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+            return null
+        }
+    }
+
+    loadCompiled = async (loc: string, loadID: string | null): Promise<Compiled> => {
+        try {
+            const module = await import(resolve(this.getCompiledFilePath(loc, loadID)))
+            return {
+                items: module[catalogVarName],
+                hasPlurals: 'p' in module
+            }
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+            return null
+        }
+    }
+
     init = async (sharedStates: SharedStates) => {
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         await this.#initPaths()
@@ -397,7 +428,7 @@ export class AdapterHandler {
             this.sharedState = {
                 ownerKey: this.key,
                 poFilesByLoc: {},
-                indexTracker: new IndexTracker(),
+                indexTracker: new IndexTracker(await this.loadIndices(null) ?? []),
                 compiled: {},
                 extractedUrls: {},
             }
@@ -418,6 +449,9 @@ export class AdapterHandler {
                 )
             }
             if (this.sharedState.ownerKey === this.key) {
+                if (this.#mode === 'build') {
+                    this.sharedState.compiled[loc] = await this.loadCompiled(loc, null)
+                }
                 this.sharedState.poFilesByLoc[loc] = {
                     catalog: {},
                     pluralRule: defaultPluralRule,
@@ -555,13 +589,21 @@ export class AdapterHandler {
             if (id in this.granularStateByID) {
                 state = this.granularStateByID[id]
             } else {
+                let compiledLoaded: {[loc: string]: Compiled} = {}
+                if (this.#mode === 'build') {
+                    for (const loc of this.#locales) {
+                        compiledLoaded[loc] = await this.loadCompiled(loc, null)
+                    }
+                }
                 state = {
                     id,
-                    compiled: Object.fromEntries(this.#locales.map(loc => [loc, {
-                        hasPlurals: false,
-                        items: []
-                    }])),
-                    indexTracker: new IndexTracker(),
+                    compiled: Object.fromEntries(this.#locales.map(loc => {
+                        return [loc, compiledLoaded[loc] ?? {
+                            hasPlurals: false,
+                            items: [],
+                        }]
+                    })),
+                    indexTracker: new IndexTracker(await this.loadIndices(id)),
                 }
                 this.granularStateByID[id] = state
                 await this.writeProxies()
@@ -654,11 +696,17 @@ export class AdapterHandler {
 
     writeCompiled = async (loc: string) => {
         await writeFile(this.getCompiledFilePath(loc, null), this.loadCatalogModule(loc, null))
+        if (this.#mode === 'cli') {
+            await writeFile(this.indexFilePath(null), JSON.stringify(this.sharedState.indexTracker.getKeys()))
+        }
         if (!this.#adapter.granularLoad) {
             return
         }
         for (const state of Object.values(this.granularStateByID)) {
             await writeFile(this.getCompiledFilePath(loc, state.id), this.loadCatalogModule(loc, state.id))
+            if (this.#mode === 'cli') {
+                await writeFile(this.indexFilePath(state.id), JSON.stringify(state.indexTracker.getKeys()))
+            }
         }
     }
 
