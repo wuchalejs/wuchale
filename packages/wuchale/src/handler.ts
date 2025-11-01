@@ -97,7 +97,7 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
     })
 }
 
-export type Mode = 'dev' | 'prod' | 'cli'
+export type Mode = 'dev' | 'build' | 'cli'
 
 type Compiled = {
     hasPlurals: boolean
@@ -810,6 +810,123 @@ export class AdapterHandler {
         }
     }
 
+    handleMessages = async (loc: string, msgs: Message[], filename: string): Promise<string[]> => {
+        const poFile = this.sharedState.poFilesByLoc[loc]
+        const extractedUrls = this.sharedState.extractedUrls[loc]
+        const previousReferences: Record<string, {count: number, indices: number[]}> = {}
+        for (const item of Object.values(poFile.catalog)) {
+            if (!item.references.includes(filename)) {
+                continue
+            }
+            const key = new Message([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
+            previousReferences[key] = {count: 0, indices: []}
+            for (const [i, ref] of item.references.entries()) {
+                if (ref !== filename) {
+                    continue
+                }
+                previousReferences[key].count++
+                previousReferences[key].indices.push(i)
+            }
+        }
+        let newItems: boolean = false
+        const hmrKeys = []
+        const untranslated: ItemType[] = []
+        let newRefs = false
+        let newUrlRefs = false
+        let commentsChanged = false
+        for (const msgInfo of msgs) {
+            const key = msgInfo.toKey()
+            hmrKeys.push(key)
+            const collection = msgInfo.type === 'url' ? extractedUrls : poFile.catalog
+            let poItem = collection[key]
+            if (!poItem) {
+                // @ts-expect-error
+                poItem = new PO.Item({
+                    nplurals: poFile.pluralRule.nplurals,
+                })
+                poItem.msgid = msgInfo.msgStr[0]
+                if (msgInfo.plural) {
+                    poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
+                }
+                collection[key] = poItem
+                newItems = true
+            }
+            if (msgInfo.context) {
+                poItem.msgctxt = msgInfo.context
+            }
+            const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
+            let iStartComm: number
+            if (key in previousReferences) {
+                const prevRef = previousReferences[key]
+                iStartComm = prevRef.indices.shift() * newComments.length // cannot be pop for determinism
+                const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
+                if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
+                    commentsChanged = true
+                }
+                if (prevRef.indices.length === 0) {
+                    delete previousReferences[key]
+                }
+            } else {
+                poItem.references.push(filename)
+                poItem.references.sort() // make deterministic
+                iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
+                if (msgInfo.type === 'message') {
+                    newRefs = true // now it references it
+                } else {
+                    newUrlRefs = true // no write needed but just compile
+                }
+            }
+            if (newComments.length) {
+                poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
+                poItem.extractedComments.sort() // make deterministic
+            }
+            poItem.obsolete = false
+            if (msgInfo.type === 'url') {
+                poItem.flags[urlExtractedFlag] = true // included in compiled, but not written to po file
+                continue
+            }
+            if (loc === this.#config.sourceLocale) {
+                const msgStr = msgInfo.msgStr.join('\n')
+                if (poItem.msgstr.join('\n') !== msgStr) {
+                    poItem.msgstr = msgInfo.msgStr
+                    untranslated.push(poItem)
+                }
+            } else if (!poItem.msgstr[0]) {
+                untranslated.push(poItem)
+            }
+        }
+        const removedRefs = Object.entries(previousReferences)
+        for (const [key, info] of removedRefs) {
+            const item = poFile.catalog[key]
+            const commentPerRef = Math.floor(item.extractedComments.length / item.references.length)
+            for (const index of info.indices) {
+                item.references.splice(index, 1)
+                item.extractedComments.splice(index * commentPerRef, commentPerRef)
+            }
+            if (item.references.length === 0) {
+                item.obsolete = true
+            }
+        }
+        if (newUrlRefs) {
+            await this.compile(loc)
+        }
+        if (untranslated.length === 0) {
+            if (newRefs || removedRefs.length || commentsChanged) {
+                await this.savePoAndCompile(loc)
+            }
+            return hmrKeys
+        }
+        if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.ai) {
+            if (newItems || newRefs || commentsChanged) {
+                await this.savePoAndCompile(loc)
+            }
+            return hmrKeys
+        }
+        this.#geminiQueue[loc].add(untranslated)
+        await this.#geminiQueue[loc].running
+        return hmrKeys
+    }
+
     transform = async (content: string, filename: string, hmrVersion = -1, forServer = false): Promise<TransformOutputCode> => {
         if (platform === 'win32') {
             filename = filename.replaceAll('\\', '/')
@@ -830,128 +947,23 @@ export class AdapterHandler {
             expr: this.#prepareRuntimeExpr(loadID),
             matchUrl: this.matchUrl,
         })
-        if (this.#log.checkLevel('verbose')) {
-            if (msgs.length) {
-                this.#log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
-                for (const msg of msgs) {
-                    this.#log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
-                }
-            } else {
-                this.#log.verbose(`${this.key}: No messages from ${filename}.`)
-            }
-        }
-        const hmrKeys: Record<string, string[]> = {}
-        for (const loc of this.#locales) {
-            const poFile = this.sharedState.poFilesByLoc[loc]
-            const extractedUrls = this.sharedState.extractedUrls[loc]
-            const previousReferences: Record<string, {count: number, indices: number[]}> = {}
-            for (const item of Object.values(poFile.catalog)) {
-                if (!item.references.includes(filename)) {
-                    continue
-                }
-                const key = new Message([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
-                previousReferences[key] = {count: 0, indices: []}
-                for (const [i, ref] of item.references.entries()) {
-                    if (ref !== filename) {
-                        continue
+        let hmrData: HMRData = null
+        if (this.#mode !== 'build') {
+            if (this.#log.checkLevel('verbose')) {
+                if (msgs.length) {
+                    this.#log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
+                    for (const msg of msgs) {
+                        this.#log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
                     }
-                    previousReferences[key].count++
-                    previousReferences[key].indices.push(i)
+                } else {
+                    this.#log.verbose(`${this.key}: No messages from ${filename}.`)
                 }
             }
-            let newItems: boolean = false
-            hmrKeys[loc] = []
-            const untranslated: ItemType[] = []
-            let newRefs = false
-            let commentsChanged = false
-            for (const msgInfo of msgs) {
-                const key = msgInfo.toKey()
-                hmrKeys[loc].push(key)
-                const collection = msgInfo.type === 'url' ? extractedUrls : poFile.catalog
-                let poItem = collection[key]
-                if (!poItem) {
-                    // @ts-expect-error
-                    poItem = new PO.Item({
-                        nplurals: poFile.pluralRule.nplurals,
-                    })
-                    poItem.msgid = msgInfo.msgStr[0]
-                    if (msgInfo.plural) {
-                        poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
-                    }
-                    collection[key] = poItem
-                    newItems = true
-                }
-                if (msgInfo.context) {
-                    poItem.msgctxt = msgInfo.context
-                }
-                const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
-                let iStartComm: number
-                if (key in previousReferences) {
-                    const prevRef = previousReferences[key]
-                    iStartComm = prevRef.indices.shift() * newComments.length // cannot be pop for determinism
-                    const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
-                    if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
-                        commentsChanged = true
-                    }
-                    if (prevRef.indices.length === 0) {
-                        delete previousReferences[key]
-                    }
-                } else if (msgInfo.type === 'message') {
-                    poItem.references.push(filename)
-                    poItem.references.sort() // make deterministic
-                    iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
-                    newRefs = true // now it references it
-                }
-                if (newComments.length) {
-                    poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
-                    poItem.extractedComments.sort() // make deterministic
-                }
-                poItem.obsolete = false
-                if (msgInfo.type === 'url') {
-                    poItem.flags[urlExtractedFlag] = true // included in compiled, but not written to po file
-                    continue
-                }
-                if (loc === this.#config.sourceLocale) {
-                    const msgStr = msgInfo.msgStr.join('\n')
-                    if (poItem.msgstr.join('\n') !== msgStr) {
-                        poItem.msgstr = msgInfo.msgStr
-                        untranslated.push(poItem)
-                    }
-                } else if (!poItem.msgstr[0]) {
-                    untranslated.push(poItem)
-                }
+            const hmrKeys: Record<string, string[]> = {}
+            for (const loc of this.#locales) {
+                hmrKeys[loc] = await this.handleMessages(loc, msgs, filename)
             }
-            const removedRefs = Object.entries(previousReferences)
-            for (const [key, info] of removedRefs) {
-                const item = poFile.catalog[key]
-                const commentPerRef = Math.floor(item.extractedComments.length / item.references.length)
-                for (const index of info.indices) {
-                    item.references.splice(index, 1)
-                    item.extractedComments.splice(index * commentPerRef, commentPerRef)
-                }
-                if (item.references.length === 0) {
-                    item.obsolete = true
-                }
-            }
-            if (untranslated.length === 0) {
-                if (newRefs || removedRefs.length || commentsChanged) {
-                    await this.savePoAndCompile(loc)
-                }
-                continue
-            }
-            if (loc === this.#config.sourceLocale || !this.#geminiQueue[loc]?.ai) {
-                if (newItems || newRefs || commentsChanged) {
-                    await this.savePoAndCompile(loc)
-                }
-                continue
-            }
-            this.#geminiQueue[loc].add(untranslated)
-            await this.#geminiQueue[loc].running
-        }
-        let output: TransformOutputCode = {}
-        if (msgs.length) {
-            let hmrData: HMRData = null
-            if (hmrVersion >= 0) {
+            if (msgs.length && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#locales) {
                     hmrData.data[loc] = hmrKeys[loc]?.map(key => {
@@ -960,6 +972,9 @@ export class AdapterHandler {
                     })
                 }
             }
+        }
+        let output: TransformOutputCode = {}
+        if (msgs.length) {
             output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
         }
         await this.writeTransformed(filename, output.code ?? content)

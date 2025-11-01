@@ -107,7 +107,7 @@ class Wuchale {
         if (config.env.DEV) {
             mode = 'dev'
         } else {
-            mode = 'prod'
+            mode = 'build'
         }
         this.#projectRoot = config.root
         await this.#init(mode)
