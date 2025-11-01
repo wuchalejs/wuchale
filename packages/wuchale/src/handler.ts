@@ -492,7 +492,6 @@ export class AdapterHandler {
             catalog[key] = item
             if (!item.msgstr[0]) {
                 untranslated.push(item)
-                needWriteCatalog = true
             }
         }
         if (untranslated.length && loc !== this.#config.sourceLocale) {
@@ -897,7 +896,7 @@ export class AdapterHandler {
                     if (prevRef.indices.length === 0) {
                         delete previousReferences[key]
                     }
-                } else {
+                } else if (msgInfo.type === 'message') {
                     poItem.references.push(filename)
                     poItem.references.sort() // make deterministic
                     iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
