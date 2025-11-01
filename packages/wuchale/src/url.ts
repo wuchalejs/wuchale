@@ -54,7 +54,6 @@ type MatchResult = {
 }
 
 export function URLMatcher(manifest: URLManifest, locales: string[]) {
-    const sourcePatterns = manifest.map(([patt]) => patt)
     const manifestWithLocales = manifest.map(([pattern, localized]) => {
         const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, string])
         return [
@@ -72,10 +71,10 @@ export function URLMatcher(manifest: URLManifest, locales: string[]) {
                 }
             }
         }
-        for (const pattern of sourcePatterns) {
+        for (const [pattern, , altPatterns] of manifestWithLocales) {
             const params = getParams(url.pathname, pattern)
             if (params) {
-                return {path: fillParams(params, pattern), locale: null, altPatterns: {}, params: {}}
+                return {path: fillParams(params, pattern), locale: null, params, altPatterns}
             }
         }
         return {path: null, locale: null, altPatterns: {}, params: {}}
