@@ -41,44 +41,43 @@ const getParams = (path: string, pattern: string): MatchParams | null => {
     return matched.params
 }
 
-const fillParams = (params: MatchParams, destPattern: string) => {
+export const fillParams = (params: MatchParams, destPattern: string) => {
     const compiled = compile(destPattern, {encode: false})
     return compiled(params)
-}
-
-const getAlternates = (params: MatchParams, localizedPatterns: string[][]) => {
-    return Object.fromEntries(localizedPatterns.map(([locale, patt]) => [locale, fillParams(params, patt)]))
 }
 
 type MatchResult = {
     path: string
     locale: string
-    alternates: Record<string, string>
+    params: MatchParams,
+    altPatterns: Record<string, string>
 }
 
 export function URLMatcher(manifest: URLManifest, locales: string[]) {
     const sourcePatterns = manifest.map(([patt]) => patt)
     const manifestWithLocales = manifest.map(([pattern, localized]) => {
+        const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, string])
         return [
             pattern,
-            locales.map((loc, i) => [loc, localized[i]] as [string, string])
-        ] as [string, [string, string][]]
+            locAndLocalizeds,
+            Object.fromEntries(locAndLocalizeds),
+        ] as [string, [string, string][], Record<string, string>]
     })
     return (url: URL): MatchResult => {
-        for (const [pattern, localized] of manifestWithLocales) {
-            for (const [locale, locPattern] of localized) {
+        for (const [pattern, locAndLocalizeds, altPatterns] of manifestWithLocales) {
+            for (const [locale, locPattern] of locAndLocalizeds) {
                 const params = getParams(url.pathname, locPattern)
                 if (params) {
-                    return {path: fillParams(params, pattern), locale, alternates: getAlternates(params, localized)}
+                    return {path: fillParams(params, pattern), locale, params, altPatterns}
                 }
             }
         }
         for (const pattern of sourcePatterns) {
             const params = getParams(url.pathname, pattern)
             if (params) {
-                return {path: fillParams(params, pattern), locale: null, alternates: {}}
+                return {path: fillParams(params, pattern), locale: null, altPatterns: {}, params: {}}
             }
         }
-        return {path: null, locale: null, alternates: {}}
+        return {path: null, locale: null, altPatterns: {}, params: {}}
     }
 }
