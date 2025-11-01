@@ -12,6 +12,7 @@ import type {
     RuntimeConf,
     CatalogExpr,
     CodePattern,
+    UrlMatcher,
 } from 'wuchale'
 import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
 import type { AnyNode } from 'acorn'
@@ -41,8 +42,8 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf)
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: UrlMatcher) {
+        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
     }
 
     initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
@@ -73,7 +74,7 @@ export class JSXTransformer extends Transformer {
         },
         visitExpressionTag: this.visitJSXExpressionContainer,
         fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.checkHeuristicBool,
+        checkHeuristic: this.getHeuristicMessageType,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             let begin = `<${rtComponent}`
@@ -188,24 +189,33 @@ export class JSXTransformer extends Transformer {
         if (node.value == null) {
             return []
         }
-        if (node.value.type !== 'Literal') {
-            return this.visitJx(node.value)
-        }
-        if (typeof node.value.value !== 'string') {
-            return []
-        }
-        const value = node.value
         let name: string
         if (node.name.type === 'JSXIdentifier') {
             name = node.name.name
         } else {
             name = node.name.name.name
         }
-        const [pass, msgInfo] = this.checkHeuristic(node.value.value, {
-            scope: 'attribute',
+        const heurBase = {
+            scope: 'script' as 'script',
             element: this.currentElement,
             attribute: name,
-        })
+        }
+        if (node.value.type !== 'Literal') {
+            if (node.value.type === 'JSXExpressionContainer') {
+                if (node.value.expression.type === 'Literal' && typeof node.value.expression.value === 'string') {
+                    return this.visitLiteral(node.value.expression as Estree.Literal, heurBase)
+                }
+                if (node.value.expression.type === 'TemplateLiteral') {
+                    return this.visitTemplateLiteral(node.value.expression as Estree.TemplateLiteral, heurBase)
+                }
+            }
+            return this.visitJx(node.value)
+        }
+        if (typeof node.value.value !== 'string') {
+            return []
+        }
+        const value = node.value
+        const [pass, msgInfo] = this.checkHeuristic(node.value.value, heurBase)
         if (!pass) {
             return []
         }
@@ -243,7 +253,7 @@ export class JSXTransformer extends Transformer {
         if (node.type === 'JSXExpressionContainer' && node.expression.type === 'JSXEmptyExpression') { // markup comment
             return this.visitJSXEmptyExpression(node.expression)
         }
-        let msgs = []
+        let msgs: Message[] = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
             this.commentDirectives = this.commentDirectivesStack.pop()
@@ -252,7 +262,7 @@ export class JSXTransformer extends Transformer {
         if (this.commentDirectives.ignoreFile) {
             return []
         }
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev

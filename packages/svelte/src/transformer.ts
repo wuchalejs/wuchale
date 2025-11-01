@@ -1,5 +1,5 @@
 import MagicString from "magic-string"
-import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration } from "acorn"
+import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration, Literal, TemplateLiteral } from "acorn"
 import { parse, type AST } from "svelte/compiler"
 import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
@@ -10,6 +10,7 @@ import type {
     CatalogExpr,
     RuntimeConf,
     CodePattern,
+    HeuristicDetailsBase,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
 
@@ -33,8 +34,17 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf) {
-        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, [varNames.rt, rtModuleVar])
+    constructor(
+        content: string,
+        filename: string,
+        index: IndexTracker,
+        heuristic: HeuristicFunc,
+        patterns: CodePattern[],
+        catalogExpr: CatalogExpr,
+        rtConf: RuntimeConf,
+        matchUrl: (url: string) => string,
+    ) {
+        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
@@ -84,7 +94,7 @@ export class SvelteTransformer extends Transformer {
         },
         visitExpressionTag: this.visitExpressionTag,
         fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.checkHeuristicBool,
+        checkHeuristic: this.getHeuristicMessageType,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
             const snippets = []
@@ -177,14 +187,22 @@ export class SvelteTransformer extends Transformer {
             })
         }
         const value = values[0]
-        if (value.type !== 'Text') {
-            return this.visitSv(value)
-        }
-        const [pass, msgInfo] = this.checkHeuristic(value.data, {
-            scope: 'attribute',
+        const heuDetails: HeuristicDetailsBase = {
+            scope: 'script',
             element: this.currentElement,
             attribute: node.name,
-        })
+        }
+        if (value.type === 'ExpressionTag') {
+            if (value.expression.type === 'Literal') {
+                return this.visitLiteral(value.expression as Literal, heuDetails)
+            }
+            if (value.expression.type === 'TemplateLiteral') {
+                return this.visitTemplateLiteral(value.expression as TemplateLiteral, heuDetails)
+            }
+            return this.visitSv(value)
+        }
+        heuDetails.scope = 'attribute'
+        const [pass, msgInfo] = this.checkHeuristic(value.data, heuDetails)
         if (!pass) {
             return []
         }
@@ -327,7 +345,7 @@ export class SvelteTransformer extends Transformer {
         if (this.commentDirectives.ignoreFile) {
             return []
         }
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             msgs = this.visit(node as AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev

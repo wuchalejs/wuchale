@@ -28,8 +28,7 @@
     ],
     "files": [
         "dist",
-        "src/adapter-vanilla/loaders",
-        "src/virtual.d.ts"
+        "src/adapter-vanilla/loaders"
     ],
     "exports": {
         ".": {
@@ -60,6 +59,10 @@
         "./adapter-utils": {
             "types": "./dist/adapter-utils/index.d.ts",
             "default": "./dist/adapter-utils/index.js"
+        },
+        "./url": {
+            "types": "./dist/url.d.ts",
+            "default": "./dist/url.js"
         }
     },
     "bin": {
@@ -78,6 +81,7 @@
         "acorn": "^8.15.0",
         "chokidar": "^4.0.3",
         "magic-string": "^0.30.19",
+        "path-to-regexp": "^8.3.0",
         "picomatch": "^4.0.3",
         "pofile": "^1.1.4",
         "tinyglobby": "^0.2.15"

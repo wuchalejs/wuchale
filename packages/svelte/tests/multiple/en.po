@@ -1,33 +1,33 @@
 msgid ""
 msgstr ""
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Title"
 msgstr "Title"
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Welcome to the app"
 msgstr "Welcome to the app"
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Nested <0>non-mixed</0>"
 msgstr "Nested <0>non-mixed</0>"
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Nested <0>mixed with {0}</0>"
 msgstr "Nested <0>mixed with {0}</0>"
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Nested <0/>"
 msgstr "Nested <0/>"
 
 #. placeholder {0}: 1
 #. placeholder {1}: 2
 #. placeholder {2}: 3
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Result: {0} {1} / {2}..."
 msgstr "Result: {0} {1} / {2}..."
 
-#: app.svelte
+#: tests/multiple/app.svelte
 msgid "Nested deep nontext <0/>"
 msgstr "Nested deep nontext <0/>"

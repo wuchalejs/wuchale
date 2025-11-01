@@ -1,104 +1,104 @@
 msgid ""
 msgstr ""
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extract"
 msgstr "Extract"
 
 #. placeholder {0}: a
 #. placeholder {1}: b
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Interpolate {0} {1}"
 msgstr "Interpolate {0} {1}"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extracted name"
 msgstr "Extracted name"
 
 #. placeholder {0}: msg
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "This page says: {0}"
 msgstr "This page says: {0}"
 
-#: app.svelte
-#: app.svelte
+#: tests/complicated/app.svelte
+#: tests/complicated/app.svelte
 msgid "Extracted text"
 msgstr "Extracted text"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extract this"
 msgstr "Extract this"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Variable"
 msgstr "Variable"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Add to Variable"
 msgstr "Add to Variable"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Check extracted"
 msgstr "Check extracted"
 
-#: app.svelte
-#: app.svelte
+#: tests/complicated/app.svelte
+#: tests/complicated/app.svelte
 msgid "That"
 msgstr "That"
 
-#: app.svelte
-#: app.svelte
+#: tests/complicated/app.svelte
+#: tests/complicated/app.svelte
 msgid "And this"
 msgstr "And this"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Okay?"
 msgstr "Okay?"
 
 #. placeholder {0}: p.name
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extract {0}"
 msgstr "Extract {0}"
 
-#: app.svelte
-#: app.svelte
+#: tests/complicated/app.svelte
+#: tests/complicated/app.svelte
 msgid "Bar"
 msgstr "Bar"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extracted"
 msgstr "Extracted"
 
 #. placeholder {0}: 'handled'
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Also {0}"
 msgstr "Also {0}"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Extracted Text"
 msgstr "Extracted Text"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "extracted anyway"
 msgstr "extracted anyway"
 
 #. placeholder {0}: json.title
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "{0} other blocks"
 msgstr "{0} other blocks"
 
 #. placeholder {0}: member
 #. placeholder {1}: x
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Loops and {0} {1} <0/> Supported"
 msgstr "Loops and {0} {1} <0/> Supported"
 
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "Conditionals, <0/>"
 msgstr "Conditionals, <0/>"
 
 #. placeholder {0}: obj.property["non-extracted text"]["Extracted text"]
-#: app.svelte
+#: tests/complicated/app.svelte
 msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 

@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "clean": "rm -r packages/*/dist packages/*/*.tsbuildinfo packages/*/*/*.tsbuildinfo",
-        "dev": "npm run clean && tsc --build tsconfig.build.json --watch",
+        "dev": "npm run clean; tsc --build tsconfig.build.json --watch",
         "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
         "test": "npm run test --workspaces",
         "v": "npx changeset"

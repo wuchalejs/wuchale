@@ -1,13 +1,15 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import wrapRT, { Runtime } from 'wuchale/runtime'
+import toRuntime from 'wuchale/runtime'
 import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
+import { adapter, getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
 import { testContent, basic, typescript, adapterOpts } from './check.js'
 import { statfs } from 'fs/promises'
+import { URLMatcher } from 'wuchale/url'
 
 test('Compile nested', function(t) {
     t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
@@ -21,10 +23,12 @@ test('Compile nested', function(t) {
 
 test('Default loader file paths', async function(t){
     for (const loader of ['server', 'vite', 'bundle']) {
-        const path = basic.defaultLoaderPath(loader)
-        const paths = typeof path === 'string' ? [path] : Object.values(path)
-        for (const path of paths) {
-            await statfs(path) // no error
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
         }
     }
 })
@@ -76,22 +80,21 @@ test('Inside function definitions', async function(t) {
         }
     `, typescript`
         'use strict'
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const varName = _w_runtime_.t(0)
             return varName
         }
         const insideObj = {
             method: () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(1)
             },
         }
         const bar: (a: string) => string = (a) => {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const foo = {
                 [_w_runtime_.t(2)]: 42,
                 tagged: _w_runtime_.tt(tag, 0),
@@ -103,23 +106,23 @@ test('Inside function definitions', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.js
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
+    #: tests/test-dir/test.js
     msgid "Hello"
     msgstr "Hello"
 
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
     msgid "Inside func property"
     msgstr "Inside func property"
 
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
     msgid "Extracted"
     msgstr "Extracted"
 
     #. placeholder {0}: a
     #. placeholder {0}: a
-    #: test-tmp/test.js
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
+    #: tests/test-dir/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
     `, ['Hello', 'Inside func property', 'Extracted', ['Hello ', 0]])
@@ -137,17 +140,16 @@ test('Inside class declarations', async function(t) {
             }
         }
     `, typescript`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_ from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         class foo {
             constructor() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(0)
             }
 
             foo() {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return _w_runtime_.t(0)
             }
         }
@@ -155,36 +157,55 @@ test('Inside class declarations', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.js
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
+    #: tests/test-dir/test.js
     msgid "Hello"
     msgstr "Hello"
 
     `, ['Hello'])
 })
 
-test('Plural', async function(t) {
+test('Plural and patterns', async function(t) {
     await testContent(t,
         typescript`
             const f = () => plural(items, ['One item', '# items'])
+            function foo() {
+                return [
+                    format0(44),
+                    format1(44),
+                ]
+            }
         `,
         typescript`
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_ from "../tests/test-tmp/loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
             const f = () => {
-                const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+                const _w_runtime_ = _w_load_('main')
                 return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
+            }
+            function foo() {
+                return [
+                    format0(44, _w_runtime_.l),
+                    format1(44, undefined, _w_runtime_.l),
+                ]
             }
     `, `
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
     msgid "One item"
     msgid_plural "# items"
     msgstr[0] "One item"
     msgstr[1] "# items"
-    `, [ [ 'One item', '# items' ] ])
+    `, [ [ 'One item', '# items' ] ], adapter({
+            ...adapterOpts,
+            patterns: [
+                {name: 'plural', args: ['other', 'message', 'pluralFunc']},
+                {name: 'format0', args: ['other', 'locale']},
+                {name: 'format1', args: ['other', 'other', 'locale', 'other']},
+            ],
+        })
+    )
 })
 
 test('HMR', async function(t) {
@@ -194,18 +215,24 @@ test('HMR', async function(t) {
             return varName
         }
     `, typescript`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_hmr_ from "../tests/test-tmp/loader.js"
+        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../test-tmp/main.loader.js"
+
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 
         function _w_load_(loadID) {
-            const _w_catalog_ = _w_load_hmr_(loadID)
-            _w_catalog_?.update?.(_w_hmrUpdate_)
-            return _w_catalog_
+            const _w_rt_ = _w_load_hmr_(loadID)
+            _w_rt_?._?.update?.(_w_hmrUpdate_)
+            return _w_rt_
+        }
+
+        function _w_load_rx_(loadID) {
+            const _w_rt_ = _w_load_rx_hmr_(loadID)
+            _w_rt_?._?.update?.(_w_hmrUpdate_)
+            return _w_rt_
         }
 
         function foo(): string {
-            const _w_runtime_ = _w_to_rt_(_w_load_('main'))
+            const _w_runtime_ = _w_load_('main')
             const varName = _w_runtime_.t(0)
             return varName
         }
@@ -213,7 +240,7 @@ test('HMR', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.js
+    #: tests/test-dir/test.js
     msgid "Hello"
     msgstr "Hello"
 
@@ -231,17 +258,18 @@ const testCatalog = {
 const loaderFunc = () => testCatalog
 
 test('Loading and runtime', async t => {
+    /** @type {object} */
     const collection = {}
-    // @ts-expect-error
-    const getCatalog = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
+    const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called
-    const rt = wrapRT(getCatalog('foo'))
+    const rt = getRT('foo')
+    t.assert.equal(rt.l, 'en')
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(wrapRT(cPure['foo']).t(0), 'Hello')
+    t.assert.equal(toRuntime(cPure['foo']).t(0), 'Hello')
 })
 
 /**
@@ -253,7 +281,7 @@ function taggedHandler(msgs, ...args) {
 }
 
 test('Runtime', t => {
-    const rt = new Runtime(testCatalog)
+    const rt = toRuntime(testCatalog)
     t.assert.equal(rt.t(0), 'Hello')
     t.assert.equal(rt.t(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
@@ -263,9 +291,31 @@ test('Runtime', t => {
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
-    const getCatalog = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
+    const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return wrapRT(getCatalog('main')).t(1, ['server user'])
+        return getRT('main').t(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
+})
+
+test('URL matcher', t => {
+    const matcher = URLMatcher([
+        [
+            "/path",
+            ["/en/path","/es/ruta"]
+        ],
+        [
+            "/*rest",
+            ["/en/*rest","/es/*rest"]
+        ],
+        [
+            "/",
+            ["/en","/es"]
+        ],
+    ], ['en', 'es'])
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, altPatterns: { en: '/en', es: '/es' }, params: {}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en', altPatterns: { en: '/en/*rest', es: '/es/*rest' }, params: {rest: 'foo'}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en', altPatterns: { en: '/en', es: '/es' }, params: {}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es', altPatterns: { en: '/en', es: '/es' }, params: {}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {path: '/path', locale: 'es', altPatterns: { en: '/en/path', es: '/es/ruta' }, params: {}})
 })

@@ -4,7 +4,6 @@ import { defaultConfigNames, getConfig, type Config } from "../config.js"
 import { parseArgs } from 'node:util'
 import { color } from "../log.js"
 import { extract } from "./extract.js"
-import { init } from "./init.js"
 import { status } from "./status.js"
 
 const { positionals, values } = parseArgs({
@@ -40,7 +39,6 @@ Usage:
 Commands:
     ${color.grey('[none]')}  Extract/compile messages from the codebase into catalogs
             deleting unused messages if ${color.cyan('--clean')} is specified
-    ${color.cyan('init')}    Initialize on a codebase
     ${color.cyan('status')}  Show current status
 
 Options:
@@ -62,8 +60,6 @@ if (values.help) {
     console.log(help.trimEnd())
 } else if (cmd == null) {
     await extract(...await getConfigNLocales(), values.clean, values.watch, values.sync)
-} else if (cmd === 'init') {
-    await init(...await getConfigNLocales())
 } else if (cmd === 'status') {
     await status(...await getConfigNLocales())
 } else {

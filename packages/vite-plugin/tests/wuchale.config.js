@@ -4,8 +4,9 @@ import { adapter } from 'wuchale/adapter-vanilla'
 export default defineConfig({
     adapters: {
         main: adapter({
-            files: './tests/test-tmp/*.js',
-            catalog: './tests/{locale}',
+            files: './*.test.js',
+            localesDir: './tests/test-tmp/',
+            loader: 'server',
         }),
     }
 })

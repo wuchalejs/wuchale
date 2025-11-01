@@ -15,6 +15,9 @@ import type {
     RuntimeConf,
     CatalogExpr,
     CodePattern,
+    UrlMatcher,
+    HeuristicResultChecked,
+    MessageType,
 } from "../adapters.js"
 import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
@@ -69,6 +72,7 @@ export class Transformer {
     filename: string
     mstr: MagicString
     patterns: CodePattern[]
+    matchUrl: UrlMatcher
     initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
@@ -81,15 +85,18 @@ export class Transformer {
     currentFuncDef: string | null = null
     currentCall: string
     currentTopLevelCall: string
+    /** .start of the first statements in their respective parents, to put the runtime init before */
+    realBodyStarts = new Set<number>()
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, rtBaseVars = [varNames.rt]) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: (url: string) => string, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
         this.patterns = patterns
         this.content = content
         this.filename = filename
+        this.matchUrl = matchUrl
         const topLevelUseReactive = rtConf.useReactive({
             funcName: null,
             nested: false,
@@ -123,8 +130,7 @@ export class Transformer {
             }
             const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
             const expr = useReactive.init ? catalogExpr.reactive : catalogExpr.plain
-            const runtimeExpr = `${varNames.rtWrap}(${expr})`
-            return `\nconst ${this.currentRtVar} = ${wrapInit(runtimeExpr)}\n`
+            return `\nconst ${this.currentRtVar} = ${wrapInit(expr)}\n`
         }
     }
 
@@ -143,34 +149,41 @@ export class Transformer {
         return details
     }
 
-    checkHeuristicBool = (msg: Message) => {
+    getHeuristicMessageType = (msg: Message): HeuristicResultChecked => {
         const msgStr = msg.msgStr.join('\n')
         if (!msgStr) {
             // nothing to ask
             return false
         }
-        let extract = this.commentDirectives.forceInclude
-        if (extract == null) {
-            extract = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? true
+        if (this.commentDirectives.forceType === false) {
+            return false
         }
-        return extract
+        const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
+        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(msgStr) == null) {
+            return false
+        }
+        return this.commentDirectives.forceType || heuRes
     }
 
-    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [boolean, Message] => {
+    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [HeuristicResultChecked, Message] => {
         if (!msgStr) {
             // nothing to ask
             return [false, null]
         }
         const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
-        return [this.checkHeuristicBool(msg), msg]
+        const heuRes = this.getHeuristicMessageType(msg)
+        if (heuRes) {
+            msg.type = heuRes
+        }
+        return [heuRes, msg]
     }
 
-    visitLiteral = (node: Estree.Literal & { start: number; end: number }): Message[] => {
+    visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {
         if (typeof node.value !== 'string') {
             return []
         }
         const { start, end } = node
-        const [pass, msgInfo] = this.checkHeuristic(node.value, { scope: 'script' })
+        const [pass, msgInfo] = this.checkHeuristic(node.value, heuristicDetailsBase ?? { scope: 'script' })
         if (!pass) {
             return []
         }
@@ -229,7 +242,15 @@ export class Transformer {
         if (!pattern) {
             return this.defaultVisitCallExpression(node)
         }
+        let iLastNonOther = pattern.args.length - 1 // after this no change will be made
+        for (; iLastNonOther >= 0; iLastNonOther--) {
+            if (pattern.args[iLastNonOther] !== 'other') {
+                break
+            }
+        }
         const msgs: Message[] = []
+        const updates: [number, number, string][] = []
+        const appends: [number, string][] = []
         let lastArgEnd: number
         for (const [i, arg] of pattern.args.entries()) {
             const argVal = node.arguments[i]
@@ -242,14 +263,26 @@ export class Transformer {
             } else {
                 lastArgEnd = argVal.end
             }
+            const comma = i > 0 ? ', ' : ''
             if (arg === 'other') {
+                if (argVal == null && i < iLastNonOther) {
+                    appends.push([argInsertIndex, `${comma}undefined`])
+                }
+                continue
+            }
+            if (arg === 'locale') {
+                if (argVal) {
+                    updates.push([argVal.start, argVal.end, this.vars().rtLocale])
+                } else {
+                    appends.push([argInsertIndex, `${comma}${this.vars().rtLocale}`])
+                }
                 continue
             }
             if (arg === 'pluralFunc') {
                 if (argVal) {
-                    this.mstr.update(argVal.start, argVal.end, this.vars().rtPlural)
+                    updates.push([argVal.start, argVal.end, this.vars().rtPlural])
                 } else {
-                    this.mstr.appendRight(argInsertIndex, `, ${this.vars().rtPlural}`)
+                    appends.push([argInsertIndex, `${comma}${this.vars().rtPlural}`])
                 }
                 continue
             }
@@ -262,7 +295,7 @@ export class Transformer {
                     return this.defaultVisitCallExpression(node)
                 }
                 const msgInfo = new Message(argVal.value, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
-                this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
+                updates.push([argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`])
                 msgs.push(msgInfo)
                 continue
             }
@@ -285,7 +318,13 @@ export class Transformer {
             msgInfo.plural = true
             const index = this.index.get(msgInfo.toKey())
             msgs.push(msgInfo)
-            this.mstr.update(argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`)
+            updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
+        }
+        for (const [start, end, by] of updates) {
+            this.mstr.update(start, end, by)
+        }
+        for (const [index, insert] of appends) {
+            this.mstr.appendRight(index, insert)
         }
         return msgs
     }
@@ -400,14 +439,39 @@ export class Transformer {
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
-    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
-        for (const node of nodes) {
-            if (node.type === 'ExpressionStatement' && node.expression.type === 'Literal') {
+    visitStatementsNSaveRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Message[] => {
+        const msgs: Message[] = []
+        let bodyStart: number = null
+        for (const bod of nodes) {
+            const msgsBod = this.visit(bod)
+            if (!msgsBod.length) {
                 continue
             }
-            return node.start
+            if (bodyStart == null) {
+                bodyStart = bod.start
+            }
+            msgs.push(...msgsBod)
         }
-        return nodes[0]?.start
+        if (bodyStart) {
+            this.realBodyStarts.add(bodyStart)
+        }
+        return msgs
+    }
+
+    getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
+        let nonLiteralStart: number = null
+        for (const node of nodes) {
+            if (this.realBodyStarts.has(node.start)) {
+                return node.start
+            }
+            if (nonLiteralStart == null
+                && node.type !== 'ImportDeclaration'
+                && (node.type !== 'ExpressionStatement' || node.expression.type !== 'Literal')
+            ) {
+                nonLiteralStart = node.start
+            }
+        }
+        return nonLiteralStart ?? nodes[0]?.start
     }
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null, end?: number): Message[] => {
@@ -459,7 +523,7 @@ export class Transformer {
 
     visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
-    visitBlockStatement = (node: Estree.BlockStatement): Message[] => node.body.map(this.visit).flat()
+    visitBlockStatement = (node: Estree.BlockStatement): Message[] => this.visitStatementsNSaveRealBodyStart(node.body)
 
     visitReturnStatement = (node: Estree.ReturnStatement): Message[] => node.argument ? this.visit(node.argument) : []
 
@@ -492,7 +556,7 @@ export class Transformer {
         return msgs
     }
 
-    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral): boolean => {
+    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails?: HeuristicDetailsBase): HeuristicResultChecked => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -501,11 +565,11 @@ export class Transformer {
             }
         }
         heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, { scope: 'script' })
+        const [pass] = this.checkHeuristic(heurTxt, heurDetails ?? { scope: 'script' })
         return pass
     }
 
-    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral): [number, Message[]] => {
+    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
         const msgs = []
         let msgStr = node.quasis[0].value?.cooked ?? ''
         const comments = []
@@ -523,19 +587,23 @@ export class Transformer {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
+        msgInfo.type = msgTyp
         msgInfo.comments = comments
         const index = this.index.get(msgInfo.toKey())
         msgs.push(msgInfo)
         return [index, msgs]
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral, ignoreHeuristic = false): Message[] => {
-        if (!ignoreHeuristic) {
-            if (!this.checkHeuristicTemplateLiteral(node)) {
+    visitTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails: HeuristicDetailsBase | boolean = false): Message[] => {
+        let msgTyp: MessageType = 'message'
+        if (heurDetails !== true) {
+            const heuRes = this.checkHeuristicTemplateLiteral(node, typeof heurDetails === 'boolean' ? undefined : heurDetails)
+            if (!heuRes) {
                 return node.expressions.map(this.visit).flat()
             }
+            msgTyp = heuRes
         }
-        const [index, msgs] = this.visitTemplateLiteralQuasis(node)
+        const [index, msgs] = this.visitTemplateLiteralQuasis(node, msgTyp)
         const {start: start0, end: end0} = node.quasis[0]
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
@@ -555,8 +623,9 @@ export class Transformer {
         const prevCall = this.currentCall
         this.currentCall = this.getCalleeName(node.tag)
         let msgs = []
-        if (this.checkHeuristicTemplateLiteral(node.quasi)) {
-            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
+        const heuRes = this.checkHeuristicTemplateLiteral(node.quasi)
+        if (heuRes) {
+            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi, heuRes)
             msgs = msgsNew
             this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
             const {start, end, expressions} = node.quasi
@@ -573,11 +642,8 @@ export class Transformer {
     }
 
     visitProgram = (node: Estree.Program): Message[] => {
-        const msgs = []
         this.insideProgram = true
-        for (const child of node.body) {
-            msgs.push(...this.visit(child))
-        }
+        const msgs = this.visitStatementsNSaveRealBodyStart(node.body)
         this.insideProgram = false
         return msgs
     }
@@ -594,7 +660,7 @@ export class Transformer {
             return []
         }
         let msgs = []
-        if (this.commentDirectives.forceInclude !== false) {
+        if (this.commentDirectives.forceType !== false) {
             const methodName = `visit${node.type}`
             if (methodName in this) {
                 msgs = this[methodName](node)

@@ -1,17 +1,18 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, svelte, javascript } from './check.js'
-import { adapter } from '@wuchale/svelte'
+import { testContent, testDir, svelte, javascript, testFileJs, adapterOpts } from './check.js'
+import { getDefaultLoaderPath } from '@wuchale/svelte'
 import { statfs } from 'fs/promises'
 
 test('Default loader file paths', async function(t){
-    const adap = adapter()
     for (const loader of ['svelte', 'sveltekit', 'bundle']) {
-        const path = adap.defaultLoaderPath(loader)
-        const paths = typeof path === 'string' ? [path] : Object.values(path)
-        for (const path of paths) {
-            await statfs(path) // no error
+        for (const bundle of [false, true]) {
+            const path = getDefaultLoaderPath(loader, bundle)
+            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            for (const path of paths) {
+                await statfs(path) // no error
+            }
         }
     }
 })
@@ -19,17 +20,16 @@ test('Default loader file paths', async function(t){
 test('Simple text', async function(t) {
     await testContent(t, 'Hello', svelte`
         <script>
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
         {_w_runtime_.t(0)}
     `, `
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -48,9 +48,8 @@ test('JS module files', async function(t) {
         }
 
     `, javascript`
-        import _w_to_rt_ from 'wuchale/runtime'
-        import _w_load_rx_,{get as _w_load_} from "./tests/test-tmp/loader.svelte.js"
-        const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
+        const _w_runtime_ = $derived(_w_load_rx_('svelte'))
 
         const varName = $derived(_w_runtime_.t(0))
         'No translation!' // simple expression
@@ -59,29 +58,29 @@ test('JS module files', async function(t) {
         const msg = $derived(_w_runtime_.t(2))
 
         function foo() {
-            const _w_runtime_ = _w_to_rt_(_w_load_('svelte'))
+            const _w_runtime_ = _w_load_('svelte')
             return _w_runtime_.t(3)
         }
     `, `
         msgid ""
         msgstr ""
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Simple bare assign"
         msgstr "Simple bare assign"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Foo"
         msgstr "Foo"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Hello"
         msgstr "Hello"
 
-        #: test.svelte.js
+        #: tests/test-dir/test.svelte.js
         msgid "Should extract"
         msgstr "Should extract"
-    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], 'test.svelte.js')
+    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], testFileJs)
 })
 
 test('Simple element with new lines', async function(t) {
@@ -95,10 +94,9 @@ test('Simple element with new lines', async function(t) {
         </p>`,
     svelte`
         <script>
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             // Intentionally empty
         </script>
         <p title={loggedIn && _w_runtime_.t(0)}>
@@ -108,11 +106,11 @@ test('Simple element with new lines', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgid "Hello"
         msgstr "Hello"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgid ""
         "Hello\\n"
         "There"
@@ -134,10 +132,9 @@ test('Ignore and include', async function(t) {
         </div>
     `, svelte`
         <script>
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -151,7 +148,7 @@ test('Ignore and include', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "include this"
     msgstr "include this"
     `, ['include this'])
@@ -167,6 +164,75 @@ test('Ignore file', async function(t) {
     msgid ""
     msgstr ""
     `, [])
+})
+
+test('URLs', async function(t) {
+    await testContent(t, svelte`
+        <script>
+            goto(\`/translated/\${44}\`)
+            const url = {
+                // @wc-url
+                something: [\`/translated/somewhere/\${45}\`]
+            }
+        </script>
+        <a href="/translated/hello">Hello</a>
+        <a href={'/translated/hello/there'}>Hello</a>
+        <a href="/translated/very/deep/link/{44}">Hello</a>
+        <a href={\`/translated/\${44}\`}>Hello</a>
+        <a href="/notinpattern">Hello</a>
+        <a href="/">Hello</a>
+    `, svelte`
+        <script>
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
+            goto(_w_runtime_.t(0, [44]))
+            const url = $derived({
+                // @wc-url
+                something: [_w_runtime_.t(1, [45])]
+            })
+        </script>
+        <a href={_w_runtime_.t(2)}>{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(4)}>{_w_runtime_.t(3)}</a>
+        <a href="{_w_runtime_.t(5, [44])}">{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(3)}</a>
+        <a href="/notinpattern">{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(6)}>{_w_runtime_.t(3)}</a>
+    `, `
+        msgid ""
+        msgstr ""
+
+        #: svelte
+        #, url-pattern
+        msgctxt "original: /translated/*rest"
+        msgid "/translated/{0}"
+        msgstr "/translated/{0}"
+
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        msgid "Hello"
+        msgstr "Hello"
+    `,
+        [
+            [ '/en/translated/', 0 ],
+            [ '/en/translated/somewhere/', 0 ],
+            '/en/translated/hello',
+            'Hello',
+            '/en/translated/hello/there',
+            [ '/en/translated/very/deep/link/', 0 ],
+            '/en'
+        ],
+        null,
+        {
+            ...adapterOpts, url: {
+            patterns: ['/translated/*rest', '/'],
+            localize: true
+        }
+    })
 })
 
 test('Exported snippet', async function(t) {
@@ -185,13 +251,12 @@ test('Exported snippet', async function(t) {
         {/snippet}
     `, svelte`
         <script module>
-            import _w_to_rt_ from 'wuchale/runtime'
-            import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_mod_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
             export const bar = {
                 feel: () => {
-					const _w_runtime_mod_ = _w_to_rt_(_w_load_('svelte'))
+					const _w_runtime_mod_ = _w_load_('svelte')
 					const msg = _w_runtime_mod_.t(0)
                     return foo
                 }
@@ -199,7 +264,7 @@ test('Exported snippet', async function(t) {
         </script>
 
         <script>
-            const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+            const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
 
         {#snippet foo()}
@@ -209,8 +274,8 @@ test('Exported snippet', async function(t) {
     msgid ""
     msgstr ""
 
-    #: test-tmp/test.svelte
-    #: test-tmp/test.svelte
+    #: tests/test-dir/test.svelte
+    #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
     `, ['Hello'])
@@ -229,10 +294,9 @@ test('Context', async function(t) {
         `,
         svelte`
             <script>
-                import _w_to_rt_ from 'wuchale/runtime'
-                import _w_load_rx_,{get as _w_load_} from "../tests/test-tmp/loader.svelte.js"
+                import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
-                const _w_runtime_ = $derived(_w_to_rt_(_w_load_rx_('svelte')))
+                const _w_runtime_ = $derived(_w_load_rx_('svelte'))
             </script>
             <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
             <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
@@ -244,22 +308,22 @@ test('Context', async function(t) {
         msgid ""
         msgstr ""
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "music"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "programming"
         msgid "String"
         msgstr "String"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "door"
         msgid "Close"
         msgstr "Close"
 
-        #: test-tmp/test.svelte
+        #: tests/test-dir/test.svelte
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"

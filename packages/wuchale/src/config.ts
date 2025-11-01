@@ -81,6 +81,9 @@ export async function getConfig(configPath?: string): Promise<Config> {
             }
         }
     }
+    if (module == null) {
+        throw new Error('Config file not found')
+    }
     const config = deepMergeObjects(module.default, defaultConfig)
     checkValidLocale(config.sourceLocale)
     for (const loc of config.otherLocales) {

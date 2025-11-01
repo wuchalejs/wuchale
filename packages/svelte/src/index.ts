@@ -1,52 +1,67 @@
-import { defaultGenerateLoadID, defaultHeuristic, deepMergeObjects } from 'wuchale'
+import { defaultGenerateLoadID, deepMergeObjects, createHeuristic, defaultHeuristicOpts } from 'wuchale'
 import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
     AdapterPassThruOpts,
     RuntimeConf,
+    LoaderChoice,
+    CreateHeuristicOpts,
 } from 'wuchale'
 import { SvelteTransformer } from "./transformer.js"
-import { getDependencies, loaderPathResolver } from 'wuchale/adapter-utils'
+import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
-/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
-export const svelteDefaultHeuristic: HeuristicFunc = msg => {
-    if (!defaultHeuristic(msg)) {
-        return false
+export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
+    const defaultHeuristic = createHeuristic(opts)
+    return msg => {
+        const defRes = defaultHeuristic(msg)
+        if (!defRes) {
+            return false
+        }
+        if (msg.details.scope !== 'script') {
+            return defRes
+        }
+        if (msg.details.call === '$inspect') {
+            return false
+        }
+        return defRes
     }
-    if (msg.details.scope !== 'script') {
-        return true
-    }
-    if (msg.details.call === '$inspect') {
-        return false
-    }
-    return true
 }
+
+/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
+export const svelteDefaultHeuristic = createSvelteHeuristic(defaultHeuristicOpts)
+export const svelteKitDefaultHeuristic = createSvelteHeuristic({...defaultHeuristicOpts, urlCalls: ['goto']})
 
 /** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
 export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
-    if (!svelteDefaultHeuristic(msg)) {
+    const defRes = svelteDefaultHeuristic(msg)
+    if (!defRes) {
         return false
     }
     if (msg.details.scope !== 'script' || msg.details.declaring !== 'variable') {
-        return true
+        return defRes
     }
     if (!msg.details.topLevelCall) {
         return false
     }
-    return ['$derived', '$derived.by'].includes(msg.details.topLevelCall)
+    if (['$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+        return defRes
+    }
+    return false
 }
 
-const defaultArgs: AdapterArgs = {
+type LoadersAvailable = 'svelte' | 'sveltekit'
+
+const defaultArgs: AdapterArgs<LoadersAvailable> = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-    catalog: './src/locales/{locale}',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
-    heuristic: svelteDefaultHeuristic,
+    heuristic: svelteKitDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
-    writeFiles: {},
+    loader: 'svelte',
     runtime: {
         useReactive: ({file, funcName, additional}) => {
             const inTopLevel = funcName == null
@@ -57,12 +72,10 @@ const defaultArgs: AdapterArgs = {
             }
         },
         reactive: {
-            importName: 'default',
             wrapInit: expr => `$derived(${expr})`,
             wrapUse: expr => expr,
         },
         plain: {
-            importName: 'get',
             wrapInit: expr => expr,
             wrapUse: expr => expr,
         },
@@ -71,15 +84,29 @@ const defaultArgs: AdapterArgs = {
 
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'svelte.js')
 
-export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
+export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean) {
+    if (bundle) {
+        return resolveLoaderPath('bundle')
+    }
+    if (loader === 'sveltekit') {
+        return {
+            client: resolveLoaderPath('svelte'),
+            server: resolveLoaderPath('sveltekit.ssr'),
+        }
+    }
+    return resolveLoaderPath(loader)
+}
+
+export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,
         runtime,
+        loader,
         ...rest
     } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr }) => {
+        transform: ({ content, filename, index, expr, matchUrl }) => {
             return new SvelteTransformer(
                 content,
                 filename,
@@ -88,31 +115,12 @@ export const adapter = (args: AdapterArgs = defaultArgs): Adapter => {
                 patterns,
                 expr,
                 runtime as RuntimeConf,
+                matchUrl,
             ).transformSv()
         },
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
-        defaultLoaders: async () => {
-            if (rest.bundleLoad) {
-                return ['bundle']
-            }
-            const deps = await getDependencies()
-            const available = ['svelte']
-            if (deps.has('@sveltejs/kit')) {
-                available.unshift('sveltekit')
-            }
-            return available
-        },
-        defaultLoaderPath: loader => {
-            if (loader === 'sveltekit') {
-                return {
-                    client: resolveLoaderPath('svelte'),
-                    server: resolveLoaderPath('sveltekit.ssr'),
-                }
-            }
-            return resolveLoaderPath(loader)
-        },
+        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
-        docsUrl: 'https://wuchale.dev/adapters/svelte'
     }
 }

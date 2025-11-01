@@ -6,13 +6,14 @@ import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
 
-export const absDir = (/** @type {string} */ fileurl) => dirname(fileURLToPath(fileurl))
+export const absDir = (/** @type {string} */ fileurl) => relative(process.cwd(), dirname(fileURLToPath(fileurl))) || '.'
 const dirBase = absDir(import.meta.url)
-const testFile = relative(dirBase, `${dirBase}/test-tmp/test.js`)
+const testFile = `${dirBase}/test-dir/test.js`
 
 export const adapterOpts = {
-    files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`,
+    files: `${dirBase}/test-dir/*`,
+    localesDir: `${dirBase}/test-tmp/`,
+    loader: 'vite',
     initInsideFunc: false,
 }
 
@@ -25,17 +26,16 @@ export const adapterOpts = {
  * @returns {Promise<object>}
  */
 export async function getOutput(adapter, key, content, filename, hmrVersion) {
-    adapter.catalog
     const handler = new AdapterHandler(
         adapter,
         key,
         defaultConfig,
-        'prod',
-        'virtual',
+        'dev',
         process.cwd(),
         new Logger('error'),
     )
     await handler.init({})
+    await handler.initUrlPatterns('en')
     const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
     return { code, catalogs: poFilesByLoc, compiled }
@@ -88,11 +88,12 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
  * @param {string} testFileOut
  */
 export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) {
-    const content = (await readFile(`${dir}/${testFile}`)).toString()
+    const fnameIn = `${dir}/${testFile}`
+    const content = (await readFile(fnameIn)).toString()
     const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
     const poContents = (await readFile(`${dir}/en.po`)).toString()
     const compiledContents = JSON.parse((await readFile(`${dir}/en.json`)).toString())
-    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, testFile, -1)
+    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, fnameIn, -1)
 }
 
 export const basic = adapter(adapterOpts)
@@ -106,7 +107,7 @@ export const basic = adapter(adapterOpts)
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, adapter=basic, hmrVersion=-1) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
 }
@@ -117,7 +118,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
  */
 export async function testDir(t, dir, adapter=basic) {
     try {
-        await rm(adapterOpts.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testDirSetup(t, adapter, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }

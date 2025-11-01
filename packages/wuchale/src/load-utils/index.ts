@@ -1,43 +1,39 @@
-import type { CatalogModule } from '../runtime.js'
+import toRuntime, { type CatalogModule, type Runtime } from '../runtime.js'
 
 export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
 
-export type CatalogCollection = {
-    get: (loadID: string) => CatalogModule
-    set: (loadID: string, catalog: CatalogModule) => void
+export type RuntimeCollection = {
+    get: (loadID: string) => Runtime
+    set: (loadID: string, catalog: Runtime) => void
 }
 
 export type LoaderState = {
     load: LoaderFunc
     loadIDs: string[]
-    collection: CatalogCollection
+    collection: RuntimeCollection
 }
 
-export function defaultCollection(store: Record<string, CatalogModule>): CatalogCollection {
+export function defaultCollection(store: Record<string, Runtime>): RuntimeCollection {
     return {
         get: loadID => store[loadID],
-        set: (loadID, catalog) => {
-            if (loadID in store) {
-                Object.assign(store[loadID], catalog)
-            } else {
-                store[loadID] = catalog
-            }
+        set: (loadID, rt) => {
+            store[loadID] = rt
         }
     }
 }
 
 /** Global catalog states registry */
 const states: Record<string, LoaderState> = {}
-const emptyCatalog: CatalogModule = { c: [] }
+const emptyRuntime = toRuntime()
 
 /**
  * - `key` is a unique identifier for the group
  * - `loadIDs` and `load` MUST be imported from the loader virtual modules or proxies.
 */
-export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: CatalogCollection): (fileID: string) => CatalogModule {
+export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: RuntimeCollection): (fileID: string) => Runtime {
     states[key] = { load, loadIDs, collection: collection ?? defaultCollection({}) }
     for (const id of loadIDs) {
-        states[key].collection.set(id, emptyCatalog)
+        states[key].collection.set(id, emptyRuntime)
     }
     return loadID => states[key].collection.get(loadID)
 }
@@ -58,13 +54,13 @@ export async function loadLocale(locale: string, key?: string): Promise<void> {
     const statesArr: [string, LoaderState][] = []
     for (const state of statesToLoad(key)) {
         for (const loadID of state.loadIDs) {
-            promises.push(<Promise<CatalogModule>>state.load(loadID, locale))
+            promises.push(state.load(loadID, locale) as Promise<CatalogModule>)
             statesArr.push([loadID, state])
         }
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
         const [loadID, state] = statesArr[i]
-        state.collection.set(loadID, loaded)
+        state.collection.set(loadID, toRuntime(loaded, locale))
     }
 }
 
@@ -76,8 +72,8 @@ export async function loadLocale(locale: string, key?: string): Promise<void> {
 export function loadLocaleSync(locale: string, key?: string) {
     for (const state of statesToLoad(key)) {
         for (const loadID of state.loadIDs) {
-            const loaded = <CatalogModule>state.load(loadID, locale)
-            state.collection.set(loadID, loaded)
+            const loaded = state.load(loadID, locale) as CatalogModule
+            state.collection.set(loadID, toRuntime(loaded, locale))
         }
     }
 }

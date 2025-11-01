@@ -3,16 +3,16 @@
 // @ts-ignore
 import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
 import { rm } from 'fs/promises'
-import { relative } from 'path'
 import { adapter } from '@wuchale/jsx'
 
 const dirBase = absDir(import.meta.url)
 export const adapterOpts = {
-    files: `${dirBase}/test-tmp/*`,
-    catalog: `${dirBase}/test-tmp/{locale}`
+    files: `${dirBase}/test-dir/*`,
+    localesDir: `${dirBase}/test-tmp/`,
+    loader: 'default',
 }
 
-const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
+const testFile = `${dirBase}/test-dir/test.jsx`
 
 /**
  * @param {any} t
@@ -25,7 +25,7 @@ const testFile = relative(dirBase, `${dirBase}/test-tmp/test.jsx`)
  */
 export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename, conf = adapterOpts) {
     try {
-        await rm(conf.catalog.replace('{locale}', 'en.po'))
+        await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter(conf), 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }

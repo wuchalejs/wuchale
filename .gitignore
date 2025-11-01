@@ -1,5 +1,5 @@
 node_modules
 rnd
-packages/*/tests/test-tmp/*.po
+packages/*/tests/test-tmp/
 dist
 **/*.tsbuildinfo
