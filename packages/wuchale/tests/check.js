@@ -30,7 +30,7 @@ export async function getOutput(adapter, key, content, filename, hmrVersion) {
         adapter,
         key,
         defaultConfig,
-        'prod',
+        'dev',
         process.cwd(),
         new Logger('error'),
     )
