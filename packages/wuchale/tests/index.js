@@ -313,7 +313,7 @@ test('URL matcher', t => {
             ["/en","/es"]
         ],
     ], ['en', 'es'])
-    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, altPatterns: {}, params: {}})
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, altPatterns: { en: '/en', es: '/es' }, params: {}})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en', altPatterns: { en: '/en/*rest', es: '/es/*rest' }, params: {rest: 'foo'}})
     t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en', altPatterns: { en: '/en', es: '/es' }, params: {}})
     t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es', altPatterns: { en: '/en', es: '/es' }, params: {}})
