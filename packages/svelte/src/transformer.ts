@@ -194,10 +194,12 @@ export class SvelteTransformer extends Transformer {
         }
         if (value.type === 'ExpressionTag') {
             if (value.expression.type === 'Literal') {
-                return this.visitLiteral(value.expression as Literal, heuDetails)
+                const expr = value.expression as Literal
+                return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr, heuDetails))
             }
             if (value.expression.type === 'TemplateLiteral') {
-                return this.visitTemplateLiteral(value.expression as TemplateLiteral, heuDetails)
+                const expr = value.expression as TemplateLiteral
+                return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr, heuDetails))
             }
             return this.visitSv(value)
         }

@@ -203,10 +203,12 @@ export class JSXTransformer extends Transformer {
         if (node.value.type !== 'Literal') {
             if (node.value.type === 'JSXExpressionContainer') {
                 if (node.value.expression.type === 'Literal' && typeof node.value.expression.value === 'string') {
-                    return this.visitLiteral(node.value.expression as Estree.Literal, heurBase)
+                    const expr = node.value.expression as Estree.Literal
+                    return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr, heurBase))
                 }
                 if (node.value.expression.type === 'TemplateLiteral') {
-                    return this.visitTemplateLiteral(node.value.expression as Estree.TemplateLiteral, heurBase)
+                    const expr = node.value.expression as Estree.TemplateLiteral
+                    return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr, heurBase))
                 }
             }
             return this.visitJx(node.value)
