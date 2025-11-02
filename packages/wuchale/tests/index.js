@@ -175,6 +175,9 @@ test('Plural and patterns', async function(t) {
                     format0(44, foo),
                     format0(44, 'en'),
                     format1(44),
+                    format2('en'),
+                    format2(),
+                    format2(foo),
                 ]
             }
         `,
@@ -190,6 +193,9 @@ test('Plural and patterns', async function(t) {
                     format0(44, foo),
                     format0(44, _w_runtime_.l),
                     format1(44, undefined, _w_runtime_.l),
+                    format2(_w_runtime_.l),
+                    format2(_w_runtime_.l),
+                    format2(foo),
                 ]
             }
     `, `
@@ -207,6 +213,7 @@ test('Plural and patterns', async function(t) {
                 {name: 'plural', args: ['other', 'message', 'pluralFunc']},
                 {name: 'format0', args: ['other', 'locale']},
                 {name: 'format1', args: ['other', 'other', 'locale', 'other']},
+                {name: 'format2', args: ['locale']},
             ],
         })
     )

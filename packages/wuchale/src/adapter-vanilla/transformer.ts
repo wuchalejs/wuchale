@@ -256,10 +256,10 @@ export class Transformer {
             const argVal = node.arguments[i]
             let argInsertIndex: number
             if (argVal == null) {
+                argInsertIndex = lastArgEnd ?? node.callee.end + 1
                 if (lastArgEnd == null) {
-                    return this.defaultVisitCallExpression(node)
+                    lastArgEnd = argInsertIndex
                 }
-                argInsertIndex = lastArgEnd
             } else {
                 lastArgEnd = argVal.end
             }
@@ -446,14 +446,17 @@ export class Transformer {
         const msgs: Message[] = []
         let bodyStart: number = null
         for (const bod of nodes) {
-            const msgsBod = this.visit(bod)
-            if (!msgsBod.length) {
-                continue
-            }
+            let currentContent: string
             if (bodyStart == null) {
+                currentContent = this.mstr.toString()
+            }
+            const msgsBod = this.visit(bod)
+            if (bodyStart == null && this.mstr.toString() !== currentContent) {
                 bodyStart = bod.start
             }
-            msgs.push(...msgsBod)
+            if (msgsBod.length) {
+                msgs.push(...msgsBod)
+            }
         }
         if (bodyStart) {
             this.realBodyStarts.add(bodyStart)
