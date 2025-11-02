@@ -59,7 +59,7 @@ if (values.help) {
     console.log('wuchale cli')
     console.log(help.trimEnd())
 } else if (cmd == null) {
-    await extract(...await getConfigNLocales(), values.clean, values.watch, values.sync)
+    await extract((await getConfigNLocales())[0], values.clean, values.watch, values.sync)
 } else if (cmd === 'status') {
     await status(...await getConfigNLocales())
 } else {
