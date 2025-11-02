@@ -80,7 +80,7 @@
         "@sveltejs/acorn-typescript": "^1.0.6",
         "acorn": "^8.15.0",
         "chokidar": "^4.0.3",
-        "magic-string": "^0.30.19",
+        "magic-string": "^0.30.21",
         "path-to-regexp": "^8.3.0",
         "picomatch": "^4.0.3",
         "pofile": "^1.1.4",
