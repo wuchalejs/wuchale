@@ -172,6 +172,8 @@ test('Plural and patterns', async function(t) {
             function foo() {
                 return [
                     format0(44),
+                    format0(44, foo),
+                    format0(44, 'en'),
                     format1(44),
                 ]
             }
@@ -184,6 +186,8 @@ test('Plural and patterns', async function(t) {
             }
             function foo() {
                 return [
+                    format0(44, _w_runtime_.l),
+                    format0(44, foo),
                     format0(44, _w_runtime_.l),
                     format1(44, undefined, _w_runtime_.l),
                 ]
