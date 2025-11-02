@@ -897,7 +897,9 @@ export class AdapterHandler {
                     poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
                 }
                 collection[key] = poItem
-                newItems = true
+                if (msgInfo.type !== 'url') {
+                    newItems = true
+                }
             }
             if (msgInfo.context) {
                 poItem.msgctxt = msgInfo.context
@@ -926,7 +928,6 @@ export class AdapterHandler {
             }
             if (newComments.length) {
                 poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
-                poItem.extractedComments.sort() // make deterministic
             }
             poItem.obsolete = false
             if (msgInfo.type === 'url') {
