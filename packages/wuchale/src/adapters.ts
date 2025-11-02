@@ -141,12 +141,6 @@ export class IndexTracker {
     indices: Record<string, number> = {}
     nextIndex: number = 0
 
-    constructor(initialKeys: string[]) {
-        initialKeys.forEach(this.get)
-    }
-
-    getKeys = () => Object.keys(this.indices)
-
     get = (msgStr: string) => {
         if (msgStr in this.indices) {
             return this.indices[msgStr]
