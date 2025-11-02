@@ -654,9 +654,9 @@ export class Transformer {
         return msgs
     }
 
-    visit = (node: Estree.AnyNode): Message[] => {
-        // for estree
+    visitWithCommentDirectives = (node: Estree.AnyNode, func: Function) => {
         const commentDirectives = { ...this.commentDirectives }
+        // for estree
         const comments = this.comments[node.start]
         // @ts-expect-error
         for (const comment of node.leadingComments ?? comments ?? []) {
@@ -665,18 +665,24 @@ export class Transformer {
         if (this.commentDirectives.ignoreFile) {
             return []
         }
+        const res = func()
+        this.commentDirectives = commentDirectives // restore
+        return res
+    }
+
+    visit = (node: Estree.AnyNode): Message[] => this.visitWithCommentDirectives(node, () => {
+        if (this.commentDirectives.forceType === false) {
+            return []
+        }
         let msgs = []
-        if (this.commentDirectives.forceType !== false) {
-            const methodName = `visit${node.type}`
-            if (methodName in this) {
-                msgs = this[methodName](node)
+        const methodName = `visit${node.type}`
+        if (methodName in this) {
+            msgs = this[methodName](node)
             // } else {
             //     console.log(node)
-            }
         }
-        this.commentDirectives = commentDirectives // restore
         return msgs
-    }
+    })
 
     finalize = (msgs: Message[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput => ({
         msgs,
