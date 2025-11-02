@@ -272,6 +272,9 @@ export class Transformer {
             }
             if (arg === 'locale') {
                 if (argVal) {
+                    if (argVal.type !== 'Literal' || typeof argVal.value !== 'string') {
+                        continue
+                    }
                     updates.push([argVal.start, argVal.end, this.vars().rtLocale])
                 } else {
                     appends.push([argInsertIndex, `${comma}${this.vars().rtLocale}`])
