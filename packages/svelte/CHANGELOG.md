@@ -1,5 +1,86 @@
 # @wuchale/svelte
 
+## 0.17.0
+
+### Minor Changes
+
+- 37deb80: Always use physical files, change `catalog` config to `localesDir`
+
+  Previusly virtual modules offered by Vite made it possible to keep the file system
+  clean and a slight performance advantage when building, but they had disadvantages:
+
+  - Inspecting what Wuchale generates was not possible unless the `writeFiles` config was enabled
+  - They don't work outside of Vite
+  - Supporting physical files was therefore unavoidable and that meant supporting two different systems to export the same things
+
+  Now everything is written to disk, including proxies, compiled catalogs, and
+  locales data too. And `writeFiles` has been removed. In cases where writing the
+  transformed code is desired, the destination can be provided to the `outDir` adapter
+  config.
+
+  The second thing is that the location of the catalog files was previusly
+  specified using the `catalog` adapter config, which accepted a substitution
+  parameter, `{locale}` but it's an unnecessary complexity that can lead to
+  problems, and it's not just catalogs that's stored in that location. Therefore,
+  it has been replaced by the self descriptive config, `localesDir`.
+
+- 37deb80: Removed the `init` CLI command. Loaders are now specified in the config. And they have to export `getRuntime` and `getRuntimeRx`.
+
+  The interactive `init` command was mainly created to scaffold loaders. But
+  since most devs don't touch the loaders and since updates to what the loaders
+  are expected to export and their locations is not that straightforward to keep
+  up with the package updates, the command has been removed, and the loaders can
+  be specified in the adapter configuration using the key `loader`.
+
+  The loader config can take some default included loaders and additionally
+  `custom` as a value. For example, the Svelte adapter can accept the values
+  `svelte`, `sveltekit` and `custom`.
+
+  Specifying the included loaders (`svelte` or `sveltekit` in the example case)
+  means you don't want to control their content and want to use the default. And
+  so the loader(s) contents are (over)written at dev server startup or the
+  `extract` command. That way, they are automatically kept up to date with the
+  package. But if you want to do custom stuff with the loaders, and don't want
+  them to be overwritten, you can specify `custom`.
+
+  The location of the loaders is next to the catalogs, and follows this naming convention:
+
+  ```
+  {adapter key}.loader[.server].{loader extension}
+  ```
+
+  For example, for a SvelteKit project, it can be: `main.loader.svelte.js`
+  (client) and `main.loader.server.svelte.js` (server). Therefore, if you take
+  ownership of these files and do custom stuff, you can specify `custom` in the
+  adapter config.
+
+  And next, the (custom) loaders have to export functions `getRuntime` and
+  `getRuntimeRx` after wrapping the loaded catalogs with `toRuntime` from
+  `wuchale/runtime`.
+
+- 9d1dff8: Add support for translating URL paths!
+
+  This is the biggest addition on this release. Internationalizing URL paths is now possible,
+  with the same conveniences of no/minimal code changes, while respecting the fact that URLs
+  are to be handled carefully.
+
+  There are two parts to this:
+
+  - Translation: e.g. `/about` to `/uber-uns`
+  - Localization: e.g. `/about` to `/en/about`
+
+  Full guide coming soon in the docs!
+
+### Patch Changes
+
+- Updated dependencies [37deb80]
+- Updated dependencies [37deb80]
+- Updated dependencies [37deb80]
+- Updated dependencies [37deb80]
+- Updated dependencies [37deb80]
+- Updated dependencies [9d1dff8]
+  - wuchale@0.18.0
+
 ## 0.16.6
 
 ### Patch Changes
