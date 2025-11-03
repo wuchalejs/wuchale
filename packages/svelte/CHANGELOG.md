@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.17.2
+
+### Patch Changes
+
+- 12d17f7: Fix inconsistent wuchale versions
+
 ## 0.17.1
 
 ### Patch Changes
