@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.15.2
+
+### Patch Changes
+
+- 12d17f7: Fix inconsistent wuchale versions
+
 ## 0.15.1
 
 ### Patch Changes

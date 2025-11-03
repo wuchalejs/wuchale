@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.9.2
+
+### Patch Changes
+
+- 12d17f7: Fix inconsistent wuchale versions
+
 ## 0.9.1
 
 ### Patch Changes
