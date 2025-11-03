@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.1
+
+### Patch Changes
+
+- 978aaa4: Fix compiled catalogs not written on build
+
 ## 0.18.0
 
 ### Minor Changes
