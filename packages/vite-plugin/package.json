@@ -40,7 +40,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "wuchale": "^0.18.0"
+        "wuchale": "^0.18.1"
     },
     "devDependencies": {
         "typescript": "^5.9.3"

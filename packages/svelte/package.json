@@ -52,7 +52,7 @@
     "license": "MIT",
     "dependencies": {
         "svelte": "^5.37.0",
-        "wuchale": "^0.18.0"
+        "wuchale": "^0.18.1"
     },
     "devDependencies": {
         "acorn": "^8.15.0",
