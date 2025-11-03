@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.15.1
+
+### Patch Changes
+
+- 3d451d3: Update after fix compiled catalogs writing
+
 ## 0.15.0
 
 ### Minor Changes

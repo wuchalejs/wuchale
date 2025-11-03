@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.17.1
+
+### Patch Changes
+
+- 3d451d3: Update after fix compiled catalogs writing
+
 ## 0.17.0
 
 ### Minor Changes
