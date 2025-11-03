@@ -945,7 +945,7 @@ export class AdapterHandler {
         return hmrKeys
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1, forServer = false): Promise<TransformOutputCode> => {
+    transform = async (content: string, filename: string, hmrVersion = -1, forServer = false, direct = false): Promise<TransformOutputCode> => {
         if (platform === 'win32') {
             filename = filename.replaceAll('\\', '/')
         }
@@ -966,7 +966,7 @@ export class AdapterHandler {
             matchUrl: this.matchUrl,
         })
         let hmrData: HMRData = null
-        if (this.#mode !== 'build') {
+        if (this.#mode !== 'build' || direct) {
             if (this.#log.checkLevel('verbose')) {
                 if (msgs.length) {
                     this.#log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
@@ -1004,7 +1004,7 @@ export class AdapterHandler {
         return async (filename: string) => {
             console.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
             const contents = await readFile(filename)
-            await this.transform(contents.toString(), filename)
+            await this.transform(contents.toString(), filename, undefined, undefined, true)
         }
     }
 
