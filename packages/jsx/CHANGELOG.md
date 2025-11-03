@@ -1,5 +1,11 @@
 # @wuchale/jsx
 
+## 0.9.1
+
+### Patch Changes
+
+- 3d451d3: Update after fix compiled catalogs writing
+
 ## 0.9.0
 
 ### Minor Changes
