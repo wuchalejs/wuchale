@@ -4,7 +4,7 @@ export const catalogVarName = 'c' as 'c'
 export type CatalogModule = {
     [catalogVarName]: CompiledElement[]
     p?: (n: number) => number
-    update?: (callback: (newData: CompiledElement[]) => void) => void
+    update?: Function
 }
 
 let onInvalidFunc: (i: number, c: CompiledElement[]) => string = () => ''

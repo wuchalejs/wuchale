@@ -1,4 +1,4 @@
-import { basename, dirname, isAbsolute, resolve, normalize, relative, join } from 'node:path'
+import { dirname, isAbsolute, resolve, normalize, relative, join } from 'node:path'
 import { platform } from 'node:process'
 import { glob } from "tinyglobby"
 import { IndexTracker, Message } from "./adapters.js"
@@ -247,15 +247,25 @@ export class AdapterHandler {
         return join(this.#generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
     }
 
-    #getCompiledImport(loc: string, id: string | null) {
-        return './' + basename(this.getCompiledFilePath(loc, id))
+    #getImportPath(filename: string, importer?: string) {
+        filename = relative(dirname(importer ?? filename), filename)
+        if (platform === 'win32') {
+            filename = filename.replaceAll('\\', '/')
+        }
+        if (!filename.startsWith('.')) {
+            filename = `./${filename}`
+        }
+        return filename
     }
 
     getLoadIDs(forImport = false): string[] {
         const loadIDs: string[] = []
         if (this.#adapter.granularLoad) {
-            for (const loadID in this.granularStateByID) {
-                loadIDs.push(loadID)
+            for (const state of Object.values(this.granularStateByID)) {
+                // only the ones with ready messages
+                if (state.compiled[this.#config.sourceLocale].items.length) {
+                    loadIDs.push(state.id)
+                }
             }
         } else if (forImport) {
             loadIDs.push(this.sharedState.ownerKey)
@@ -272,13 +282,14 @@ export class AdapterHandler {
         for (const [i, id] of loadIDs.entries()) {
             const importsByLocale = []
             for (const loc of this.#locales) {
-                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getCompiledImport(loc, loadIDsImport[i])}')`)
+                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`)
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
         return `
+            /** @type {{[loadID: string]: {[locale: string]: () => Promise<import('wuchale/runtime').CatalogModule>}}} */
             const catalogs = {${imports.join(',')}}
-            export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]()
+            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => catalogs[loadID][locale]()
             export const loadIDs = ['${loadIDs.join("', '")}']
         `
     }
@@ -292,15 +303,16 @@ export class AdapterHandler {
             const importedByLocale = []
             for (const [i, loc] of this.#locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
-                imports.push(`import * as ${locKey} from '${this.#getCompiledImport(loc, loadIDsImport[il])}'`)
+                imports.push(`import * as ${locKey} from '${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`)
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
         return `
             ${imports.join('\n')}
+            /** @type {{[loadID: string]: {[locale: string]: import('wuchale/runtime').CatalogModule}}} */
             const catalogs = {${object.join(',')}}
-            export const loadCatalog = (loadID, locale) => catalogs[loadID][locale]
+            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => catalogs[loadID][locale]
             export const loadIDs = ['${loadIDs.join("', '")}']
         `
     }
@@ -550,6 +562,7 @@ export class AdapterHandler {
             ${module}
             // only during dev, for HMR
             let latestVersion = ${hmrVersion}
+            // @ts-ignore
             export function update({ version, data }) {
                 if (latestVersion >= version) {
                     return
@@ -768,17 +781,6 @@ export class AdapterHandler {
     }
 
     #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, forServer: boolean): string => {
-        let loaderRelTo = filename
-        if (this.#adapter.outDir) {
-            loaderRelTo = resolve(this.#adapter.outDir + '/' + filename)
-        }
-        let loaderPath = relative(dirname(loaderRelTo), forServer ? this.loaderPath.server : this.loaderPath.client)
-        if (platform === 'win32') {
-            loaderPath = loaderPath.replaceAll('\\', '/')
-        }
-        if (!loaderPath.startsWith('.')) {
-            loaderPath = `./${loaderPath}`
-        }
         let head = []
         let getFuncImportPlain = getFuncPlain
         let getFuncImportReactive = getFuncReactive
@@ -791,6 +793,11 @@ export class AdapterHandler {
                 this.#hmrUpdateFunc(getFuncReactive, getFuncImportReactive),
             )
         }
+        let loaderRelTo = filename
+        if (this.#adapter.outDir) {
+            loaderRelTo = resolve(this.#adapter.outDir + '/' + filename)
+        }
+        const loaderPath = this.#getImportPath(forServer ? this.loaderPath.server : this.loaderPath.client, loaderRelTo)
         const importsFuncs = [
             `${loaderImportGetRuntime} as ${getFuncImportPlain}`,
             `${loaderImportGetRuntimeRx} as ${getFuncImportReactive}`,
@@ -806,7 +813,7 @@ export class AdapterHandler {
         const objElms = []
         for (const [i, loc] of this.#locales.entries()) {
             const locKW = `_w_c_${i}_`
-            const importFrom = relative(dirname(loaderRelTo), this.#getCompiledImport(loc, loadID))
+            const importFrom = this.#getImportPath(this.getCompiledFilePath(loc, loadID), loaderRelTo)
             imports.push(`import * as ${locKW} from '${importFrom}'`)
             objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
