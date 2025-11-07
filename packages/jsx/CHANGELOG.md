@@ -1,5 +1,13 @@
 # @wuchale/jsx
 
+## 0.9.4
+
+### Patch Changes
+
+- a1a31f9: Fix errors during build due to granular load IDs and TS types
+- Updated dependencies [a1a31f9]
+  - wuchale@0.18.3
+
 ## 0.9.3
 
 ### Patch Changes
