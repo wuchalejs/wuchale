@@ -87,6 +87,9 @@ const defaultArgs: JSXArgs = {
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'js')
 
 export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean) {
+    if (loader === 'custom') {
+        return null
+    }
     if (loader === 'default') {
         return getDefaultLoaderPathVanilla('bundle', bundle)
     }

@@ -85,6 +85,9 @@ const defaultArgs: AdapterArgs<LoadersAvailable> = {
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'svelte.js')
 
 export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean) {
+    if (loader === 'custom') {
+        return null
+    }
     if (bundle) {
         return resolveLoaderPath('bundle')
     }
