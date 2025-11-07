@@ -165,6 +165,39 @@ test('Inside class declarations', async function(t) {
     `, ['Hello'])
 })
 
+test('Runtime init place', async function(t) {
+    await testContent(t, typescript`
+        function foo() {
+            'foo'
+            some.call()
+            if (3 == 3) {
+                return 42
+            }
+            return 'Hello'
+        }
+    `, typescript`
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
+
+        function foo() {
+            'foo'
+            some.call()
+            const _w_runtime_ = _w_load_('main')
+            if (3 == 3) {
+                return 42
+            }
+            return _w_runtime_.t(0)
+        }
+    `, `
+    msgid ""
+    msgstr ""
+
+    #: tests/test-dir/test.js
+    msgid "Hello"
+    msgstr "Hello"
+
+    `, ['Hello'])
+})
+
 test('Plural and patterns', async function(t) {
     await testContent(t,
         typescript`

@@ -450,12 +450,13 @@ export class Transformer {
             if (bodyStart == null) {
                 currentContent = this.mstr.toString()
             }
-            const msgsBod = this.visit(bod)
-            if (bodyStart == null && this.mstr.toString() !== currentContent) {
-                bodyStart = bod.start
+            msgs.push(...this.visit(bod))
+            if (bodyStart != null) {
+                continue
             }
-            if (msgsBod.length) {
-                msgs.push(...msgsBod)
+            // TODO: use deep return checks after using state passing to visitors
+            if (this.mstr.toString() !== currentContent || bod.type === 'IfStatement' && bod.consequent.type === 'BlockStatement' && bod.consequent.body.some(n => n.type === 'ReturnStatement')) {
+                bodyStart = bod.start
             }
         }
         if (bodyStart) {
