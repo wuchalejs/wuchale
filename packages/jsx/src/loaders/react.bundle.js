@@ -1,10 +1,8 @@
-// This is just the default loader.
-// You can customize it however you want, it will not be overwritten once it exists and is not empty.
-
 import { useState, useEffect, useMemo } from 'react'
 import toRuntime from 'wuchale/runtime'
+import { locales } from '${DATA}'
 
-let locale = 'en'
+let locale = locales[0]
 
 const callbacks = new Set([(/** @type {string} */ loc) => {locale = loc}])
 
@@ -18,7 +16,7 @@ export function setLocale(locale) {
 }
 
 export const getRuntimeRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
-    const [locale, setLocale] = useState('en')
+    const [locale, setLocale] = useState(locales[0])
     useEffect(() => {
         const cb = (/** @type {string} */ locale) => setLocale(locale)
         callbacks.add(cb)

@@ -1,9 +1,7 @@
-// This is just the default loader.
-// You can customize it however you want, it will not be overwritten once it exists and is not empty.
-
 import toRuntime from "wuchale/runtime"
+import { locales } from '${DATA}'
 
-let locale = 'en'
+let locale = locales[0]
 
 /**
  * @param {string} newLocale
