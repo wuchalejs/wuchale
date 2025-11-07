@@ -1,5 +1,16 @@
 # @wuchale/jsx
 
+## 0.9.3
+
+### Patch Changes
+
+- db45dff: Fix default loader templates, remove obsolete comments
+- 5b0a570: Fix `custom` loader in config causing errors
+- Updated dependencies [4a8ba3d]
+- Updated dependencies [db45dff]
+- Updated dependencies [5b0a570]
+  - wuchale@0.18.2
+
 ## 0.9.2
 
 ### Patch Changes
