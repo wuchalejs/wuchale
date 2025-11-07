@@ -1,5 +1,16 @@
 # wuchale
 
+## 0.18.2
+
+### Patch Changes
+
+- 4a8ba3d: Fix runtime initialization sometimes after early exits in functions
+
+  Causing errors in React apps
+
+- db45dff: Fix default loader templates, remove obsolete comments
+- 5b0a570: Fix `custom` loader in config causing errors
+
 ## 0.18.1
 
 ### Patch Changes
