@@ -22,7 +22,7 @@ strings at build time.
 - **✨ No extra syntax!** - Your normal code is enough
 - **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
 - **🔌 Zero-effort integration** - Add i18n to existing projects without rewriting code
-- **🤖 Optional AI translation** - Gemini integration for automatic on-the-fly translations
+- **🤖 Optional AI translation** - Configurable integration for automatic on-the-fly translations
 - **⚡ Full, granular HMR support** - Live updates during development, including AI auto-translation
 - **📦 Tiny footprint** - Very few (less than 5) additional dependencies, no bloated `node_modules`
 - **🧠 Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
@@ -103,6 +103,7 @@ Your original code stays clean and readable, while the build output is automatic
 - **Nested markup**: `<p>Visit our <a href="/help">help page</a> for more info</p>`
 - **Conditional content**: Handles dynamic content in templates
 - **Loop structures**: Automatic extraction from repeated elements
+- **URLs**: E.g. `/about` to `/de/uber-uns`
 - **Hot Module Replacement**: Live translation updates during development
 
 ## Repository structure
