@@ -21,7 +21,7 @@ export const pluralPattern: CodePattern = {
     args: ['other', 'message', 'pluralFunc'],
 }
 
-type LoadersAvailable = 'bundle' | 'server' | 'vite'
+type LoadersAvailable = 'server' | 'vite'
 
 const defaultArgs: AdapterArgs<LoadersAvailable> = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
