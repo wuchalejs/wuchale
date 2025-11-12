@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.4
+
+### Patch Changes
+
+- ff87ab3: Don't update PO-Revision-Date header on extract, should be set by translation tool/platform
+
 ## 0.18.3
 
 ### Patch Changes
