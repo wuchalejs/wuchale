@@ -16,17 +16,16 @@ jobs:
       issues: write
       contents: write
       id-token: write
+    env:
+      NPM_CONFIG_PROVENANCE: true
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
-
-      - name: Ensure latest npm for trusted publishing
-        run: npm install -g npm@latest
+          node-version: '22.x'
 
       - name: Install Dependencies
         run: |
@@ -40,3 +39,4 @@ jobs:
           publish: npx @changesets/cli publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
