@@ -744,13 +744,14 @@ export class AdapterHandler {
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
             ['Content-Transfer-Encoding', '8bit'],
-            ['PO-Revision-Date', new Date().toISOString()],
         ]
         for (const [key, val] of updateHeaders) {
             fullHead[key] = val
         }
+        const now = new Date().toISOString()
         const defaultHeaders = [
-            ['POT-Creation-Date', new Date().toISOString()],
+            ['POT-Creation-Date', now],
+            ['PO-Revision-Date', now],
         ]
         for (const [key, val] of defaultHeaders) {
             if (!fullHead[key]) {
