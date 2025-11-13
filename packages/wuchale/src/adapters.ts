@@ -238,6 +238,8 @@ export type Adapter = AdapterPassThruOpts & {
     loaderExts: string[]
     /** default loaders to copy, `null` means custom */
     defaultLoaderPath: LoaderPath | string | null
+    /** names to import from loaders, should avoid collision with code variables */
+    getRuntimeVars?: Partial<CatalogExpr>
 }
 
 export type CodePattern = {

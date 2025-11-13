@@ -127,6 +127,9 @@ export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
+        getRuntimeVars: {
+            reactive: 'useW_load_rx_'
+        },
         ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
     }
 }

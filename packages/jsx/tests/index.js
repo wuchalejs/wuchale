@@ -29,12 +29,12 @@ test('React basic', async function(t) {
         }
     `, tsx`
         'use server'
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function Foo() {
             'use client'
-            const _w_runtime_ = _w_load_rx_('jsx')
+            const _w_runtime_ = useW_load_rx_('jsx')
             return <p>{_w_runtime_.t(0)}</p>
         }
 
@@ -58,10 +58,10 @@ test('SolidJS basic', async function(t) {
             return <p>Hello</p>
         }
     `, tsx`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
-        const _w_runtime_ = () => _w_load_rx_('jsx')
+        const _w_runtime_ = () => useW_load_rx_('jsx')
 
         function Foo(): Component {
             return <p>{_w_runtime_().t(0)}</p>
@@ -88,7 +88,7 @@ test('Ignore and include', async function(t) {
             </div>
         }
     `, tsx`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+        import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
@@ -139,7 +139,7 @@ test('Context', async function(t) {
                 <p>Close</p>
             </>
         }`, tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
@@ -185,7 +185,7 @@ test('Plural', async function(t) {
                 return <p>{plural(items, ['One item', '# items'])}</p>
             }`,
         tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
@@ -214,7 +214,7 @@ test('Nested and mixed', async function(t) {
                 </>
             }`,
         tsx`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/jsx.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {

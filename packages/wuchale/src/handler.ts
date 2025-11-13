@@ -41,13 +41,9 @@ const urlExtractedFlag = 'url-extracted'
 const loaderImportGetRuntime = 'getRuntime'
 const loaderImportGetRuntimeRx = 'getRuntimeRx'
 
-const getFuncPlain = '_w_load_'
-const getFuncReactive = getFuncPlain + 'rx_'
+const getFuncPlainDefault = '_w_load_'
+const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
-const bundledCatalogExpr: CatalogExpr = {
-    plain: `${getFuncPlain}(${bundleCatalogsVarName})`,
-    reactive: `${getFuncReactive}(${bundleCatalogsVarName})`,
-}
 
 const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
 
@@ -781,17 +777,23 @@ export class AdapterHandler {
         `
     }
 
+    #getRuntimeVars = (): CatalogExpr => ({
+        plain: this.#adapter.getRuntimeVars?.plain ?? getFuncPlainDefault,
+        reactive: this.#adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
+    })
+
     #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, forServer: boolean): string => {
         let head = []
-        let getFuncImportPlain = getFuncPlain
-        let getFuncImportReactive = getFuncReactive
+        const getRuntimeVars = this.#getRuntimeVars()
+        let getRuntimePlain = getRuntimeVars.plain
+        let getRuntimeReactive = getRuntimeVars.reactive
         if (hmrData != null) {
             head.push(`const ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}`)
-            getFuncImportPlain += 'hmr_'
-            getFuncImportReactive += 'hmr_'
+            getRuntimePlain += 'hmr_'
+            getRuntimeReactive += 'hmr_'
             head.push(
-                this.#hmrUpdateFunc(getFuncPlain, getFuncImportPlain),
-                this.#hmrUpdateFunc(getFuncReactive, getFuncImportReactive),
+                this.#hmrUpdateFunc(getRuntimeVars.plain, getRuntimePlain),
+                this.#hmrUpdateFunc(getRuntimeVars.reactive, getRuntimeReactive),
             )
         }
         let loaderRelTo = filename
@@ -800,8 +802,8 @@ export class AdapterHandler {
         }
         const loaderPath = this.#getImportPath(forServer ? this.loaderPath.server : this.loaderPath.client, loaderRelTo)
         const importsFuncs = [
-            `${loaderImportGetRuntime} as ${getFuncImportPlain}`,
-            `${loaderImportGetRuntimeRx} as ${getFuncImportReactive}`,
+            `${loaderImportGetRuntime} as ${getRuntimePlain}`,
+            `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
         ]
         head = [
             `import {${importsFuncs.join(', ')}} from "${loaderPath}"`,
@@ -826,12 +828,16 @@ export class AdapterHandler {
     }
 
     #prepareRuntimeExpr = (loadID: string): CatalogExpr => {
+        const importLoaderVars = this.#getRuntimeVars()
         if (this.#adapter.bundleLoad) {
-            return bundledCatalogExpr
+            return {
+                plain: `${importLoaderVars.plain}(${bundleCatalogsVarName})`,
+                reactive: `${importLoaderVars.reactive}(${bundleCatalogsVarName})`,
+            }
         }
         return {
-            plain: `${getFuncPlain}('${loadID}')`,
-            reactive: `${getFuncReactive}('${loadID}')`,
+            plain: `${importLoaderVars.plain}('${loadID}')`,
+            reactive: `${importLoaderVars.reactive}('${loadID}')`,
         }
     }
 

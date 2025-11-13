@@ -35,7 +35,7 @@ export async function getOutput(adapter, key, content, filename, hmrVersion) {
         new Logger('error'),
     )
     await handler.init({})
-    await handler.initUrlPatterns('en')
+    await handler.initUrlPatterns()
     const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
     return { code, catalogs: poFilesByLoc, compiled }
