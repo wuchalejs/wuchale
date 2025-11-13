@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.17.5
+
+### Patch Changes
+
+- f861f78: Use proper hook name to get reactive runtime in React #181
+- Updated dependencies [44a6d24]
+- Updated dependencies [f861f78]
+  - wuchale@0.18.5
+
 ## 0.17.4
 
 ### Patch Changes

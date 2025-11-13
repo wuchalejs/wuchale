@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.18.5
+
+### Patch Changes
+
+- 44a6d24: Fix `... as type` and `<type>...` expressions in TS not visited sometimes
+- f861f78: Use proper hook name to get reactive runtime in React #181
+
 ## 0.18.4
 
 ### Patch Changes
