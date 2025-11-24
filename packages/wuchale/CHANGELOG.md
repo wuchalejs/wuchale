@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.6
+
+### Patch Changes
+
+- 885c131: Fix type errors because of generated compiled catalogs not being typed
+
 ## 0.18.5
 
 ### Patch Changes

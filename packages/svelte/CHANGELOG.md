@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.17.6
+
+### Patch Changes
+
+- 885c131: Fix type errors because of generated compiled catalogs not being typed
+- Updated dependencies [885c131]
+  - wuchale@0.18.6
+
 ## 0.17.5
 
 ### Patch Changes
