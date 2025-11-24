@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
-        "test": "node tests"
+        "test": "node tests/index.ts"
     },
     "keywords": [
         "i18n",

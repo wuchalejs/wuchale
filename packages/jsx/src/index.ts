@@ -33,7 +33,7 @@ export const jsxDefaultHeuristic: HeuristicFunc = createJsxHeuristic(defaultHeur
 
 type LoadersAvailable = 'default' | 'react' | 'solidjs'
 
-type JSXArgs = AdapterArgs<LoadersAvailable> & {
+export type JSXArgs = AdapterArgs<LoadersAvailable> & {
     variant?: JSXLib
 }
 

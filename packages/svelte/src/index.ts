@@ -53,7 +53,9 @@ export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
 
 type LoadersAvailable = 'svelte' | 'sveltekit'
 
-const defaultArgs: AdapterArgs<LoadersAvailable> = {
+export type SvelteArgs = AdapterArgs<LoadersAvailable>
+
+const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     localesDir: './src/locales',
     patterns: [pluralPattern],
@@ -100,7 +102,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adapter => {
+export const adapter = (args: SvelteArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,

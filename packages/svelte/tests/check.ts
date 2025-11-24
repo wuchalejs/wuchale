@@ -1,9 +1,10 @@
 // $$ node %f
 
-// @ts-ignore
-import { testContentSetup, testDirSetup, absDir, typescript } from '../../wuchale/tests/check.js'
+// @ts-expect-error
+import { testContentSetup, testDirSetup, absDir, ts } from '../../wuchale/tests/check.ts'
 import { rm } from 'fs/promises'
-import { adapter } from '@wuchale/svelte'
+import { adapter, type SvelteArgs } from '@wuchale/svelte'
+import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
 export const adapterOpts = {
@@ -21,16 +22,7 @@ const sv = adapter(adapterOpts)
 const testFile = `${dirBase}/test-dir/test.svelte`
 export const testFileJs = `${dirBase}/test-dir/test.svelte.js`
 
-/**
- * @param {any} t
- * @param {string} content
- * @param {string} expectedContent
- * @param {string} expectedTranslations
- * @param {(string | (string | number)[])[]} expectedCompiled
- * @param {string} [filename]
- * @param {object} [config]
- */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, filename, config) {
+export async function testContent(t: any, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, config?: SvelteArgs) {
     try {
         await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
@@ -38,11 +30,7 @@ export async function testContent(t, content, expectedContent, expectedTranslati
     await testContentSetup(t, adap, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
 
-/**
- * @param {any} t
- * @param {string} dir
- */
-export async function testDir(t, dir) {
+export async function testDir(t: any, dir: string) {
     try {
         await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
@@ -50,8 +38,8 @@ export async function testDir(t, dir) {
 }
 
 // only for syntax highlighting
-export const svelte = typescript
-export const javascript = typescript
+export const svelte = ts
+export const js = ts
 
 // import { getOutput } from '../../wuchale/tests/check.js'
 // const code = svelte`

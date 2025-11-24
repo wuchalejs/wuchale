@@ -7,21 +7,24 @@ import { adapter, getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
 import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
 import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
-import { testContent, basic, typescript, adapterOpts } from './check.js'
 import { statfs } from 'fs/promises'
 import { URLMatcher } from 'wuchale/url'
+// @ts-expect-error
+import { testContent, basic, adapterOpts, ts } from './check.ts'
 
-test('Compile nested', function(t) {
-    t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', 'foo'), ['Foo ', [0, 'bar']])
-    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', 'foo'), ['Foo ', [0, 'bar ', 0]])
-    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', 'foo'), ['Foo ', [0, 'bar ', 0, [0]]])
+test('Compile messages', function(t) {
+    t.assert.deepEqual(compileTranslation('Foo', ''), 'Foo')
+    t.assert.deepEqual(compileTranslation('Foo {0}', ''), ['Foo ', 0])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', ''), ['Foo ', [0, 'bar']])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', ''), ['Foo ', [0, 'bar ', 0]])
+    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', ''), ['Foo ', [0, 'bar ', 0, [0]]])
     t.assert.deepEqual(
-        compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', 'foo'),
+        compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', ''),
         ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
     )
 })
 
-test('Default loader file paths', async function(t){
+test('Default loader file paths', async () => {
     for (const loader of ['server', 'vite', 'bundle']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
@@ -33,8 +36,8 @@ test('Default loader file paths', async function(t){
     }
 })
 
-test('Simple expression and assignment', async function(t) {
-    await testContent(t, typescript`
+test('Simple expression and assignment', async t => {
+    await testContent(t, ts`
         'No extraction!' // simple expression
         const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
@@ -44,8 +47,8 @@ test('Simple expression and assignment', async function(t) {
     `, [])
 })
 
-test('Ignore file', async function(t) {
-    await testContent(t, typescript`
+test('Ignore file', async t => {
+    await testContent(t, ts`
         // @wc-ignore-file
         function foo() {
             const varName = 'No extraction'
@@ -60,8 +63,8 @@ test('Ignore file', async function(t) {
     `, [])
 })
 
-test('Inside function definitions', async function(t) {
-    await testContent(t, typescript`
+test('Inside function definitions', async t => {
+    await testContent(t, ts`
         'use strict'
         function foo(): string {
             const varName = 'Hello'
@@ -78,7 +81,7 @@ test('Inside function definitions', async function(t) {
             }
             return \`Hello \${a\}\`
         }
-    `, typescript`
+    `, ts`
         'use strict'
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
@@ -128,8 +131,8 @@ test('Inside function definitions', async function(t) {
     `, ['Hello', 'Inside func property', 'Extracted', ['Hello ', 0]])
 })
 
-test('Inside class declarations', async function(t) {
-    await testContent(t, typescript`
+test('Inside class declarations', async t => {
+    await testContent(t, ts`
         class foo {
             constructor() {
                 return 'Hello'
@@ -139,7 +142,7 @@ test('Inside class declarations', async function(t) {
                 return 'Hello'
             }
         }
-    `, typescript`
+    `, ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         class foo {
@@ -165,8 +168,8 @@ test('Inside class declarations', async function(t) {
     `, ['Hello'])
 })
 
-test('Runtime init place', async function(t) {
-    await testContent(t, typescript`
+test('Runtime init place', async t => {
+    await testContent(t, ts`
         function foo() {
             'foo'
             some.call()
@@ -175,7 +178,7 @@ test('Runtime init place', async function(t) {
             }
             return 'Hello'
         }
-    `, typescript`
+    `, ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         function foo() {
@@ -198,9 +201,9 @@ test('Runtime init place', async function(t) {
     `, ['Hello'])
 })
 
-test('Plural and patterns', async function(t) {
+test('Plural and patterns', async t => {
     await testContent(t,
-        typescript`
+        ts`
             const f = () => plural(items, ['One item', '# items'])
             function foo() {
                 return [
@@ -214,7 +217,7 @@ test('Plural and patterns', async function(t) {
                 ]
             }
         `,
-        typescript`
+        ts`
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
             const f = () => {
                 const _w_runtime_ = _w_load_('main')
@@ -252,13 +255,13 @@ test('Plural and patterns', async function(t) {
     )
 })
 
-test('HMR', async function(t) {
-    await testContent(t, typescript`
+test('HMR', async t => {
+    await testContent(t, ts`
         function foo(): string {
             const varName = 'Hello'
             return varName
         }
-    `, typescript`
+    `, ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../test-tmp/main.loader.js"
 
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
@@ -292,7 +295,7 @@ test('HMR', async function(t) {
 })
 
 const testCatalog = {
-    p: (/** @type {number} */ n) => n == 1 ? 0 : 1,
+    p: (n: number) => n == 1 ? 0 : 1,
     c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // compound message
@@ -302,7 +305,6 @@ const testCatalog = {
 const loaderFunc = () => testCatalog
 
 test('Loading and runtime', async t => {
-    /** @type {object} */
     const collection = {}
     const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
@@ -316,11 +318,7 @@ test('Loading and runtime', async t => {
     t.assert.equal(toRuntime(cPure['foo']).t(0), 'Hello')
 })
 
-/**
- * @param {TemplateStringsArray} msgs
- * @param {any[]} args
- */
-function taggedHandler(msgs, ...args) {
+function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
     return msgs.join('_') + args.join('_')
 }
 

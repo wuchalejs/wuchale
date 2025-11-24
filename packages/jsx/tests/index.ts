@@ -1,11 +1,12 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, tsx, adapterOpts } from './check.js'
+// @ts-expect-error
+import { testContent, tsx, adapterOpts } from './check.ts'
 import { getDefaultLoaderPath } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
 
-test('Default loader file paths', async function(t){
+test('Default loader file paths', async () => {
     for (const loader of ['default', 'react', 'solidjs']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
@@ -17,7 +18,7 @@ test('Default loader file paths', async function(t){
     }
 })
 
-test('React basic', async function(t) {
+test('React basic', async t => {
     await testContent(t, tsx`
         'use server'
         function Foo() {
@@ -52,7 +53,7 @@ test('React basic', async function(t) {
     `, ['Hello'])
 })
 
-test('SolidJS basic', async function(t) {
+test('SolidJS basic', async t => {
     await testContent(t, tsx`
         function Foo(): Component {
             return <p>Hello</p>
@@ -75,7 +76,7 @@ test('SolidJS basic', async function(t) {
     `, ['Hello'], null, {...adapterOpts, variant: 'solidjs'})
 })
 
-test('Ignore and include', async function(t) {
+test('Ignore and include', async t => {
     await testContent(t, tsx`
         function foo() {
             return <div>
@@ -112,7 +113,7 @@ test('Ignore and include', async function(t) {
     `, ['include this'])
 })
 
-test('Ignore file', async function(t) {
+test('Ignore file', async t => {
     await testContent(t, tsx`
         // @wc-ignore-file
         function Foo() {
@@ -127,7 +128,7 @@ test('Ignore file', async function(t) {
     `, [])
 })
 
-test('Context', async function(t) {
+test('Context', async t => {
     await testContent(t, tsx`
         const m = () => {
             return <>
@@ -178,7 +179,7 @@ test('Context', async function(t) {
     `, [ 'String', 'String', 'Close', 'Close',  ])
 })
 
-test('Plural', async function(t) {
+test('Plural', async t => {
     await testContent(t,
         tsx`
             function m() {
@@ -204,7 +205,7 @@ test('Plural', async function(t) {
     `, [ [ 'One item', '# items' ] ])
 })
 
-test('Nested and mixed', async function(t) {
+test('Nested and mixed', async t => {
     await testContent(t,
         tsx`
             function m() {

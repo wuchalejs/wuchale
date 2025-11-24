@@ -1,11 +1,12 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import { testContent, testDir, svelte, javascript, testFileJs, adapterOpts } from './check.js'
+// @ts-expect-error
+import { testContent, testDir, svelte, js, testFileJs, adapterOpts } from './check.ts'
 import { getDefaultLoaderPath } from '@wuchale/svelte'
 import { statfs } from 'fs/promises'
 
-test('Default loader file paths', async function(t){
+test('Default loader file paths', async () => {
     for (const loader of ['svelte', 'sveltekit', 'bundle']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
@@ -17,7 +18,7 @@ test('Default loader file paths', async function(t){
     }
 })
 
-test('Simple text', async function(t) {
+test('Simple text', async t => {
     await testContent(t, 'Hello', svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
@@ -35,8 +36,8 @@ test('Simple text', async function(t) {
     `, ['Hello'])
 })
 
-test('JS module files', async function(t) {
-    await testContent(t, javascript`
+test('JS module files', async t => {
+    await testContent(t, js`
         const varName = 'Simple bare assign'
         'No translation!' // simple expression
         const alreadyDerived = $derived(call('Foo'))
@@ -47,7 +48,7 @@ test('JS module files', async function(t) {
             return 'Should extract'
         }
 
-    `, javascript`
+    `, js`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
         const _w_runtime_ = $derived(_w_load_rx_('svelte'))
 
@@ -83,7 +84,7 @@ test('JS module files', async function(t) {
     `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], testFileJs)
 })
 
-test('Simple element with new lines', async function(t) {
+test('Simple element with new lines', async t => {
     await testContent(t, svelte`
         <script>
             // Intentionally empty
@@ -120,7 +121,7 @@ test('Simple element with new lines', async function(t) {
     `, ['Hello', 'Hello\nThere'])
 })
 
-test('Ignore and include', async function(t) {
+test('Ignore and include', async t => {
     await testContent(t, svelte`
         <div>
             <svg><path d="M100 200" /></svg>
@@ -154,7 +155,7 @@ test('Ignore and include', async function(t) {
     `, ['include this'])
 })
 
-test('Ignore file', async function(t) {
+test('Ignore file', async t => {
     await testContent(t, svelte`
         <!-- @wc-ignore-file -->
         <p>Ignored</p>
@@ -166,7 +167,7 @@ test('Ignore file', async function(t) {
     `, [])
 })
 
-test('URLs', async function(t) {
+test('URLs', async t => {
     await testContent(t, svelte`
         <script>
             goto(\`/translated/\${44}\`)
@@ -235,7 +236,7 @@ test('URLs', async function(t) {
     })
 })
 
-test('Exported snippet', async function(t) {
+test('Exported snippet', async t => {
     await testContent(t, svelte`
         <script module>
             export const bar = {
@@ -282,7 +283,7 @@ test('Exported snippet', async function(t) {
 })
 
 
-test('Context', async function(t) {
+test('Context', async t => {
     await testContent(t,
         svelte`
             <p>{/* @wc-context: music */ 'String'}</p>

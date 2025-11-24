@@ -1,12 +1,12 @@
 // $$ node %f
-import { AdapterHandler, defaultConfig, Logger } from 'wuchale'
+import { AdapterHandler, defaultConfig, Logger, type Adapter, type CompiledElement } from 'wuchale'
 import { adapter } from 'wuchale/adapter-vanilla'
 import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
 
-export const absDir = (/** @type {string} */ fileurl) => relative(process.cwd(), dirname(fileURLToPath(fileurl))) || '.'
+export const absDir = (fileurl: string) => relative(process.cwd(), dirname(fileURLToPath(fileurl))) || '.'
 const dirBase = absDir(import.meta.url)
 const testFile = `${dirBase}/test-dir/test.js`
 
@@ -17,15 +17,7 @@ export const adapterOpts = {
     initInsideFunc: false,
 }
 
-/**
- * @param {string} content
- * @param {import("wuchale").Adapter} adapter
- * @param {string} key
- * @param {string} filename
- * @param {number} hmrVersion
- * @returns {Promise<object>}
- */
-export async function getOutput(adapter, key, content, filename, hmrVersion) {
+export async function getOutput(adapter: Adapter, key: string, content: string, filename: string, hmrVersion: number): Promise<{code: any, catalogs: any, compiled: any}> {
     const handler = new AdapterHandler(
         adapter,
         key,
@@ -41,10 +33,7 @@ export async function getOutput(adapter, key, content, filename, hmrVersion) {
     return { code, catalogs: poFilesByLoc, compiled }
 }
 
-/**
- * @param {string} str
- */
-function trimLines(str) {
+function trimLines(str: string) {
     if (!str) {
         return
     }
@@ -57,18 +46,7 @@ function trimLines(str) {
     return result.join('\n')
 }
 
-/**
- * @param {any} t
- * @param {string} content
- * @param {string} expectedContent
- * @param {string} expectedTranslations
- * @param {(string | (string | number | (string | number)[])[])[]} expectedCompiled
- * @param {string} testFile
- * @param {import("wuchale").Adapter} adapter
- * @param {string} key
- * @param {number} hmrVersion
- */
-export async function testContentSetup(t, adapter, key, content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion=-1) {
+export async function testContentSetup(t: any, adapter: import("wuchale").Adapter, key: string, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], testFile: string, hmrVersion: number=-1) {
     const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile, hmrVersion)
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     const po = new PO()
@@ -79,15 +57,7 @@ export async function testContentSetup(t, adapter, key, content, expectedContent
     t.assert.deepEqual(compiled.en?.items ?? [], expectedCompiled)
 }
 
-/**
- * @param {any} t
- * @param {string} dir
- * @param {import("wuchale").Adapter} adapter
- * @param {string} key
- * @param {string} testFile
- * @param {string} testFileOut
- */
-export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) {
+export async function testDirSetup(t: any, adapter: import("wuchale").Adapter, key: string, dir: string, testFile: string, testFileOut: string) {
     const fnameIn = `${dir}/${testFile}`
     const content = (await readFile(fnameIn)).toString()
     const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
@@ -98,25 +68,14 @@ export async function testDirSetup(t, adapter, key, dir, testFile, testFileOut) 
 
 export const basic = adapter(adapterOpts)
 
-/**
- * @param {any} t
- * @param {string} content
- * @param {string} expectedContent
- * @param {string} expectedTranslations
- * @param {(string | (string | number | (string | number)[])[])[]} expectedCompiled
- */
-export async function testContent(t, content, expectedContent, expectedTranslations, expectedCompiled, adapter=basic, hmrVersion=-1) {
+export async function testContent(t: any, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], adapter=basic, hmrVersion=-1) {
     try {
         await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
 }
 
-/**
- * @param {any} t
- * @param {string} dir
- */
-export async function testDir(t, dir, adapter=basic) {
+export async function testDir(t: any, dir: string, adapter=basic) {
     try {
         await rm(adapterOpts.localesDir, {recursive: true})
     } catch {}
@@ -124,8 +83,8 @@ export async function testDir(t, dir, adapter=basic) {
 }
 
 // only for syntax highlighting
-export const typescript = (/** @type {TemplateStringsArray} */ foo) => foo.join('')
-export const javascript = typescript
+export const ts = (foo: TemplateStringsArray) => foo.join('')
+export const js = ts
 
 // const code = typescript`
 //     const t = {
