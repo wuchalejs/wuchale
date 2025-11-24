@@ -547,7 +547,7 @@ export class AdapterHandler {
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.sharedState.poFilesByLoc[locale].pluralRule.plural}`
-        let module = `export let ${catalogVarName} = ${compiledItems}`
+        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let ${catalogVarName} = ${compiledItems}`
         if (compiledData.hasPlurals) {
             module = `${module}\nexport let p = ${plural}`
         }

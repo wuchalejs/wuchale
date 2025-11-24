@@ -1,4 +1,4 @@
-import type { Mixed, CompiledElement, Composite } from "./compile.js"
+import type { Mixed, CompiledElement, CompositePayload } from "./compile.js"
 
 export const catalogVarName = 'c' as 'c'
 export type CatalogModule = {
@@ -27,7 +27,7 @@ export function onInvalid(newOnInvalid: typeof onInvalidFunc) {
 export type Runtime = {
     _: CatalogModule;
     l: string;
-    cx: (id: number) => Mixed | Composite;
+    cx: (id: number) => Mixed | CompositePayload[];
     tx: (ctx: Mixed, args?: any[], start?: number) => string;
     tt: (tag: CallableFunction, id: number, args?: any[]) => any;
     tp: (id: number) => any;

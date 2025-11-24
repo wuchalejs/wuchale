@@ -1,10 +1,9 @@
 // for template literals and simple mixed markup
-export type Mixed = (number | string)[]
 // for nested markup. first number indicates the tag index, rest are arguments
-export type CompositePayload = CompiledElement | number
+export type CompositePayload = number | string | Composite
 export type Composite = [number, ...CompositePayload[]]
-
-export type CompiledElement = string | Mixed | Composite
+export type Mixed = (string | number)[]
+export type CompiledElement = string | Mixed | CompositePayload[]
 
 type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
 

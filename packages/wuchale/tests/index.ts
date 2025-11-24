@@ -9,17 +9,19 @@ import { loadCatalogs } from 'wuchale/load-utils/pure'
 import { compileTranslation } from '../dist/compile.js'
 import { statfs } from 'fs/promises'
 import { URLMatcher } from 'wuchale/url'
+import type { CompiledElement } from 'wuchale'
 // @ts-expect-error
 import { testContent, basic, adapterOpts, ts } from './check.ts'
 
 test('Compile messages', function(t) {
-    t.assert.deepEqual(compileTranslation('Foo', ''), 'Foo')
-    t.assert.deepEqual(compileTranslation('Foo {0}', ''), ['Foo ', 0])
-    t.assert.deepEqual(compileTranslation('Foo <0>bar</0>', ''), ['Foo ', [0, 'bar']])
-    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}</0>', ''), ['Foo ', [0, 'bar ', 0]])
-    t.assert.deepEqual(compileTranslation('Foo <0>bar {0}<0/></0>', ''), ['Foo ', [0, 'bar ', 0, [0]]])
-    t.assert.deepEqual(
-        compileTranslation('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', ''),
+    const testCompile = (msg: string, expect: CompiledElement) => t.assert.deepEqual(compileTranslation(msg, ''), expect)
+    testCompile('Foo', 'Foo')
+    testCompile('Foo {0}', ['Foo ', 0])
+    testCompile('Foo <0>bar</0>', ['Foo ', [0, 'bar']])
+    testCompile('Foo <0>bar {0}</0>', ['Foo ', [0, 'bar ', 0]])
+    testCompile('Foo <0>bar {0}<0/></0>', ['Foo ', [0, 'bar ', 0, [0]]])
+    testCompile(
+        'foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar',
         ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
     )
 })
