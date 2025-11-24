@@ -1,6 +1,6 @@
 // $$ node %f
 import { AdapterHandler, defaultConfig, Logger, type Adapter, type CompiledElement } from 'wuchale'
-import { adapter } from 'wuchale/adapter-vanilla'
+import { adapter, type VanillaArgs } from 'wuchale/adapter-vanilla'
 import { readFile, rm } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname, relative } from 'path'
@@ -10,11 +10,10 @@ export const absDir = (fileurl: string) => relative(process.cwd(), dirname(fileU
 const dirBase = absDir(import.meta.url)
 const testFile = `${dirBase}/test-dir/test.js`
 
-export const adapterOpts = {
+export const adapterOpts: VanillaArgs = {
     files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'vite',
-    initInsideFunc: false,
 }
 
 export async function getOutput(adapter: Adapter, key: string, content: string, filename: string, hmrVersion: number): Promise<{code: any, catalogs: any, compiled: any}> {
@@ -86,7 +85,7 @@ export async function testDir(t: any, dir: string, adapter=basic) {
 export const ts = (foo: TemplateStringsArray) => foo.join('')
 export const js = ts
 
-// const code = typescript`
+// const code = ts`
 //     const t = {
 //         f: () => 'Hello',
 //         g: function() {

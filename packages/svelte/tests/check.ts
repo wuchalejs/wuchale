@@ -7,7 +7,8 @@ import { adapter, type SvelteArgs } from '@wuchale/svelte'
 import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
-export const adapterOpts = {
+
+export const adapterOpts: SvelteArgs = {
     files: `${dirBase}/**/*`,
     localesDir: `${dirBase}/test-tmp/`,
     // url: {

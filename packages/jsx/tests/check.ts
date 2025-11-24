@@ -7,7 +7,8 @@ import { adapter, type JSXArgs } from '@wuchale/jsx'
 import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
-export const adapterOpts = {
+
+export const adapterOpts: JSXArgs = {
     files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'default',

@@ -23,7 +23,9 @@ export const pluralPattern: CodePattern = {
 
 type LoadersAvailable = 'server' | 'vite'
 
-const defaultArgs: AdapterArgs<LoadersAvailable> = {
+export type VanillaArgs = AdapterArgs<LoadersAvailable>
+
+const defaultArgs: VanillaArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
     localesDir: './src/locales',
     patterns: [pluralPattern],
@@ -62,7 +64,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: AdapterArgs<LoadersAvailable> = defaultArgs): Adapter => {
+export const adapter = (args: VanillaArgs = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,
