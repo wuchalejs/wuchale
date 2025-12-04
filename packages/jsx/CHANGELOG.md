@@ -1,5 +1,17 @@
 # @wuchale/jsx
 
+## 0.9.6
+
+### Patch Changes
+
+- 885c131: Fix type errors because of generated compiled catalogs not being typed
+- Updated dependencies [6af0d52]
+- Updated dependencies [0a4e3df]
+- Updated dependencies [1b511c3]
+- Updated dependencies [5ce8212]
+- Updated dependencies [885c131]
+  - wuchale@0.18.6
+
 ## 0.9.5
 
 ### Patch Changes
