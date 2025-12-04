@@ -50,14 +50,11 @@ export class JSXTransformer extends Transformer {
         mstr: this.mstr,
         vars: this.vars,
         getRange: node => ({
-            // @ts-expect-error
             start: node.start,
-            // @ts-expect-error
             end: node.end
         }),
         isComment: node => node.type === 'JSXExpressionContainer'
             && node.expression.type === 'JSXEmptyExpression'
-            // @ts-expect-error
             && node.expression.end > node.expression.start,
         isText: node => node.type === 'JSXText',
         leaveInPlace: () => false,
@@ -140,7 +137,6 @@ export class JSXTransformer extends Transformer {
             const key = node.openingElement.attributes.find(attr => attr.type === 'JSXAttribute' && attr.name.name === 'key')
             if (!key) {
                 this.mstr.appendLeft(
-                    // @ts-expect-error
                     node.openingElement.name.end,
                     ` key="_${this.currentJsxKey}"`
                 )
@@ -161,9 +157,7 @@ export class JSXTransformer extends Transformer {
             return []
         }
         this.mstr.update(
-            // @ts-expect-error
             node.start + startWh,
-            // @ts-expect-error
             node.end - endWh,
             `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )
@@ -173,7 +167,6 @@ export class JSXTransformer extends Transformer {
     visitJSXFragment = (node: JX.JSXFragment): Message[] => this.visitChildrenJ(node)
 
     getMarkupCommentBody = (node: JX.JSXEmptyExpression): string => {
-        // @ts-expect-error
         const comment = this.content.slice(node.start, node.end).trim()
         if (!comment) {
             return ''
@@ -222,9 +215,7 @@ export class JSXTransformer extends Transformer {
             return []
         }
         this.mstr.update(
-            // @ts-expect-error
             value.start,
-            // @ts-expect-error
             value.end,
             `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`,
         )

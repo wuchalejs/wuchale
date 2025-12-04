@@ -7,7 +7,6 @@ import { commentPrefix, nonWhitespaceText, type RuntimeVars, type CommentDirecti
 type NestedRanges = [number, number, boolean][]
 
 type BasicNode = {
-    type: string
     start: number
     end: number
 }
