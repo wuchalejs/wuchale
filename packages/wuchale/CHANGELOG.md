@@ -1,5 +1,15 @@
 # wuchale
 
+## 0.18.6
+
+### Patch Changes
+
+- 6af0d52: Fix error on for loops with some conditions missing #197
+- 0a4e3df: Remove surrounding unnecessary quotes when transforming attributes #191
+- 1b511c3: Fix parsing crashing on TS abstract class declarations #189
+- 5ce8212: Fix switch and try statements not being visited #198
+- 885c131: Fix type errors because of generated compiled catalogs not being typed
+
 ## 0.18.5
 
 ### Patch Changes
