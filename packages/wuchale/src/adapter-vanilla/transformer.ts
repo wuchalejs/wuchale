@@ -551,7 +551,9 @@ export class Transformer {
             if (body.type === 'MethodDefinition') {
                 msgs.push(...this.visit(body.key))
                 const methodName = this.content.slice(body.key.start, body.key.end)
-                msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
+                if (body.value.type === 'FunctionExpression') { // and not e.g. TSDeclareMethod
+                    msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
+                }
             } else if (body.type === 'StaticBlock') {
                 const currentFuncDef = this.currentFuncDef
                 this.currentFuncDef = `${node.id.name}.[static]`
