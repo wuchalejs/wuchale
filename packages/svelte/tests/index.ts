@@ -195,7 +195,7 @@ test('URLs', async t => {
         </script>
         <a href={_w_runtime_.t(2)}>{_w_runtime_.t(3)}</a>
         <a href={_w_runtime_.t(4)}>{_w_runtime_.t(3)}</a>
-        <a href="{_w_runtime_.t(5, [44])}">{_w_runtime_.t(3)}</a>
+        <a href={_w_runtime_.t(5, [44])}>{_w_runtime_.t(3)}</a>
         <a href={_w_runtime_.t(0, [44])}>{_w_runtime_.t(3)}</a>
         <a href="/notinpattern">{_w_runtime_.t(3)}</a>
         <a href={_w_runtime_.t(6)}>{_w_runtime_.t(3)}</a>

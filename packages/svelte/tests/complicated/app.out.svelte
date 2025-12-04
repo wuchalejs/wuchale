@@ -70,7 +70,7 @@
 
 <p>
     {#snippet _w_snippet_4(_w_ctx_)}
-        <i class="not-extracted" title={_w_runtime_.t(14)} data-mixed="{_w_runtime_.t(15, ['handled'])}"
+        <i class="not-extracted" title={_w_runtime_.t(14)} data-mixed={_w_runtime_.t(15, ['handled'])}
         >
             {#snippet _w_snippet_1(_w_ctx_)}
                 <b>
