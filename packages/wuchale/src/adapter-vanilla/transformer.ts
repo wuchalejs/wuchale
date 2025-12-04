@@ -659,6 +659,17 @@ export class Transformer {
 
     visitSwitchStatement = (node: Estree.SwitchStatement): Message[] => node.cases.map(c => c.consequent.map(this.visit)).flat().flat()
 
+    visitTryStatement = (node: Estree.TryStatement): Message[] => {
+        const msgs = this.visit(node.block)
+        if (node.handler) {
+            msgs.push(...this.visit(node.handler.body))
+        }
+        if (node.finalizer) {
+            msgs.push(...this.visit(node.finalizer))
+        }
+        return msgs
+    }
+
     visitTSAsExpression = (node: {expression: Estree.AnyNode}): Message[] => this.visit(node.expression)
 
     visitTSTypeAssertion = (node: {expression: Estree.AnyNode}): Message[] => this.visit(node.expression)

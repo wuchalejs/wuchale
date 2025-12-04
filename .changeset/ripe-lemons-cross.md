@@ -2,4 +2,4 @@
 "wuchale": patch
 ---
 
-Fix switch statements not being visited #198
+Fix switch and try statements not being visited #198
