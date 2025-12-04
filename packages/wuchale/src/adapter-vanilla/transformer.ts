@@ -373,12 +373,19 @@ export class Transformer {
         ...this.visit(node.body),
     ]
 
-    visitForStatement = (node: Estree.ForStatement): Message[] => [
-        ...this.visit(node.init),
-        ...this.visit(node.test),
-        ...this.visit(node.update),
-        ...this.visit(node.body),
-    ]
+    visitForStatement = (node: Estree.ForStatement): Message[] => {
+        const msgs = this.visit(node.body)
+        if (node.init) {
+            msgs.push(...this.visit(node.init))
+        }
+        if (node.test) {
+            msgs.push(...this.visit(node.test))
+        }
+        if (node.update) {
+            msgs.push(...this.visit(node.update))
+        }
+        return msgs
+    }
 
     getMemberChainName = (node: Estree.MemberExpression): string => {
         let name = ''
