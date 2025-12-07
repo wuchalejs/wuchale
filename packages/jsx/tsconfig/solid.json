@@ -1,7 +1,0 @@
-{
-    "extends": "./react.json",
-    "compilerOptions": {
-        "jsxImportSource": "solid-js"
-    },
-    "include": ["../src/runtime.solid.tsx", "../src/runtime.tsx"]
-}

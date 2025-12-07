@@ -14,7 +14,8 @@
         "gettext",
         "jsx",
         "react",
-        "nextjs",
+        "preact",
+        "solidjs",
         "vite",
         "po",
         "react-i18n",
@@ -56,18 +57,6 @@
     "bugs": "https://github.com/wuchalejs/wuchale/issues",
     "author": "K1DV5",
     "license": "MIT",
-    "peerDependencies": {
-        "react": "^19.1.1",
-        "solid-js": "^1.9.9"
-    },
-    "peerDependenciesMeta": {
-        "solid-js": {
-            "optional": true
-        },
-        "react": {
-            "optional": true
-        }
-    },
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.7",
         "acorn": "^8.15.0",
