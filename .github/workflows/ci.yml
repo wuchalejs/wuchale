@@ -18,6 +18,7 @@ jobs:
           - windows-latest
         node-version:
           - 22.x
+          - 24.x
 
     runs-on: ${{ matrix.os }}
 
