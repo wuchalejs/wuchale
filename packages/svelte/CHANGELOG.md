@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.17.7
+
+### Patch Changes
+
+- 82c4cf9: Fix `<style lang="scss">` causing problems in Svelte
+- Updated dependencies [82c4cf9]
+  - wuchale@0.18.7
+
 ## 0.17.6
 
 ### Patch Changes
