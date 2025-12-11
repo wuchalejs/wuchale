@@ -236,6 +236,22 @@ test('URLs', async t => {
     })
 })
 
+test('SCSS no problem', async t => {
+    await testContent(t, svelte`
+        <style lang="scss">
+          $primary: #4caf50;
+
+          button {
+            color: $primary;
+            font-weight: bold;
+          }
+        </style>
+    `, undefined, `
+        msgid ""
+        msgstr ""
+    `, [])
+})
+
 test('Exported snippet', async t => {
     await testContent(t, svelte`
         <script module>

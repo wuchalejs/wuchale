@@ -1,6 +1,6 @@
 import MagicString from "magic-string"
 import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration, Literal, TemplateLiteral } from "acorn"
-import { parse, type AST } from "svelte/compiler"
+import { parse, preprocess, type AST, type Preprocessor } from "svelte/compiler"
 import { Message } from 'wuchale'
 import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
 import type {
@@ -21,6 +21,17 @@ const snipPrefix = '_w_snippet_'
 const rtModuleVar = varNames.rt + 'mod_'
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
+
+// for use before actually parsing the code,
+// to remove the contents of e.g. <style lang="scss">
+// without messing up indices for magic-string
+const removeSCSS: Preprocessor = ({attributes, content}) => {
+    if (attributes.lang) {
+        return {
+            code: ' '.repeat(content.length),
+        }
+    }
+}
 
 export class SvelteTransformer extends Transformer {
 
@@ -383,11 +394,12 @@ export class SvelteTransformer extends Transformer {
         }
     }
 
-    transformSv = (): TransformOutput => {
+    transformSv = async (): Promise<TransformOutput> => {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
-            ast = parse(this.content, { modern: true })
+            const prepd = await preprocess(this.content, {style: removeSCSS})
+            ast = parse(prepd.code, { modern: true })
         } else {
             const [pAst, comments] = parseScript(this.content)
             ast = pAst

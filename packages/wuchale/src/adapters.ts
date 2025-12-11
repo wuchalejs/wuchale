@@ -192,6 +192,7 @@ export type TransformOutput = {
 }
 
 export type TransformFunc = (expr: TransformCtx) => TransformOutput
+export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput>
 
 export type WrapFunc = (expr: string) => string
 
@@ -233,7 +234,7 @@ export type AdapterPassThruOpts = {
 }
 
 export type Adapter = AdapterPassThruOpts & {
-    transform: TransformFunc
+    transform: TransformFunc | TransformFuncAsync
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
     /** default loaders to copy, `null` means custom */

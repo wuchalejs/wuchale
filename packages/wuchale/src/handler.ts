@@ -972,7 +972,7 @@ export class AdapterHandler {
             loadID = state.id
             compiled = state.compiled
         }
-        const { msgs, ...result } = this.#adapter.transform({
+        const { msgs, ...result } = await this.#adapter.transform({
             content,
             filename,
             index: indexTracker,
