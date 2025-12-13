@@ -25,16 +25,18 @@ export type HeuristicDetails = HeuristicDetailsBase & {
 
 export type MessageType = 'message' | 'url'
 
+const someHeuDet: HeuristicDetails = {file: '', scope: 'markup'}
+
 export class Message {
 
     msgStr: string[] // array for plurals
     plural: boolean = false
-    context: string
+    context?: string
     comments: string[] = []
     details: HeuristicDetails
     type: MessageType = 'message'
 
-    constructor(msgStr: string | string[], heuristicDetails: HeuristicDetails, context: string | null) {
+    constructor(msgStr: string | (string | null | undefined)[], heuristicDetails: HeuristicDetails = someHeuDet, context?: string) {
         if (typeof msgStr === 'string') {
             this.msgStr = [msgStr]
         } else {
@@ -44,7 +46,7 @@ export class Message {
             msg => msg.split('\n').map(line => line.trim()).join('\n')
         )
         this.details = heuristicDetails
-        this.context = context ?? null
+        this.context = context
     }
 
     toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
@@ -61,7 +63,7 @@ export const defaultHeuristicOpts = {
     ignoreAttribs: [['form', 'method']],
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
-    urlCalls: [],
+    urlCalls: [] as string[],
 }
 
 export type CreateHeuristicOpts = typeof defaultHeuristicOpts
@@ -116,7 +118,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (msg.details.declaring === 'expression' && !msg.details.funcName) {
             return false
         }
-        if (!msg.details.call?.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call)) {
+        if (!msg.details.call || !msg.details.call.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call)) {
             return 'message'
         }
         return false
@@ -225,7 +227,7 @@ export type AdapterPassThruOpts = {
     outDir?: string
     granularLoad: boolean
     bundleLoad: boolean
-    url: {
+    url?: {
         patterns?: string[]
         localize?: boolean | URLLocalizer
     }
@@ -250,8 +252,8 @@ export type CodePattern = {
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
 
-export type AdapterArgs<LoadersAvailable> = Partial<AdapterPassThruOpts> & {
+export type AdapterArgs<LoadersAvailable> = AdapterPassThruOpts & {
     loader: LoaderChoice<LoadersAvailable>
-    heuristic?: HeuristicFunc
-    patterns?: CodePattern[]
+    heuristic: HeuristicFunc
+    patterns: CodePattern[]
 }

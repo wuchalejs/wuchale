@@ -34,7 +34,7 @@ export const jsxDefaultHeuristic: HeuristicFunc = createJsxHeuristic(defaultHeur
 type LoadersAvailable = 'default' | 'react' | 'solidjs'
 
 export type JSXArgs = AdapterArgs<LoadersAvailable> & {
-    variant?: JSXLib
+    variant: JSXLib
 }
 
 const defaultRuntime: RuntimeConf = {
@@ -99,7 +99,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: JSXArgs = defaultArgs): Adapter => {
+export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
     let {
         heuristic,
         patterns,

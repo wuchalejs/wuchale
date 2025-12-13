@@ -8,7 +8,7 @@ import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
 
-export const adapterOpts: SvelteArgs = {
+export const adapterOpts: Partial<SvelteArgs> = {
     files: `${dirBase}/**/*`,
     localesDir: `${dirBase}/test-tmp/`,
     // url: {
@@ -23,9 +23,9 @@ const sv = adapter(adapterOpts)
 const testFile = `${dirBase}/test-dir/test.svelte`
 export const testFileJs = `${dirBase}/test-dir/test.svelte.js`
 
-export async function testContent(t: any, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, config?: SvelteArgs) {
+export async function testContent(t: any, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, config?: Partial<SvelteArgs>) {
     try {
-        await rm(adapterOpts.localesDir, {recursive: true})
+        await rm(adapterOpts.localesDir as string, {recursive: true})
     } catch {}
     const adap = config ? adapter(config) : sv
     await testContentSetup(t, adap, 'svelte', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
@@ -33,7 +33,7 @@ export async function testContent(t: any, content: string, expectedContent: stri
 
 export async function testDir(t: any, dir: string) {
     try {
-        await rm(adapterOpts.localesDir, {recursive: true})
+        await rm(adapterOpts.localesDir as string, {recursive: true})
     } catch {}
     await testDirSetup(t, sv, 'svelte', `${dirBase}/${dir}`, 'app.svelte', 'app.out.svelte')
 }
@@ -42,7 +42,8 @@ export async function testDir(t: any, dir: string) {
 export const svelte = ts
 export const js = ts
 
-// import { getOutput } from '../../wuchale/tests/check.js'
+// // @ts-expect-error
+// import { getOutput } from '../../wuchale/tests/check.ts'
 // const code = svelte`
 //   <a href="/foo/{44}">Hello</a>
 // `

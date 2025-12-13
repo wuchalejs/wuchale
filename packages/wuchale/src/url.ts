@@ -31,9 +31,9 @@ export const getLocaleDefault: GetLocale = (url, locales) => {
     return null
 }
 
-type MatchParams = Record<string, string | string[]>
+type MatchParams = Partial<Record<string, string | string[]>>
 
-const getParams = (path: string, pattern: string): MatchParams | null => {
+const getParams = (path: string, pattern: string): MatchParams | undefined => {
     const matched = match(pattern, {decode: false})(path)
     if (!matched) {
         return
@@ -47,8 +47,8 @@ export const fillParams = (params: MatchParams, destPattern: string) => {
 }
 
 type MatchResult = {
-    path: string
-    locale: string
+    path: string | null
+    locale: string | null
     params: MatchParams,
     altPatterns: Record<string, string>
 }

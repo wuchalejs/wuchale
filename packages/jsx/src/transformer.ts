@@ -109,7 +109,7 @@ export class JSXTransformer extends Transformer {
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
         scope: 'markup',
-        element: this.currentElement,
+        element: this.currentElement as string,
     })
 
     visitNameJSXNamespacedName = (node: JX.JSXNamespacedName): string => {
@@ -249,7 +249,7 @@ export class JSXTransformer extends Transformer {
         let msgs: Message[] = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
-            this.commentDirectives = this.commentDirectivesStack.pop()
+            this.commentDirectives = this.commentDirectivesStack.pop() as CommentDirectives
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.ignoreFile) {
@@ -274,9 +274,9 @@ export class JSXTransformer extends Transformer {
         const msgs = this.visitJx(ast)
         const header = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
-            this.initRuntime(this.filename, null, null, {}),
+            this.initRuntime(this.filename),
         ].join('\n')
-        const bodyStart = this.getRealBodyStart(ast.body)
+        const bodyStart = this.getRealBodyStart(ast.body) as number
         return this.finalize(msgs, bodyStart, header)
     }
 }

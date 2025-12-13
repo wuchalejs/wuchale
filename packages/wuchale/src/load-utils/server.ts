@@ -7,6 +7,7 @@ type LoadedRuntimes = Record<string, Record<string, Runtime>>
 // by locale
 const runtimes: Record<string, LoadedRuntimes> = {}
 const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
+const emptyRuntime = toRuntime()
 
 let warningShown = {}
 
@@ -17,10 +18,11 @@ export function currentRuntime(key: string, loadID: string) {
     }
     const warnKey = `${key}.${loadID}`
     if (warningShown[warnKey]) {
-        return
+        return emptyRuntime
     }
     console.warn(`Catalog for '${warnKey}' not found.\n  Either 'runWithLocale' was not called or the environment has a problem.`)
     warningShown[warnKey] = true
+    return emptyRuntime
 }
 
 export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => Runtime> {

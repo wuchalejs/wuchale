@@ -6,16 +6,18 @@ import { defaultGemini } from "./ai/gemini.js"
 export type LogLevel = 'error' | 'warn' | 'info' | 'verbose'
 
 export type ConfigPartial = {
-    sourceLocale?: string
-    otherLocales?: string[]
-    ai?: AI
-    logLevel?: LogLevel
+    sourceLocale: string
+    otherLocales: string[]
+    ai: AI | null
+    logLevel: LogLevel
 }
 
 export type Config = ConfigPartial & {
-    adapters?: Record<string, Adapter>
-    hmr?: boolean
+    adapters: Record<string, Adapter>
+    hmr: boolean
 }
+
+type ConfigWithOptional = Partial<Config>
 
 export const defaultConfig: Config = {
     sourceLocale: 'en',
@@ -26,7 +28,7 @@ export const defaultConfig: Config = {
     logLevel: 'info',
 }
 
-function deepAssign<Type>(fromObj: Type, toObj: Type) {
+function deepAssign<Type extends {}>(fromObj: Partial<Type>, toObj: Type) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
             delete toObj[key]
@@ -43,11 +45,11 @@ function deepAssign<Type>(fromObj: Type, toObj: Type) {
     }
 }
 
-export function defineConfig(config: Config) {
+export function defineConfig(config: ConfigWithOptional) {
     return config
 }
 
-export function deepMergeObjects<Type>(source: Type, target: Type): Type {
+export function deepMergeObjects<Type extends {}>(source: Partial<Type>, target: Type): Type {
     const full = { ...target }
     deepAssign(source, full)
     return full
@@ -56,7 +58,7 @@ export function deepMergeObjects<Type>(source: Type, target: Type): Type {
 export const defaultConfigNames = ['js', 'mjs'].map(ext => `wuchale.config.${ext}`)
 
 const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
-export const getLanguageName = (code: string) => displayName.of(code)
+export const getLanguageName = (code: string) => displayName.of(code) ?? code
 
 function checkValidLocale(locale: string) {
     try {
@@ -67,7 +69,7 @@ function checkValidLocale(locale: string) {
 }
 
 export async function getConfig(configPath?: string): Promise<Config> {
-    let module: { default: Config }
+    let module: { default: ConfigWithOptional } | null = null
     for (const confName of [configPath, ...defaultConfigNames]) {
         if (!confName) {
             continue

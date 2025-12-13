@@ -102,7 +102,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: SvelteArgs = defaultArgs): Adapter => {
+export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,

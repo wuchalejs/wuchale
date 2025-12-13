@@ -77,7 +77,7 @@ export class MixedVisitor<NodeT> {
             scope: props.scope,
             element: props.element,
             attribute: props.attribute,
-        }), null)
+        }))
         const heurMsgType = this.checkHeuristic(msg)
         if (heurMsgType) {
             let hasCompoundText = hasTextChild && hasNonTextChild
@@ -86,7 +86,7 @@ export class MixedVisitor<NodeT> {
             }
         }
         // can't be extracted as one; visit each separately if markup
-        const msgs = []
+        const msgs: Message[] = []
         if (props.scope === 'markup') {
             for (const child of props.children) {
                 msgs.push(...this.visitFunc(child, props.inCompoundText))
@@ -109,7 +109,7 @@ export class MixedVisitor<NodeT> {
         const lastChildEnd = this.getRange(props.children.slice(-1)[0]).end
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
-        const msgs = []
+        const msgs: Message[] = []
         const comments: string[] = []
         for (const child of props.children) {
             if (this.isComment(child)) {

@@ -10,7 +10,7 @@ export const absDir = (fileurl: string) => relative(process.cwd(), dirname(fileU
 const dirBase = absDir(import.meta.url)
 const testFile = `${dirBase}/test-dir/test.js`
 
-export const adapterOpts: VanillaArgs = {
+export const adapterOpts: Partial<VanillaArgs> = {
     files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'vite',
@@ -36,7 +36,7 @@ function trimLines(str: string) {
     if (!str) {
         return
     }
-    let result = []
+    let result: string[] = []
     for (const line of str.split('\n')) {
         if (line.trim()) {
             result.push(line.trim())
@@ -45,9 +45,11 @@ function trimLines(str: string) {
     return result.join('\n')
 }
 
-export async function testContentSetup(t: any, adapter: import("wuchale").Adapter, key: string, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], testFile: string, hmrVersion: number=-1) {
-    const { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile, hmrVersion)
-    t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
+export async function testContentSetup(t: any, adapter: Adapter, key: string, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], testFile: string, hmrVersion: number=-1) {
+    let { code, catalogs, compiled } = await getOutput(adapter, key, content, testFile, hmrVersion)
+    code = code && trimLines(code)
+    expectedContent = expectedContent && trimLines(expectedContent)
+    t.assert.strictEqual(code, expectedContent)
     const po = new PO()
     for (const key in catalogs.en.catalog) {
         po.items.push(catalogs.en.catalog[key])
@@ -56,7 +58,7 @@ export async function testContentSetup(t: any, adapter: import("wuchale").Adapte
     t.assert.deepEqual(compiled.en?.items ?? [], expectedCompiled)
 }
 
-export async function testDirSetup(t: any, adapter: import("wuchale").Adapter, key: string, dir: string, testFile: string, testFileOut: string) {
+export async function testDirSetup(t: any, adapter: Adapter, key: string, dir: string, testFile: string, testFileOut: string) {
     const fnameIn = `${dir}/${testFile}`
     const content = (await readFile(fnameIn)).toString()
     const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
@@ -67,16 +69,16 @@ export async function testDirSetup(t: any, adapter: import("wuchale").Adapter, k
 
 export const basic = adapter(adapterOpts)
 
-export async function testContent(t: any, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], adapter=basic, hmrVersion=-1) {
+export async function testContent(t: any, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], adapter=basic, hmrVersion=-1) {
     try {
-        await rm(adapterOpts.localesDir, {recursive: true})
+        await rm(adapterOpts.localesDir as string, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
 }
 
 export async function testDir(t: any, dir: string, adapter=basic) {
     try {
-        await rm(adapterOpts.localesDir, {recursive: true})
+        await rm(adapterOpts.localesDir as string, {recursive: true})
     } catch {}
     await testDirSetup(t, adapter, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
 }

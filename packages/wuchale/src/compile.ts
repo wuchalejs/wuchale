@@ -9,7 +9,7 @@ type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
 
 const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
 
-function extractSpecial(msgStr: string, start: number): [SpecialType | null, number, number] {
+function extractSpecial(msgStr: string, start: number): [SpecialType | null, number | null, number] {
     const inPlaceHolder = msgStr[start] === '{'
     const inTag = msgStr[start] === '<'
     if (!inTag && !inPlaceHolder) {
@@ -56,12 +56,12 @@ function extractSpecial(msgStr: string, start: number): [SpecialType | null, num
     return ['open', n, i + 1]
 }
 
-function compile(msgStr: string, start = 0, parentTag = null): [CompositePayload[], number] {
+function compile(msgStr: string, start = 0, parentTag: number | null = null): [CompositePayload[], number] {
     let curTxt = ''
     const compiled: CompositePayload[] = []
     let i = start
     const len = msgStr.length
-    let currentOpenTag = null
+    let currentOpenTag: number | null = null
     while (i < len) {
         const char = msgStr[i]
         const [type, n, newI] = extractSpecial(msgStr, i)
@@ -77,7 +77,7 @@ function compile(msgStr: string, start = 0, parentTag = null): [CompositePayload
         if (type === 'open') {
             currentOpenTag = n
             const [subExt, newIc] = compile(msgStr, newI, n)
-            compiled.push([n, ...subExt])
+            compiled.push([n as number, ...subExt])
             i = newIc
             continue
         }
@@ -93,9 +93,9 @@ function compile(msgStr: string, start = 0, parentTag = null): [CompositePayload
                 throw Error('Closing a different tag')
             }
         } else if (type === 'selfclose') {
-            compiled.push([n])
+            compiled.push([n as number])
         } else { // placeholder
-            compiled.push(n)
+            compiled.push(n as number)
         }
         i = newI
     }

@@ -10,7 +10,7 @@ test('Default loader file paths', async () => {
     for (const loader of ['default', 'react', 'solidjs']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
-            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            const paths = typeof path === 'string' ? [path] : Object.values(path ?? {})
             for (const path of paths) {
                 await statfs(path) // no error
             }
@@ -73,7 +73,7 @@ test('SolidJS basic', async t => {
     #: tests/test-dir/test.jsx
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'], null, {...adapterOpts, variant: 'solidjs'})
+    `, ['Hello'], undefined, {...adapterOpts, variant: 'solidjs'})
 })
 
 test('Ignore and include', async t => {

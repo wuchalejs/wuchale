@@ -26,7 +26,7 @@ export function onInvalid(newOnInvalid: typeof onInvalidFunc) {
 
 export type Runtime = {
     _: CatalogModule;
-    l: string;
+    l?: string;
     cx: (id: number) => Mixed | CompositePayload[];
     tx: (ctx: Mixed, args?: any[], start?: number) => string;
     tt: (tag: CallableFunction, id: number, args?: any[]) => any;

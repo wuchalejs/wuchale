@@ -10,17 +10,18 @@ export type WuchaleComponentProps = {
 export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): string | Mixed | Composite {
     if (typeof x === 'string') {
         return x
-    } if (typeof x === 'number') {
+    }
+    if (typeof x === 'number') {
         if (!n || i > 0) {
             return a[x]
         }
+        return `i18n-400:${x}`
+    }
+    const tag = t[x[0] as number]
+    if (tag == null) {
+        return 'i18n-404:tag'
     } else {
-        const tag = t[x[0] as number]
-        if (tag == null) {
-            return 'i18n-404:tag'
-        } else {
-            return tag(x)
-        }
+        return tag(x)
     }
 }
 

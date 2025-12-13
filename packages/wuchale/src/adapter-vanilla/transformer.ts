@@ -46,8 +46,8 @@ export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Commen
                 accumulateComments.push({
                     type: block ? 'Block' : 'Line',
                     value: comment,
-                    start: null,
-                    end: null,
+                    start: -1,
+                    end: -1,
                 })
             }
         },
@@ -60,7 +60,7 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
     return [ScriptParser.parse(content, opts), comments]
 }
 
-type InitRuntimeFunc = (file: string, funcName: string, parentFunc: string, additional: object) => string
+type InitRuntimeFunc = (file: string, funcName?: string, parentFunc?: string, additional?: object) => string | undefined
 
 export class Transformer {
 
@@ -80,17 +80,17 @@ export class Transformer {
     // state
     commentDirectives: CommentDirectives = {}
     insideProgram: boolean = false
-    declaring: ScriptDeclType = null
+    declaring?: ScriptDeclType
     currentFuncNested: boolean = false
-    currentFuncDef: string | null = null
+    currentFuncDef?: string
     currentCall: string
-    currentTopLevelCall: string
+    currentTopLevelCall?: string
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
     /** for subclasses. right now for svelte, if in <script module> */
     additionalState: object = {}
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: (url: string) => string, rtBaseVars = [varNames.rt]) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: UrlMatcher, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
         this.patterns = patterns
@@ -98,7 +98,6 @@ export class Transformer {
         this.filename = filename
         this.matchUrl = matchUrl
         const topLevelUseReactive = rtConf.useReactive({
-            funcName: null,
             nested: false,
             file: filename,
             additional: this.additionalState,
@@ -124,7 +123,7 @@ export class Transformer {
             return useReactive.use ? currentVars.reactive : currentVars.plain
         }
         this.initRuntime = (file, funcName, parentFunc, additional) => {
-            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional})
+            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional: additional ?? {}})
             if (useReactive.init == null) {
                 return
             }
@@ -165,16 +164,17 @@ export class Transformer {
         return this.commentDirectives.forceType || heuRes
     }
 
-    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [HeuristicResultChecked, Message] => {
+    checkHeuristic = (msgStr: string, detailsBase: HeuristicDetailsBase): [MessageType, Message] | [false, null] => {
         if (!msgStr) {
             // nothing to ask
             return [false, null]
         }
         const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
         const heuRes = this.getHeuristicMessageType(msg)
-        if (heuRes) {
-            msg.type = heuRes
+        if (!heuRes) {
+            return [false, null]
         }
+        msg.type = heuRes
         return [heuRes, msg]
     }
 
@@ -191,7 +191,7 @@ export class Transformer {
         return [msgInfo]
     }
 
-    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => node.elements.map(this.visit).flat()
+    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => node.elements.map(elm => elm ? this.visit(elm) : []).flat()
 
     visitSequenceExpression = (node: Estree.SequenceExpression): Message[] => node.expressions.map(this.visit).flat()
 
@@ -251,10 +251,10 @@ export class Transformer {
         const msgs: Message[] = []
         const updates: [number, number, string][] = []
         const appends: [number, string][] = []
-        let lastArgEnd: number
+        let lastArgEnd: number | null = null
         for (const [i, arg] of pattern.args.entries()) {
             const argVal = node.arguments[i]
-            let argInsertIndex: number
+            let argInsertIndex = 0 // for now
             if (argVal == null) {
                 argInsertIndex = lastArgEnd ?? node.callee.end + 1
                 if (lastArgEnd == null) {
@@ -309,9 +309,9 @@ export class Transformer {
             if (argVal.type !== 'ArrayExpression') {
                 return this.defaultVisitCallExpression(node)
             }
-            const candidates = []
+            const candidates: string[] = []
             for (const elm of argVal.elements) {
-                if (elm.type !== 'Literal' || typeof elm.value !== 'string') {
+                if (!elm || elm.type !== 'Literal' || typeof elm.value !== 'string') {
                     return this.defaultVisitCallExpression(node)
                 }
                 candidates.push(elm.value)
@@ -434,8 +434,8 @@ export class Transformer {
         }
         const msgs = [...this.visit(node.id), ...this.visit(node.init)]
         if (atTopLevelDefn) {
-            this.currentTopLevelCall = null // reset
-            this.declaring = null
+            this.currentTopLevelCall = undefined // reset
+            this.declaring = undefined
         }
         return msgs
     }
@@ -451,9 +451,9 @@ export class Transformer {
 
     visitStatementsNSaveRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Message[] => {
         const msgs: Message[] = []
-        let bodyStart: number = null
+        let bodyStart: number | null = null
         for (const bod of nodes) {
-            let currentContent: string
+            let currentContent = '' // for now
             if (bodyStart == null) {
                 currentContent = this.mstr.toString()
             }
@@ -473,7 +473,7 @@ export class Transformer {
     }
 
     getRealBodyStart = (nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined => {
-        let nonLiteralStart: number = null
+        let nonLiteralStart: number | null = null
         for (const node of nodes) {
             if (this.realBodyStarts.has(node.start)) {
                 return node.start
@@ -488,7 +488,7 @@ export class Transformer {
         return nonLiteralStart ?? nodes[0]?.start
     }
 
-    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name: string | null, end?: number): Message[] => {
+    visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name?: string, end?: number): Message[] => {
         const prevFuncDef = this.currentFuncDef
         const prevFuncNested = this.currentFuncNested
         this.currentFuncDef = name
@@ -586,9 +586,9 @@ export class Transformer {
     }
 
     visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
-        const msgs = []
+        const msgs: Message[] = []
         let msgStr = node.quasis[0].value?.cooked ?? ''
-        const comments = []
+        const comments: string[] = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
@@ -638,7 +638,7 @@ export class Transformer {
     visitTaggedTemplateExpression = (node: Estree.TaggedTemplateExpression): Message[] => {
         const prevCall = this.currentCall
         this.currentCall = this.getCalleeName(node.tag)
-        let msgs = []
+        let msgs: Message[] = []
         const heuRes = this.checkHeuristicTemplateLiteral(node.quasi)
         if (heuRes) {
             const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi, heuRes)

@@ -14,13 +14,16 @@ const { positionals, values } = parseArgs({
         clean: {
             type: 'boolean',
             short: 'c',
+            default: false,
         },
         watch: {
             type: 'boolean',
             short: 'w',
+            default: false,
         },
         sync: {
             type: 'boolean',
+            default: false,
         },
         help: {
             type: 'boolean',

@@ -15,7 +15,7 @@ function extractor(handler: AdapterHandler) {
 
 export async function extract(config: Config, clean: boolean, watch: boolean, sync: boolean) {
     !watch && console.info('Extracting...')
-    const handlers = []
+    const handlers: AdapterHandler[] = []
     const sharedState: SharedStates = {}
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))

@@ -8,7 +8,7 @@ import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
 
-export const adapterOpts: JSXArgs = {
+export const adapterOpts: Partial<JSXArgs> = {
     files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'default',
@@ -16,9 +16,9 @@ export const adapterOpts: JSXArgs = {
 
 const testFile = `${dirBase}/test-dir/test.jsx`
 
-export async function testContent(t: any, content: string, expectedContent: string, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, conf: object = adapterOpts) {
+export async function testContent(t: any, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, conf: object = adapterOpts) {
     try {
-        await rm(adapterOpts.localesDir, {recursive: true})
+        await rm(adapterOpts.localesDir as string, {recursive: true})
     } catch {}
     await testContentSetup(t, adapter(conf as JSXArgs), 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
 }
@@ -35,7 +35,8 @@ export async function testDir(t: any, dir: string) {
 // only for syntax highlighting
 export const tsx = ts
 
-// import { getOutput } from '../../wuchale/tests/check.js'
+// // @ts-expect-error
+// import { getOutput } from '../../wuchale/tests/check.ts'
 // const code = tsx`
 // function m() {
 //   return <p>Hello!</p>

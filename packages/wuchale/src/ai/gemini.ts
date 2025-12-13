@@ -36,9 +36,9 @@ type GeminiOpts = {
     parallel?: number
 }
 
-export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI {
+export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI | null {
     if (apiKey === 'env') {
-        apiKey = process.env.GEMINI_API_KEY
+        apiKey = process.env.GEMINI_API_KEY ?? ''
     }
     if (!apiKey) {
         return null
@@ -54,11 +54,11 @@ export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel 
                 headers: {...headers, 'x-goog-api-key': apiKey},
                 body: JSON.stringify(data)
             })
-            const json: GeminiRes = await res.json()
+            const json = await res.json() as GeminiRes
             if (json.error) {
                 throw new Error(`error: ${json.error.code} ${json.error.message}`)
             }
-            return json.candidates[0]?.content.parts[0].text
+            return json.candidates?.[0]?.content.parts[0].text ?? ''
         },
     }
 }

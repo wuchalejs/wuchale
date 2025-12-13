@@ -37,7 +37,7 @@ const defaultArgs: VanillaArgs = {
     runtime: {
         useReactive: ({nested}) => ({
             init: nested ? null : false,
-            use: nested ? null : false,
+            use: false,
         }),
         plain: {
             wrapInit: expr => expr,
@@ -64,7 +64,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: VanillaArgs = defaultArgs): Adapter => {
+export const adapter = (args: Partial<VanillaArgs> = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,

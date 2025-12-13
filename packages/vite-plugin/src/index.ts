@@ -34,12 +34,12 @@ class Wuchale {
 
     #log: Logger
 
-    #configPath: string
+    #configPath?: string
 
     #hmrVersion = -1
     #lastSourceTriggeredPOWrite: number = 0
 
-    constructor(configPath: string) {
+    constructor(configPath?: string) {
         this.#configPath = configPath
     }
 

@@ -11,6 +11,7 @@ import type {
     RuntimeConf,
     CodePattern,
     HeuristicDetailsBase,
+    UrlMatcher,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
 
@@ -53,7 +54,7 @@ export class SvelteTransformer extends Transformer {
         patterns: CodePattern[],
         catalogExpr: CatalogExpr,
         rtConf: RuntimeConf,
-        matchUrl: (url: string) => string,
+        matchUrl: UrlMatcher,
     ) {
         super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
     }
@@ -62,11 +63,12 @@ export class SvelteTransformer extends Transformer {
 
     visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
         const msgs = this.defaultVisitVariableDeclarator(node)
-        if (!msgs.length || this.declaring != null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(node.init.type)) {
+        const init = node.init
+        if (!msgs.length || this.declaring != null || init == null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)) {
             return msgs
         }
         const needsWrapping = msgs.some(msg => {
-            if (['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+            if (msg.details.topLevelCall && ['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
                 return false
             }
             if (msg.details.declaring !== 'variable') {
@@ -77,10 +79,10 @@ export class SvelteTransformer extends Transformer {
         if (!needsWrapping) {
 			return msgs
         }
-		const isExported = this.moduleExportRanges.some(([start, end]) => node.init.start >= start && node.init.end <= end)
+		const isExported = this.moduleExportRanges.some(([start, end]) => init.start >= start && init.end <= end)
 		if (!isExported) {
-			this.mstr.appendLeft(node.init.start, '$derived(')
-			this.mstr.appendRight(node.init.end, ')')
+			this.mstr.appendLeft(init.start, '$derived(')
+			this.mstr.appendRight(init.end, ')')
 		}
         return msgs
     }
@@ -108,7 +110,7 @@ export class SvelteTransformer extends Transformer {
         checkHeuristic: this.getHeuristicMessageType,
         index: this.index,
         wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
-            const snippets = []
+            const snippets: string[] = []
             // create and reference snippets
             for (const [childStart, childEnd, haveCtx] of nestedRanges) {
                 const snippetName = `${snipPrefix}${this.currentSnippet}`
@@ -144,7 +146,7 @@ export class SvelteTransformer extends Transformer {
         commentDirectives: this.commentDirectives,
         inCompoundText: this.inCompoundText,
         scope: 'markup',
-        element: this.currentElement,
+        element: this.currentElement as string,
         useComponent: this.currentElement !== 'title'
     })
 
@@ -193,7 +195,7 @@ export class SvelteTransformer extends Transformer {
                 commentDirectives: this.commentDirectives,
                 inCompoundText: false,
                 scope: 'attribute',
-                element: this.currentElement,
+                element: this.currentElement as string,
                 attribute: node.name,
             })
         }
@@ -280,10 +282,10 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitAwaitBlock = (node: AST.AwaitBlock): Message[] => {
-        const msgs = [
-            ...this.visit(node.expression as AnyNode),
-            ...this.visitFragment(node.then),
-        ]
+        const msgs = this.visit(node.expression as AnyNode)
+        if (node.then) {
+            msgs.push(...this.visitFragment(node.then))
+        }
         if (node.pending) {
             msgs.push(...this.visitFragment(node.pending),)
         }
@@ -319,11 +321,14 @@ export class SvelteTransformer extends Transformer {
             this.commentDirectives = {} // reset
             // @ts-expect-error
             msgs.push(...this.visitProgram(node.module.content))
-            this.mstr.appendRight(
-                // @ts-expect-error
-                this.getRealBodyStart(node.module.content.body) ?? node.module.content.start,
-                this.initRuntime(this.filename, null, null, {}),
-            )
+            const runtimeInit = this.initRuntime(this.filename)
+            if (runtimeInit) {
+                this.mstr.appendRight(
+                    // @ts-expect-error
+                    this.getRealBodyStart(node.module.content.body) ?? node.module.content.start,
+                    runtimeInit,
+                )
+            }
             this.additionalState = {} // reset
             this.currentRtVar = prevRtVar // reset
         }
@@ -349,10 +354,10 @@ export class SvelteTransformer extends Transformer {
         if (node.type === 'Text' && !node.data.trim()) {
             return []
         }
-        let msgs = []
+        let msgs: Message[] = []
         const commentDirectivesPrev = this.commentDirectives
         if (this.lastVisitIsComment) {
-            this.commentDirectives = this.commentDirectivesStack.pop()
+            this.commentDirectives = this.commentDirectivesStack.pop() as CommentDirectives
             this.lastVisitIsComment = false
         }
         if (this.commentDirectives.ignoreFile) {
@@ -411,10 +416,12 @@ export class SvelteTransformer extends Transformer {
             this.collectModuleExportRanges(ast.module)
         }
         const msgs = this.visitSv(ast)
-        const initRuntime = this.initRuntime(this.filename, null, null, {})
+        const initRuntime = this.initRuntime(this.filename)
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body) ?? 0
-            this.mstr.appendRight(bodyStart, initRuntime)
+            if (initRuntime) {
+                this.mstr.appendRight(bodyStart, initRuntime)
+            }
             return this.finalize(msgs, bodyStart)
         }
         let headerIndex = 0
@@ -428,7 +435,9 @@ export class SvelteTransformer extends Transformer {
             if (!ast.module) {
                 headerIndex = instanceBodyStart
             }
-            this.mstr.appendRight(instanceBodyStart, initRuntime)
+            if (initRuntime) {
+                this.mstr.appendRight(instanceBodyStart, initRuntime)
+            }
         } else {
             const instanceStart = ast.module?.end ?? 0
             this.mstr.prependLeft(instanceStart, '\n<script>')

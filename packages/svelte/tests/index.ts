@@ -10,7 +10,7 @@ test('Default loader file paths', async () => {
     for (const loader of ['svelte', 'sveltekit', 'bundle']) {
         for (const bundle of [false, true]) {
             const path = getDefaultLoaderPath(loader, bundle)
-            const paths = typeof path === 'string' ? [path] : Object.values(path)
+            const paths = typeof path === 'string' ? [path] : Object.values(path ?? {})
             for (const path of paths) {
                 await statfs(path) // no error
             }
@@ -227,7 +227,7 @@ test('URLs', async t => {
             [ '/en/translated/very/deep/link/', 0 ],
             '/en'
         ],
-        null,
+        undefined,
         {
             ...adapterOpts, url: {
             patterns: ['/translated/*rest', '/'],

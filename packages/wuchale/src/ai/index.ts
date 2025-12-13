@@ -92,7 +92,7 @@ export default class AIQueue {
         while (this.batches.length > 0) {
             const allBatches: Batch[] = []
             while (this.batches.length > 0 && allBatches.length < this.ai.parallel) {
-                allBatches.push(this.batches.pop())
+                allBatches.push(this.batches.pop() as Batch)
             }
             await Promise.all(allBatches.map(this.translate))
         }

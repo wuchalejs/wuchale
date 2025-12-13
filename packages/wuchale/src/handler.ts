@@ -63,7 +63,7 @@ async function loadCatalogFromPO(filename: string): Promise<POFile> {
     const po = await loadPOFile(filename)
     const catalog: Catalog = {}
     for (const item of po.items) {
-        const msgInfo = new Message([item.msgid, item.msgid_plural], null, item.msgctxt)
+        const msgInfo = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt)
         catalog[msgInfo.toKey()] = item
     }
     let pluralRule: PluralRule
@@ -74,7 +74,12 @@ async function loadCatalogFromPO(filename: string): Promise<POFile> {
     } else {
         pluralRule = defaultPluralRule
     }
-    return { catalog, pluralRule, headers: po.headers }
+    return {
+        catalog,
+        pluralRule,
+        // @ts-expect-error
+        headers: po.headers
+    }
 }
 
 function poDumpToString(items: ItemType[]) {
@@ -95,7 +100,7 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
             if (err) {
                 rej(err)
             } else {
-                res(null)
+                res()
             }
         })
     })
@@ -272,11 +277,11 @@ export class AdapterHandler {
     }
 
     getProxy() {
-        const imports = []
+        const imports: string[] = []
         const loadIDs = this.getLoadIDs()
         const loadIDsImport = this.getLoadIDs(true)
         for (const [i, id] of loadIDs.entries()) {
-            const importsByLocale = []
+            const importsByLocale: string[] = []
             for (const loc of this.#locales) {
                 importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`)
             }
@@ -293,10 +298,10 @@ export class AdapterHandler {
     getProxySync() {
         const loadIDs = this.getLoadIDs()
         const loadIDsImport = this.getLoadIDs(true)
-        const imports = []
-        const object = []
+        const imports: string[] = []
+        const object: string[] = []
         for (const [il, id] of loadIDs.entries()) {
-            const importedByLocale = []
+            const importedByLocale: string[] = []
             for (const [i, loc] of this.#locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
                 imports.push(`import * as ${locKey} from '${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`)
@@ -424,7 +429,7 @@ export class AdapterHandler {
             this.#catalogsFname[loc] = this.catalogFileName(loc)
             // for handleHotUpdate
             this.catalogPathsToLocales[this.#catalogsFname[loc]] = loc
-            if (loc !== this.#config.sourceLocale) {
+            if (loc !== this.#config.sourceLocale && this.#config.ai) {
                 this.#geminiQueue[loc] = new AIQueue(
                     sourceLocaleName,
                     getLanguageName(loc),
@@ -467,11 +472,11 @@ export class AdapterHandler {
             const urlPatternsForTranslate = urlPatterns.map(this.urlPatternToTranslate)
             const urlPatternMsgs = urlPatterns.map((patt, i) => {
                 const locPattern = urlPatternsForTranslate[i]
-                let context = null
+                let context: string | undefined
                 if (locPattern !== patt) {
                     context = `original: ${patt}`
                 }
-                return new Message(locPattern, null, context)
+                return new Message(locPattern, undefined, context)
             })
             const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
             for (const [key, item] of Object.entries(catalog)) {
@@ -540,10 +545,10 @@ export class AdapterHandler {
         await this.compile(loc)
     }
 
-    loadCatalogModule = (locale: string, loadID: string, hmrVersion = -1) => {
+    loadCatalogModule = (locale: string, loadID: string | null, hmrVersion = -1) => {
         let compiledData = this.sharedState.compiled[locale]
         if (this.#adapter.granularLoad) {
-            compiledData = this.granularStateByID[loadID]?.compiled?.[locale] ?? { hasPlurals: false, items: [] }
+            compiledData = loadID && this.granularStateByID[loadID]?.compiled?.[locale] || { hasPlurals: false, items: [] }
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.sharedState.poFilesByLoc[locale].pluralRule.plural}`
@@ -782,8 +787,8 @@ export class AdapterHandler {
         reactive: this.#adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
     })
 
-    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData, forServer: boolean): string => {
-        let head = []
+    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData | null, forServer: boolean): string => {
+        let head: string[] = []
         const getRuntimeVars = this.#getRuntimeVars()
         let getRuntimePlain = getRuntimeVars.plain
         let getRuntimeReactive = getRuntimeVars.reactive
@@ -812,8 +817,8 @@ export class AdapterHandler {
         if (!this.#adapter.bundleLoad) {
             return head.join('\n')
         }
-        const imports = []
-        const objElms = []
+        const imports: string[] = []
+        const objElms: string[] = []
         for (const [i, loc] of this.#locales.entries()) {
             const locKW = `_w_c_${i}_`
             const importFrom = this.#getImportPath(this.getCompiledFilePath(loc, loadID), loaderRelTo)
@@ -849,7 +854,7 @@ export class AdapterHandler {
             if (!item.references.includes(filename)) {
                 continue
             }
-            const key = new Message([item.msgid, item.msgid_plural], null, item.msgctxt).toKey()
+            const key = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt).toKey()
             previousReferences[key] = {count: 0, indices: []}
             for (const [i, ref] of item.references.entries()) {
                 if (ref !== filename) {
@@ -860,7 +865,7 @@ export class AdapterHandler {
             }
         }
         let newItems: boolean = false
-        const hmrKeys = []
+        const hmrKeys: string[] = []
         const untranslated: ItemType[] = []
         let newRefs = false
         let newUrlRefs = false
@@ -891,7 +896,7 @@ export class AdapterHandler {
             let iStartComm: number
             if (key in previousReferences) {
                 const prevRef = previousReferences[key]
-                iStartComm = prevRef.indices.shift() * newComments.length // cannot be pop for determinism
+                iStartComm = (prevRef.indices.shift() ?? 0) * newComments.length // cannot be pop for determinism
                 const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
                 if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
                     commentsChanged = true
@@ -979,7 +984,7 @@ export class AdapterHandler {
             expr: this.#prepareRuntimeExpr(loadID),
             matchUrl: this.matchUrl,
         })
-        let hmrData: HMRData = null
+        let hmrData: HMRData | null = null
         if (this.#mode !== 'build' || direct) {
             if (this.#log.checkLevel('verbose')) {
                 if (msgs.length) {
