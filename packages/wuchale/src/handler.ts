@@ -276,6 +276,22 @@ export class AdapterHandler {
         return loadIDs
     }
 
+    // typed to work regardless of user's noUncheckedIndexedAccess setting in tsconfig
+    genProxy(catalogs: string[], loadIDs: string[], syncImports?: string[]) {
+        const baseType = 'import("wuchale/runtime").CatalogModule'
+        return `
+            ${syncImports?.join('\n') ?? ''}
+            /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod
+            /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs
+            /** @type {{[loadID: string]: KeyCatalogs}} */
+            const catalogs = {${catalogs.join(',')}}
+            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => {
+                return /** @type {CatalogMod} */ (/** @type {KeyCatalogs} */ (catalogs[loadID])[locale])${syncImports ? '' : '()'}
+            }
+            export const loadIDs = ['${loadIDs.join("', '")}']
+        `
+    }
+
     getProxy() {
         const imports: string[] = []
         const loadIDs = this.getLoadIDs()
@@ -287,12 +303,7 @@ export class AdapterHandler {
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
-        return `
-            /** @type {{[loadID: string]: {[locale: string]: () => Promise<import('wuchale/runtime').CatalogModule>}}} */
-            const catalogs = {${imports.join(',')}}
-            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => catalogs[loadID][locale]()
-            export const loadIDs = ['${loadIDs.join("', '")}']
-        `
+        return this.genProxy(imports, loadIDs)
     }
 
     getProxySync() {
@@ -309,13 +320,7 @@ export class AdapterHandler {
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
         }
-        return `
-            ${imports.join('\n')}
-            /** @type {{[loadID: string]: {[locale: string]: import('wuchale/runtime').CatalogModule}}} */
-            const catalogs = {${object.join(',')}}
-            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => catalogs[loadID][locale]
-            export const loadIDs = ['${loadIDs.join("', '")}']
-        `
+        return this.genProxy(object, loadIDs, imports)
     }
 
     getData() {
