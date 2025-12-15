@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.18.8
+
+### Patch Changes
+
+- 926aa60: Fix type error on proxies when `noUncheckedIndexedAccess` is true #202
+- 7471ce3: Fix translation not showing when writing po file after adding new message in source #204
+
 ## 0.18.7
 
 ### Patch Changes

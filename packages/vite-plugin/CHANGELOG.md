@@ -1,5 +1,14 @@
 # @wuchale/vite-plugin
 
+## 0.15.5
+
+### Patch Changes
+
+- 7471ce3: Fix translation not showing when writing po file after adding new message in source #204
+- Updated dependencies [926aa60]
+- Updated dependencies [7471ce3]
+  - wuchale@0.18.8
+
 ## 0.15.4
 
 ### Patch Changes
