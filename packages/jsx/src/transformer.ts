@@ -15,7 +15,6 @@ import type {
     UrlMatcher,
 } from 'wuchale'
 import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
-import type { AnyNode } from 'acorn'
 
 const JsxParser = Parser.extend(tsPlugin({jsx: true}))
 
@@ -256,7 +255,7 @@ export class JSXTransformer extends Transformer {
             return []
         }
         if (this.commentDirectives.forceType !== false) {
-            msgs = this.visit(node as AnyNode)
+            msgs = this.visit(node as Estree.AnyNode)
         }
         this.commentDirectives = commentDirectivesPrev
         return msgs
