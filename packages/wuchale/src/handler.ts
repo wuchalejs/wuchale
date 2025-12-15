@@ -536,7 +536,7 @@ export class AdapterHandler {
         await this.writeUrlFiles()
     }
 
-    loadCatalogNCompile = async (loc: string) => {
+    loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
         if (this.sharedState.ownerKey === this.key) {
             try {
                 this.sharedState.poFilesByLoc[loc] = await loadCatalogFromPO(this.#catalogsFname[loc])
@@ -547,10 +547,10 @@ export class AdapterHandler {
                 this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
             }
         }
-        await this.compile(loc)
+        await this.compile(loc, hmrVersion)
     }
 
-    loadCatalogModule = (locale: string, loadID: string | null, hmrVersion = -1) => {
+    loadCatalogModule = (locale: string, loadID: string | null, hmrVersion: number) => {
         let compiledData = this.sharedState.compiled[locale]
         if (this.#adapter.granularLoad) {
             compiledData = loadID && this.granularStateByID[loadID]?.compiled?.[locale] || { hasPlurals: false, items: [] }
@@ -647,7 +647,7 @@ export class AdapterHandler {
         return toCompile
     }
 
-    compile = async (loc: string) => {
+    compile = async (loc: string, hmrVersion = -1) => {
         this.sharedState.compiled[loc] ??= { hasPlurals: false, items: [] }
         const catalog = this.sharedState.poFilesByLoc[loc].catalog
         for (const [key, poItem] of Object.entries({...catalog, ...this.sharedState.extractedUrls[loc]})) {
@@ -685,16 +685,16 @@ export class AdapterHandler {
                 state.compiled[loc].items[state.indexTracker.get(key)] = compiled
             }
         }
-        await this.writeCompiled(loc)
+        await this.writeCompiled(loc, hmrVersion)
     }
 
-    writeCompiled = async (loc: string) => {
-        await writeFile(this.getCompiledFilePath(loc, null), this.loadCatalogModule(loc, null))
+    writeCompiled = async (loc: string, hmrVersion = -1) => {
+        await writeFile(this.getCompiledFilePath(loc, null), this.loadCatalogModule(loc, null, hmrVersion))
         if (!this.#adapter.granularLoad) {
             return
         }
         for (const state of Object.values(this.granularStateByID)) {
-            await writeFile(this.getCompiledFilePath(loc, state.id), this.loadCatalogModule(loc, state.id))
+            await writeFile(this.getCompiledFilePath(loc, state.id), this.loadCatalogModule(loc, state.id, hmrVersion))
         }
     }
 

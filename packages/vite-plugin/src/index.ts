@@ -111,14 +111,18 @@ class Wuchale {
     }
 
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
+        // This is mainly to make sure that PO catalog changes result in a page reload with new catalogs
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
+            // prevent reloading whole app because of a change in compiled catalog
+            // triggered by extraction from single file, hmr handled by embedding patch
             if (this.#singleCompiledCatalogs.has(ctx.file)) {
                 return []
             }
+            // for granular as well
             for (const adapter of this.#granularLoadAdapters) {
                 for (const loc of this.#locales) {
                     for (const id in adapter.granularStateByID) {
-                        if (resolve(adapter.getCompiledFilePath(loc, id)) === id) {
+                        if (resolve(adapter.getCompiledFilePath(loc, id)) === ctx.file) {
                             return []
                         }
                     }
@@ -127,12 +131,13 @@ class Wuchale {
             this.#hmrVersion++
             return
         }
+        // catalog changed
         const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < 1000 // long enough threshold
         const invalidatedModules = new Set()
         for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
             if (!sourceTriggered) {
-                await adapter.loadCatalogNCompile(loc)
+                await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
             }
             for (const loadID of adapter.getLoadIDs()) {
                 const fileID = resolve(adapter.getCompiledFilePath(loc, loadID))
