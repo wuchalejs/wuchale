@@ -74,11 +74,12 @@ export async function getConfig(configPath?: string): Promise<Config> {
         if (!confName) {
             continue
         }
+        const fileUrl = `file://${resolve(confName)}`
         try {
-            module = await import(`file://${resolve(confName)}`)
+            module = await import(fileUrl)
             break
         } catch (err) {
-            if (err.code !== 'ERR_MODULE_NOT_FOUND') {
+            if (err.code !== 'ERR_MODULE_NOT_FOUND' || err.url != fileUrl) {
                 throw err
             }
         }
