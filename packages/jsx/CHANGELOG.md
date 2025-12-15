@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.9.7
+
+### Patch Changes
+
+- 5f336b8: Fix undeclared deps causing 'Config not found' error #207
+- Updated dependencies [926aa60]
+- Updated dependencies [7471ce3]
+  - wuchale@0.18.8
+
 ## 0.9.6
 
 ### Patch Changes
