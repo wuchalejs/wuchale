@@ -20,8 +20,11 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
         await handler.init(sharedState)
-        await handler.directScanFS(clean, sync)
         handlers.push(handler)
+    }
+    // other loop to make sure that all otherFileMatchers are collected
+    for (const handler of handlers) {
+        await handler.directScanFS(clean, sync)
     }
     if (!watch) {
         console.info('Extraction finished.')

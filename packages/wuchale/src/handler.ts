@@ -117,6 +117,7 @@ type CompiledCatalogs = Record<string, Compiled>
 
 type SharedState = {
     ownerKey: string
+    otherFileMatches: Matcher[]
     poFilesByLoc: Record<string, POFile>
     compiled: CompiledCatalogs
     extractedUrls: Record<string, Catalog>
@@ -422,12 +423,15 @@ export class AdapterHandler {
         if (this.sharedState == null) {
             this.sharedState = {
                 ownerKey: this.key,
+                otherFileMatches: [],
                 poFilesByLoc: {},
                 indexTracker: new IndexTracker(),
                 compiled: {},
                 extractedUrls: {},
             }
             sharedStates[this.#adapter.localesDir] = this.sharedState
+        } else {
+            this.sharedState.otherFileMatches.push(this.fileMatches)
         }
         this.catalogPathsToLocales = {}
         for (const loc of this.#locales) {
@@ -1044,7 +1048,15 @@ export class AdapterHandler {
                         item.references = item.references.filter(ref => ref !== this.key)
                     } else {
                         // don't touch other adapters' files. related extracted comments handled by handler
-                        item.references = item.references.filter(ref => !this.fileMatches(ref))
+                        item.references = item.references.filter(ref => {
+                            if (this.fileMatches(ref)) {
+                                return false
+                            }
+                            if (this.sharedState.ownerKey !== this.key) {
+                                return true
+                            }
+                            return this.sharedState.otherFileMatches.some(match => match(ref))
+                        })
                     }
                 }
             }
