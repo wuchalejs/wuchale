@@ -1,5 +1,13 @@
 # @wuchale/vite-plugin
 
+## 0.15.6
+
+### Patch Changes
+
+- 9fb85e1: Restrict disabling `hmr` only to dev mode
+- Updated dependencies [67655b3]
+  - wuchale@0.18.9
+
 ## 0.15.5
 
 ### Patch Changes
