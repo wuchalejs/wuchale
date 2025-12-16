@@ -33,6 +33,7 @@ class Wuchale {
     #locales: string[] = []
 
     #log: Logger
+    #mode: Mode
 
     #configPath?: string
 
@@ -43,7 +44,7 @@ class Wuchale {
         this.#configPath = configPath
     }
 
-    #init = async (mode: Mode) => {
+    #init = async () => {
         this.#config = await getConfig(this.#configPath)
         this.#log = new Logger(this.#config.logLevel)
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
@@ -56,7 +57,7 @@ class Wuchale {
                 adapter,
                 key,
                 this.#config,
-                mode,
+                this.#mode,
                 this.#projectRoot,
                 this.#log,
             )
@@ -100,17 +101,19 @@ class Wuchale {
     }
 
     configResolved = async (config: { env: { DEV?: boolean }, root: string }) => {
-        let mode: Mode
         if (config.env.DEV) {
-            mode = 'dev'
+            this.#mode = 'dev'
         } else {
-            mode = 'build'
+            this.#mode = 'build'
         }
         this.#projectRoot = config.root
-        await this.#init(mode)
+        await this.#init()
     }
 
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
+        if (!this.#config.hmr) {
+            return
+        }
         // This is mainly to make sure that PO catalog changes result in a page reload with new catalogs
         if (!(ctx.file in this.#adaptersByCatalogPath)) {
             // prevent reloading whole app because of a change in compiled catalog
@@ -158,7 +161,7 @@ class Wuchale {
     }
 
     #transformHandler = async (code: string, id: string, options?: {ssr?: boolean}) => {
-        if (!this.#config.hmr) {
+        if (this.#mode === 'dev' && !this.#config.hmr) {
             return {}
         }
         const filename = relative(this.#projectRoot, id)
