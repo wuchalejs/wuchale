@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.9
+
+### Patch Changes
+
+- 67655b3: Fix messages belonging to files matched by removed patterns surviving `--clean` #200
+
 ## 0.18.8
 
 ### Patch Changes
