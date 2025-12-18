@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.17.9
+
+### Patch Changes
+
+- 434169d: Fix problems when using snippets as optional props mixed with text
+
+  When using them as shown in [here](https://svelte.dev/docs/svelte/snippet#Passing-snippets-to-components-Implicit-props).
+
 ## 0.17.8
 
 ### Patch Changes
