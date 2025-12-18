@@ -93,7 +93,7 @@ export class SvelteTransformer extends Transformer {
         getRange: node => ({ start: node.start, end: node.end }),
         isText: node => node.type === 'Text',
         isComment: node => node.type === 'Comment',
-        leaveInPlace: node => node.type === 'ConstTag',
+        leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
         isExpression: node => node.type === 'ExpressionTag',
         getTextContent: (node: AST.Text) => node.data,
         getCommentData: (node: AST.Comment) => node.data,
@@ -118,7 +118,7 @@ export class SvelteTransformer extends Transformer {
                 this.currentSnippet++
                 const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
                 this.mstr.appendRight(childStart, snippetBegin)
-                this.mstr.prependLeft(childEnd, '\n{/snippet}')
+                this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
             }
             let begin = `\n<${rtComponent}`
             if (snippets.length) {

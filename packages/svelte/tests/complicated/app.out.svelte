@@ -15,7 +15,6 @@
 </script>
 
 <script>
-    import {someSnippet} from './foo'
     const _w_runtime_ = $derived(_w_load_rx_('svelte'))
     async function someFunctionAsync(name) {
         const json = {}
@@ -83,7 +82,11 @@
             <W_tx_ t={[_w_snippet_1]} x={_w_ctx_} n />
         </i
         >
-    {/snippet}<!-- foo bar -->
+    {/snippet}
+    {#snippet someSnippet(alt)}
+        <img src="http://foo" alt={alt} />
+    {/snippet}
+    <!-- and also -->
     {#snippet _w_snippet_5()}
         {#if someFunction(_w_runtime_.t(16), normalParam, [/* @wc-include */ _w_runtime_.t(17)])}
             {#snippet _w_snippet_3()}

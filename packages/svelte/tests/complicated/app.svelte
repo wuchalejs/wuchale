@@ -9,8 +9,6 @@
 </script>
 
 <script>
-    import {someSnippet} from './foo'
-
     async function someFunctionAsync(name) {
         const json = {}
         json.name = name ?? 'Extracted name'
@@ -75,7 +73,10 @@
         >and even <b><u>depply</u> nested {`with ${someJSEven}` + "foo"}</b> content</i
     >
     With
-    <!-- foo bar -->
+    {#snippet someSnippet(alt)}
+        <img src="http://foo" alt={alt} />
+    {/snippet}
+    <!-- and also -->
     {#if someFunction("Extracted Text", normalParam, [/* @wc-include */ "extracted anyway"])}
         Conditionals,
         {#each collection.members as member}
