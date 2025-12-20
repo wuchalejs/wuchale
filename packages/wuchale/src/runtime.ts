@@ -24,14 +24,15 @@ export function onInvalid(newOnInvalid: typeof onInvalidFunc) {
     onInvalidFunc = newOnInvalid
 }
 
+// using pre-minified methods
 export type Runtime = {
     _: CatalogModule;
     l?: string;
-    cx: (id: number) => Mixed | CompositePayload[];
-    tx: (ctx: Mixed, args?: any[], start?: number) => string;
-    tt: (tag: CallableFunction, id: number, args?: any[]) => any;
-    tp: (id: number) => any;
-    t: (id: number, args?: any[]) => any;
+    c: (id: number) => Mixed | CompositePayload[]; // composite context
+    x: (ctx: Mixed, args?: any[], start?: number) => string; // mixed to string
+    t: (tag: CallableFunction, id: number, args?: any[]) => any; // tagged template
+    p: (id: number) => any; // plural text
+    (id: number, args?: any[]): any; // most frequent use as direct call
 }
 
 /** get translation using composite context */
@@ -48,7 +49,6 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
     return msgStr
 }
 
-// Can't make it a class because reactivity is lost on svelte and possibly others too
 export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] }, locale?: string): Runtime {
 
     const catalog = mod[catalogVarName]
@@ -65,25 +65,24 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
         return [onInvalidFunc(id, catalog)]
     }
 
-    return {
-        _: mod,
-        l: locale,
-        cx: getCompositeContext,
-        tx: mixedToString,
+    const rt: Runtime = (id: number, args: any[] = []) => mixedToString(getCompositeContext(id) as Mixed, args, 0)
 
-        /** for tagged template strings */
-        tt: (tag: CallableFunction, id: number, args?: any[]) => {
-            const ctx = getCompositeContext(id) as Mixed
-            return tag(
-                ctx.filter(m => typeof m === 'string'),
-                ...ctx.filter(m => typeof m === 'number').map(a => args?.[a])
-            )
-        },
+    rt._ = mod
+    rt.l = locale
+    rt.c = getCompositeContext
+    rt.x = mixedToString
 
-        /** get translation for plural */
-        tp: (id: number) => catalog[id] ?? [],
-
-        /** get translation */
-        t: (id: number, args: any[] = []) => mixedToString(getCompositeContext(id) as Mixed, args, 0)
+    /** for tagged template strings */
+    rt.t = (tag: CallableFunction, id: number, args?: any[]) => {
+        const ctx = getCompositeContext(id) as Mixed
+        return tag(
+            ctx.filter(m => typeof m === 'string'),
+            ...ctx.filter(m => typeof m === 'number').map(a => args?.[a])
+        )
     }
+
+    /** get translation for plural */
+    rt.p = (id: number) => catalog[id] ?? []
+
+    return rt
 }

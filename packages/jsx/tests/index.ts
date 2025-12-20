@@ -36,12 +36,12 @@ test('React basic', async t => {
         function Foo() {
             'use client'
             const _w_runtime_ = useW_load_rx_('jsx')
-            return <p>{_w_runtime_.t(0)}</p>
+            return <p>{_w_runtime_(0)}</p>
         }
 
         function m() {
             const _w_runtime_ = _w_load_('jsx')
-            return <p data-novalue>{_w_runtime_.t(0)}</p>
+            return <p data-novalue>{_w_runtime_(0)}</p>
         }
     `, `
     msgid ""
@@ -65,7 +65,7 @@ test('SolidJS basic', async t => {
         const _w_runtime_ = () => useW_load_rx_('jsx')
 
         function Foo(): Component {
-            return <p>{_w_runtime_().t(0)}</p>
+            return <p>{_w_runtime_()(0)}</p>
         }
     `, `
     msgid ""
@@ -100,7 +100,7 @@ test('Ignore and include', async t => {
                 {/* @wc-ignore */}
                 <span>Ignore this</span>
                 {/* @wc-include */}
-                {_w_runtime_.t(0)}
+                {_w_runtime_(0)}
             </div>
         }
     `, `
@@ -146,12 +146,12 @@ test('Context', async t => {
             const m = () => {
                 const _w_runtime_ = _w_load_('jsx')
                 return <>
-                    <p>{/* @wc-context: music */ _w_runtime_.t(0)}</p>
-                    <p>{/* @wc-context: programming */ _w_runtime_.t(1)}</p>
+                    <p>{/* @wc-context: music */ _w_runtime_(0)}</p>
+                    <p>{/* @wc-context: programming */ _w_runtime_(1)}</p>
                     {/* @wc-context: door */}
-                    <p>{_w_runtime_.t(2)}</p>
+                    <p>{_w_runtime_(2)}</p>
                     {/* @wc-context: distance */}
-                    <p>{_w_runtime_.t(3)}</p>
+                    <p>{_w_runtime_(3)}</p>
                 </>
             }`, `
         msgid ""
@@ -191,7 +191,7 @@ test('Plural', async t => {
 
             function m() {
                 const _w_runtime_ = _w_load_('jsx')
-                return <p>{plural(items, _w_runtime_.tp(0), _w_runtime_._.p)}</p>
+                return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
             }
     `, `
     msgid ""
@@ -221,8 +221,8 @@ test('Nested and mixed', async t => {
             function m() {
                 const _w_runtime_ = _w_load_('jsx')
                 return <>
-                    <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.tx(_w_ctx_)}</b>, _w_ctx_ => <i key="_1">{_w_runtime_.tx(_w_ctx_)}</i>]} x={_w_runtime_.cx(0)} /></p>
-                    <p><W_tx_ x={_w_runtime_.cx(1)} a={[num]} /></p>
+                    <p><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.x(_w_ctx_)}</b>, _w_ctx_ => <i key="_1">{_w_runtime_.x(_w_ctx_)}</i>]} x={_w_runtime_.c(0)} /></p>
+                    <p><W_tx_ x={_w_runtime_.c(1)} a={[num]} /></p>
                 </>
             }
     `, `
