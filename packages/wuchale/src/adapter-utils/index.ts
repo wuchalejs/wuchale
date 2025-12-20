@@ -10,13 +10,13 @@ export const varNames = {
 
 export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.rt) {
     return {
-        rtTrans: `${wrapFunc(base)}.t`,
-        rtTPlural: `${wrapFunc(base)}.tp`,
+        rtTrans: `${wrapFunc(base)}`,
+        rtTPlural: `${wrapFunc(base)}.p`,
         rtPlural: `${wrapFunc(base)}._.p`,
         rtLocale: `${wrapFunc(base)}.l`,
-        rtCtx: `${wrapFunc(base)}.cx`,
-        rtTransCtx: `${wrapFunc(base)}.tx`,
-        rtTransTag: `${wrapFunc(base)}.tt`,
+        rtCtx: `${wrapFunc(base)}.c`,
+        rtTransCtx: `${wrapFunc(base)}.x`,
+        rtTransTag: `${wrapFunc(base)}.t`,
         /** for when nesting, used in adapters with elements */
         nestCtx: '_w_ctx_',
     }

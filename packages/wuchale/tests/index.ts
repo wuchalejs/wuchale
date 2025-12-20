@@ -89,23 +89,23 @@ test('Inside function definitions', async t => {
 
         function foo(): string {
             const _w_runtime_ = _w_load_('main')
-            const varName = _w_runtime_.t(0)
+            const varName = _w_runtime_(0)
             return varName
         }
         const insideObj = {
             method: () => {
                 const _w_runtime_ = _w_load_('main')
-                return _w_runtime_.t(1)
+                return _w_runtime_(1)
             },
         }
         const bar: (a: string) => string = (a) => {
             const _w_runtime_ = _w_load_('main')
             const foo = {
-                [_w_runtime_.t(2)]: 42,
-                tagged: _w_runtime_.tt(tag, 0),
-                taggedWithExpr: _w_runtime_.tt(tag, 3, [a])
+                [_w_runtime_(2)]: 42,
+                tagged: _w_runtime_.t(tag, 0),
+                taggedWithExpr: _w_runtime_.t(tag, 3, [a])
             }
-            return _w_runtime_.t(3, [a])
+            return _w_runtime_(3, [a])
         }
     `, `
     msgid ""
@@ -150,12 +150,12 @@ test('Inside class declarations', async t => {
         class foo {
             constructor() {
                 const _w_runtime_ = _w_load_('main')
-                return _w_runtime_.t(0)
+                return _w_runtime_(0)
             }
 
             foo() {
                 const _w_runtime_ = _w_load_('main')
-                return _w_runtime_.t(0)
+                return _w_runtime_(0)
             }
         }
     `, `
@@ -190,7 +190,7 @@ test('Runtime init place', async t => {
             if (3 == 3) {
                 return 42
             }
-            return _w_runtime_.t(0)
+            return _w_runtime_(0)
         }
     `, `
     msgid ""
@@ -223,7 +223,7 @@ test('Plural and patterns', async t => {
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
             const f = () => {
                 const _w_runtime_ = _w_load_('main')
-                return plural(items, _w_runtime_.tp(0), _w_runtime_._.p)
+                return plural(items, _w_runtime_.p(0), _w_runtime_._.p)
             }
             function foo() {
                 return [
@@ -282,7 +282,7 @@ test('HMR', async t => {
 
         function foo(): string {
             const _w_runtime_ = _w_load_('main')
-            const varName = _w_runtime_.t(0)
+            const varName = _w_runtime_(0)
             return varName
         }
     `, `
@@ -313,11 +313,11 @@ test('Loading and runtime', async t => {
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called
     const rt = getRT('foo')
     t.assert.equal(rt.l, 'en')
-    t.assert.equal(rt.t(0), 'Hello')
-    t.assert.equal(rt.t(1, ['User']), 'Hello User!')
-    t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
+    t.assert.equal(rt(0), 'Hello')
+    t.assert.equal(rt(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(rt.p(2), ['One item', '# items'])
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(toRuntime(cPure['foo']).t(0), 'Hello')
+    t.assert.equal(toRuntime(cPure['foo'])(0), 'Hello')
 })
 
 function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
@@ -326,18 +326,18 @@ function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
 
 test('Runtime', t => {
     const rt = toRuntime(testCatalog)
-    t.assert.equal(rt.t(0), 'Hello')
-    t.assert.equal(rt.t(1, ['User']), 'Hello User!')
-    t.assert.deepEqual(rt.tp(2), ['One item', '# items'])
+    t.assert.equal(rt(0), 'Hello')
+    t.assert.equal(rt(1, ['User']), 'Hello User!')
+    t.assert.deepEqual(rt.p(2), ['One item', '# items'])
     t.assert.equal(taggedHandler`foo ${1} bar ${2}`, 'foo _ bar _1_2')
-    t.assert.equal(rt.tt(taggedHandler, 1, [3]), 'Hello _!3')
+    t.assert.equal(rt.t(taggedHandler, 1, [3]), 'Hello _!3')
 })
 
 // This should be run AFTER the test Runtime completes
 test('Runtime server side', async t => {
     const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return getRT('main').t(1, ['server user'])
+        return getRT('main')(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })
