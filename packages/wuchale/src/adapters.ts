@@ -198,11 +198,7 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type UseReactiveFunc<RTCtxT> = (details: {funcName?: string, nested: boolean, file: string, ctx: RTCtxT}) => {
-    /** null to disable initializing */
-    init: boolean | null
-    use: boolean
-}
+export type DecideReactiveDetails<RTCtxT> = RTCtxT & {funcName?: string, nested: boolean, file: string}
 
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
@@ -210,7 +206,9 @@ type RuntimeConfDetails = {
 }
 
 export type RuntimeConf<RTCtxT = {}> = {
-    useReactive: UseReactiveFunc<RTCtxT>
+    /** return null to disable */
+    initReactive: (details: DecideReactiveDetails<RTCtxT>) => boolean | null
+    useReactive: boolean | ((details: DecideReactiveDetails<RTCtxT>) => boolean)
     plain: RuntimeConfDetails
     reactive: RuntimeConfDetails
 }
@@ -220,7 +218,7 @@ export type LoaderPath = {
     server: string
 }
 
-export type AdapterPassThruOpts<RTCtxT = {}> = {
+export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     files: GlobConf
     localesDir: string
     /** if writing transformed code to a directory is desired, specify this */
@@ -235,7 +233,7 @@ export type AdapterPassThruOpts<RTCtxT = {}> = {
     runtime: Partial<RuntimeConf<RTCtxT>>
 }
 
-export type Adapter<RTCtxT = {}> = AdapterPassThruOpts<RTCtxT> & {
+export type Adapter<RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
     transform: TransformFunc | TransformFuncAsync
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
@@ -252,7 +250,7 @@ export type CodePattern = {
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
 
-export type AdapterArgs<LoadersAvailable, RTCtxT = {}> = AdapterPassThruOpts<RTCtxT> & {
+export type AdapterArgs<LoadersAvailable, RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
     loader: LoaderChoice<LoadersAvailable>
     heuristic: HeuristicFunc
     patterns: CodePattern[]

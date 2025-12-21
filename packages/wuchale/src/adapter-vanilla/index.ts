@@ -34,10 +34,8 @@ const defaultArgs: VanillaArgs = {
     generateLoadID: defaultGenerateLoadID,
     loader: 'vite',
     runtime: {
-        useReactive: ({nested}) => ({
-            init: nested ? null : false,
-            use: false,
-        }),
+        initReactive: ({nested}) => nested ? null : false,
+        useReactive: false,
         plain: {
             wrapInit: expr => expr,
             wrapUse: expr => expr,

@@ -37,7 +37,7 @@ export type {
     HeuristicDetailsBase,
     HeuristicFunc,
     TransformOutput,
-    UseReactiveFunc,
+    DecideReactiveDetails,
     UrlMatcher,
 } from './adapters.js'
 export { gemini } from './ai/gemini.js'

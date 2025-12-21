@@ -279,7 +279,7 @@ export class JSXTransformer extends Transformer {
         const msgs = this.visitJx(ast)
         const header = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
-            this.initRuntime(this.filename),
+            this.initRuntime(),
         ].join('\n')
         const bodyStart = this.getRealBodyStart(ast.body) as number
         return this.finalize(msgs, bodyStart, header)

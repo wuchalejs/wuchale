@@ -37,14 +37,16 @@ export type JSXArgs = AdapterArgs<LoadersAvailable> & {
 }
 
 const defaultRuntime: RuntimeConf = {
-    useReactive: ({funcName, nested}) => {
+    initReactive: ({funcName, nested}) => {
         const inTopLevel = funcName == null
         const insideReactive =  !inTopLevel && !nested && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
-        return {
-            init: inTopLevel ? null : insideReactive,
-            use: insideReactive
-        }
+        return inTopLevel ? null : insideReactive
     },
+    useReactive: ({funcName, nested}) =>
+        funcName != null
+            && !nested
+            && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
+    ,
     reactive: {
         wrapInit: expr => expr,
         wrapUse: expr => expr,
@@ -57,13 +59,8 @@ const defaultRuntime: RuntimeConf = {
 
 const defaultRuntimeSolid: RuntimeConf = {
     ...defaultRuntime,
-    useReactive: ({funcName}) => {
-        const inTopLevel = funcName == null
-        return {
-            init: inTopLevel ? true : null, // init only in top level
-            use: true, // always use reactive
-        }
-    },
+    initReactive: ({funcName}) => funcName == null ? true : null, // init only in top level
+    useReactive: true, // always reactive, because solidjs doesn't have a problem with it
     reactive: {
         wrapInit: expr => `() => ${expr}`,
         wrapUse: expr => `${expr}()`

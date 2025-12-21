@@ -327,7 +327,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             this.commentDirectives = {} // reset
             // @ts-expect-error
             msgs.push(...this.visitProgram(node.module.content))
-            const runtimeInit = this.initRuntime(this.runtimeCtx)
+            const runtimeInit = this.initRuntime()
             if (runtimeInit) {
                 this.mstr.appendRight(
                     // @ts-expect-error
@@ -422,7 +422,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             this.collectModuleExportRanges(ast.module)
         }
         const msgs = this.visitSv(ast)
-        const initRuntime = this.initRuntime(this.runtimeCtx)
+        const initRuntime = this.initRuntime()
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body) ?? 0
             if (initRuntime) {
