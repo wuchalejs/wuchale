@@ -11,6 +11,8 @@ import { SvelteTransformer, type RuntimeCtxSv } from "./transformer.js"
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
+export type {RuntimeCtxSv}
+
 export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
     return msg => {
@@ -64,13 +66,14 @@ const defaultArgs: SvelteArgs = {
     generateLoadID: defaultGenerateLoadID,
     loader: 'svelte',
     runtime: {
-        useReactive: ({file, funcName, ctx}) => {
+        initReactive: ({file, funcName, module}) => {
             const inTopLevel = funcName == null
-            const inModule = file.endsWith('.svelte.js') || ctx.module
-            return {
-                init: inModule ? inTopLevel : (inTopLevel ? true : null),
-                use: inModule ? inTopLevel : true,
-            }
+            return file.endsWith('.svelte.js') || module ? inTopLevel : (inTopLevel ? true : null)
+
+        },
+        useReactive: ({file, funcName, module}) => {
+            const inTopLevel = funcName == null
+            return file.endsWith('.svelte.js') || module ? inTopLevel : true
         },
         reactive: {
             wrapInit: expr => `$derived(${expr})`,
@@ -101,7 +104,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
+export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
     const {
         heuristic,
         patterns,

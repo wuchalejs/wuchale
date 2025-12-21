@@ -59,7 +59,7 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
     return [ScriptParser.parse(content, opts), comments]
 }
 
-type InitRuntimeFunc<RTCtxT> = (ctx: RTCtxT, uncName?: string, parentFunc?: string) => string | undefined
+type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
 export class Transformer<RTCtxT = {}> {
 
@@ -72,7 +72,7 @@ export class Transformer<RTCtxT = {}> {
     mstr: MagicString
     patterns: CodePattern[]
     matchUrl: UrlMatcher
-    initRuntime: InitRuntimeFunc<RTCtxT>
+    initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
 
@@ -91,7 +91,7 @@ export class Transformer<RTCtxT = {}> {
         this.content = content
         this.filename = filename
         this.matchUrl = matchUrl
-        const topLevelUseReactive = rtConf.useReactive({
+        const topLevelUseReactive = typeof rtConf.useReactive === 'boolean' ? () => rtConf.useReactive : ({
             nested: false,
             file: filename,
             ctx: this.runtimeCtx,
@@ -107,22 +107,30 @@ export class Transformer<RTCtxT = {}> {
         }
         this.currentRtVar = rtBaseVars[0]
         this.vars = () => {
-            const useReactive = rtConf.useReactive({
+            const useReactive = typeof rtConf.useReactive === 'boolean' ? rtConf.useReactive : rtConf.useReactive({
                 funcName: this.heuristciDetails.funcName ?? undefined,
                 nested: this.heuristciDetails.funcIsNested ?? false,
                 file: filename,
-                ctx: this.runtimeCtx,
+                ...this.runtimeCtx,
             }) ?? topLevelUseReactive
             const currentVars = vars[this.currentRtVar]
-            return useReactive.use ? currentVars.reactive : currentVars.plain
+            return useReactive ? currentVars.reactive : currentVars.plain
         }
-        this.initRuntime = (ctx, funcName, parentFunc) => {
-            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file: this.filename, ctx})
-            if (useReactive.init == null) {
+        this.initRuntime = (funcName, parentFunc) => {
+            let initReactive = rtConf.initReactive({
+                funcName,
+                nested: parentFunc != null,
+                file: filename,
+                ...this.runtimeCtx,
+            })
+            if (initReactive == null) {
                 return
             }
-            const wrapInit = useReactive.init ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
-            const expr = useReactive.init ? catalogExpr.reactive : catalogExpr.plain
+            if (typeof rtConf.useReactive === 'boolean') {
+                initReactive = rtConf.useReactive // should be consistent
+            }
+            const wrapInit = initReactive ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
+            const expr = initReactive ? catalogExpr.reactive : catalogExpr.plain
             return `\nconst ${this.currentRtVar} = ${wrapInit(expr)}\n`
         }
     }
@@ -482,7 +490,7 @@ export class Transformer<RTCtxT = {}> {
         this.heuristciDetails.funcIsNested = name != null && prevFuncDef != null
         const msgs = this.visit(node)
         if (msgs.length > 0) {
-            const initRuntime = this.initRuntime(this.runtimeCtx, this.heuristciDetails.funcName, prevFuncDef ?? undefined)
+            const initRuntime = this.initRuntime(this.heuristciDetails.funcName, prevFuncDef ?? undefined)
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
                     this.mstr.prependLeft(
