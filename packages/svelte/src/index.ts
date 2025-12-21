@@ -7,7 +7,7 @@ import type {
     LoaderChoice,
     CreateHeuristicOpts,
 } from 'wuchale'
-import { SvelteTransformer } from "./transformer.js"
+import { SvelteTransformer, type RuntimeCtxSv } from "./transformer.js"
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 
@@ -52,7 +52,7 @@ export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
 
 type LoadersAvailable = 'svelte' | 'sveltekit'
 
-export type SvelteArgs = AdapterArgs<LoadersAvailable>
+export type SvelteArgs = AdapterArgs<LoadersAvailable, RuntimeCtxSv>
 
 const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
@@ -64,9 +64,9 @@ const defaultArgs: SvelteArgs = {
     generateLoadID: defaultGenerateLoadID,
     loader: 'svelte',
     runtime: {
-        useReactive: ({file, funcName, additional}) => {
+        useReactive: ({file, funcName, ctx}) => {
             const inTopLevel = funcName == null
-            const inModule = file.endsWith('.svelte.js') || (additional as {module: boolean}).module
+            const inModule = file.endsWith('.svelte.js') || ctx.module
             return {
                 init: inModule ? inTopLevel : (inTopLevel ? true : null),
                 use: inModule ? inTopLevel : true,
@@ -101,7 +101,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
+export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
     const {
         heuristic,
         patterns,
@@ -118,7 +118,7 @@ export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
                 heuristic,
                 patterns,
                 expr,
-                runtime as RuntimeConf,
+                runtime as RuntimeConf<RuntimeCtxSv>,
                 matchUrl,
             ).transformSv()
         },

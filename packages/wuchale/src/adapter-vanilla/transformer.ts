@@ -9,7 +9,6 @@ import type {
     HeuristicDetailsBase,
     HeuristicFunc,
     IndexTracker,
-    ScriptDeclType,
     TransformOutput,
     HeuristicDetails,
     RuntimeConf,
@@ -60,9 +59,9 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
     return [ScriptParser.parse(content, opts), comments]
 }
 
-type InitRuntimeFunc = (file: string, funcName?: string, parentFunc?: string, additional?: object) => string | undefined
+type InitRuntimeFunc<RTCtxT> = (ctx: RTCtxT, uncName?: string, parentFunc?: string) => string | undefined
 
-export class Transformer {
+export class Transformer<RTCtxT = {}> {
 
     index: IndexTracker
     heuristic: HeuristicFunc
@@ -73,24 +72,19 @@ export class Transformer {
     mstr: MagicString
     patterns: CodePattern[]
     matchUrl: UrlMatcher
-    initRuntime: InitRuntimeFunc
+    initRuntime: InitRuntimeFunc<RTCtxT>
     currentRtVar: string
     vars: () => RuntimeVars
 
     // state
     commentDirectives: CommentDirectives = {}
-    insideProgram: boolean = false
-    declaring?: ScriptDeclType
-    currentFuncNested: boolean = false
-    currentFuncDef?: string
-    currentCall: string
-    currentTopLevelCall?: string
+    heuristciDetails: HeuristicDetails = {file: '', scope: 'script', insideProgram: true}
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
-    /** for subclasses. right now for svelte, if in <script module> */
-    additionalState: object = {}
+    /** will be passed to decide which runtime variable to use */
+    runtimeCtx: RTCtxT = {} as RTCtxT
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf, matchUrl: UrlMatcher, rtBaseVars = [varNames.rt]) {
+    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf<RTCtxT>, matchUrl: UrlMatcher, rtBaseVars = [varNames.rt]) {
         this.index = index
         this.heuristic = heuristic
         this.patterns = patterns
@@ -100,7 +94,7 @@ export class Transformer {
         const topLevelUseReactive = rtConf.useReactive({
             nested: false,
             file: filename,
-            additional: this.additionalState,
+            ctx: this.runtimeCtx,
         })
 
         const vars: Record<string, {[key in 'plain' | 'reactive']: RuntimeVars}> = {}
@@ -114,16 +108,16 @@ export class Transformer {
         this.currentRtVar = rtBaseVars[0]
         this.vars = () => {
             const useReactive = rtConf.useReactive({
-                funcName: this.currentFuncDef,
-                nested: this.currentFuncNested,
+                funcName: this.heuristciDetails.funcName ?? undefined,
+                nested: this.heuristciDetails.funcIsNested ?? false,
                 file: filename,
-                additional: this.additionalState,
+                ctx: this.runtimeCtx,
             }) ?? topLevelUseReactive
             const currentVars = vars[this.currentRtVar]
             return useReactive.use ? currentVars.reactive : currentVars.plain
         }
-        this.initRuntime = (file, funcName, parentFunc, additional) => {
-            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file, additional: additional ?? {}})
+        this.initRuntime = (ctx, funcName, parentFunc) => {
+            const useReactive = rtConf.useReactive({funcName, nested: parentFunc != null, file: this.filename, ctx})
             if (useReactive.init == null) {
                 return
             }
@@ -134,15 +128,8 @@ export class Transformer {
     }
 
     fullHeuristicDetails = (detailsBase: HeuristicDetailsBase): HeuristicDetails => {
-        const details: HeuristicDetails = {
-            file: this.filename,
-            call: this.currentCall,
-            declaring: this.declaring,
-            funcName: this.currentFuncDef,
-            topLevelCall: this.currentTopLevelCall,
-            ...detailsBase
-        }
-        if (details.declaring == null && this.insideProgram) {
+        const details = { ...this.heuristciDetails, ...detailsBase }
+        if (details.declaring == null && details.insideProgram) {
             details.declaring = 'expression'
         }
         return details
@@ -224,12 +211,12 @@ export class Transformer {
 
     defaultVisitCallExpression = (node: Estree.CallExpression): Message[] => {
         const msgs = this.visit(node.callee)
-        const currentCall = this.currentCall
-        this.currentCall = this.getCalleeName(node.callee)
+        const currentCall = this.heuristciDetails.call
+        this.heuristciDetails.call = this.getCalleeName(node.callee)
         for (const arg of node.arguments) {
             msgs.push(...this.visit(arg))
         }
-        this.currentCall = currentCall // restore
+        this.heuristciDetails.call = currentCall // restore
         return msgs
     }
 
@@ -418,24 +405,24 @@ export class Transformer {
     }
 
     defaultVisitVariableDeclarator = (node: Estree.VariableDeclarator): Message[] => {
-        let atTopLevelDefn = this.insideProgram && !this.declaring
+        let atTopLevelDefn = this.heuristciDetails.insideProgram && !this.heuristciDetails.declaring
         if (!node.init) {
             return []
         }
         if (atTopLevelDefn) {
             if (node.init.type === 'ArrowFunctionExpression' || node.init.type === 'FunctionExpression') {
-                this.declaring = 'function'
+                this.heuristciDetails.declaring = 'function'
             } else {
-                this.declaring = 'variable'
+                this.heuristciDetails.declaring = 'variable'
                 if (node.init.type === 'CallExpression') {
-                    this.currentTopLevelCall = this.getCalleeName(node.init.callee)
+                    this.heuristciDetails.topLevelCall = this.getCalleeName(node.init.callee)
                 }
             }
         }
         const msgs = [...this.visit(node.id), ...this.visit(node.init)]
         if (atTopLevelDefn) {
-            this.currentTopLevelCall = undefined // reset
-            this.declaring = undefined
+            this.heuristciDetails.topLevelCall = undefined // reset
+            this.heuristciDetails.declaring = undefined
         }
         return msgs
     }
@@ -489,13 +476,13 @@ export class Transformer {
     }
 
     visitFunctionBody = (node: Estree.BlockStatement | Estree.Expression, name?: string, end?: number): Message[] => {
-        const prevFuncDef = this.currentFuncDef
-        const prevFuncNested = this.currentFuncNested
-        this.currentFuncDef = name
-        this.currentFuncNested = name != null && prevFuncDef != null
+        const prevFuncDef = this.heuristciDetails.funcName
+        const prevFuncNested = this.heuristciDetails.funcIsNested
+        this.heuristciDetails.funcName = name
+        this.heuristciDetails.funcIsNested = name != null && prevFuncDef != null
         const msgs = this.visit(node)
         if (msgs.length > 0) {
-            const initRuntime = this.initRuntime(this.filename, this.currentFuncDef, prevFuncDef, this.additionalState)
+            const initRuntime = this.initRuntime(this.runtimeCtx, this.heuristciDetails.funcName, prevFuncDef ?? undefined)
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
                     this.mstr.prependLeft(
@@ -520,16 +507,16 @@ export class Transformer {
                 }
             }
         }
-        this.currentFuncNested = prevFuncNested
-        this.currentFuncDef = prevFuncDef
+        this.heuristciDetails.funcIsNested = prevFuncNested
+        this.heuristciDetails.funcName = prevFuncDef
         return msgs
     }
 
     visitFunctionDeclaration = (node: Estree.FunctionDeclaration): Message[] => {
-        const declaring = this.declaring
-        this.declaring = 'function'
+        const declaring = this.heuristciDetails.declaring
+        this.heuristciDetails.declaring = 'function'
         const msgs = this.visitFunctionBody(node.body, node.id?.name ?? '')
-        this.declaring = declaring
+        this.heuristciDetails.declaring = declaring
         return msgs
     }
 
@@ -552,8 +539,8 @@ export class Transformer {
 
     visitClassDeclaration = (node: Estree.ClassDeclaration): Message[] => {
         const msgs: Message[] = []
-        const prevDecl = this.declaring
-        this.declaring = 'class'
+        const prevDecl = this.heuristciDetails.declaring
+        this.heuristciDetails.declaring = 'class'
         for (const body of node.body.body) {
             if (body.type === 'MethodDefinition') {
                 msgs.push(...this.visit(body.key))
@@ -562,13 +549,13 @@ export class Transformer {
                     msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
                 }
             } else if (body.type === 'StaticBlock') {
-                const currentFuncDef = this.currentFuncDef
-                this.currentFuncDef = `${node.id.name}.[static]`
+                const currentFuncDef = this.heuristciDetails.funcName
+                this.heuristciDetails.funcName = `${node.id.name}.[static]`
                 msgs.push(...body.body.map(this.visit).flat())
-                this.currentFuncDef = currentFuncDef // restore
+                this.heuristciDetails.funcName = currentFuncDef // restore
             }
         }
-        this.declaring = prevDecl // restore
+        this.heuristciDetails.declaring = prevDecl // restore
         return msgs
     }
 
@@ -636,8 +623,8 @@ export class Transformer {
     }
 
     visitTaggedTemplateExpression = (node: Estree.TaggedTemplateExpression): Message[] => {
-        const prevCall = this.currentCall
-        this.currentCall = this.getCalleeName(node.tag)
+        const prevCall = this.heuristciDetails.call
+        this.heuristciDetails.call = this.getCalleeName(node.tag)
         let msgs: Message[] = []
         const heuRes = this.checkHeuristicTemplateLiteral(node.quasi)
         if (heuRes) {
@@ -653,7 +640,7 @@ export class Transformer {
                 this.mstr.update(start, end, `, ${index})`)
             }
         }
-        this.currentCall = prevCall
+        this.heuristciDetails.call = prevCall
         return msgs
     }
 
@@ -675,9 +662,9 @@ export class Transformer {
     visitTSTypeAssertion = (node: {expression: Estree.AnyNode}): Message[] => this.visit(node.expression)
 
     visitProgram = (node: Estree.Program): Message[] => {
-        this.insideProgram = true
+        this.heuristciDetails.insideProgram = true
         const msgs = this.visitStatementsNSaveRealBodyStart(node.body)
-        this.insideProgram = false
+        this.heuristciDetails.insideProgram = false
         return msgs
     }
 

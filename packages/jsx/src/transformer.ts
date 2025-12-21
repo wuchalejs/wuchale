@@ -103,13 +103,19 @@ export class JSXTransformer extends Transformer {
         },
     })
 
-    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): Message[] => this.mixedVisitor.visit({
-        children: node.children,
-        commentDirectives: this.commentDirectives,
-        inCompoundText: this.inCompoundText,
-        scope: 'markup',
-        element: this.currentElement as string,
-    })
+    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): Message[] => {
+        const prevInsideProg = this.heuristciDetails.insideProgram
+        this.heuristciDetails.insideProgram = false
+        const msg = this.mixedVisitor.visit({
+            children: node.children,
+            commentDirectives: this.commentDirectives,
+            inCompoundText: this.inCompoundText,
+            scope: 'markup',
+            element: this.currentElement as string,
+        })
+        this.heuristciDetails.insideProgram = prevInsideProg // restore
+        return msg
+    }
 
     visitNameJSXNamespacedName = (node: JX.JSXNamespacedName): string => {
         return `${this.visitName(node.namespace)}:${this.visitName(node.name)}`

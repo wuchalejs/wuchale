@@ -17,6 +17,10 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     declaring?: ScriptDeclType
     /* the name of the function being defined, '' for arrow or null for global */
     funcName?: string | null
+    /* whether the function being defined is nested inside another, null for no function */
+    funcIsNested?: boolean
+    /* whether inside a script file/<script> instead of an expression inside markup */
+    insideProgram: boolean
     /* the name of the call at the top level */
     topLevelCall?: string
     /* the name of the nearest call (for arguments) */
@@ -25,7 +29,7 @@ export type HeuristicDetails = HeuristicDetailsBase & {
 
 export type MessageType = 'message' | 'url'
 
-const someHeuDet: HeuristicDetails = {file: '', scope: 'markup'}
+const someHeuDet: HeuristicDetails = {file: '', scope: 'markup', insideProgram: true}
 
 export class Message {
 
@@ -194,7 +198,7 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type UseReactiveFunc = (details: {funcName?: string, nested: boolean, file: string, additional: object}) => {
+export type UseReactiveFunc<RTCtxT> = (details: {funcName?: string, nested: boolean, file: string, ctx: RTCtxT}) => {
     /** null to disable initializing */
     init: boolean | null
     use: boolean
@@ -205,8 +209,8 @@ type RuntimeConfDetails = {
     wrapUse: WrapFunc
 }
 
-export type RuntimeConf = {
-    useReactive: UseReactiveFunc
+export type RuntimeConf<RTCtxT = {}> = {
+    useReactive: UseReactiveFunc<RTCtxT>
     plain: RuntimeConfDetails
     reactive: RuntimeConfDetails
 }
@@ -216,7 +220,7 @@ export type LoaderPath = {
     server: string
 }
 
-export type AdapterPassThruOpts = {
+export type AdapterPassThruOpts<RTCtxT = {}> = {
     files: GlobConf
     localesDir: string
     /** if writing transformed code to a directory is desired, specify this */
@@ -228,10 +232,10 @@ export type AdapterPassThruOpts = {
         localize?: boolean | URLLocalizer
     }
     generateLoadID: (filename: string) => string
-    runtime: Partial<RuntimeConf>
+    runtime: Partial<RuntimeConf<RTCtxT>>
 }
 
-export type Adapter = AdapterPassThruOpts & {
+export type Adapter<RTCtxT = {}> = AdapterPassThruOpts<RTCtxT> & {
     transform: TransformFunc | TransformFuncAsync
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
@@ -248,7 +252,7 @@ export type CodePattern = {
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
 
-export type AdapterArgs<LoadersAvailable> = AdapterPassThruOpts & {
+export type AdapterArgs<LoadersAvailable, RTCtxT = {}> = AdapterPassThruOpts<RTCtxT> & {
     loader: LoaderChoice<LoadersAvailable>
     heuristic: HeuristicFunc
     patterns: CodePattern[]
