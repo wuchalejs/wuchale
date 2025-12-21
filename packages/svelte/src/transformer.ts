@@ -34,7 +34,12 @@ const removeSCSS: Preprocessor = ({attributes, content}) => {
     }
 }
 
-export class SvelteTransformer extends Transformer {
+export type RuntimeCtxSv = {
+    // inside of <script module> or not
+    module: boolean
+}
+
+export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
 
     // state
     currentElement?: string
@@ -53,10 +58,11 @@ export class SvelteTransformer extends Transformer {
         heuristic: HeuristicFunc,
         patterns: CodePattern[],
         catalogExpr: CatalogExpr,
-        rtConf: RuntimeConf,
+        rtConf: RuntimeConf<RuntimeCtxSv>,
         matchUrl: UrlMatcher,
     ) {
         super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
+        this.heuristciDetails.insideProgram = false
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
@@ -64,7 +70,7 @@ export class SvelteTransformer extends Transformer {
     visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
         const msgs = this.defaultVisitVariableDeclarator(node)
         const init = node.init
-        if (!msgs.length || this.declaring != null || init == null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)) {
+        if (!msgs.length || this.heuristciDetails.declaring != null || init == null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)) {
             return msgs
         }
         const needsWrapping = msgs.some(msg => {
@@ -317,11 +323,11 @@ export class SvelteTransformer extends Transformer {
         if (node.module) {
             const prevRtVar = this.currentRtVar
             this.currentRtVar = rtModuleVar
-            this.additionalState = {module: true}
+            this.runtimeCtx = {module: true}
             this.commentDirectives = {} // reset
             // @ts-expect-error
             msgs.push(...this.visitProgram(node.module.content))
-            const runtimeInit = this.initRuntime(this.filename)
+            const runtimeInit = this.initRuntime(this.runtimeCtx)
             if (runtimeInit) {
                 this.mstr.appendRight(
                     // @ts-expect-error
@@ -329,7 +335,7 @@ export class SvelteTransformer extends Transformer {
                     runtimeInit,
                 )
             }
-            this.additionalState = {} // reset
+            this.runtimeCtx = {module: false} // reset
             this.currentRtVar = prevRtVar // reset
         }
         if (node.instance) {
@@ -416,7 +422,7 @@ export class SvelteTransformer extends Transformer {
             this.collectModuleExportRanges(ast.module)
         }
         const msgs = this.visitSv(ast)
-        const initRuntime = this.initRuntime(this.filename)
+        const initRuntime = this.initRuntime(this.runtimeCtx)
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body) ?? 0
             if (initRuntime) {
