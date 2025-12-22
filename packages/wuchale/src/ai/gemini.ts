@@ -1,6 +1,6 @@
 import type { AI } from './index.js'
 
-const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
 const headers = {'Content-Type': 'application/json'}
 
 interface GeminiRes {
@@ -31,12 +31,13 @@ function prepareData(content: string, instruction: string, think: boolean) {
 
 type GeminiOpts = {
     apiKey?: string
+    model?: string
     batchSize?: number
     think?: boolean
     parallel?: number
 }
 
-export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI | null {
+export function gemini({apiKey = 'env', model = 'gemini-2.5-flash', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI | null {
     if (apiKey === 'env') {
         apiKey = process.env.GEMINI_API_KEY ?? ''
     }
@@ -49,7 +50,8 @@ export function gemini({apiKey = 'env', batchSize = 50, think = false, parallel 
         parallel,
         translate: async (content: string, instruction: string) => {
             const data = prepareData(content, instruction, think)
-            const res = await fetch(url, {
+            const res = await fetch(`${url}${model}:generateContent`, {
+
                 method: 'POST',
                 headers: {...headers, 'x-goog-api-key': apiKey},
                 body: JSON.stringify(data)
