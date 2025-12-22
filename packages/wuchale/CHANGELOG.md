@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.10
+
+### Patch Changes
+
+- 3b0e87b: Update Gemini default version to 2.5 (for #218)
+
 ## 0.18.9
 
 ### Patch Changes
