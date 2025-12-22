@@ -1,6 +1,6 @@
 import type { AI } from './index.js'
 
-const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 const headers = {'Content-Type': 'application/json'}
 
 interface GeminiRes {
