@@ -5,6 +5,7 @@ import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
 import type { Config, Mode, SharedStates } from "wuchale"
 
 const pluginName = 'wuchale'
+const confUpdateName = 'confUpdate.json'
 
 type HotUpdateCtx = {
     file: string
@@ -15,7 +16,12 @@ type HotUpdateCtx = {
             invalidateModule: Function
         }
     }
+    read: () => string | Promise<string>
     timestamp: number
+}
+
+type ConfUpdate = {
+    hmr: boolean
 }
 
 class Wuchale {
@@ -26,6 +32,7 @@ class Wuchale {
     #projectRoot: string = ''
 
     #adapters: Record<string, AdapterHandler> = {}
+    #adaptersByConfUpdate: Record<string, AdapterHandler> = {}
     #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
     #adaptersByCatalogPath: Record<string, AdapterHandler[]> = {}
     #granularLoadAdapters: AdapterHandler[] = []
@@ -97,6 +104,7 @@ class Wuchale {
                 this.#adaptersByCatalogPath[fname] ??= []
                 this.#adaptersByCatalogPath[fname].push(handler)
             }
+            this.#adaptersByConfUpdate[resolve(adapter.localesDir, confUpdateName)] = handler
         }
     }
 
@@ -111,6 +119,12 @@ class Wuchale {
     }
 
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
+        if (ctx.file in this.#adaptersByConfUpdate) {
+            const update: ConfUpdate = JSON.parse(await ctx.read())
+            console.log(`${pluginName}: config update received:`, update)
+            this.#config.hmr = update.hmr
+            return []
+        }
         if (!this.#config.hmr) {
             return
         }
