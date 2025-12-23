@@ -31,10 +31,9 @@ class Wuchale {
     #config: Config
     #projectRoot: string = ''
 
-    #adapters: Record<string, AdapterHandler> = {}
-    #adaptersByConfUpdate: Record<string, AdapterHandler> = {}
-    #adaptersByLoaderPath: Record<string, AdapterHandler> = {}
-    #adaptersByCatalogPath: Record<string, AdapterHandler[]> = {}
+    #adapters: Map<string, AdapterHandler> = new Map()
+    #adaptersByConfUpdate: Map<string, AdapterHandler> = new Map()
+    #adaptersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
     #granularLoadAdapters: AdapterHandler[] = []
     #singleCompiledCatalogs: Set<String> = new Set()
     #locales: string[] = []
@@ -55,11 +54,13 @@ class Wuchale {
         this.#config = await getConfig(this.#configPath)
         this.#log = new Logger(this.#config.logLevel)
         this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
-        if (Object.keys(this.#config.adapters).length === 0) {
+        const adaptersData = Object.entries(this.#config.adapters)
+        if (adaptersData.length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        const sharedState: SharedStates = {}
-        for (const [key, adapter] of Object.entries(this.#config.adapters)) {
+        const sharedState: SharedStates = new Map()
+        const adaptersByLoaderPath: Map<string, AdapterHandler> = new Map()
+        for (const [key, adapter] of adaptersData) {
             const handler = new AdapterHandler(
                 adapter,
                 key,
@@ -72,7 +73,7 @@ class Wuchale {
             handler.onBeforeWritePO = () => {
                 this.#lastSourceTriggeredPOWrite = performance.now()
             }
-            this.#adapters[key] = handler
+            this.#adapters.set(key, handler)
             if (adapter.granularLoad) {
                 this.#granularLoadAdapters.push(handler)
             } else {
@@ -86,8 +87,8 @@ class Wuchale {
                     // seems vite does this for the importer field in the resolveId hook
                     loaderPath = loaderPath.replaceAll('\\', '/')
                 }
-                if (loaderPath in this.#adaptersByLoaderPath) {
-                    const otherKey = this.#adaptersByLoaderPath[loaderPath].key
+                if (adaptersByLoaderPath.has(loaderPath)) {
+                    const otherKey = adaptersByLoaderPath.get(loaderPath)?.key
                     if (otherKey === key) {
                         // same loader for both ssr and client, no problem
                         continue
@@ -98,13 +99,17 @@ class Wuchale {
                         'Specify a different loaderPath for one of them.'
                     ].join('\n'))
                 }
-                this.#adaptersByLoaderPath[loaderPath] = handler
+                adaptersByLoaderPath.set(loaderPath, handler)
             }
             for (const fname of Object.keys(handler.catalogPathsToLocales)) {
-                this.#adaptersByCatalogPath[fname] ??= []
-                this.#adaptersByCatalogPath[fname].push(handler)
+                const handlers = this.#adaptersByCatalogPath.get(fname)
+                if (handlers) {
+                    handlers.push(handler)
+                } else {
+                    this.#adaptersByCatalogPath.set(fname, [handler])
+                }
             }
-            this.#adaptersByConfUpdate[resolve(adapter.localesDir, confUpdateName)] = handler
+            this.#adaptersByConfUpdate.set(resolve(adapter.localesDir, confUpdateName), handler)
         }
     }
 
@@ -119,7 +124,7 @@ class Wuchale {
     }
 
     handleHotUpdate = async (ctx: HotUpdateCtx) => {
-        if (ctx.file in this.#adaptersByConfUpdate) {
+        if (this.#adaptersByConfUpdate.has(ctx.file)) {
             const update: ConfUpdate = JSON.parse(await ctx.read())
             console.log(`${pluginName}: config update received:`, update)
             this.#config.hmr = update.hmr
@@ -129,7 +134,8 @@ class Wuchale {
             return
         }
         // This is mainly to make sure that PO catalog changes result in a page reload with new catalogs
-        if (!(ctx.file in this.#adaptersByCatalogPath)) {
+        const adapters = this.#adaptersByCatalogPath.get(ctx.file)
+        if (adapters == null) {
             // prevent reloading whole app because of a change in compiled catalog
             // triggered by extraction from single file, hmr handled by embedding patch
             if (this.#singleCompiledCatalogs.has(ctx.file)) {
@@ -151,7 +157,7 @@ class Wuchale {
         // catalog changed
         const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < 1000 // long enough threshold
         const invalidatedModules = new Set()
-        for (const adapter of this.#adaptersByCatalogPath[ctx.file]) {
+        for (const adapter of adapters) {
             const loc = adapter.catalogPathsToLocales[ctx.file]
             if (!sourceTriggered) {
                 await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
@@ -179,7 +185,7 @@ class Wuchale {
             return {}
         }
         const filename = relative(this.#projectRoot, id)
-        for (const adapter of Object.values(this.#adapters)) {
+        for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
                 return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
             }

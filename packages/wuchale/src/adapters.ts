@@ -144,15 +144,16 @@ export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a
 
 export class IndexTracker {
 
-    indices: Record<string, number> = {}
+    indices: Map<string, number> = new Map()
     nextIndex: number = 0
 
     get = (msgStr: string) => {
-        if (msgStr in this.indices) {
-            return this.indices[msgStr]
+        let index = this.indices.get(msgStr)
+        if (index != null) {
+            return index
         }
-        const index = this.nextIndex
-        this.indices[msgStr] = index
+        index = this.nextIndex
+        this.indices.set(msgStr, index)
         this.nextIndex++
         return index
     }
