@@ -270,12 +270,15 @@ export class AstroTransformer extends Transformer {
     visitElementNode = (node: ElementNode | ComponentNode): Message[] => {
         const currentElement = this.currentElement
         this.currentElement = node.name
-        const msgs = this.visitChildren(node)
 
-        // Transform attributes
+        // Transform attributes first (for consistent index ordering)
+        const msgs: Message[] = []
         for (const attr of node.attributes) {
             msgs.push(...this.visitAttribute(attr))
         }
+
+        // Then process children
+        msgs.push(...this.visitChildren(node))
 
         // Add key for elements in compound text
         if (this.inCompoundText) {
@@ -389,12 +392,21 @@ export class AstroTransformer extends Transformer {
             }
 
             const attrStart = attr.position?.start?.offset
-            const attrEnd = attr.position?.end?.offset
-            if (attrStart == null || attrEnd == null) {
+            if (attrStart == null) {
                 return []
             }
 
-            const attrContent = this.content.slice(attrStart, attrEnd)
+            // Astro compiler doesn't provide end position for attributes
+            // Find the attribute end by searching for the closing quote
+            const searchContent = this.content.slice(attrStart)
+            // Match: name="value" or name='value'
+            const attrMatch = searchContent.match(/^[\w.-]+\s*=\s*(["'])(?:[^"'\\]|\\.)*\1/)
+            if (!attrMatch) {
+                return []
+            }
+            const attrEnd = attrStart + attrMatch[0].length
+
+            const attrContent = attrMatch[0]
             const valueMatch = attrContent.match(/=\s*["'](.*)["']$/)
             if (valueMatch) {
                 const valueStart = attrStart + attrContent.indexOf(valueMatch[0])
@@ -658,8 +670,13 @@ export class AstroTransformer extends Transformer {
         }
 
         // The frontmatter content starts after the opening ---
-        // node.value includes the newline after ---, so offset is just 3 (for "---")
-        const contentOffset = (node.position?.start?.offset ?? 0) + 3
+        // node.value is the content between --- delimiters, including the leading newline
+        // Find the actual position of --- in the file content
+        const frontmatterStart = node.position?.start?.offset ?? 0
+        const searchContent = this.content.slice(frontmatterStart)
+        // Match optional whitespace, then ---, then optional whitespace/newline before content
+        const dashMatch = searchContent.match(/^[\s]*---/)
+        const contentOffset = frontmatterStart + (dashMatch ? dashMatch[0].length : 3)
 
         // Parse the script content with Acorn (TypeScript support)
         const TsParser = Parser.extend(tsPlugin())
@@ -703,9 +720,17 @@ export class AstroTransformer extends Transformer {
         if (frontmatterNode) {
             const frontmatterStart = frontmatterNode.position?.start?.offset ?? 0
 
-            // Insert import AND runtime init at the start of frontmatter (after ---)
+            // Find the position after the opening --- and newline
+            // The frontmatter format is: ---\n<content>\n---
+            // Handle leading whitespace from template literals
+            const searchContent = this.content.slice(frontmatterStart)
+            const dashMatch = searchContent.match(/^[\s]*---[ \t]*\n?/)
+            const insertOffset = dashMatch ? dashMatch[0].length : 4
+            const insertPos = frontmatterStart + insertOffset
+
+            // Insert import AND runtime init at the start of frontmatter content
             // This ensures _w_runtime_ is available for any transformed code below
-            this.mstr.appendRight(frontmatterStart + 4, runtimeImport + runtimeInit)
+            this.mstr.appendRight(insertPos, runtimeImport + runtimeInit)
         } else {
             // No frontmatter exists, create one
             const frontmatter = `---\n${runtimeImport}${runtimeInit}---\n\n`
@@ -717,7 +742,11 @@ export class AstroTransformer extends Transformer {
             const componentImport = `import ${rtComponent} from "${componentImportPath}";\n`
             if (frontmatterNode) {
                 const frontmatterStart = frontmatterNode.position?.start?.offset ?? 0
-                this.mstr.appendRight(frontmatterStart + 4, componentImport)
+                const searchContent = this.content.slice(frontmatterStart)
+                const dashMatch = searchContent.match(/^[\s]*---[ \t]*\n?/)
+                const insertOffset = dashMatch ? dashMatch[0].length : 4
+                const insertPos = frontmatterStart + insertOffset
+                this.mstr.appendRight(insertPos, componentImport)
             }
         }
     }
