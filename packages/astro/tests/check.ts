@@ -1,15 +1,14 @@
 // $$ node %f
 
-// @ts-expect-error
 import { testContentSetup, testDirSetup, absDir, ts } from '../../wuchale/tests/check.ts'
 import { rm } from 'fs/promises'
-import { adapter, type AstroArgs } from '../src/index.js'
+import { adapter, type AstroArgs } from '@wuchale/astro'
 import type { CompiledElement } from 'wuchale'
 
 const dirBase = absDir(import.meta.url)
 
 export const adapterOpts: Partial<AstroArgs> = {
-    files: { include: `${dirBase}/test-dir/*`, ignore: '' },
+    files: `${dirBase}/test-dir/*`,
     localesDir: `${dirBase}/test-tmp/`,
     loader: 'default',
 }

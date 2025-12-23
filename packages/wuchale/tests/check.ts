@@ -1,20 +1,27 @@
 // $$ node %f
-import { AdapterHandler, defaultConfig, Logger, type Adapter, type CompiledElement } from 'wuchale'
-import { adapter, type VanillaArgs } from 'wuchale/adapter-vanilla'
-import { readFile, rm } from 'fs/promises'
-import { fileURLToPath } from 'url'
-import { dirname, relative } from 'path'
-import PO from 'pofile'
+import {
+  AdapterHandler,
+  defaultConfig,
+  Logger,
+  type Adapter,
+  type CompiledElement,
+} from "wuchale";
+import { adapter, type VanillaArgs } from "wuchale/adapter-vanilla";
+import { readFile, rm } from "fs/promises";
+import { fileURLToPath } from "url";
+import { dirname, relative } from "path";
+import PO from "pofile";
 
-export const absDir = (fileurl: string) => relative(process.cwd(), dirname(fileURLToPath(fileurl))) || '.'
-const dirBase = absDir(import.meta.url)
-const testFile = `${dirBase}/test-dir/test.js`
+export const absDir = (fileurl: string) =>
+  relative(process.cwd(), dirname(fileURLToPath(fileurl))) || ".";
+const dirBase = absDir(import.meta.url);
+const testFile = `${dirBase}/test-dir/test.js`;
 
 export const adapterOpts: Partial<VanillaArgs> = {
-    files: `${dirBase}/test-dir/*`,
-    localesDir: `${dirBase}/test-tmp/`,
-    loader: 'vite',
-}
+  files: `${dirBase}/test-dir/*`,
+  localesDir: `${dirBase}/test-tmp/`,
+  loader: "vite",
+};
 
 const config = {...defaultConfig, locales: ['en']}
 
@@ -35,16 +42,16 @@ export async function getOutput(adapter: Adapter, key: string, content: string, 
 }
 
 function trimLines(str: string) {
-    if (!str) {
-        return
+  if (!str) {
+    return;
+  }
+  let result: string[] = [];
+  for (const line of str.split("\n")) {
+    if (line.trim()) {
+      result.push(line.trim());
     }
-    let result: string[] = []
-    for (const line of str.split('\n')) {
-        if (line.trim()) {
-            result.push(line.trim())
-        }
-    }
-    return result.join('\n')
+  }
+  return result.join("\n");
 }
 
 export async function testContentSetup(t: any, adapter: Adapter, key: string, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], testFile: string, hmrVersion: number=-1) {
@@ -60,34 +67,78 @@ export async function testContentSetup(t: any, adapter: Adapter, key: string, co
     t.assert.deepEqual(compiled.get('en')?.items ?? [], expectedCompiled)
 }
 
-export async function testDirSetup(t: any, adapter: Adapter, key: string, dir: string, testFile: string, testFileOut: string) {
-    const fnameIn = `${dir}/${testFile}`
-    const content = (await readFile(fnameIn)).toString()
-    const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString()
-    const poContents = (await readFile(`${dir}/en.po`)).toString()
-    const compiledContents = JSON.parse((await readFile(`${dir}/en.json`)).toString())
-    await testContentSetup(t, adapter, key, content, contentOut, poContents, compiledContents, fnameIn, -1)
+export async function testDirSetup(
+  t: any,
+  adapter: Adapter,
+  key: string,
+  dir: string,
+  testFile: string,
+  testFileOut: string
+) {
+  const fnameIn = `${dir}/${testFile}`;
+  const content = (await readFile(fnameIn)).toString();
+  const contentOut = (await readFile(`${dir}/${testFileOut}`)).toString();
+  const poContents = (await readFile(`${dir}/en.po`)).toString();
+  const compiledContents = JSON.parse(
+    (await readFile(`${dir}/en.json`)).toString()
+  );
+  await testContentSetup(
+    t,
+    adapter,
+    key,
+    content,
+    contentOut,
+    poContents,
+    compiledContents,
+    fnameIn,
+    -1
+  );
 }
 
-export const basic = adapter(adapterOpts)
+export const basic = adapter(adapterOpts);
 
-export async function testContent(t: any, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], adapter=basic, hmrVersion=-1) {
-    try {
-        await rm(adapterOpts.localesDir as string, {recursive: true})
-    } catch {}
-    await testContentSetup(t, adapter, 'main', content, expectedContent, expectedTranslations, expectedCompiled, testFile, hmrVersion)
+export async function testContent(
+  t: any,
+  content: string,
+  expectedContent: string | undefined,
+  expectedTranslations: string,
+  expectedCompiled: CompiledElement[],
+  adapter = basic,
+  hmrVersion = -1
+) {
+  try {
+    await rm(adapterOpts.localesDir as string, { recursive: true });
+  } catch {}
+  await testContentSetup(
+    t,
+    adapter,
+    "main",
+    content,
+    expectedContent,
+    expectedTranslations,
+    expectedCompiled,
+    testFile,
+    hmrVersion
+  );
 }
 
-export async function testDir(t: any, dir: string, adapter=basic) {
-    try {
-        await rm(adapterOpts.localesDir as string, {recursive: true})
-    } catch {}
-    await testDirSetup(t, adapter, 'basic',`${dirBase}/${dir}`, 'app.js', 'app.out.js')
+export async function testDir(t: any, dir: string, adapter = basic) {
+  try {
+    await rm(adapterOpts.localesDir as string, { recursive: true });
+  } catch {}
+  await testDirSetup(
+    t,
+    adapter,
+    "basic",
+    `${dirBase}/${dir}`,
+    "app.js",
+    "app.out.js"
+  );
 }
 
 // only for syntax highlighting
-export const ts = (foo: TemplateStringsArray) => foo.join('')
-export const js = ts
+export const ts = (foo: TemplateStringsArray) => foo.join("");
+export const js = ts;
 
 // const code = ts`
 //     const t = {

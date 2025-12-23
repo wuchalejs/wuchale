@@ -6,6 +6,7 @@
         { "path": "./packages/wuchale/tsconfig.build.json" },
         { "path": "./packages/svelte/tsconfig.build.json" },
         { "path": "./packages/jsx/tsconfig.build.json" },
-        { "path": "./packages/vite-plugin/tsconfig.build.json" }
+        { "path": "./packages/vite-plugin/tsconfig.build.json" },
+        { "path": "./packages/astro/tsconfig.build.json" }
     ]
 }
