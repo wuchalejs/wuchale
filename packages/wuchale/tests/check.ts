@@ -25,7 +25,7 @@ export async function getOutput(adapter: Adapter, key: string, content: string, 
         process.cwd(),
         new Logger('error'),
     )
-    await handler.init({})
+    await handler.init(new Map())
     await handler.initUrlPatterns()
     const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
@@ -51,11 +51,11 @@ export async function testContentSetup(t: any, adapter: Adapter, key: string, co
     expectedContent = expectedContent && trimLines(expectedContent)
     t.assert.strictEqual(code, expectedContent)
     const po = new PO()
-    for (const key in catalogs.en.catalog) {
-        po.items.push(catalogs.en.catalog[key])
+    for (const item of catalogs.get('en').catalog.values()) {
+        po.items.push(item)
     }
     t.assert.strictEqual(trimLines(po.toString()), trimLines(expectedTranslations))
-    t.assert.deepEqual(compiled.en?.items ?? [], expectedCompiled)
+    t.assert.deepEqual(compiled.get('en')?.items ?? [], expectedCompiled)
 }
 
 export async function testDirSetup(t: any, adapter: Adapter, key: string, dir: string, testFile: string, testFileOut: string) {
