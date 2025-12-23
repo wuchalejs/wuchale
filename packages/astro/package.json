@@ -1,0 +1,54 @@
+{
+    "name": "@wuchale/astro",
+    "version": "0.1.0",
+    "description": "Wuchale i18n adapter for Astro files",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node tests/index.ts"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "astro",
+        "vite",
+        "po",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "automatic-i18n"
+    ],
+    "files": [
+        "dist",
+        "src/loaders"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./runtime.jsx": {
+            "types": "./dist/runtime.d.ts",
+            "default": "./dist/runtime.jsx"
+        }
+    },
+    "license": "MIT",
+    "dependencies": {
+        "@astrojs/compiler": "^2.13.0",
+        "@sveltejs/acorn-typescript": "^1.0.8",
+        "acorn": "^8.15.0",
+        "magic-string": "^0.30.21",
+        "wuchale": "^0.18.8"
+    },
+    "devDependencies": {
+        "@types/estree-jsx": "^1.0.5",
+        "typescript": "^5.9.3"
+    },
+    "type": "module"
+}
