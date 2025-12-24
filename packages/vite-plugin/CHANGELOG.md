@@ -1,5 +1,13 @@
 # @wuchale/vite-plugin
 
+## 0.15.7
+
+### Patch Changes
+
+- ae355a5: Fix windows file path difference preventing hot reload on edit po files
+- Updated dependencies [ae355a5]
+  - wuchale@0.18.11
+
 ## 0.15.6
 
 ### Patch Changes

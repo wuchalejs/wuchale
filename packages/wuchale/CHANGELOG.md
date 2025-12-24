@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.18.11
+
+### Patch Changes
+
+- ae355a5: Fix windows file path difference preventing hot reload on edit po files
+
 ## 0.18.10
 
 ### Patch Changes
