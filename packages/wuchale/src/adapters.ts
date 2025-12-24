@@ -189,9 +189,16 @@ export type TransformOutputFunc = (header: string) => {
     map?: any
 }
 
+export type AuxiliaryFile = {
+    path: string        // Relative path from localesDir
+    content: string     // File content
+    hash?: string       // For deduplication
+}
+
 export type TransformOutput = {
     output: TransformOutputFunc
     msgs: Message[]
+    auxiliaryFiles?: AuxiliaryFile[]
 }
 
 export type TransformFunc = (expr: TransformCtx) => TransformOutput

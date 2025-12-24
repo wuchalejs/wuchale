@@ -1,7 +1,7 @@
 // $$ node %f
 
-import { testContentSetup, testDirSetup, absDir, ts } from '../../wuchale/tests/check.ts'
-import { rm } from 'fs/promises'
+import { testContentSetup, testDirSetup, absDir, ts, getOutput } from '../../wuchale/tests/check.ts'
+import { rm, readdir, readFile } from 'fs/promises'
 import { adapter, type AstroArgs } from '@wuchale/astro'
 import type { CompiledElement } from 'wuchale'
 
@@ -37,6 +37,66 @@ export async function testContent(
         expectedCompiled,
         filename ?? testFile
     )
+}
+
+/**
+ * Test content with wrapper component generation.
+ * Uses regex pattern matching for dynamic parts like hash values.
+ */
+export async function testContentWithWrappers(
+    t: any,
+    content: string,
+    expectedContentPattern: RegExp,
+    expectedTranslations: string,
+    expectedCompiled: CompiledElement[],
+    expectedWrapperCount: number,
+    wrapperContentPatterns?: RegExp[],
+    filename?: string,
+    conf: object = adapterOpts
+) {
+    try {
+        await rm(adapterOpts.localesDir as string, { recursive: true })
+    } catch {}
+
+    const { code } = await getOutput(
+        adapter(conf as AstroArgs),
+        'astro',
+        content,
+        filename ?? testFile,
+        -1
+    )
+
+    // Test that the output matches the expected pattern
+    t.assert.ok(
+        expectedContentPattern.test(code),
+        `Output should match pattern.\nActual output:\n${code}`
+    )
+
+    // Check wrapper files were created
+    const wuchaleDir = `${adapterOpts.localesDir}.wuchale`
+    let wrapperFiles: string[] = []
+    try {
+        wrapperFiles = (await readdir(wuchaleDir)).filter(f => f.endsWith('.astro'))
+    } catch {}
+
+    t.assert.strictEqual(
+        wrapperFiles.length,
+        expectedWrapperCount,
+        `Expected ${expectedWrapperCount} wrapper files, got ${wrapperFiles.length}`
+    )
+
+    // Optionally verify wrapper content
+    if (wrapperContentPatterns) {
+        for (let i = 0; i < wrapperContentPatterns.length; i++) {
+            if (wrapperFiles[i]) {
+                const wrapperContent = await readFile(`${wuchaleDir}/${wrapperFiles[i]}`, 'utf-8')
+                t.assert.ok(
+                    wrapperContentPatterns[i].test(wrapperContent),
+                    `Wrapper ${i} should match pattern.\nActual:\n${wrapperContent}`
+                )
+            }
+        }
+    }
 }
 
 const astroAdapter = adapter(adapterOpts)

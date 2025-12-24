@@ -2,7 +2,7 @@ import { dirname, isAbsolute, resolve, normalize, relative, join } from 'node:pa
 import { platform } from 'node:process'
 import { glob } from "tinyglobby"
 import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
+import type { Adapter, AuxiliaryFile, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
 import { compileTranslation, type CompiledElement, type Mixed } from "./compile.js"
 import AIQueue, { type ItemType } from "./ai/index.js"
@@ -134,7 +134,7 @@ type GranularState = {
     indexTracker: IndexTracker
 }
 
-type TransformOutputCode = { code?: string, map?: any }
+type TransformOutputCode = { code?: string, map?: any, auxiliaryFiles?: AuxiliaryFile[] }
 
 export class AdapterHandler {
 
@@ -1048,6 +1048,22 @@ export class AdapterHandler {
             output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
         }
         await this.writeTransformed(filename, output.code ?? content)
+
+        // Write auxiliary files (e.g., generated wrapper components for Astro)
+        // Auxiliary files can come from the output function (preferred) or from the result
+        const auxiliaryFiles = output.auxiliaryFiles ?? result.auxiliaryFiles
+        if (auxiliaryFiles) {
+            for (const aux of auxiliaryFiles) {
+                try {
+                    const auxPath = resolve(this.#adapter.localesDir, aux.path)
+                    await mkdir(dirname(auxPath), { recursive: true })
+                    await writeFile(auxPath, aux.content)
+                } catch (err) {
+                    console.error(`${color.red('Error')}: Failed to write auxiliary file: ${aux.path}`, err)
+                }
+            }
+        }
+
         return output
     }
 

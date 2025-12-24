@@ -1,0 +1,72 @@
+---
+/**
+ * Wuchale runtime component for Astro
+ * Handles mixed content (text + nested elements) in translations
+ *
+ * Usage in transformed Astro templates:
+ * <W_tx_ t={[TagWrapper0, TagWrapper1]} x={_w_runtime_.cx(0)} />
+ *
+ * Where TagWrapper components are generated .astro files that wrap nested elements.
+ */
+import type { Composite } from 'wuchale'
+
+export interface Props {
+    /** nested flag - indicates if this is nested within another W_tx_ */
+    n?: boolean
+    /** content structure from compiled translation */
+    x: Composite
+    /** tag wrapper components for nested elements */
+    t?: any[]
+    /** arguments/placeholders */
+    a?: any[]
+}
+
+const { n = false, x, t = [], a = [] } = Astro.props
+
+// Process fragments into renderable items
+type FragmentItem =
+    | { type: 'text', value: string }
+    | { type: 'arg', value: any }
+    | { type: 'tag', Component: any, ctx: any }
+    | { type: 'error', value: string }
+
+function processFragment(fragment: Composite, index: number): FragmentItem {
+    if (typeof fragment === 'string') {
+        return { type: 'text', value: fragment }
+    }
+    if (typeof fragment === 'number') {
+        if (!n || index > 0) {
+            return { type: 'arg', value: a[fragment] }
+        }
+        return { type: 'error', value: `[wuchale] Missing argument at index ${fragment}` }
+    }
+    // Array means a nested tag: [tagIndex, ...nestedContent]
+    const tagIndex = (fragment as any[])[0] as number
+    const TagComponent = t[tagIndex]
+    if (!TagComponent) {
+        return { type: 'error', value: `[wuchale] Tag component not found at index ${tagIndex}` }
+    }
+    return { type: 'tag', Component: TagComponent, ctx: fragment }
+}
+
+const fragments: FragmentItem[] = Array.isArray(x)
+    ? x.map((frag, i) => processFragment(frag as Composite, i))
+    : [processFragment(x, 0)]
+---
+
+{fragments.map((item) => {
+    if (item.type === 'text') {
+        return <Fragment set:html={item.value} />
+    }
+    if (item.type === 'arg') {
+        return item.value
+    }
+    if (item.type === 'tag') {
+        const TagComponent = item.Component
+        return <TagComponent ctx={item.ctx} />
+    }
+    if (item.type === 'error') {
+        return item.value
+    }
+    return null
+})}

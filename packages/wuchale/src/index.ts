@@ -32,6 +32,7 @@ export type {
     MessageType,
     HeuristicResult,
     RuntimeConf,
+    AuxiliaryFile,
     CatalogExpr,
     HeuristicDetails,
     HeuristicDetailsBase,
