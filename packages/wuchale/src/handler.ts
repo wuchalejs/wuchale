@@ -337,6 +337,9 @@ export class AdapterHandler {
         if (!isAbsolute(catalog)) {
             catalog = normalize(`${this.#projectRoot}/${catalog}`)
         }
+        if (platform === 'win32') {
+            catalog = catalog.replaceAll('\\', '/')
+        }
         return catalog
     }
 
