@@ -6,8 +6,7 @@ import { defaultGemini } from "./ai/gemini.js"
 export type LogLevel = 'error' | 'warn' | 'info' | 'verbose'
 
 export type ConfigPartial = {
-    sourceLocale: string
-    otherLocales: string[]
+    locales: string[]
     ai: AI | null
     logLevel: LogLevel
 }
@@ -20,8 +19,7 @@ export type Config = ConfigPartial & {
 type ConfigWithOptional = Partial<Config>
 
 export const defaultConfig: Config = {
-    sourceLocale: 'en',
-    otherLocales: [],
+    locales: [],
     adapters: {},
     hmr: true,
     ai: defaultGemini,
@@ -60,7 +58,7 @@ export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map(ext => `wuchale
 const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
 export const getLanguageName = (code: string) => displayName.of(code) ?? code
 
-function checkValidLocale(locale: string) {
+export function checkValidLocale(locale: string) {
     try {
         getLanguageName(locale)
     } catch {
@@ -88,8 +86,7 @@ export async function getConfig(configPath?: string): Promise<Config> {
         throw new Error('Config file not found')
     }
     const config = deepMergeObjects(module.default, defaultConfig)
-    checkValidLocale(config.sourceLocale)
-    for (const loc of config.otherLocales) {
+    for (const loc of config.locales) {
         checkValidLocale(loc)
     }
     return config

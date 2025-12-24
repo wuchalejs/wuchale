@@ -16,11 +16,13 @@ export const adapterOpts: Partial<VanillaArgs> = {
     loader: 'vite',
 }
 
+const config = {...defaultConfig, locales: ['en']}
+
 export async function getOutput(adapter: Adapter, key: string, content: string, filename: string, hmrVersion: number): Promise<{code: any, catalogs: any, compiled: any}> {
     const handler = new AdapterHandler(
         adapter,
         key,
-        defaultConfig,
+        config,
         'dev',
         process.cwd(),
         new Logger('error'),
@@ -97,5 +99,5 @@ export const js = ts
 // `
 // const p = await getOutput(basic, 'basic', code, testFile, -1)
 // console.log(p.code)
-// console.log(Object.values(p.catalogs.en))
-// console.log(p.compiled.en)
+// console.log(p.catalogs.get('en').catalog.values())
+// console.log(p.compiled.get('en').items)
