@@ -49,5 +49,5 @@ export const js = ts
 // `
 // const p = await getOutput(sv, 'svelte', code, testFile, -1)
 // console.log(p.code)
-// // console.log(Object.values(p.catalogs.en))
-// // console.log(p.compiled.en)
+// // console.log(p.catalogs.get('en').catalog.values())
+// // console.log(p.compiled.get('en').items)

@@ -36,7 +36,6 @@ class Wuchale {
     #adaptersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
     #granularLoadAdapters: AdapterHandler[] = []
     #singleCompiledCatalogs: Set<String> = new Set()
-    #locales: string[] = []
 
     #log: Logger
     #mode: Mode
@@ -53,7 +52,6 @@ class Wuchale {
     #init = async () => {
         this.#config = await getConfig(this.#configPath)
         this.#log = new Logger(this.#config.logLevel)
-        this.#locales = [this.#config.sourceLocale, ...this.#config.otherLocales]
         const adaptersData = Object.entries(this.#config.adapters)
         if (adaptersData.length === 0) {
             throw Error('At least one adapter is needed.')
@@ -77,7 +75,7 @@ class Wuchale {
             if (adapter.granularLoad) {
                 this.#granularLoadAdapters.push(handler)
             } else {
-                for (const locale of this.#locales) {
+                for (const locale of this.#config.locales) {
                     this.#singleCompiledCatalogs.add(resolve(handler.getCompiledFilePath(locale, null)))
                 }
             }
@@ -143,7 +141,7 @@ class Wuchale {
             }
             // for granular as well
             for (const adapter of this.#granularLoadAdapters) {
-                for (const loc of this.#locales) {
+                for (const loc of this.#config.locales) {
                     for (const id in adapter.granularStateByID) {
                         if (resolve(adapter.getCompiledFilePath(loc, id)) === ctx.file) {
                             return []

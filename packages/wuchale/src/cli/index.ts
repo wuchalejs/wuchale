@@ -54,8 +54,7 @@ Options:
 
 async function getConfigNLocales(): Promise<[Config, string[]]> {
     const config = await getConfig(values.config)
-    const locales = [config.sourceLocale, ...config.otherLocales]
-    return [ config, locales ]
+    return [ config, config.locales ]
 }
 
 if (values.help) {

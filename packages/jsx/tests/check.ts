@@ -44,5 +44,5 @@ export const tsx = ts
 // `
 // const p = await getOutput(jx, 'jsx', code, testFile, -1)
 // console.log(p.code)
-// // console.log(Object.values(p.catalogs.en))
-// // console.log(p.compiled.en?.items)
+// // console.log(p.catalogs.get('en').catalog.values())
+// // console.log(p.compiled.get('en').items)
