@@ -2,11 +2,11 @@ import {
   defaultGenerateLoadID,
   deepMergeObjects,
   createHeuristic,
-  defaultHeuristicOpts
+  defaultHeuristicOpts,
 } from "wuchale";
 import {
   pluralPattern,
-  getDefaultLoaderPath as getDefaultLoaderPathVanilla
+  getDefaultLoaderPath as getDefaultLoaderPathVanilla,
 } from "wuchale/adapter-vanilla";
 import type {
   HeuristicFunc,
@@ -15,13 +15,15 @@ import type {
   AdapterPassThruOpts,
   RuntimeConf,
   LoaderChoice,
-  CreateHeuristicOpts
+  CreateHeuristicOpts,
 } from "wuchale";
 import {
   AstroTransformer,
-  type AstroTransformerConfig
+  type AstroTransformerConfig,
 } from "./transformer.js";
 import { loaderPathResolver } from "wuchale/adapter-utils";
+import { rm, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 
 /**
  * Create a heuristic function optimized for Astro files
@@ -53,8 +55,8 @@ export const astroDefaultHeuristicOpts: CreateHeuristicOpts = {
     "Astro.cookies.get",
     "Astro.cookies.has",
     "Astro.cookies.set",
-    "Astro.cookies.delete"
-  ]
+    "Astro.cookies.delete",
+  ],
 };
 
 export const astroDefaultHeuristic: HeuristicFunc = createAstroHeuristic(
@@ -68,6 +70,12 @@ export type AstroArgs = AdapterArgs<LoadersAvailable> & {
    * Configuration for the Astro transformer
    */
   transformerConfig?: AstroTransformerConfig;
+  /**
+   * Clean up the .wuchale directory before first transform.
+   * This removes stale wrapper files from previous runs.
+   * @default true
+   */
+  cleanupOnStart?: boolean;
 };
 
 // Astro is SSR-only, so we use non-reactive runtime by default
@@ -76,17 +84,17 @@ const defaultRuntime: RuntimeConf = {
     // Astro is SSR - always use non-reactive
     return {
       init: funcName == null ? null : false, // Only init in top-level functions
-      use: false // Never use reactive in Astro SSR
+      use: false, // Never use reactive in Astro SSR
     };
   },
   reactive: {
     wrapInit: (expr) => expr,
-    wrapUse: (expr) => expr
+    wrapUse: (expr) => expr,
   },
   plain: {
     wrapInit: (expr) => expr,
-    wrapUse: (expr) => expr
-  }
+    wrapUse: (expr) => expr,
+  },
 };
 
 const defaultArgs: AstroArgs = {
@@ -98,7 +106,8 @@ const defaultArgs: AstroArgs = {
   bundleLoad: false,
   loader: "default",
   generateLoadID: defaultGenerateLoadID,
-  runtime: defaultRuntime
+  runtime: defaultRuntime,
+  cleanupOnStart: true,
 };
 
 const resolveLoaderPath = loaderPathResolver(
@@ -146,11 +155,27 @@ export function getDefaultLoaderPath(
  * ```
  */
 export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
-  const { heuristic, patterns, runtime, loader, transformerConfig, ...rest } =
-    deepMergeObjects(args, defaultArgs);
+  const {
+    heuristic,
+    patterns,
+    runtime,
+    loader,
+    transformerConfig,
+    cleanupOnStart,
+    ...rest
+  } = deepMergeObjects(args, defaultArgs);
+
+  // Track if cleanup has been done (for cleanupOnStart)
+  let cleanupDone = false;
 
   return {
     transform: async ({ content, filename, index, expr, matchUrl }) => {
+      // Clean up stale wrappers on first transform
+      if (cleanupOnStart && !cleanupDone) {
+        cleanupDone = true;
+        await cleanupWrappers(rest.localesDir);
+      }
+
       return new AstroTransformer(
         content,
         filename,
@@ -167,14 +192,43 @@ export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
     defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
     runtime,
     getRuntimeVars: {
-      reactive: "_w_load_" // Same for reactive and non-reactive in Astro
+      reactive: "_w_load_", // Same for reactive and non-reactive in Astro
     },
-    ...(rest as Omit<AdapterPassThruOpts, "runtime">)
+    ...(rest as Omit<AdapterPassThruOpts, "runtime">),
   };
 };
 
 // Re-export useful types
 export type {
   AstroTransformer,
-  AstroTransformerConfig
+  AstroTransformerConfig,
 } from "./transformer.js";
+
+/**
+ * Clean up generated wrapper components from the .wuchale directory.
+ * Call this before running extraction to remove stale wrappers.
+ * Only removes wrapper .astro files (w_*.astro), preserving other files.
+ *
+ * @param localesDir - The locales directory path (default: "./src/locales")
+ * @example
+ * ```js
+ * import { cleanupWrappers } from '@wuchale/astro'
+ * await cleanupWrappers('./src/locales')
+ * ```
+ */
+export async function cleanupWrappers(
+  localesDir: string = "./src/locales"
+): Promise<void> {
+  const wuchaleDir = join(localesDir, ".wuchale");
+  try {
+    const files = await readdir(wuchaleDir);
+    for (const file of files) {
+      // Only remove wrapper files: w_{index}_{hash}.astro
+      if (file.match(/^w_\d+_[a-f0-9]+\.astro$/)) {
+        await rm(join(wuchaleDir, file), { force: true });
+      }
+    }
+  } catch {
+    // Directory might not exist, ignore
+  }
+}
