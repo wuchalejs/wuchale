@@ -68,51 +68,68 @@ type MixedAstroNodes = any;
  * Find the position of the matching closing brace, handling:
  * - Nested braces
  * - String literals (single, double, template)
- * - Escaped characters
+ * - Escaped characters (including consecutive backslashes)
+ * - Template literal ${} expressions
  *
  * @param content The content to search in
  * @param openPos Position of the opening brace
  * @returns Position after the closing brace, or -1 if not found
  */
 function findMatchingBrace(content: string, openPos: number): number {
-  let depth = 0;
-  let inString: string | null = null;
+  type StackItem = "{" | '"' | "'" | "`" | "${";
+  const stack: StackItem[] = [];
   let i = openPos;
+
+  // The first character should be '{'
+  if (content[i] !== "{") return -1;
+  stack.push("{");
+  i++;
 
   while (i < content.length) {
     const char = content[i];
-    const prevChar = i > 0 ? content[i - 1] : "";
+    const top = stack[stack.length - 1];
 
-    // Handle escape sequences (skip next char if escaped)
-    if (prevChar === "\\" && inString) {
+    // Inside a regular string (" or ')
+    if (top === '"' || top === "'") {
+      if (char === "\\") {
+        i += 2; // Skip escape sequence (handles \\ correctly)
+        continue;
+      }
+      if (char === top) {
+        stack.pop();
+      }
       i++;
       continue;
     }
 
-    // Handle string boundaries
-    if (!inString) {
-      if (char === '"' || char === "'" || char === "`") {
-        inString = char;
-      } else if (char === "{") {
-        depth++;
-      } else if (char === "}") {
-        depth--;
-        if (depth === 0) {
-          return i + 1; // Position after the closing brace
-        }
+    // Inside a template literal body (not in ${} expression)
+    if (top === "`") {
+      if (char === "\\") {
+        i += 2; // Skip escape sequence
+        continue;
       }
-    } else if (char === inString) {
-      // Check for template literal ${} - don't exit string for nested braces
-      if (
-        inString === "`" &&
-        i + 1 < content.length &&
-        content[i + 1] === "{"
-      ) {
-        // Template literal, skip the ${ and continue
+      if (char === "`") {
+        stack.pop();
+      } else if (char === "$" && i + 1 < content.length && content[i + 1] === "{") {
+        stack.push("${");
+        i += 2; // Skip ${
+        continue;
       }
-      inString = null;
+      i++;
+      continue;
     }
 
+    // In code context (inside { or ${)
+    if (char === '"' || char === "'" || char === "`") {
+      stack.push(char);
+    } else if (char === "{") {
+      stack.push("{");
+    } else if (char === "}") {
+      stack.pop();
+      if (stack.length === 0) {
+        return i + 1; // Position after the closing brace
+      }
+    }
     i++;
   }
 
@@ -213,197 +230,151 @@ export class AstroTransformer extends Transformer {
     this.config = { ...defaultConfig, ...config };
   }
 
-  /**
-   * Built-in globals that don't need to be passed as props
-   */
+  /** Built-in globals that don't need to be passed as props */
   private static readonly BUILTIN_GLOBALS = new Set([
-    // Literals
-    "undefined",
-    "null",
-    "NaN",
-    "Infinity",
-    // Constructors/globals
-    "Object",
-    "Array",
-    "String",
-    "Number",
-    "Boolean",
-    "Symbol",
-    "BigInt",
-    "Function",
-    "Promise",
-    "Map",
-    "Set",
-    "WeakMap",
-    "WeakSet",
-    "Date",
-    "RegExp",
-    "Error",
-    "TypeError",
-    "ReferenceError",
-    "SyntaxError",
-    "JSON",
-    "Math",
-    "console",
-    "parseInt",
-    "parseFloat",
-    "isNaN",
-    "isFinite",
-    "encodeURI",
-    "decodeURI",
-    "encodeURIComponent",
-    "decodeURIComponent",
-    // Astro globals available in components
-    "Astro",
-    "Fragment",
+    "undefined", "null", "NaN", "Infinity",
+    "Object", "Array", "String", "Number", "Boolean", "Symbol", "BigInt",
+    "Function", "Promise", "Map", "Set", "WeakMap", "WeakSet",
+    "Date", "RegExp", "Error", "TypeError", "ReferenceError", "SyntaxError",
+    "JSON", "Math", "console",
+    "parseInt", "parseFloat", "isNaN", "isFinite",
+    "encodeURI", "decodeURI", "encodeURIComponent", "decodeURIComponent",
+    "Astro", "Fragment",
   ]);
 
-  /**
-   * Extract free variable references from an AST node.
-   * Returns identifiers that reference outer scope (not property names, not bound variables).
-   */
-  private extractFreeVariables(
-    node: any,
-    boundVars: Set<string> = new Set()
-  ): string[] {
-    const freeVars: string[] = [];
+  /** Keys to skip when walking AST nodes */
+  private static readonly SKIP_AST_KEYS = new Set(["type", "start", "end", "loc"]);
 
+  /** Cached parser instance */
+  private _parser: typeof Parser | null = null;
+  private _parserOpts: ReturnType<typeof scriptParseOptionsWithComments> | null = null;
+
+  /** Get TypeScript + JSX parser (lazy-initialized) */
+  private get parser() {
+    if (!this._parser) {
+      this._parser = Parser.extend(tsPlugin(), jsx());
+      this._parserOpts = scriptParseOptionsWithComments();
+    }
+    return { Parser: this._parser, opts: this._parserOpts![0], comments: this._parserOpts![1] };
+  }
+
+  /** Parse expression wrapped in parentheses */
+  private parseExpr(expr: string): Estree.Expression | null {
+    try {
+      const { Parser: P, opts } = this.parser;
+      const ast = P.parse(`(${expr})`, opts);
+      const stmt = ast.body[0];
+      if (stmt?.type === "ExpressionStatement") {
+        return stmt.expression as Estree.Expression;
+      }
+    } catch (e) {
+      if (process.env.DEBUG_WUCHALE) {
+        console.warn(`[wuchale] Failed to parse expression: ${expr.slice(0, 50)}...`, e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Generic AST walker with callbacks.
+   * Handles scoping, JSX nodes, and identifier collection.
+   */
+  private walkAst(
+    node: any,
+    callbacks: {
+      onIdentifier?: (node: any, bound: Set<string>) => void;
+      onJSXOpeningElement?: (node: any) => void;
+      onJSXText?: (node: any) => void;
+    },
+    boundVars: Set<string> = new Set()
+  ): void {
     const walk = (n: any, bound: Set<string>) => {
       if (!n || typeof n !== "object") return;
 
       switch (n.type) {
         case "Identifier":
-          // Skip if it's a built-in global or already bound
-          if (
-            !AstroTransformer.BUILTIN_GLOBALS.has(n.name) &&
-            !bound.has(n.name)
-          ) {
-            freeVars.push(n.name);
-          }
+          callbacks.onIdentifier?.(n, bound);
           break;
 
         case "MemberExpression":
-          // Only walk the object, not the property (unless computed)
           walk(n.object, bound);
-          if (n.computed) {
-            walk(n.property, bound);
-          }
+          if (n.computed) walk(n.property, bound);
           break;
 
         case "ArrowFunctionExpression":
-        case "FunctionExpression":
-          // Add parameters to bound variables
+        case "FunctionExpression": {
           const newBound = new Set(bound);
-          for (const param of n.params) {
-            this.collectBindings(param, newBound);
-          }
+          for (const param of n.params) this.collectBindings(param, newBound);
           walk(n.body, newBound);
           break;
+        }
 
-        case "FunctionDeclaration":
-          // Function name is bound, plus parameters
+        case "FunctionDeclaration": {
           const fnBound = new Set(bound);
           if (n.id) fnBound.add(n.id.name);
-          for (const param of n.params) {
-            this.collectBindings(param, fnBound);
-          }
+          for (const param of n.params) this.collectBindings(param, fnBound);
           walk(n.body, fnBound);
           break;
+        }
 
         case "VariableDeclaration":
-          // Process declarations - values can reference outer scope
           for (const decl of n.declarations) {
             if (decl.init) walk(decl.init, bound);
-            // Add declared variables to bound set for subsequent statements
             this.collectBindings(decl.id, bound);
           }
           break;
 
         case "Property":
-          // For object literals, only walk value (key is not a reference unless computed)
-          if (n.computed) walk(n.key, bound);
-          walk(n.value, bound);
-          break;
-
         case "MethodDefinition":
           if (n.computed) walk(n.key, bound);
           walk(n.value, bound);
           break;
 
-        // JSX node types - need special handling to avoid treating tag/attribute names as variables
+        // JSX - skip identifiers that are tag/attribute names
         case "JSXIdentifier":
-          // JSX identifiers are tag names or attribute names, not variable references
-          // Skip them - they're not free variables
           break;
-
         case "JSXMemberExpression":
-          // e.g., <Foo.Bar /> - these are component references, walk object but not property
           walk(n.object, bound);
           break;
-
         case "JSXNamespacedName":
-          // e.g., <svg:path /> - namespace names, not variables
           break;
-
         case "JSXElement":
         case "JSXFragment":
-          // Walk children only (opening/closing elements handled by their own cases)
-          if (n.children) {
-            for (const child of n.children) walk(child, bound);
+          if (n.openingElement) {
+            callbacks.onJSXOpeningElement?.(n.openingElement);
+            walk(n.openingElement, bound);
           }
-          // For JSXElement, also walk the opening element for spread attributes
-          if (n.openingElement) walk(n.openingElement, bound);
+          if (n.children) for (const child of n.children) walk(child, bound);
           break;
-
         case "JSXOpeningElement":
         case "JSXOpeningFragment":
-          // Walk attributes (may contain expressions), but NOT the element name
-          if (n.attributes) {
-            for (const attr of n.attributes) walk(attr, bound);
-          }
+          if (n.attributes) for (const attr of n.attributes) walk(attr, bound);
           break;
-
         case "JSXClosingElement":
         case "JSXClosingFragment":
-          // No variables to extract from closing tags
           break;
-
         case "JSXAttribute":
-          // Only walk the value, not the name (name is an attribute name, not a variable)
           if (n.value) walk(n.value, bound);
           break;
-
         case "JSXSpreadAttribute":
-          // The argument IS a variable reference
           walk(n.argument, bound);
           break;
-
         case "JSXExpressionContainer":
-          // The expression inside {} - THIS is where variables live
-          if (n.expression && n.expression.type !== "JSXEmptyExpression") {
-            walk(n.expression, bound);
-          }
+          if (n.expression?.type !== "JSXEmptyExpression") walk(n.expression, bound);
           break;
-
         case "JSXText":
+          callbacks.onJSXText?.(n);
+          break;
         case "JSXEmptyExpression":
-          // No variables in text or empty expressions
           break;
 
         default:
-          // Walk all child nodes
           for (const key of Object.keys(n)) {
-            if (
-              key === "type" ||
-              key === "start" ||
-              key === "end" ||
-              key === "loc"
-            )
-              continue;
+            if (AstroTransformer.SKIP_AST_KEYS.has(key)) continue;
             const child = n[key];
             if (Array.isArray(child)) {
               for (const c of child) walk(c, bound);
-            } else if (child && typeof child === "object" && child.type) {
+            } else if (child?.type) {
               walk(child, bound);
             }
           }
@@ -411,7 +382,49 @@ export class AstroTransformer extends Transformer {
     };
 
     walk(node, boundVars);
-    return [...new Set(freeVars)]; // Deduplicate
+  }
+
+  /** Extract free variable references from an AST node */
+  private extractFreeVariables(node: any, boundVars: Set<string> = new Set()): string[] {
+    const freeVars: string[] = [];
+    this.walkAst(node, {
+      onIdentifier: (n, bound) => {
+        if (!AstroTransformer.BUILTIN_GLOBALS.has(n.name) && !bound.has(n.name)) {
+          freeVars.push(n.name);
+        }
+      },
+    }, boundVars);
+    return [...new Set(freeVars)];
+  }
+
+  /** Replace free variable references using AST positions (more accurate than regex) */
+  private replaceVariablesWithAst(
+    exprSource: string,
+    exprAst: any,
+    varToReplacement: Map<string, string>,
+    positionOffset: number = 0
+  ): string {
+    const replacements: Array<{ start: number; end: number; replacement: string }> = [];
+
+    this.walkAst(exprAst, {
+      onIdentifier: (n, bound) => {
+        if (!AstroTransformer.BUILTIN_GLOBALS.has(n.name) && !bound.has(n.name) && varToReplacement.has(n.name)) {
+          replacements.push({
+            start: n.start - positionOffset,
+            end: n.end - positionOffset,
+            replacement: varToReplacement.get(n.name)!,
+          });
+        }
+      },
+    });
+
+    // Sort descending to replace from end to start (positions stay valid)
+    replacements.sort((a, b) => b.start - a.start);
+    let result = exprSource;
+    for (const { start, end, replacement } of replacements) {
+      result = result.slice(0, start) + replacement + result.slice(end);
+    }
+    return result;
   }
 
   /**
@@ -457,19 +470,22 @@ export class AstroTransformer extends Transformer {
   private extractExpressionsFromContent(content: string): [string, string[]] {
     const expressions: string[] = [];
     const exprToIndex = new Map<string, number>();
-    // Extend parser with both TypeScript and JSX support for expressions like (<a>{locale}</a>)
-    const TsJsxParser = Parser.extend(tsPlugin(), jsx());
-    const [opts] = scriptParseOptionsWithComments();
+    const { Parser: TsJsxParser, opts } = this.parser;
 
-    // Helper to get or create index for an expression
     const getExprIndex = (expr: string): number => {
-      if (exprToIndex.has(expr)) {
-        return exprToIndex.get(expr)!;
-      }
+      if (exprToIndex.has(expr)) return exprToIndex.get(expr)!;
       const idx = expressions.length;
       expressions.push(expr);
       exprToIndex.set(expr, idx);
       return idx;
+    };
+
+    // Helper to replace free variables with array indices
+    const replaceVars = (ast: any, source: string): string => {
+      const freeVars = this.extractFreeVariables(ast);
+      const varToReplacement = new Map<string, string>();
+      for (const v of freeVars) varToReplacement.set(v, `a[${getExprIndex(v)}]`);
+      return `{${this.replaceVariablesWithAst(source, ast, varToReplacement, 1)}}`;
     };
 
     // Find all {expression} blocks in content
@@ -531,51 +547,27 @@ export class AstroTransformer extends Transformer {
             }
             if (isSimple && current.type === "Identifier") {
               parts.unshift(current.name);
-              const fullPath = parts.join(".");
-              const idx = getExprIndex(fullPath);
-              result += `{a[${idx}]}`;
+              result += `{a[${getExprIndex(parts.join("."))}]}`;
             } else {
-              // Complex member expression - extract free variables
-              const freeVars = this.extractFreeVariables(expr);
-              let newExpr = trimmedExpr;
-              for (const v of freeVars) {
-                const idx = getExprIndex(v);
-                // Escape special regex chars and use lookbehind/lookahead for JS identifiers (including $)
-                const escapedVar = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                newExpr = newExpr.replace(
-                  new RegExp(`(?<![a-zA-Z0-9_$])${escapedVar}(?![a-zA-Z0-9_$])`, "g"),
-                  `a[${idx}]`
-                );
-              }
-              result += `{${newExpr}}`;
+              result += replaceVars(expr, trimmedExpr);
             }
-          }
-          // Complex expression - extract free variables and replace
-          else {
+          } else {
             const freeVars = this.extractFreeVariables(expr);
             if (freeVars.length === 0) {
-              // No free variables, keep as-is
               result += content.slice(braceStart, braceEnd);
             } else {
-              let newExpr = trimmedExpr;
-              for (const v of freeVars) {
-                const idx = getExprIndex(v);
-                // Escape special regex chars and use lookbehind/lookahead for JS identifiers (including $)
-                const escapedVar = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                newExpr = newExpr.replace(
-                  new RegExp(`(?<![a-zA-Z0-9_$])${escapedVar}(?![a-zA-Z0-9_$])`, "g"),
-                  `a[${idx}]`
-                );
-              }
-              result += `{${newExpr}}`;
+              result += replaceVars(expr, trimmedExpr);
             }
           }
         } else {
           // Not an expression statement, keep as-is
           result += content.slice(braceStart, braceEnd);
         }
-      } catch {
+      } catch (e) {
         // Parse error - not a valid expression, keep as-is
+        if (process.env.DEBUG_WUCHALE) {
+          console.warn(`[wuchale] Could not parse as expression (keeping as-is): ${trimmedExpr.slice(0, 50)}...`);
+        }
         result += content.slice(braceStart, braceEnd);
       }
 
@@ -646,39 +638,74 @@ export class AstroTransformer extends Transformer {
     return { importName, expressions };
   }
 
-  /**
-   * Transform original nested element content to replace text with runtime tx(ctx) call.
-   * Only called when hasContext is true (content is translatable).
-   *
-   * Supported patterns:
-   * - <b>text</b> -> <b>{_w_runtime_.tx(ctx)}</b>
-   * - <a href="/x">text</a> -> <a href="/x">{_w_runtime_.tx(ctx)}</a>
-   * - <Component>text</Component> -> <Component>{_w_runtime_.tx(ctx)}</Component>
-   *
-   * Limitation: Uses simple regex that only handles the first text node.
-   * Nested elements like <a><span>text</span></a> are not fully supported.
-   * This is acceptable because the MixedVisitor only extracts single-level nested elements.
-   */
+  /** Transform nested element content to replace text with runtime tx(ctx) call */
   private transformWrapperContent(content: string): string {
-    // Handle self-closing tags - they don't have text to replace
-    if (/^<[^>]+\/>$/.test(content.trim())) {
-      return content;
+    if (/^<[^>]+\/>$/.test(content.trim())) return content; // Self-closing tags
+
+    const expr = this.parseExpr(content);
+    if (!expr) {
+      // Fallback: regex-based replacement
+      return content.replace(/>([^<]+)<\//, (m, text) => {
+        if (!text.trim()) return m;
+        return `>${text.match(/^\s*/)?.[0] || ""}{_w_runtime_.tx(ctx)}${text.match(/\s*$/)?.[0] || ""}</`;
+      });
     }
 
-    // Replace text content with tx(ctx) call
-    // Pattern: find text between > and </ (innermost text)
-    // This handles: <b>text</b> -> <b>{_w_runtime_.tx(ctx)}</b>
-    // And: <a href="/x">text</a> -> <a href="/x">{_w_runtime_.tx(ctx)}</a>
-    return content.replace(/>([^<]+)<\//, (match, text) => {
-      const trimmed = text.trim();
-      if (trimmed) {
-        // Replace text with runtime call, preserving surrounding whitespace
-        const leadingWs = text.match(/^\s*/)?.[0] || "";
-        const trailingWs = text.match(/\s*$/)?.[0] || "";
-        return `>${leadingWs}{_w_runtime_.tx(ctx)}${trailingWs}</`;
-      }
-      return match;
+    const textNodes: Array<{ start: number; end: number; text: string }> = [];
+    this.walkAst(expr, {
+      onJSXText: (n) => {
+        if ((n.value as string).trim()) {
+          textNodes.push({ start: n.start - 1, end: n.end - 1, text: n.value });
+        }
+      },
     });
+
+    if (textNodes.length === 0) return content;
+
+    textNodes.sort((a, b) => b.start - a.start);
+    let result = content;
+    for (const { start, end, text } of textNodes) {
+      const ws = { lead: text.match(/^\s*/)?.[0] || "", trail: text.match(/\s*$/)?.[0] || "" };
+      result = result.slice(0, start) + `${ws.lead}{_w_runtime_.tx(ctx)}${ws.trail}` + result.slice(end);
+    }
+    return result;
+  }
+
+  /** Extract string literal value from expression, or null if not a string literal */
+  private extractStringLiteral(expr: string): string | null {
+    const node = this.parseExpr(expr);
+    if (node?.type === "Literal" && typeof (node as any).value === "string") {
+      return (node as any).value;
+    }
+    // Fallback to regex
+    const m = expr.match(/^(["'])(.+)\1$/s);
+    return m ? m[2] : null;
+  }
+
+  /** Extract component names (uppercase tags) used in JSX content */
+  private extractUsedComponentNames(content: string): Set<string> {
+    const names = new Set<string>();
+    const expr = this.parseExpr(content);
+    if (!expr) {
+      // Fallback: regex
+      for (const m of content.matchAll(/<([A-Z][a-zA-Z0-9]*)/g)) names.add(m[1]);
+      return names;
+    }
+
+    this.walkAst(expr, {
+      onJSXOpeningElement: (n) => {
+        const name = n.name;
+        if (name?.type === "JSXIdentifier") {
+          const tag = name.name as string;
+          if (tag[0] === tag[0].toUpperCase()) names.add(tag);
+        } else if (name?.type === "JSXMemberExpression") {
+          let curr = name;
+          while (curr.type === "JSXMemberExpression") curr = curr.object;
+          if (curr.type === "JSXIdentifier") names.add(curr.name as string);
+        }
+      },
+    });
+    return names;
   }
 
   initMixedVisitor = () =>
@@ -748,12 +775,21 @@ export class AstroTransformer extends Transformer {
             // mstr.slice() is unreliable after transformations - use original content
             // Note: Astro AST sometimes reports end position incorrectly for elements
             // Find the actual end by looking for the closing > character
+            // Use smart search that skips > inside quoted strings
             let adjustedEnd = childEnd;
             if (this.content[childEnd - 1] !== ">") {
-              // Search forward for the closing >
-              const searchEnd = Math.min(childEnd + 20, this.content.length);
+              // Search forward for the closing >, but skip > inside quotes
+              const searchEnd = Math.min(childEnd + 100, this.content.length);
+              let inString: string | null = null;
               for (let i = childEnd; i < searchEnd; i++) {
-                if (this.content[i] === ">") {
+                const char = this.content[i];
+                if (inString) {
+                  if (char === inString && this.content[i - 1] !== "\\") {
+                    inString = null;
+                  }
+                } else if (char === '"' || char === "'") {
+                  inString = char;
+                } else if (char === ">") {
                   adjustedEnd = i + 1;
                   break;
                 }
@@ -871,28 +907,21 @@ export class AstroTransformer extends Transformer {
    * The value contains the expression after the ...
    */
   visitSpreadAttribute = (attr: AttributeNode): Message[] => {
-    if (!attr.value) {
-      return [];
-    }
+    if (!attr.value) return [];
 
-    // Parse the spread expression using Acorn
-    const TsParser = Parser.extend(tsPlugin());
-    const [opts] = scriptParseOptionsWithComments();
-
+    const { Parser: P, opts } = this.parser;
     let exprAst: Estree.Program;
     try {
-      // Wrap in parentheses to parse as expression
-      exprAst = TsParser.parse(`(${attr.value})`, opts);
-    } catch {
-      // Can't parse, skip
+      exprAst = P.parse(`(${attr.value})`, opts);
+    } catch (e) {
+      if (process.env.DEBUG_WUCHALE) {
+        console.warn(`[wuchale] Failed to parse spread attribute: ${attr.value?.slice(0, 50)}...`, e);
+      }
       return [];
     }
 
-    // Get the expression from the program
     const exprStmt = exprAst.body[0];
-    if (exprStmt?.type !== "ExpressionStatement") {
-      return [];
-    }
+    if (exprStmt?.type !== "ExpressionStatement") return [];
 
     // Find the spread in source to get offset for transformations
     const attrStart = attr.position?.start?.offset;
@@ -957,9 +986,9 @@ export class AstroTransformer extends Transformer {
       // Astro compiler doesn't provide end position for attributes
       // Find the attribute end by searching for the closing quote
       const searchContent = this.content.slice(attrStart);
-      // Match: name="value" or name='value'
+      // Match: name="value" or name='value' (handles quotes inside opposite quote type, multiline, escapes)
       const attrMatch = searchContent.match(
-        /^[\w.-]+\s*=\s*(["'])(?:[^"'\\]|\\.)*\1/
+        /^[\w.-]+\s*=\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/s
       );
       if (!attrMatch) {
         return [];
@@ -967,7 +996,7 @@ export class AstroTransformer extends Transformer {
       const attrEnd = attrStart + attrMatch[0].length;
 
       const attrContent = attrMatch[0];
-      const valueMatch = attrContent.match(/=\s*["'](.*)["']$/);
+      const valueMatch = attrContent.match(/=\s*(["'])([\s\S]*)\1$/);
       if (valueMatch) {
         const valueStart = attrStart + attrContent.indexOf(valueMatch[0]);
         this.mstr.update(
@@ -984,13 +1013,11 @@ export class AstroTransformer extends Transformer {
     if (attr.kind === "expression" && attr.value) {
       const exprContent = attr.value.trim();
 
-      // Check for simple string literal (single or double quoted)
-      const stringMatch = exprContent.match(/^(["'])(.+)\1$/);
-      if (!stringMatch) {
+      // Check for simple string literal using AST parsing
+      const stringValue = this.extractStringLiteral(exprContent);
+      if (stringValue === null) {
         return []; // Not a simple string literal, skip (could be variable, template, etc.)
       }
-
-      const stringValue = stringMatch[2];
 
       const [pass, msgInfo] = this.checkHeuristic(stringValue, {
         scope: "script" as "script",
@@ -1098,10 +1125,10 @@ export class AstroTransformer extends Transformer {
           if (node.children.length === 1 && is.text(node.children[0])) {
             const textNode = node.children[0] as TextNode;
             const textValue = textNode.value.trim();
-            const stringMatch = textValue.match(/^(["'])(.+)\1$/s);
-            if (stringMatch) {
+            // Use AST-based string literal detection
+            const stringValue = this.extractStringLiteral(textValue);
+            if (stringValue !== null) {
               // This is a string literal expression
-              const stringValue = stringMatch[2];
               const [pass, msgInfo] = this.checkHeuristic(stringValue, {
                 scope: "markup",
                 element: this.currentElement,
@@ -1303,29 +1330,16 @@ export class AstroTransformer extends Transformer {
     const contentOffset =
       frontmatterStart + (dashMatch ? dashMatch[0].length : 3);
 
-    // Parse the script content with Acorn (TypeScript support)
-    const TsParser = Parser.extend(tsPlugin());
-    const [opts, comments] = scriptParseOptionsWithComments();
-
+    const { Parser: P, opts } = this.parser;
     let scriptAst: Estree.Program;
     try {
-      scriptAst = TsParser.parse(scriptContent, {
-        ...opts,
-        allowReturnOutsideFunction: true,
-      });
+      scriptAst = P.parse(scriptContent, { ...opts, allowReturnOutsideFunction: true });
     } catch (e) {
-      // If parsing fails, skip frontmatter transformation
       console.warn(`Failed to parse frontmatter in ${this.filename}:`, e);
       return [];
     }
 
-    // Extract component imports from AST (replaces regex-based extraction)
-    this.componentImports = this.extractImportsFromAst(
-      scriptAst,
-      scriptContent
-    );
-
-    this.comments = comments;
+    this.componentImports = this.extractImportsFromAst(scriptAst, scriptContent);
 
     // Use offset-adjusted MagicString for frontmatter transformation
     // This is cleaner than monkey-patching the original methods
@@ -1427,15 +1441,13 @@ export class AstroTransformer extends Transformer {
             const filename = `w_${metadata.index}_${hash}.astro`;
 
             // Filter imports to only include ones used in this wrapper's content
-            // Uses pre-parsed AST data instead of regex for robustness
+            // Uses JSX AST parsing to find actual component usage
+            const usedComponentNames = this.extractUsedComponentNames(metadata.transformedContent);
             const usedImports = componentImports
               .filter((imp) => {
                 // Check if default import is used as a component
                 if (imp.defaultName) {
-                  // Look for <ComponentName or <ComponentName> patterns
-                  return new RegExp(`<${imp.defaultName}[\\s/>]`).test(
-                    metadata.transformedContent
-                  );
+                  return usedComponentNames.has(imp.defaultName);
                 }
                 return false; // Skip named imports for now
               })

@@ -600,3 +600,181 @@ const locale = "en";
     [/<Nested>\{\(<a href="test">\{a\[0\]\}<\/a>\)\}<\/Nested>/]
     )
 })
+
+// ============================================
+// Edge Case Tests - Escape Sequences & Quotes
+// ============================================
+
+test('Expression with escaped quotes', async t => {
+    await testContent(t, astro`
+---
+---
+
+<p>{"He said \"hello\" to me"}</p>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+---
+<p>{_w_runtime_.t(0)}</p>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "He said \\"hello\\" to me"
+    msgstr "He said \\"hello\\" to me"
+    `, ['He said "hello" to me'])
+})
+
+test('Expression with template literal containing ${}', async t => {
+    await testContentWithWrappers(t, astro`
+---
+const name = "World";
+---
+
+<p>Hello <b>{\`dear \${name}\`}</b>!</p>
+    `,
+    // Should extract 'name' as a free variable and replace it with a[0]
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[name\]\}/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Hello <0/>!"
+    msgstr "Hello <0/>!"
+    `,
+    [['Hello ', [0], '!']],
+    1,
+    // Wrapper should have template literal with a[0] replacing name
+    [/<b>\{\`dear \$\{a\[0\]\}\`\}<\/b>/]
+    )
+})
+
+test('Attribute with single quote inside double quotes', async t => {
+    await testContent(t, astro`
+---
+---
+
+<button title="Don't click me">Submit</button>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+---
+<button title={_w_runtime_.t(0)}>{_w_runtime_.t(1)}</button>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Don't click me"
+    msgstr "Don't click me"
+
+    #: tests/test-dir/test.astro
+    msgid "Submit"
+    msgstr "Submit"
+    `, ["Don't click me", 'Submit'])
+})
+
+test('Attribute with double quote inside single quotes', async t => {
+    await testContent(t, astro`
+---
+---
+
+<button title='Say "hello"'>Submit</button>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+---
+<button title={_w_runtime_.t(0)}>{_w_runtime_.t(1)}</button>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Say \\"hello\\""
+    msgstr "Say \\"hello\\""
+
+    #: tests/test-dir/test.astro
+    msgid "Submit"
+    msgstr "Submit"
+    `, ['Say "hello"', 'Submit'])
+})
+
+test('Multiline attribute value', async t => {
+    await testContent(t, astro`
+---
+---
+
+<div title="Line one
+Line two
+Line three">Content</div>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+---
+<div title={_w_runtime_.t(0)}>{_w_runtime_.t(1)}</div>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid ""
+    "Line one\\n"
+    "Line two\\n"
+    "Line three"
+    msgstr ""
+    "Line one\\n"
+    "Line two\\n"
+    "Line three"
+
+    #: tests/test-dir/test.astro
+    msgid "Content"
+    msgstr "Content"
+    `, ['Line one\nLine two\nLine three', 'Content'])
+})
+
+test('Expression with consecutive backslashes', async t => {
+    await testContent(t, astro`
+---
+---
+
+<p>{"Path: C:\\\\Users\\\\test"}</p>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+---
+<p>{_w_runtime_.t(0)}</p>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Path: C:\\\\Users\\\\test"
+    msgstr "Path: C:\\\\Users\\\\test"
+    `, ['Path: C:\\Users\\test'])
+})
+
+test('Nested template literal with multiple expressions', async t => {
+    await testContentWithWrappers(t, astro`
+---
+const firstName = "John";
+const lastName = "Doe";
+---
+
+<p>Welcome <b>{\`\${firstName} \${lastName}\`}</b> to the site!</p>
+    `,
+    // Should extract both firstName and lastName as free variables
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[firstName, lastName\]\}/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Welcome <0/> to the site!"
+    msgstr "Welcome <0/> to the site!"
+    `,
+    [['Welcome ', [0], ' to the site!']],
+    1,
+    // Wrapper should have template literal with a[0] and a[1]
+    [/<b>\{\`\$\{a\[0\]\} \$\{a\[1\]\}\`\}<\/b>/]
+    )
+})
