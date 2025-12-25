@@ -182,7 +182,12 @@ class Wuchale {
         if (this.#mode === 'dev' && !this.#config.hmr) {
             return {}
         }
-        const filename = relative(this.#projectRoot, id)
+        let filename = relative(this.#projectRoot, id)
+        const queryIndex = filename.indexOf('?')
+        if (queryIndex >= 0) {
+            // trim after this, like ?v=b65b2c3b when it's from node_modules
+            filename = filename.slice(0, queryIndex)
+        }
         for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
                 return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
