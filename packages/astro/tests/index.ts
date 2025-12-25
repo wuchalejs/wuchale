@@ -242,6 +242,31 @@ const _w_runtime_ = _w_load_('astro');
     `, ['Email address', 'First name and last name', 'Cookies and Usage Data'])
 })
 
+test('Expression in compound text', async t => {
+    await testContent(t, astro`
+---
+const locale = 'en';
+---
+
+<p>You're viewing the {locale} page.</p>
+    `, astro`
+---
+import {getRuntime as _w_load_, getRuntimeRx as _w_load_} from "../test-tmp/astro.loader.js"
+const _w_runtime_ = _w_load_('astro');
+import W_tx_ from "@wuchale/astro/runtime.astro";
+const locale = 'en';
+---
+<p><W_tx_ x={_w_runtime_.cx(0)} a={[locale]} /></p>
+    `, `
+    msgid ""
+    msgstr ""
+    #. placeholder {0}: locale
+    #: tests/test-dir/test.astro
+    msgid "You're viewing the {0} page."
+    msgstr "You're viewing the {0} page."
+    `, [["You're viewing the ", 0, " page."]])
+})
+
 test('Nested components with slots', async t => {
     await testContent(t, astro`
 ---
@@ -499,5 +524,54 @@ import Icon from "@/components/Icon.astro";
     [['Click ', [0], ' to favorite']],
     1,
     [/<Icon name="star" \/>/] // Self-closing tag preserved as-is
+    )
+})
+
+test('Nested element - complex expression with free variables', async t => {
+    await testContentWithWrappers(t, astro`
+---
+import Nested from "@/components/Nested.astro";
+const locale = "en";
+---
+
+<p>You're viewing the <Nested>{locale == "en" ? "ENGLISH" : "SPANISH"}</Nested> page.</p>
+    `,
+    // Should have wrapper import and W_tx_ with a prop containing the variable
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[locale/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "You're viewing the <0/> page."
+    msgstr "You're viewing the <0/> page."
+    `,
+    [["You're viewing the ", [0], ' page.']],
+    1,
+    // Wrapper should have the expression with a[0] replacing locale
+    [/<Nested>\{a\[0\] == "en" \? "ENGLISH" : "SPANISH"\}<\/Nested>/]
+    )
+})
+
+test('Nested element - expression with $-prefixed variable', async t => {
+    await testContentWithWrappers(t, astro`
+---
+const $count = 5;
+---
+
+<p>You have <b>{$count > 0 ? "items" : "nothing"}</b> in cart.</p>
+    `,
+    // Should have wrapper import and W_tx_ with a prop containing the $count variable
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[\$count\]\}/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "You have <0/> in cart."
+    msgstr "You have <0/> in cart."
+    `,
+    [["You have ", [0], ' in cart.']],
+    1,
+    // Wrapper should have the expression with a[0] replacing $count
+    [/<b>\{a\[0\] > 0 \? "items" : "nothing"\}<\/b>/]
     )
 })

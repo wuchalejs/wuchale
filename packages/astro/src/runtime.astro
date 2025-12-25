@@ -63,7 +63,7 @@ const fragments: FragmentItem[] = Array.isArray(x)
     }
     if (item.type === 'tag') {
         const TagComponent = item.Component
-        return <TagComponent ctx={item.ctx} />
+        return <TagComponent ctx={item.ctx} a={a} />
     }
     if (item.type === 'error') {
         return item.value
