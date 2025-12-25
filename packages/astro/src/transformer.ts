@@ -2,6 +2,7 @@ import MagicString from "magic-string";
 import { Parser } from "acorn";
 import { Message } from "wuchale";
 import { tsPlugin } from "@sveltejs/acorn-typescript";
+import jsx from "acorn-jsx";
 import type * as Estree from "acorn";
 import { createHash } from "node:crypto";
 import { dirname, resolve, relative } from "node:path";
@@ -329,6 +330,66 @@ export class AstroTransformer extends Transformer {
           walk(n.value, bound);
           break;
 
+        // JSX node types - need special handling to avoid treating tag/attribute names as variables
+        case "JSXIdentifier":
+          // JSX identifiers are tag names or attribute names, not variable references
+          // Skip them - they're not free variables
+          break;
+
+        case "JSXMemberExpression":
+          // e.g., <Foo.Bar /> - these are component references, walk object but not property
+          walk(n.object, bound);
+          break;
+
+        case "JSXNamespacedName":
+          // e.g., <svg:path /> - namespace names, not variables
+          break;
+
+        case "JSXElement":
+        case "JSXFragment":
+          // Walk children only (opening/closing elements handled by their own cases)
+          if (n.children) {
+            for (const child of n.children) walk(child, bound);
+          }
+          // For JSXElement, also walk the opening element for spread attributes
+          if (n.openingElement) walk(n.openingElement, bound);
+          break;
+
+        case "JSXOpeningElement":
+        case "JSXOpeningFragment":
+          // Walk attributes (may contain expressions), but NOT the element name
+          if (n.attributes) {
+            for (const attr of n.attributes) walk(attr, bound);
+          }
+          break;
+
+        case "JSXClosingElement":
+        case "JSXClosingFragment":
+          // No variables to extract from closing tags
+          break;
+
+        case "JSXAttribute":
+          // Only walk the value, not the name (name is an attribute name, not a variable)
+          if (n.value) walk(n.value, bound);
+          break;
+
+        case "JSXSpreadAttribute":
+          // The argument IS a variable reference
+          walk(n.argument, bound);
+          break;
+
+        case "JSXExpressionContainer":
+          // The expression inside {} - THIS is where variables live
+          if (n.expression && n.expression.type !== "JSXEmptyExpression") {
+            walk(n.expression, bound);
+          }
+          break;
+
+        case "JSXText":
+        case "JSXEmptyExpression":
+          // No variables in text or empty expressions
+          break;
+
         default:
           // Walk all child nodes
           for (const key of Object.keys(n)) {
@@ -396,7 +457,8 @@ export class AstroTransformer extends Transformer {
   private extractExpressionsFromContent(content: string): [string, string[]] {
     const expressions: string[] = [];
     const exprToIndex = new Map<string, number>();
-    const TsParser = Parser.extend(tsPlugin());
+    // Extend parser with both TypeScript and JSX support for expressions like (<a>{locale}</a>)
+    const TsJsxParser = Parser.extend(tsPlugin(), jsx());
     const [opts] = scriptParseOptionsWithComments();
 
     // Helper to get or create index for an expression
@@ -442,7 +504,7 @@ export class AstroTransformer extends Transformer {
 
       // Try to parse as expression
       try {
-        const ast = TsParser.parse(`(${trimmedExpr})`, opts);
+        const ast = TsJsxParser.parse(`(${trimmedExpr})`, opts);
         const stmt = ast.body[0];
         if (stmt?.type === "ExpressionStatement") {
           const expr = stmt.expression;

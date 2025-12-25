@@ -575,3 +575,28 @@ const $count = 5;
     [/<b>\{a\[0\] > 0 \? "items" : "nothing"\}<\/b>/]
     )
 })
+
+test('Nested element - JSX expression with variable inside', async t => {
+    await testContentWithWrappers(t, astro`
+---
+import Nested from "@/components/Nested.astro";
+const locale = "en";
+---
+
+<p>You're viewing the <Nested>{(<a href="test">{locale}</a>)}</Nested> page.</p>
+    `,
+    // Should have wrapper import and W_tx_ with a prop containing the locale variable
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[locale\]\}/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "You're viewing the <0/> page."
+    msgstr "You're viewing the <0/> page."
+    `,
+    [["You're viewing the ", [0], ' page.']],
+    1,
+    // Wrapper should have the JSX expression with a[0] replacing locale inside the nested element
+    [/<Nested>\{\(<a href="test">\{a\[0\]\}<\/a>\)\}<\/Nested>/]
+    )
+})
