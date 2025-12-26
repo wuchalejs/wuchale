@@ -6,15 +6,10 @@ import { commentPrefix, nonWhitespaceText, type RuntimeVars, type CommentDirecti
 
 type NestedRanges = [number, number, boolean][]
 
-type BasicNode = {
-    start: number
-    end: number
-}
-
 type InitProps<NodeT> = {
     vars: () => RuntimeVars
     mstr: MagicString
-    getRange: (node: NodeT) => BasicNode
+    getRange: (node: NodeT) => { start: number, end: number }
     isText: (node: NodeT) => boolean
     isExpression: (node: NodeT) => boolean
     isComment: (node: NodeT) => boolean
@@ -42,7 +37,7 @@ type VisitProps<NodeT> = {
     useComponent?: boolean
 }
 
-export interface MixedVisitor<NodeT extends BasicNode> extends InitProps<NodeT> {}
+export interface MixedVisitor<NodeT> extends InitProps<NodeT> {}
 
 export class MixedVisitor<NodeT> {
 
@@ -209,7 +204,8 @@ export class MixedVisitor<NodeT> {
             }
             if (props.scope === 'attribute' && `'"`.includes(this.mstr.original[lastChildEnd])) {
                 const firstChild = props.children[0]
-                this.mstr.remove(firstChild.start - 1, firstChild.start)
+                const {start} = this.getRange(firstChild)
+                this.mstr.remove(start - 1, start)
                 this.mstr.remove(lastChildEnd, lastChildEnd + 1)
             }
             this.mstr.appendLeft(lastChildEnd, begin)
