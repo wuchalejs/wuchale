@@ -13,12 +13,14 @@ export class BraceMatcher {
   private position: number;
   private stack: ContextType[];
   private braceDepth: number;
+  private templateExpressionDepths: number[]; // Track brace depth when entering each template expression
 
   constructor(content: string) {
     this.content = content;
     this.position = 0;
     this.stack = [];
     this.braceDepth = 0;
+    this.templateExpressionDepths = [];
   }
 
   /**
@@ -91,8 +93,10 @@ export class BraceMatcher {
       this.content[this.position + 1] === "{"
     ) {
       // Enter template expression - treat as code context
-      this.stack.push("code");
+      // Track the depth at which we enter so we know when to exit
       this.braceDepth++;
+      this.templateExpressionDepths.push(this.braceDepth);
+      this.stack.push("code");
       this.position += 2;
       return null;
     }
@@ -122,11 +126,13 @@ export class BraceMatcher {
         if (this.braceDepth === 0) {
           return this.position + 1; // Position after closing brace
         }
-        // Pop code context if we were in a template expression
+        // Pop code context only if this brace closes a template expression
+        // (i.e., we're back to the depth at which we entered the template expression)
         if (
-          this.stack.length > 1 &&
-          this.stack[this.stack.length - 2] === "template"
+          this.templateExpressionDepths.length > 0 &&
+          this.braceDepth === this.templateExpressionDepths[this.templateExpressionDepths.length - 1] - 1
         ) {
+          this.templateExpressionDepths.pop();
           this.stack.pop();
         }
         break;

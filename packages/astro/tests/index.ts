@@ -799,3 +799,27 @@ const lastName = "Doe";
     [`<b>{a[0] + " " + a[1]}</b>`]
     )
 })
+
+test('Template literal with nested braces (object literal inside ${})', async t => {
+    // This test verifies that object literals inside template expressions
+    // are handled correctly. The brace matcher must track the depth at which
+    // each template expression was opened to avoid prematurely exiting.
+    await testContentWithWrappers(t, astro`
+---
+const obj = { x: 1 };
+---
+
+<p>Value is <b>{\`result: \${ {x: 1}.x }\`}</b>!</p>
+    `,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Value is <0/>!"
+    msgstr "Value is <0/>!"
+    `,
+    [['Value is ', [0], '!']],
+    [`<b>{\`result: \${ {x: 1}.x }\`}</b>`]
+    )
+})
