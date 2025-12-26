@@ -37,7 +37,6 @@ export type {
     HeuristicDetailsBase,
     HeuristicFunc,
     TransformOutput,
-    TransformHeader,
     UseReactiveFunc,
     UrlMatcher,
 } from './adapters.js'

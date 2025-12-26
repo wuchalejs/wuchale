@@ -164,10 +164,6 @@ export type CatalogExpr = {
     reactive: string
 }
 
-export type TransformHeader = {
-    head: string
-}
-
 export type UrlMatcher = (url: string) => string | null | undefined
 
 type TransformCtx = {

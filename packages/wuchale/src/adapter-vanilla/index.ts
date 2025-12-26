@@ -5,7 +5,6 @@ import { deepMergeObjects } from "../config.js"
 import type {
     AdapterArgs,
     Adapter,
-    AdapterPassThruOpts,
     RuntimeConf,
     CodePattern,
     LoaderChoice,
@@ -86,6 +85,6 @@ export const adapter = (args: Partial<VanillaArgs> = defaultArgs): Adapter => {
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
-        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
+        ...rest,
     }
 }

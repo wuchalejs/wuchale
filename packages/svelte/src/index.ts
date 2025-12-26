@@ -3,7 +3,6 @@ import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
-    AdapterPassThruOpts,
     RuntimeConf,
     LoaderChoice,
     CreateHeuristicOpts,
@@ -126,6 +125,6 @@ export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
-        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
+        ...rest,
     }
 }

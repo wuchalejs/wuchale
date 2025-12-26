@@ -4,7 +4,6 @@ import type {
     HeuristicFunc,
     Adapter,
     AdapterArgs,
-    AdapterPassThruOpts,
     RuntimeConf,
     LoaderChoice,
     CreateHeuristicOpts,
@@ -130,6 +129,6 @@ export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
         getRuntimeVars: {
             reactive: 'useW_load_rx_'
         },
-        ...rest as Omit<AdapterPassThruOpts, 'runtime'>,
+        ...rest,
     }
 }
