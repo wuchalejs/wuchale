@@ -2,7 +2,6 @@ import MagicString from "magic-string";
 import { Parser } from "acorn";
 import { Message } from "wuchale";
 import { tsPlugin } from "@sveltejs/acorn-typescript";
-import jsx from "acorn-jsx";
 import type * as Estree from "acorn";
 import { createHash } from "node:crypto";
 import { dirname, resolve, relative } from "node:path";
@@ -252,7 +251,7 @@ export class AstroTransformer extends Transformer {
   /** Get TypeScript + JSX parser (lazy-initialized) */
   private get parser() {
     if (!this._parser) {
-      this._parser = Parser.extend(tsPlugin(), jsx());
+      this._parser = Parser.extend(tsPlugin({ jsx: true }));
       this._parserOpts = scriptParseOptionsWithComments();
     }
     return { Parser: this._parser, opts: this._parserOpts![0], comments: this._parserOpts![1] };
