@@ -377,8 +377,7 @@ test('Nested element - simple bold text', async t => {
 
 <p>Click <b>here</b> to continue</p>
     `,
-    // Expected pattern: imports wrapper and W_tx_ component (order flexible), uses W_tx_ with t prop
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<p><W_tx_ t=\{\[_w_tag_0\]\} x=\{_w_runtime_\.cx\(0\)\} \/><\/p>/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -386,9 +385,8 @@ test('Nested element - simple bold text', async t => {
     msgid "Click <0>here</0> to continue"
     msgstr "Click <0>here</0> to continue"
     `,
-    [['Click ', [0], ' to continue']],
-    1, // One wrapper file expected
-    [/<b>\{_w_runtime_\.tx\(ctx\)\}<\/b>/] // Wrapper should contain <b> with tx(ctx)
+    [['Click ', [0, 'here'], ' to continue']],
+    [`<b>{_w_runtime_.tx(ctx)}</b>`]
     )
 })
 
@@ -399,8 +397,7 @@ test('Nested element - multiple nested elements', async t => {
 
 <p>Click <b>here</b> or <i>there</i> to proceed</p>
     `,
-    // Expected pattern: two wrapper imports (after W_tx_ import)
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*import _w_tag_1 from ['"].*\.wuchale\/w_1_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0, _w_tag_1\]\}/,
+    `<p><W_tx_ t={[_w_tag_0, _w_tag_1]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -408,8 +405,8 @@ test('Nested element - multiple nested elements', async t => {
     msgid "Click <0>here</0> or <1>there</1> to proceed"
     msgstr "Click <0>here</0> or <1>there</1> to proceed"
     `,
-    [['Click ', [0], ' or ', [1], ' to proceed']],
-    2 // Two wrapper files expected
+    [['Click ', [0, 'here'], ' or ', [1, 'there'], ' to proceed']],
+    [`<b>{_w_runtime_.tx(ctx)}</b>`, `<i>{_w_runtime_.tx(ctx)}</i>`]
     )
 })
 
@@ -420,7 +417,7 @@ test('Nested element - link with href', async t => {
 
 <p>Read our <a href="/terms">terms of service</a> for details</p>
     `,
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -428,9 +425,8 @@ test('Nested element - link with href', async t => {
     msgid "Read our <0>terms of service</0> for details"
     msgstr "Read our <0>terms of service</0> for details"
     `,
-    [['Read our ', [0], ' for details']],
-    1,
-    [/<a href="\/terms">\{_w_runtime_\.tx\(ctx\)\}<\/a>/] // Wrapper preserves href attribute
+    [['Read our ', [0, 'terms of service'], ' for details']],
+    [`<a href="/terms">{_w_runtime_.tx(ctx)}</a>`]
     )
 })
 
@@ -442,7 +438,7 @@ import Button from "@/components/Button.astro";
 
 <p>Click <Button>here</Button> to submit</p>
     `,
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -450,9 +446,8 @@ import Button from "@/components/Button.astro";
     msgid "Click <0>here</0> to submit"
     msgstr "Click <0>here</0> to submit"
     `,
-    [['Click ', [0], ' to submit']],
-    1,
-    [/<Button>\{_w_runtime_\.tx\(ctx\)\}<\/Button>/] // Wrapper contains Astro component
+    [['Click ', [0, 'here'], ' to submit']],
+    [`<Button>{_w_runtime_.tx(ctx)}</Button>`]
     )
 })
 
@@ -463,8 +458,7 @@ test('Nested element - non-translatable content preserved', async t => {
 
 <p>Open the <code><pre>src/pages</pre></code> directory</p>
     `,
-    // Wrapper should be created but with original content (not tx(ctx))
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -473,8 +467,7 @@ test('Nested element - non-translatable content preserved', async t => {
     msgstr "Open the <0/> directory"
     `,
     [['Open the ', [0], ' directory']],
-    1,
-    [/<code><pre>src\/pages<\/pre><\/code>/] // Wrapper preserves original non-translatable text
+    [`<code><pre>src/pages</pre></code>`]
     )
 })
 
@@ -487,8 +480,7 @@ test('Nested element - slot left in place', async t => {
 
 <h1>This is a <slot /> component</h1>
     `,
-    // Pattern: slot should remain in the output, no W_tx_ wrapper for slot
-    /<h1>\{_w_runtime_\.t\(0\)\} <slot \/> \{_w_runtime_\.t\(1\)\}<\/h1>/,
+    `<h1>{_w_runtime_.t(0)} <slot /> {_w_runtime_.t(1)}</h1>`,
     `
     msgid ""
     msgstr ""
@@ -500,8 +492,8 @@ test('Nested element - slot left in place', async t => {
     msgid "component"
     msgstr "component"
     `,
-    ['This is a', 'component'],
-    0 // No wrapper files expected - slot is left in place
+    ['This is a', 'component']
+    // No wrapper files expected - slot is left in place
     )
 })
 
@@ -513,7 +505,7 @@ import Icon from "@/components/Icon.astro";
 
 <p>Click <Icon name="star" /> to favorite</p>
     `,
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -522,8 +514,7 @@ import Icon from "@/components/Icon.astro";
     msgstr "Click <0/> to favorite"
     `,
     [['Click ', [0], ' to favorite']],
-    1,
-    [/<Icon name="star" \/>/] // Self-closing tag preserved as-is
+    [`<Icon name="star" />`]
     )
 })
 
@@ -536,8 +527,7 @@ const locale = "en";
 
 <p>You're viewing the <Nested>{locale == "en" ? "ENGLISH" : "SPANISH"}</Nested> page.</p>
     `,
-    // Should have wrapper import and W_tx_ with a prop containing the variable
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[locale/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} a={[locale]} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -546,9 +536,7 @@ const locale = "en";
     msgstr "You're viewing the <0/> page."
     `,
     [["You're viewing the ", [0], ' page.']],
-    1,
-    // Wrapper should have the expression with a[0] replacing locale
-    [/<Nested>\{a\[0\] == "en" \? "ENGLISH" : "SPANISH"\}<\/Nested>/]
+    [`<Nested>{a[0] == "en" ? "ENGLISH" : "SPANISH"}</Nested>`]
     )
 })
 
@@ -560,8 +548,7 @@ const $count = 5;
 
 <p>You have <b>{$count > 0 ? "items" : "nothing"}</b> in cart.</p>
     `,
-    // Should have wrapper import and W_tx_ with a prop containing the $count variable
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[\$count\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} a={[$count]} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -570,9 +557,7 @@ const $count = 5;
     msgstr "You have <0/> in cart."
     `,
     [["You have ", [0], ' in cart.']],
-    1,
-    // Wrapper should have the expression with a[0] replacing $count
-    [/<b>\{a\[0\] > 0 \? "items" : "nothing"\}<\/b>/]
+    [`<b>{a[0] > 0 ? "items" : "nothing"}</b>`]
     )
 })
 
@@ -585,8 +570,7 @@ const locale = "en";
 
 <p>You're viewing the <Nested>{(<a href="test">{locale}</a>)}</Nested> page.</p>
     `,
-    // Should have wrapper import and W_tx_ with a prop containing the locale variable
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*import _w_tag_0 from ['"].*\.wuchale\/w_0_[a-f0-9]+\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[locale\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(0)} a={[locale]} /></p>`,
     `
     msgid ""
     msgstr ""
@@ -595,9 +579,7 @@ const locale = "en";
     msgstr "You're viewing the <0/> page."
     `,
     [["You're viewing the ", [0], ' page.']],
-    1,
-    // Wrapper should have the JSX expression with a[0] replacing locale inside the nested element
-    [/<Nested>\{\(<a href="test">\{a\[0\]\}<\/a>\)\}<\/Nested>/]
+    [`<Nested>{(<a href="test">{a[0]}</a>)}</Nested>`]
     )
 })
 
@@ -634,19 +616,20 @@ const name = "World";
 
 <p>Hello <b>{\`dear \${name}\`}</b>!</p>
     `,
-    // Should extract 'name' as a free variable and replace it with a[0]
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[name\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(1)} a={[name]} /></p>`,
     `
     msgid ""
     msgstr ""
     #: tests/test-dir/test.astro
+    msgid "World"
+    msgstr "World"
+
+    #: tests/test-dir/test.astro
     msgid "Hello <0/>!"
     msgstr "Hello <0/>!"
     `,
-    [['Hello ', [0], '!']],
-    1,
-    // Wrapper should have template literal with a[0] replacing name
-    [/<b>\{\`dear \$\{a\[0\]\}\`\}<\/b>/]
+    ['World', ['Hello ', [0], '!']],
+    [`<b>{\`dear \${a[0]}\`}</b>`]
     )
 })
 
@@ -763,19 +746,24 @@ const lastName = "Doe";
 
 <p>Welcome <b>{\`\${firstName} \${lastName}\`}</b> to the site!</p>
     `,
-    // Should extract both firstName and lastName as free variables
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[firstName, lastName\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(2)} a={[firstName, lastName]} /></p>`,
     `
     msgid ""
     msgstr ""
     #: tests/test-dir/test.astro
+    msgid "John"
+    msgstr "John"
+
+    #: tests/test-dir/test.astro
+    msgid "Doe"
+    msgstr "Doe"
+
+    #: tests/test-dir/test.astro
     msgid "Welcome <0/> to the site!"
     msgstr "Welcome <0/> to the site!"
     `,
-    [['Welcome ', [0], ' to the site!']],
-    1,
-    // Wrapper should have template literal with a[0] and a[1]
-    [/<b>\{\`\$\{a\[0\]\} \$\{a\[1\]\}\`\}<\/b>/]
+    ['John', 'Doe', ['Welcome ', [0], ' to the site!']],
+    [`<b>{\`\${a[0]} \${a[1]}\`}</b>`]
     )
 })
 
@@ -791,19 +779,23 @@ const lastName = "Doe";
 
 <p>Hello <b>{firstName + " " + lastName}</b>!</p>
     `,
-    // Should extract both firstName and lastName as free variables
-    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[firstName, lastName\]\}/,
+    `<p><W_tx_ t={[_w_tag_0]} x={_w_runtime_.cx(2)} a={[firstName, lastName]} /></p>`,
     `
     msgid ""
     msgstr ""
     #: tests/test-dir/test.astro
+    msgid "John"
+    msgstr "John"
+
+    #: tests/test-dir/test.astro
+    msgid "Doe"
+    msgstr "Doe"
+
+    #: tests/test-dir/test.astro
     msgid "Hello <0/>!"
     msgstr "Hello <0/>!"
     `,
-    [['Hello ', [0], '!']],
-    1,
-    // Wrapper should have expression with a[0] and a[1] replacing firstName and lastName
-    // The order of replacement is critical - must replace from end to start
-    [/<b>\{a\[0\] \+ " " \+ a\[1\]\}<\/b>/]
+    ['John', 'Doe', ['Hello ', [0], '!']],
+    [`<b>{a[0] + " " + a[1]}</b>`]
     )
 })
