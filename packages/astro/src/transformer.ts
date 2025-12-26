@@ -38,6 +38,7 @@ import type {
   ExpressionNode,
   CommentNode,
 } from "@astrojs/compiler/types";
+import { findMatchingBrace } from "./utils/brace-matcher.js";
 
 const rtComponent = "W_tx_";
 
@@ -62,78 +63,6 @@ const nodesWithChildren = [
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MixedAstroNodes = any;
-
-/**
- * Find the position of the matching closing brace, handling:
- * - Nested braces
- * - String literals (single, double, template)
- * - Escaped characters (including consecutive backslashes)
- * - Template literal ${} expressions
- *
- * @param content The content to search in
- * @param openPos Position of the opening brace
- * @returns Position after the closing brace, or -1 if not found
- */
-function findMatchingBrace(content: string, openPos: number): number {
-  type StackItem = "{" | '"' | "'" | "`" | "${";
-  const stack: StackItem[] = [];
-  let i = openPos;
-
-  // The first character should be '{'
-  if (content[i] !== "{") return -1;
-  stack.push("{");
-  i++;
-
-  while (i < content.length) {
-    const char = content[i];
-    const top = stack[stack.length - 1];
-
-    // Inside a regular string (" or ')
-    if (top === '"' || top === "'") {
-      if (char === "\\") {
-        i += 2; // Skip escape sequence (handles \\ correctly)
-        continue;
-      }
-      if (char === top) {
-        stack.pop();
-      }
-      i++;
-      continue;
-    }
-
-    // Inside a template literal body (not in ${} expression)
-    if (top === "`") {
-      if (char === "\\") {
-        i += 2; // Skip escape sequence
-        continue;
-      }
-      if (char === "`") {
-        stack.pop();
-      } else if (char === "$" && i + 1 < content.length && content[i + 1] === "{") {
-        stack.push("${");
-        i += 2; // Skip ${
-        continue;
-      }
-      i++;
-      continue;
-    }
-
-    // In code context (inside { or ${)
-    if (char === '"' || char === "'" || char === "`") {
-      stack.push(char);
-    } else if (char === "{") {
-      stack.push("{");
-    } else if (char === "}") {
-      stack.pop();
-      if (stack.length === 0) {
-        return i + 1; // Position after the closing brace
-      }
-    }
-    i++;
-  }
-
-  return -1; // No matching brace found
-}
 
 /**
  * Configuration options for the Astro transformer
@@ -419,11 +348,11 @@ export class AstroTransformer extends Transformer {
 
     // Sort descending to replace from end to start (positions stay valid)
     replacements.sort((a, b) => b.start - a.start);
-    let result = exprSource;
+    const mstr = new MagicString(exprSource);
     for (const { start, end, replacement } of replacements) {
-      result = result.slice(0, start) + replacement + result.slice(end);
+      mstr.update(start, end, replacement);
     }
-    return result;
+    return mstr.toString();
   }
 
   /**
@@ -470,6 +399,7 @@ export class AstroTransformer extends Transformer {
     const expressions: string[] = [];
     const exprToIndex = new Map<string, number>();
     const { Parser: TsJsxParser, opts } = this.parser;
+    const mstr = new MagicString(content);
 
     const getExprIndex = (expr: string): number => {
       if (exprToIndex.has(expr)) return exprToIndex.get(expr)!;
@@ -487,97 +417,77 @@ export class AstroTransformer extends Transformer {
       return `{${this.replaceVariablesWithAst(source, ast, varToReplacement, 1)}}`;
     };
 
-    // Find all {expression} blocks in content
-    let result = "";
-    let lastIndex = 0;
-    let braceStart = content.indexOf("{");
-
-    while (braceStart !== -1) {
-      // Add content before the brace
-      result += content.slice(lastIndex, braceStart);
-
-      // Find matching closing brace
-      const braceEnd = findMatchingBrace(content, braceStart);
-      if (braceEnd === -1) {
-        // No matching brace, keep rest of content as-is
-        result += content.slice(braceStart);
-        lastIndex = content.length;
-        break;
+    // Helper to extract dotted member path (e.g., "foo.bar.baz")
+    const extractMemberPath = (expr: any): string | null => {
+      const parts: string[] = [];
+      let current = expr;
+      while (current.type === "MemberExpression" && !current.computed) {
+        if (current.property.type !== "Identifier") return null;
+        parts.unshift(current.property.name);
+        current = current.object;
       }
+      if (current.type !== "Identifier") return null;
+      parts.unshift(current.name);
+      return parts.join(".");
+    };
 
-      // Extract expression content (without braces)
+    // Process expression and return replacement, or null to keep original
+    const processExpression = (trimmedExpr: string): string | null => {
+      try {
+        const ast = TsJsxParser.parse(`(${trimmedExpr})`, opts);
+        const stmt = ast.body[0];
+        if (stmt?.type !== "ExpressionStatement") return null;
+
+        const expr = stmt.expression;
+
+        // Simple identifier: {foo}
+        if (expr.type === "Identifier") {
+          return `{a[${getExprIndex(expr.name)}]}`;
+        }
+
+        // Simple member expression: {foo.bar}
+        if (expr.type === "MemberExpression" && !expr.computed) {
+          const path = extractMemberPath(expr);
+          if (path) return `{a[${getExprIndex(path)}]}`;
+          return replaceVars(expr, trimmedExpr);
+        }
+
+        // Complex expression: check for free variables
+        const freeVars = this.extractFreeVariables(expr);
+        if (freeVars.length === 0) return null; // Keep as-is
+        return replaceVars(expr, trimmedExpr);
+      } catch {
+        if (process.env.DEBUG_WUCHALE) {
+          console.warn(`[wuchale] Could not parse as expression (keeping as-is): ${trimmedExpr.slice(0, 50)}...`);
+        }
+        return null;
+      }
+    };
+
+    // Find and process all {expression} blocks
+    let searchPos = 0;
+    while (searchPos < content.length) {
+      const braceStart = content.indexOf("{", searchPos);
+      if (braceStart === -1) break;
+
+      const braceEnd = findMatchingBrace(content, braceStart);
+      if (braceEnd === -1) break;
+
       const exprContent = content.slice(braceStart + 1, braceEnd - 1);
       const trimmedExpr = exprContent.trim();
 
       // Skip runtime calls (already transformed)
-      if (trimmedExpr.startsWith("_w_runtime_")) {
-        result += content.slice(braceStart, braceEnd);
-        lastIndex = braceEnd;
-        braceStart = content.indexOf("{", lastIndex);
-        continue;
+      if (!trimmedExpr.startsWith("_w_runtime_")) {
+        const replacement = processExpression(trimmedExpr);
+        if (replacement !== null) {
+          mstr.update(braceStart, braceEnd, replacement);
+        }
       }
 
-      // Try to parse as expression
-      try {
-        const ast = TsJsxParser.parse(`(${trimmedExpr})`, opts);
-        const stmt = ast.body[0];
-        if (stmt?.type === "ExpressionStatement") {
-          const expr = stmt.expression;
-
-          // Check if it's a simple identifier: {foo}
-          if (expr.type === "Identifier") {
-            const idx = getExprIndex(expr.name);
-            result += `{a[${idx}]}`;
-          }
-          // Check if it's a simple member expression: {foo.bar}
-          else if (expr.type === "MemberExpression" && !expr.computed) {
-            // Reconstruct the dotted path
-            const parts: string[] = [];
-            let current: any = expr;
-            let isSimple = true;
-            while (current.type === "MemberExpression" && !current.computed) {
-              if (current.property.type === "Identifier") {
-                parts.unshift(current.property.name);
-                current = current.object;
-              } else {
-                isSimple = false;
-                break;
-              }
-            }
-            if (isSimple && current.type === "Identifier") {
-              parts.unshift(current.name);
-              result += `{a[${getExprIndex(parts.join("."))}]}`;
-            } else {
-              result += replaceVars(expr, trimmedExpr);
-            }
-          } else {
-            const freeVars = this.extractFreeVariables(expr);
-            if (freeVars.length === 0) {
-              result += content.slice(braceStart, braceEnd);
-            } else {
-              result += replaceVars(expr, trimmedExpr);
-            }
-          }
-        } else {
-          // Not an expression statement, keep as-is
-          result += content.slice(braceStart, braceEnd);
-        }
-      } catch (e) {
-        // Parse error - not a valid expression, keep as-is
-        if (process.env.DEBUG_WUCHALE) {
-          console.warn(`[wuchale] Could not parse as expression (keeping as-is): ${trimmedExpr.slice(0, 50)}...`);
-        }
-        result += content.slice(braceStart, braceEnd);
-      }
-
-      lastIndex = braceEnd;
-      braceStart = content.indexOf("{", lastIndex);
+      searchPos = braceEnd;
     }
 
-    // Add remaining content
-    result += content.slice(lastIndex);
-
-    return [result, expressions];
+    return [mstr.toString(), expressions];
   }
 
   /**

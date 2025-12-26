@@ -778,3 +778,32 @@ const lastName = "Doe";
     [/<b>\{\`\$\{a\[0\]\} \$\{a\[1\]\}\`\}<\/b>/]
     )
 })
+
+test('Multiple variable replacements in single expression', async t => {
+    // This test verifies that when multiple variables appear in a single expression,
+    // they are replaced correctly. The replacement algorithm must process variables
+    // in descending position order to avoid invalidating positions.
+    await testContentWithWrappers(t, astro`
+---
+const firstName = "John";
+const lastName = "Doe";
+---
+
+<p>Hello <b>{firstName + " " + lastName}</b>!</p>
+    `,
+    // Should extract both firstName and lastName as free variables
+    /import W_tx_ from ['"]@wuchale\/astro\/runtime\.astro['"];[\s\S]*<W_tx_ t=\{\[_w_tag_0\]\}.*a=\{\[firstName, lastName\]\}/,
+    `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Hello <0/>!"
+    msgstr "Hello <0/>!"
+    `,
+    [['Hello ', [0], '!']],
+    1,
+    // Wrapper should have expression with a[0] and a[1] replacing firstName and lastName
+    // The order of replacement is critical - must replace from end to start
+    [/<b>\{a\[0\] \+ " " \+ a\[1\]\}<\/b>/]
+    )
+})
