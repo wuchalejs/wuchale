@@ -80,13 +80,9 @@ export type AstroArgs = AdapterArgs<LoadersAvailable> & {
 
 // Astro is SSR-only, so we use non-reactive runtime by default
 const defaultRuntime: RuntimeConf = {
-  useReactive: ({ funcName }) => {
+  initReactive: ({ funcName }) => funcName == null ? null : false, // Only init in top-level functions
     // Astro is SSR - always use non-reactive
-    return {
-      init: funcName == null ? null : false, // Only init in top-level functions
-      use: false, // Never use reactive in Astro SSR
-    };
-  },
+    useReactive: () => false,
   reactive: {
     wrapInit: (expr) => expr,
     wrapUse: (expr) => expr,
@@ -98,6 +94,7 @@ const defaultRuntime: RuntimeConf = {
 };
 
 const defaultArgs: AstroArgs = {
+    sourceLocale: 'en',
   files: { include: "src/pages/**/*.astro", ignore: [] },
   localesDir: "./src/locales",
   patterns: [pluralPattern],
