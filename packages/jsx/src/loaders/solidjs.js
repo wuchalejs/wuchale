@@ -9,6 +9,6 @@ const [store, setStore] = createStore({})
 // two exports. can be the same because solid-js can use them anywhere unlike react
 export const getRuntimeRx = registerLoaders(key, loadCatalog, loadIDs, {
     get: loadID => store[loadID],
-    set: setStore,
+    set: (loadID, runtime) => setStore(loadID, () => runtime),
 })
 export const getRuntime = getRuntimeRx
