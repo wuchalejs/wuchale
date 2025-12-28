@@ -21,9 +21,10 @@ const collection = {
 registerLoaders(key, loadCatalog, loadIDs, collection)
 
 export const getRuntimeRx = (/** @type {string} */ loadID) => {
-    const [runtime, setRuntime] = useState(getRuntime(loadID))
+    // function to useState because runtime is a function too
+    const [runtime, setRuntime] = useState(() => getRuntime(loadID))
     useEffect(() => {
-        const cb = (/** @type {import('wuchale/runtime').Runtime} */ runtime) => setRuntime(runtime)
+        const cb = (/** @type {import('wuchale/runtime').Runtime} */ runtime) => setRuntime(() => runtime)
         callbacks[loadID] ??= new Set()
         callbacks[loadID].add(cb)
         return () => callbacks[loadID].delete(cb)
