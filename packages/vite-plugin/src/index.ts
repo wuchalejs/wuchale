@@ -185,8 +185,11 @@ class Wuchale {
         let filename = relative(this.#projectRoot, id)
         const queryIndex = filename.indexOf('?')
         if (queryIndex >= 0) {
-            // trim after this, like ?v=b65b2c3b when it's from node_modules
-            filename = filename.slice(0, queryIndex)
+            const query = new URLSearchParams(filename.slice(queryIndex))
+            if (query.size === 1 && query.has('v')) {
+                // trim after this, like ?v=b65b2c3b when it's from node_modules
+                filename = filename.slice(0, queryIndex)
+            }
         }
         for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
