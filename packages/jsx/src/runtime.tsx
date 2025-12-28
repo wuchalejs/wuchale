@@ -3,11 +3,11 @@ import type { Composite, Mixed } from 'wuchale'
 export type WuchaleComponentProps = {
     n?: boolean
     x: Composite
-    t: Function
+    t: Function[]
     a: any[]
 }
 
-export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): string | Mixed | Composite {
+export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): string | Mixed | Composite | undefined {
     if (typeof x === 'string') {
         return x
     }
@@ -15,7 +15,7 @@ export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): 
         if (!n || i > 0) {
             return a[x]
         }
-        return `i18n-400:${x}`
+        return
     }
     const tag = t[x[0] as number]
     if (tag == null) {
