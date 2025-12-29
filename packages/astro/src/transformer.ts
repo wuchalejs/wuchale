@@ -276,7 +276,8 @@ export class AstroTransformer extends Transformer {
 
     visitroot = (node: RootNode): Message[] => {
         const msgs: Message[] = []
-        for (const rootChild of node.children) {
+        // ?? [] because it's undefined on an empty file
+        for (const rootChild of node.children ?? []) {
             msgs.push(...this.visitAs(rootChild))
         }
         return msgs
