@@ -1063,8 +1063,8 @@ export class AdapterHandler {
     async directScanFS(clean: boolean, sync: boolean) {
         const dumps: Map<string, string> = new Map()
         for (const loc of this.#allLocales) {
-            const items = this.sharedState.poFilesByLoc.get(loc)!.catalog.values()
-            dumps.set(loc, poDumpToString(Array.from(items)))
+            const items = Array.from(this.sharedState.poFilesByLoc.get(loc)!.catalog.values())
+            dumps.set(loc, poDumpToString(items))
             if (clean) {
                 for (const item of items) {
                     // unreference all references that belong to this adapter
@@ -1103,7 +1103,7 @@ export class AdapterHandler {
             if (clean) {
                 for (const [key, item] of catalog.entries()) {
                     if (item.references.length === 0) {
-                        delete catalog[key]
+                        catalog.delete(key)
                     }
                 }
             }
