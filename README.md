@@ -55,7 +55,7 @@ extracting translatable strings.
 
 - **Standalone CLI** - For any JavaScript/TypeScript project
 - **Vite Plugin** - For Vite-based projects with vanilla JS/TS
-- **Framework Adapters** - Specialized support for React/Preact, Svelte, and SolidJS
+- **Framework Adapters** - Specialized support for React/Preact, Svelte, SolidJS, and Astro
 
 **Installation and setup varies by use case.** See the [Getting Started
 guide](https://wuchale.dev/intro/start/) for detailed instructions specific to
@@ -110,10 +110,13 @@ Your original code stays clean and readable, while the build output is automatic
 
 This is a monorepo that houses these packages:
 
-- [`wuchale`](https://npmjs.com/package/wuchale): Core + CLI + Vanilla adapter
-- [`@wuchale/jsx`](https://npmjs.com/package/@wuchale/jsx): JSX adapter (for React and SolidJS)
-- [`@wuchale/svelte`](https://npmjs.com/package/@wuchale/svelte): Svelte adapter
-- [`@wuchale/vite-plugin`](https://npmjs.com/package/@wuchale/vite-plugin): The Vite plugin
+| Package    | Description | Latest |
+| -------- | ------- | --- |
+| `wuchale`  | Core + CLI + Vanilla adapter    |[![wuchale](https://img.shields.io/npm/v/wuchale?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/wuchale) |
+| `@wuchale/jsx` | JSX adapter (for React and SolidJS)     |[![@wuchale/jsx](https://img.shields.io/npm/v/@wuchale/jsx?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/jsx)|
+| `@wuchale/svelte`    | Svelte adapter    |[![@wuchale/svelte](https://img.shields.io/npm/v/@wuchale/svelte?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/svelte)|
+| `@wuchale/astro`    | Astro adapter    |[![@wuchale/astro](https://img.shields.io/npm/v/@wuchale/astro?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/astro)|
+| `@wuchale/vite-plugin`    | The Vite plugin    |[![@wuchale/vite-plugin](https://img.shields.io/npm/v/@wuchale/vite-plugin?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/vite-plugin)|
 
 ## Examples
 
@@ -169,7 +172,7 @@ Special thanks to our supporters:
 [![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&size=48)](https://github.com/hayzamjs)
 [![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&size=48)](https://github.com/perdix)
 
-And one private donor 🙏.
+And two private donors 🙏.
 
 ## Inspiration
 
