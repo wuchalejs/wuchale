@@ -4,21 +4,22 @@ import { color, Logger } from "../log.js"
 import { readFile } from "node:fs/promises"
 import { watch as watchFS } from 'chokidar'
 
-function extractor(handler: AdapterHandler) {
+function extractor(handler: AdapterHandler, logger: Logger) {
     const adapterName = color.magenta(handler.key)
     return async (filename: string) => {
-        console.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
+        logger.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
         const contents = await readFile(filename)
         await handler.transform(contents.toString(), filename)
     }
 }
 
 export async function extract(config: Config, clean: boolean, watch: boolean, sync: boolean) {
-    !watch && console.info('Extracting...')
+    const logger = new Logger(config.logLevel)
+    !watch && logger.info('Extracting...')
     const handlers: AdapterHandler[] = []
     const sharedState: SharedStates = new Map()
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
+        const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), logger)
         await handler.init(sharedState)
         handlers.push(handler)
     }
@@ -27,12 +28,12 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
         await handler.directScanFS(clean, sync)
     }
     if (!watch) {
-        console.info('Extraction finished.')
+        logger.info('Extraction finished.')
         return
     }
     // watch
-    console.info('Watching for changes')
-    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h)])
+    logger.info('Watching for changes')
+    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h, logger)])
     watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
         if (!['add', 'change'].includes(event)) {
             return

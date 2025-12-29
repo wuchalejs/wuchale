@@ -1054,7 +1054,7 @@ export class AdapterHandler {
     directFileHandler() {
         const adapterName = color.magenta(this.key)
         return async (filename: string) => {
-            console.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
+            this.#log.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
             const contents = await readFile(filename)
             await this.transform(contents.toString(), filename, undefined, undefined, true)
         }
@@ -1096,7 +1096,7 @@ export class AdapterHandler {
             await Promise.all(filePaths.map(extract))
         }
         if (clean) {
-            console.info('Cleaning...')
+            this.#log.info('Cleaning...')
         }
         for (const loc of this.#allLocales) {
             const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog

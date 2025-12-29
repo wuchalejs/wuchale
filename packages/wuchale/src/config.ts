@@ -2,8 +2,7 @@ import { resolve } from "node:path"
 import { type Adapter } from "./adapters.js"
 import type { AI } from "./ai/index.js"
 import { defaultGemini } from "./ai/gemini.js"
-
-export type LogLevel = 'error' | 'warn' | 'info' | 'verbose'
+import type { LogLevel } from "./log.js"
 
 export type ConfigPartial = {
     locales: string[]
