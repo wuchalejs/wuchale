@@ -68,7 +68,6 @@ export class Transformer<RTCtxT = {}> {
     content: string
     /* for when the comments are not parsed as part of the AST */
     comments: Estree.Comment[][] = []
-    filename: string
     mstr: MagicString
     patterns: CodePattern[]
     matchUrl: UrlMatcher
@@ -89,7 +88,7 @@ export class Transformer<RTCtxT = {}> {
         this.heuristic = heuristic
         this.patterns = patterns
         this.content = content
-        this.filename = filename
+        this.heuristciDetails.file = filename
         this.matchUrl = matchUrl
         const topLevelUseReactive = typeof rtConf.useReactive === 'boolean' ? () => rtConf.useReactive : ({
             nested: false,
