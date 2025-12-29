@@ -5,9 +5,10 @@
 "@wuchale/jsx": minor
 ---
 
-BREAKING: Add support for 3rd party component libraries
+BREAKING: Update locales config to support for 3rd party component libraries
 
-The `sourceLocale` is now configured on a per-adapter basis, and on the top level, all `locales` have to be specified.
+The `sourceLocale` is now configured on a per-adapter basis, and on the top
+level, all desired `locales` have to be specified.
 
 You have to make some changes to your config:
 
@@ -25,11 +26,18 @@ You have to make some changes to your config:
  }
 ```
 
-If the `sourceLocale` is `en`, it is already the default so you don't need to specify it.
+Additionally, the `sourceLocale` on the adapter defaults to the first locale in
+the main `locales` array.
 
-And now to use 3rd party component libraries, you can specify the file locations in the package dir under `node_modules`:
+This allows the use of multiple languages in the source code, which may be
+necessary when you are trying to write the source in another language and you
+want to use a 3rd party lib written in English for example.
+
+And now to use 3rd party component libraries, you can specify the file
+locations in the package dir under `node_modules`:
 
 ```js
+// wuchale.config.js
 {
     //...
     adapters: {
@@ -40,9 +48,11 @@ And now to use 3rd party component libraries, you can specify the file locations
 }
 ```
 
-And additionally, to make sure that Vite doesn't interfere during dev, you can exclude the library from startup optimization:
+And additionally, to make sure that Vite doesn't interfere during dev, you can
+exclude the library from startup optimization:
 
 ```js
+// vite.config.js
 export default defineConfig({
     optimizeDeps: {
         exclude: ['foo-lib'],

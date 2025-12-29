@@ -25,7 +25,6 @@ type LoadersAvailable = 'server' | 'vite'
 export type VanillaArgs = AdapterArgs<LoadersAvailable>
 
 const defaultArgs: VanillaArgs = {
-    sourceLocale: 'en',
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
     localesDir: './src/locales',
     patterns: [pluralPattern],

@@ -220,7 +220,7 @@ export type LoaderPath = {
 }
 
 export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
-    sourceLocale: string
+    sourceLocale?: string
     files: GlobConf
     localesDir: string
     /** if writing transformed code to a directory is desired, specify this */

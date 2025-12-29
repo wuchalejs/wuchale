@@ -141,6 +141,7 @@ export class AdapterHandler {
     key: string
     /** config.locales and adapter's sourceLocale */
     #allLocales: string[]
+    #sourceLocale: string
 
     // paths
     loaderPath: LoaderPath
@@ -267,7 +268,7 @@ export class AdapterHandler {
         if (this.#adapter.granularLoad) {
             for (const state of this.granularStateByID.values()) {
                 // only the ones with ready messages
-                if (state.compiled.get(this.#adapter.sourceLocale)!.items.length) {
+                if (state.compiled.get(this.#sourceLocale)!.items.length) {
                     loadIDs.push(state.id)
                 }
             }
@@ -328,7 +329,7 @@ export class AdapterHandler {
 
     getData() {
         return [
-            `export const sourceLocale = '${this.#adapter.sourceLocale}'`,
+            `export const sourceLocale = '${this.#sourceLocale}'`,
             `export const locales = ['${this.#config.locales.join("','")}']`,
         ].join('\n')
     }
@@ -422,15 +423,16 @@ export class AdapterHandler {
         await this.#initFiles()
         this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
         this.#allLocales = [...this.#config.locales]
-        if (!this.#allLocales.includes(this.#adapter.sourceLocale)) {
-            this.#allLocales.push(this.#adapter.sourceLocale)
+        this.#sourceLocale = this.#adapter.sourceLocale ?? this.#config.locales[0]
+        if (!this.#allLocales.includes(this.#sourceLocale)) {
+            this.#allLocales.push(this.#sourceLocale)
         }
-        const sourceLocaleName = getLanguageName(this.#adapter.sourceLocale)
+        const sourceLocaleName = getLanguageName(this.#sourceLocale)
         const sharedState = sharedStates.get(this.#adapter.localesDir)
         if (sharedState == null) {
             this.sharedState = {
                 ownerKey: this.key,
-                sourceLocale: this.#adapter.sourceLocale,
+                sourceLocale: this.#sourceLocale,
                 otherFileMatches: [],
                 poFilesByLoc: new Map(),
                 indexTracker: new IndexTracker(),
@@ -439,7 +441,7 @@ export class AdapterHandler {
             }
             sharedStates.set(this.#adapter.localesDir, this.sharedState)
         } else {
-            if (sharedState.sourceLocale !== this.#adapter.sourceLocale) {
+            if (sharedState.sourceLocale !== this.#sourceLocale) {
                 throw new Error('Adapters with different source locales cannot share catalogs.')
             }
             sharedState.otherFileMatches.push(this.fileMatches)
@@ -450,7 +452,7 @@ export class AdapterHandler {
             this.#catalogsFname.set(loc, this.catalogFileName(loc))
             // for handleHotUpdate
             this.catalogPathsToLocales.set(this.#catalogsFname.get(loc)!, loc)
-            if (loc !== this.#adapter.sourceLocale && this.#config.ai) {
+            if (loc !== this.#sourceLocale && this.#config.ai) {
                 this.#aiQueues.set(loc, new AIQueue(
                     sourceLocaleName,
                     getLanguageName(loc),
@@ -525,7 +527,7 @@ export class AdapterHandler {
                     needWriteCatalog = true
                 }
                 item.msgid = locPattern
-                if (loc === this.#adapter.sourceLocale) {
+                if (loc === this.#sourceLocale) {
                     item.msgstr = [locPattern]
                 }
                 if (!item.references.includes(this.key)) {
@@ -541,7 +543,7 @@ export class AdapterHandler {
                     untranslated.push(item)
                 }
             }
-            if (untranslated.length && loc !== this.#adapter.sourceLocale) {
+            if (untranslated.length && loc !== this.#sourceLocale) {
                 const aiQueue = this.#aiQueues.get(loc)!
                 aiQueue.add(untranslated)
                 await aiQueue.running
@@ -672,7 +674,7 @@ export class AdapterHandler {
             sharedCompiledLoc = { hasPlurals: false, items: [] }
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
-        const sharedCompiledSourceItems = this.sharedState.compiled.get(this.#adapter.sourceLocale)?.items // ?. for sourceLocale itself
+        const sharedCompiledSourceItems = this.sharedState.compiled.get(this.#sourceLocale)?.items // ?. for sourceLocale itself
         const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
         for (const [key, poItem] of [...catalog.entries(), ...this.sharedState.extractedUrls.get(loc)!.entries()]) {
             if (poItem.flags[urlPatternFlag]) { // useless in compiled catalog
@@ -771,7 +773,7 @@ export class AdapterHandler {
                 `nplurals=${poFile.pluralRule.nplurals}`,
                 `plural=${poFile.pluralRule.plural};`,
             ].join('; ')],
-            ['Source-Language', this.#adapter.sourceLocale],
+            ['Source-Language', this.#sourceLocale],
             ['Language', loc],
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
@@ -954,7 +956,7 @@ export class AdapterHandler {
                 poItem.flags[urlExtractedFlag] = true // included in compiled, but not written to po file
                 continue
             }
-            if (loc === this.#adapter.sourceLocale) {
+            if (loc === this.#sourceLocale) {
                 const msgStr = msgInfo.msgStr.join('\n')
                 if (poItem.msgstr.join('\n') !== msgStr) {
                     poItem.msgstr = msgInfo.msgStr
@@ -985,7 +987,7 @@ export class AdapterHandler {
             }
             return hmrKeys
         }
-        if (loc === this.#adapter.sourceLocale || !this.#aiQueues.get(loc)?.ai) {
+        if (loc === this.#sourceLocale || !this.#aiQueues.get(loc)?.ai) {
             if (newItems || newRefs || commentsChanged) {
                 await this.savePoAndCompile(loc)
             }

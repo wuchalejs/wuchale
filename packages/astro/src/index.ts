@@ -62,7 +62,6 @@ const defaultRuntime: RuntimeConf = {
 }
 
 const defaultArgs: AstroArgs = {
-    sourceLocale: 'en',
     files: { include: "src/pages/**/*.astro", ignore: [] },
     localesDir: "./src/locales",
     patterns: [pluralPattern],
