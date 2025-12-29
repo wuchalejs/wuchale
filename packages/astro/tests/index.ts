@@ -40,6 +40,29 @@ test('Basic markup', async t => {
     `, ['Hello'])
 })
 
+test('Comment before frontmatter', async t => {
+    await testContent(t, astro`
+        <!-- foo -->
+        ---
+        ---
+        <p>Hello</p>
+    `, astro`
+        <!-- foo -->
+        ---
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/astro.loader.js"
+        import _w_Tx_ from "@wuchale/astro/runtime.js"
+        const _w_runtime_ = _w_load_('astro')
+        ---
+        <p>{_w_runtime_(0)}</p>
+    `, `
+    msgid ""
+    msgstr ""
+    #: tests/test-dir/test.astro
+    msgid "Hello"
+    msgstr "Hello"
+    `, ['Hello'])
+})
+
 test('Ignore and include', async t => {
     await testContent(t, astro`
         <div>

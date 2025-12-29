@@ -270,7 +270,7 @@ export class AstroTransformer extends Transformer {
 
     visitfrontmatter = (node: FrontmatterNode): Message[] => {
         const { start } = this.getRange(node)
-        this.frontMatterStart = start + this.content.indexOf('---', start) + 3
+        this.frontMatterStart = this.content.indexOf('---', start) + 3
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
