@@ -1,5 +1,3 @@
-import type { LogLevel } from "./config.js"
-
 const colors = {
     red: 31,
     green: 32,
@@ -21,21 +19,23 @@ const colorFuncsEntries = Object.entries(colors).map(([col, code]) => [
 
 export const color = <ColorFuncs>Object.fromEntries(colorFuncsEntries)
 
-const logSeverity: {[l in LogLevel]: number} = {
-    verbose: 0,
-    info: 1,
-    warn: 2,
+export const logLevels = {
     error: 3,
+    warn: 2,
+    info: 1,
+    verbose: 0,
 }
 
-export class Logger {
-    #logSeverity: number
+export type LogLevel = keyof typeof logLevels
 
-    constructor (logLevel: LogLevel) {
-        this.#logSeverity = logSeverity[logLevel]
+export class Logger {
+    #logLevel: number
+
+    constructor (logLevelName: LogLevel) {
+        this.#logLevel = logLevels[logLevelName]
     }
 
-    checkLevel = (level: LogLevel) => logSeverity[level] >= this.#logSeverity
+    checkLevel = (level: LogLevel) => logLevels[level] >= this.#logLevel
 
     #show = (message: string, level: LogLevel) => {
         if (!this.checkLevel(level)) {
