@@ -1,5 +1,82 @@
 # wuchale
 
+## 0.19.0
+
+### Minor Changes
+
+- 3ca7aac: Accept .ts and .mts config files because node 22+ supports them
+- 9de6b79: Make it easier to choose non-reactive runtime function
+
+  by setting `runtime.useReactive` in the adapter config.
+
+- fad845d: Add a flag `--log-level` to the CLI and use it for all outputs when extracting
+- 197bb11: Accept Gemini model code as config
+- 64f7485: BREAKING: Update locales config to support for 3rd party component libraries
+
+  The `sourceLocale` is now configured on a per-adapter basis, and on the top
+  level, all desired `locales` have to be specified.
+
+  You have to make some changes to your config:
+
+  ```diff
+   {
+  -    sourceLocale: 'en',
+  -    otherLocales: ['es', 'fr'],
+  +    locales: ['en', 'es', 'fr'],
+       adapters: {
+           main: svelte({
+  +            sourceLocale: 'en',
+               // ...
+           })
+       }
+   }
+  ```
+
+  Additionally, the `sourceLocale` on the adapter defaults to the first locale in
+  the main `locales` array.
+
+  This allows the use of multiple languages in the source code, which may be
+  necessary when you are trying to write the source in another language and you
+  want to use a 3rd party lib written in English for example.
+
+  And now to use 3rd party component libraries, you can specify the file
+  locations in the package dir under `node_modules`:
+
+  ```js
+  // wuchale.config.js
+  {
+    //...
+    adapters: {
+      lib: svelte({
+        files: "node_modules/foo-lib/dist/*.svelte",
+      });
+    }
+  }
+  ```
+
+  And additionally, to make sure that Vite doesn't interfere during dev, you can
+  exclude the library from startup optimization:
+
+  ```js
+  // vite.config.js
+  export default defineConfig({
+    optimizeDeps: {
+      exclude: ["foo-lib"],
+    },
+  });
+  ```
+
+- 63fb176: Add support for delaying setting the current locale after loading the catalogs (#163)
+
+  You can now use `commitLocale` after `loadLocale(locale, false)` to separate
+  loading from rendering.
+  This can solve SvelteKit rendering the other locale on hover over the language
+  link when preloading is on, by using it in `$effect.pre`.
+  Previously `loadLocale` accepted `key` as the second argument to selectively
+  load catalogs by adapter key. It will now load all available catalogs.
+
+- f92c641: Use `_w_runtime_(...)` instead of `_w_runtime_.t(...)` to further reduce bundle size
+
 ## 0.18.11
 
 ### Patch Changes

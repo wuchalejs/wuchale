@@ -1,5 +1,81 @@
 # @wuchale/jsx
 
+## 0.10.0
+
+### Minor Changes
+
+- 9de6b79: Make it easier to choose non-reactive runtime function
+
+  by setting `runtime.useReactive` in the adapter config.
+
+- 64f7485: BREAKING: Update locales config to support for 3rd party component libraries
+
+  The `sourceLocale` is now configured on a per-adapter basis, and on the top
+  level, all desired `locales` have to be specified.
+
+  You have to make some changes to your config:
+
+  ```diff
+   {
+  -    sourceLocale: 'en',
+  -    otherLocales: ['es', 'fr'],
+  +    locales: ['en', 'es', 'fr'],
+       adapters: {
+           main: svelte({
+  +            sourceLocale: 'en',
+               // ...
+           })
+       }
+   }
+  ```
+
+  Additionally, the `sourceLocale` on the adapter defaults to the first locale in
+  the main `locales` array.
+
+  This allows the use of multiple languages in the source code, which may be
+  necessary when you are trying to write the source in another language and you
+  want to use a 3rd party lib written in English for example.
+
+  And now to use 3rd party component libraries, you can specify the file
+  locations in the package dir under `node_modules`:
+
+  ```js
+  // wuchale.config.js
+  {
+    //...
+    adapters: {
+      lib: svelte({
+        files: "node_modules/foo-lib/dist/*.svelte",
+      });
+    }
+  }
+  ```
+
+  And additionally, to make sure that Vite doesn't interfere during dev, you can
+  exclude the library from startup optimization:
+
+  ```js
+  // vite.config.js
+  export default defineConfig({
+    optimizeDeps: {
+      exclude: ["foo-lib"],
+    },
+  });
+  ```
+
+- f92c641: Use `_w_runtime_(...)` instead of `_w_runtime_.t(...)` to further reduce bundle size
+
+### Patch Changes
+
+- Updated dependencies [3ca7aac]
+- Updated dependencies [9de6b79]
+- Updated dependencies [fad845d]
+- Updated dependencies [197bb11]
+- Updated dependencies [64f7485]
+- Updated dependencies [63fb176]
+- Updated dependencies [f92c641]
+  - wuchale@0.19.0
+
 ## 0.9.7
 
 ### Patch Changes
