@@ -188,6 +188,12 @@ export class AdapterHandler {
         } else if (adapter.url?.localize) {
             this.localizeUrl = localizeDefault
         }
+        this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
+        this.#allLocales = [...this.#config.locales]
+        this.#sourceLocale = this.#adapter.sourceLocale ?? this.#config.locales[0]
+        if (!this.#allLocales.includes(this.#sourceLocale)) {
+            this.#allLocales.push(this.#sourceLocale)
+        }
     }
 
     getLoaderPaths(): LoaderPath[] {
@@ -421,12 +427,6 @@ export class AdapterHandler {
     init = async (sharedStates: SharedStates) => {
         await this.#initPaths()
         await this.#initFiles()
-        this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
-        this.#allLocales = [...this.#config.locales]
-        this.#sourceLocale = this.#adapter.sourceLocale ?? this.#config.locales[0]
-        if (!this.#allLocales.includes(this.#sourceLocale)) {
-            this.#allLocales.push(this.#sourceLocale)
-        }
         const sourceLocaleName = getLanguageName(this.#sourceLocale)
         const sharedState = sharedStates.get(this.#adapter.localesDir)
         if (sharedState == null) {
@@ -447,7 +447,6 @@ export class AdapterHandler {
             sharedState.otherFileMatches.push(this.fileMatches)
             this.sharedState = sharedState
         }
-        this.catalogPathsToLocales = new Map()
         for (const loc of this.#allLocales) {
             this.#catalogsFname.set(loc, this.catalogFileName(loc))
             // for handleHotUpdate
