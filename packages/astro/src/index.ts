@@ -42,7 +42,7 @@ export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
 /** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
 export const astroDefaultHeuristic = createAstroHeuristic(defaultHeuristicOpts)
 
-type LoadersAvailable = "default"
+type LoadersAvailable = 'default'
 
 export type AstroArgs = AdapterArgs<LoadersAvailable>
 
@@ -62,27 +62,27 @@ const defaultRuntime: RuntimeConf = {
 }
 
 const defaultArgs: AstroArgs = {
-    files: { include: "src/pages/**/*.astro", ignore: [] },
-    localesDir: "./src/locales",
+    files: 'src/**/*.astro',
+    localesDir: './src/locales',
     patterns: [pluralPattern],
     heuristic: astroDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
-    loader: "default",
+    loader: 'default',
     generateLoadID: defaultGenerateLoadID,
     runtime: defaultRuntime,
 }
 
-const resolveLoaderPath = loaderPathResolver(import.meta.url, "../src/loaders", "js")
+const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'js')
 
 export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean): string | null {
-    if (loader === "custom") {
+    if (loader === 'custom') {
         return null
     }
     // just 'default', so
-    let loaderName = "astro"
+    let loaderName = 'astro'
     if (bundle) {
-        loaderName += ".bundle"
+        loaderName += '.bundle'
     }
     return resolveLoaderPath(loaderName)
 }
@@ -124,7 +124,7 @@ export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
                 matchUrl,
             ).transformAs()
         },
-        loaderExts: [".js", ".ts"],
+        loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         ...rest,

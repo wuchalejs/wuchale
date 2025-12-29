@@ -38,6 +38,13 @@
             "default": "./dist/runtime.js"
         }
     },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
         "@astrojs/compiler": "^2.13.0",
