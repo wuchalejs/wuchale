@@ -52,7 +52,6 @@ export class AstroTransformer extends Transformer {
     inCompoundText: boolean = false
     commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
-    currentSnippet: number = 0
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitor<MixedAstroNodes>

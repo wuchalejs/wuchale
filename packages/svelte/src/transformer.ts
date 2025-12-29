@@ -406,7 +406,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     }
 
     transformSv = async (): Promise<TransformOutput> => {
-        const isComponent = this.filename.endsWith('.svelte')
+        const isComponent = this.heuristciDetails.file.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
             const prepd = await preprocess(this.content, {style: removeSCSS})

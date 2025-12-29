@@ -269,7 +269,7 @@ export class JSXTransformer extends Transformer {
 
     transformJx = (lib: JSXLib): TransformOutput => {
         // jsx vs type casting is not ambiguous in all files except .ts files
-        const [ast, comments] = (this.filename.endsWith('.ts') ? parseScript : parseScriptJSX)(this.content)
+        const [ast, comments] = (this.heuristciDetails.file.endsWith('.ts') ? parseScript : parseScriptJSX)(this.content)
         this.comments = comments
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
