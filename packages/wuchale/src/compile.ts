@@ -1,15 +1,17 @@
-// for template literals and simple mixed markup
-// for nested markup. first number indicates the tag index, rest are arguments
 export type CompositePayload = number | string | Composite
+// for nested markup. first number indicates the tag index, rest are arguments
 export type Composite = [number, ...CompositePayload[]]
-export type Mixed = (string | number)[]
-export type CompiledElement = string | Mixed | CompositePayload[]
+export type Mixed = (string | number)[] // in e.g. attributes and template literals
+export type CompiledElement = string | Mixed | CompositePayload[] // in e.g. nested svelte elements
 
-type SpecialType = 'open' | 'close' | 'selfclose' | 'placeholder'
+const OPEN = Symbol()
+const CLOSE = Symbol()
+const SELF_CLOSE = Symbol()
+const PLACEHOLDER = Symbol()
 
 const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
 
-function extractSpecial(msgStr: string, start: number): [SpecialType | null, number | null, number] {
+function extractSpecial(msgStr: string, start: number): [Symbol | null, number | null, number] {
     const inPlaceHolder = msgStr[start] === '{'
     const inTag = msgStr[start] === '<'
     if (!inTag && !inPlaceHolder) {
@@ -42,18 +44,18 @@ function extractSpecial(msgStr: string, start: number): [SpecialType | null, num
         if (endChar !== '}') {
             return [null, null, start]
         }
-        return ['placeholder', n, i + 1]
+        return [PLACEHOLDER, n, i + 1]
     }
     if (endChar === '/' && msgStr[i + 1] === '>') {
-        return ['selfclose', n, i + 2]
+        return [SELF_CLOSE, n, i + 2]
     }
     if (endChar != '>') {
         return [null, null, start]
     }
     if (inClose) {
-        return ['close', n, i + 1]
+        return [CLOSE, n, i + 1]
     }
-    return ['open', n, i + 1]
+    return [OPEN, n, i + 1]
 }
 
 function compile(msgStr: string, start = 0, parentTag: number | null = null): [CompositePayload[], number] {
@@ -74,14 +76,14 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
             compiled.push(curTxt)
             curTxt = ''
         }
-        if (type === 'open') {
+        if (type === OPEN) {
             currentOpenTag = n
             const [subExt, newIc] = compile(msgStr, newI, n)
             compiled.push([n as number, ...subExt])
             i = newIc
             continue
         }
-        if (type === 'close') {
+        if (type === CLOSE) {
             if (currentOpenTag != null) {
                 if (currentOpenTag != n) {
                     throw Error('Closing a different tag')
@@ -92,7 +94,7 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
             } else {
                 throw Error('Closing a different tag')
             }
-        } else if (type === 'selfclose') {
+        } else if (type === SELF_CLOSE) {
             compiled.push([n as number])
         } else { // placeholder
             compiled.push(n as number)
@@ -114,7 +116,7 @@ export function compileTranslation(msgStr: string, fallback: CompiledElement): C
         if (compiled.length === 1 && typeof compiled[0] === 'string') {
             return compiled[0]
         }
-        return compiled as Composite
+        return compiled
     } catch (err) {
         console.error(err)
         console.error(msgStr)
