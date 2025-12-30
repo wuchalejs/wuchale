@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.16.1
+
+### Patch Changes
+
+- 84ca463: Fix type error when `exactOptionalPropertyTypes` is enabled #224
+
 ## 0.16.0
 
 ### Minor Changes
