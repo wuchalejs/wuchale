@@ -178,7 +178,7 @@ class Wuchale {
         }
     }
 
-    #transformHandler = async (code: string, id: string, options?: {ssr?: boolean}) => {
+    #transformHandler = async (code: string, id: string, options?: {ssr?: boolean | undefined}) => {
         if (this.#mode === 'dev' && !this.#config.hmr) {
             return {}
         }
