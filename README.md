@@ -170,9 +170,10 @@ or logo listed here!
 Special thanks to our supporters:
 
 [![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&size=48)](https://github.com/hayzamjs)
+[![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&size=48)](https://github.com/p-mercury)
 [![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&size=48)](https://github.com/perdix)
 
-And two private donors 🙏.
+And one private donor 🙏.
 
 ## Inspiration
 
