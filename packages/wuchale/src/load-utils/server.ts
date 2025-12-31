@@ -6,7 +6,8 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 type LoadedRuntimes = Record<string, Record<string, Runtime>>
 // by locale
 const runtimes: Record<string, LoadedRuntimes> = {}
-const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
+// exported mainly for stackblitz examples polyfills
+export const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
 const emptyRuntime = toRuntime()
 
 let warningShown = {}
