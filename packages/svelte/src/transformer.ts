@@ -18,6 +18,7 @@ import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, ty
 const nodesWithChildren = ['RegularElement', 'Component']
 
 const rtComponent = 'W_tx_'
+const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
 const snipPrefix = '_w_snippet_'
 const rtModuleVar = varNames.rt + 'mod_'
 
@@ -412,9 +413,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             const prepd = await preprocess(this.content, {style: removeSCSS})
             ast = parse(prepd.code, { modern: true })
         } else {
-            const [pAst, comments] = parseScript(this.content)
-            ast = pAst
-            this.comments = comments
+            [ast, this.comments] = parseScript(this.content)
         }
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
@@ -451,7 +450,6 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
-        const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
         return this.finalize(msgs, headerIndex, headerAdd)
     }
 }

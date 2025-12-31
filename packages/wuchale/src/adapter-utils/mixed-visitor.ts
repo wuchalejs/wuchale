@@ -34,6 +34,9 @@ type VisitProps<NodeT> = {
     scope: MixedScope
     element: string
     attribute?: string
+    /** force using component instead of a function call.
+     * set to true when variables can be objects that cannot be converted to strings like
+     * e.g. components in jsx to prevent `[object Object]` being rendered. */
     useComponent?: boolean
 }
 
