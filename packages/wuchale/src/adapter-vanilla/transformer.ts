@@ -698,9 +698,9 @@ export class Transformer<RTCtxT = {}> {
             return []
         }
         let msgs = []
-        const methodName = `visit${node.type}`
-        if (methodName in this) {
-            msgs = this[methodName](node)
+        const visitor = this[`visit${node.type}`]
+        if (visitor != null) {
+            msgs = visitor(node)
             // } else {
             //     console.log(node)
         }
