@@ -1,50 +1,41 @@
-import MagicString from "magic-string"
-import { Message } from "wuchale"
-import type * as Estree from "acorn"
-import { parseScript, Transformer } from "wuchale/adapter-vanilla"
+import { parse } from '@astrojs/compiler'
 import type {
-    IndexTracker,
-    HeuristicFunc,
-    TransformOutput,
-    RuntimeConf,
-    CatalogExpr,
-    CodePattern,
-    UrlMatcher,
-    HeuristicDetailsBase,
-} from "wuchale"
-import {
-    nonWhitespaceText,
-    MixedVisitor,
-} from "wuchale/adapter-utils"
-import { parse } from "@astrojs/compiler"
-import type {
-    ElementNode,
-    TextNode,
-    CommentNode,
-    FragmentNode,
-    Node,
-    RootNode,
-    ExpressionNode,
     AttributeNode,
-    FrontmatterNode,
+    CommentNode,
     ComponentNode,
     CustomElementNode,
-} from "@astrojs/compiler/types"
+    ElementNode,
+    ExpressionNode,
+    FragmentNode,
+    FrontmatterNode,
+    Node,
+    RootNode,
+    TextNode,
+} from '@astrojs/compiler/types'
+import type * as Estree from 'acorn'
+import MagicString from 'magic-string'
+import type {
+    CatalogExpr,
+    CodePattern,
+    HeuristicDetailsBase,
+    HeuristicFunc,
+    IndexTracker,
+    Message,
+    RuntimeConf,
+    TransformOutput,
+    UrlMatcher,
+} from 'wuchale'
+import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
+import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 // Astro nodes that can have children
-const nodesWithChildren = [
-    "element",
-    "component",
-    "custom-element",
-    "fragment",
-]
+const nodesWithChildren = ['element', 'component', 'custom-element', 'fragment']
 
-const rtRenderFunc = "_w_Tx_"
+const rtRenderFunc = '_w_Tx_'
 
 type MixedAstroNodes = Node
 
 export class AstroTransformer extends Transformer {
-
     // state
     currentElement?: string
     inCompoundText: boolean = false
@@ -53,7 +44,7 @@ export class AstroTransformer extends Transformer {
     mixedVisitor: MixedVisitor<MixedAstroNodes>
 
     // astro's compiler gives wrong offsets for expressions
-    correctedExprRanges: WeakMap<Node, { start: number, end: number }> = new WeakMap()
+    correctedExprRanges: WeakMap<Node, { start: number; end: number }> = new WeakMap()
 
     constructor(
         content: string,
@@ -87,7 +78,7 @@ export class AstroTransformer extends Transformer {
             }
             this.correctedExprRanges.set(child, {
                 start: this.content.indexOf('{', child.position?.start?.offset ?? 0),
-                end: actualEnd
+                end: actualEnd,
             })
         }
     }
@@ -96,64 +87,65 @@ export class AstroTransformer extends Transformer {
         if (node.type === 'expression') {
             return this.correctedExprRanges.get(node) ?? { start: -1, end: -1 }
         }
-        let { start, end } = node.position ?? {}
+        const { start, end } = node.position ?? {}
         return {
             start: start?.offset ?? -1,
             end: end?.offset ?? -1,
         }
     }
 
-    initMixedVisitor = () => new MixedVisitor<MixedAstroNodes>({
-        mstr: this.mstr,
-        vars: this.vars,
-        getRange: this.getRange,
-        isText: node => node.type === 'text',
-        isComment: node => node.type === 'comment',
-        leaveInPlace: node => [''].includes(node.type),
-        isExpression: node => node.type === 'expression',
-        getTextContent: (node: TextNode) => node.value,
-        getCommentData: (node: CommentNode) => node.value.trim(),
-        canHaveChildren: (node) => nodesWithChildren.includes(node.type),
-        visitFunc: (child, inCompoundText) => {
-            const inCompoundTextPrev = this.inCompoundText
-            this.inCompoundText = inCompoundText
-            const childTxts = this.visitAs(child)
-            this.inCompoundText = inCompoundTextPrev // restore
-            return childTxts
-        },
-        visitExpressionTag: this.visitexpression,
-        fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.getHeuristicMessageType,
-        index: this.index,
-        wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
-            let begin = `{${rtRenderFunc}({\nx: `
-            if (this.inCompoundText) {
-                begin += `${this.vars().nestCtx},\nn: true`
-            } else {
-                const index = this.index.get(msgInfo.toKey())
-                begin += `${this.vars().rtCtx}(${index})`
-            }
-            if (nestedRanges.length > 0) {
-                for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
-                    let toAppend: string
-                    if (i === 0) {
-                        toAppend = `${begin},\nt: [`
-                    } else {
-                        toAppend = ', '
-                    }
-                    this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
+    initMixedVisitor = () =>
+        new MixedVisitor<MixedAstroNodes>({
+            mstr: this.mstr,
+            vars: this.vars,
+            getRange: this.getRange,
+            isText: (node) => node.type === 'text',
+            isComment: (node) => node.type === 'comment',
+            leaveInPlace: (node) => [''].includes(node.type),
+            isExpression: (node) => node.type === 'expression',
+            getTextContent: (node: TextNode) => node.value,
+            getCommentData: (node: CommentNode) => node.value.trim(),
+            canHaveChildren: (node) => nodesWithChildren.includes(node.type),
+            visitFunc: (child, inCompoundText) => {
+                const inCompoundTextPrev = this.inCompoundText
+                this.inCompoundText = inCompoundText
+                const childTxts = this.visitAs(child)
+                this.inCompoundText = inCompoundTextPrev // restore
+                return childTxts
+            },
+            visitExpressionTag: this.visitexpression,
+            fullHeuristicDetails: this.fullHeuristicDetails,
+            checkHeuristic: this.getHeuristicMessageType,
+            index: this.index,
+            wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+                let begin = `{${rtRenderFunc}({\nx: `
+                if (this.inCompoundText) {
+                    begin += `${this.vars().nestCtx},\nn: true`
+                } else {
+                    const index = this.index.get(msgInfo.toKey())
+                    begin += `${this.vars().rtCtx}(${index})`
                 }
-                begin = `]`
-            }
-            let end = '\n})}'
-            if (hasExprs) {
-                begin += ',\na: ['
-                end = ']' + end
-            }
-            this.mstr.appendLeft(lastChildEnd, begin)
-            this.mstr.appendRight(lastChildEnd, end)
-        },
-    })
+                if (nestedRanges.length > 0) {
+                    for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
+                        let toAppend: string
+                        if (i === 0) {
+                            toAppend = `${begin},\nt: [`
+                        } else {
+                            toAppend = ', '
+                        }
+                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
+                    }
+                    begin = `]`
+                }
+                let end = '\n})}'
+                if (hasExprs) {
+                    begin += ',\na: ['
+                    end = ']' + end
+                }
+                this.mstr.appendLeft(lastChildEnd, begin)
+                this.mstr.appendRight(lastChildEnd, end)
+            },
+        })
 
     _parseAndVisitExpr = (expr: string, startOffset: number, startFromProgram = false): Message[] => {
         const [ast, comments] = parseScript(expr)
@@ -164,7 +156,7 @@ export class AstroTransformer extends Transformer {
         if (startFromProgram) {
             msgs = this.visit(ast)
         } else {
-            msgs = ast.body.map(this.visit).flat()
+            msgs = ast.body.flatMap(this.visit)
         }
         this.mstr.offset = 0 // restore
         return msgs
@@ -179,22 +171,23 @@ export class AstroTransformer extends Transformer {
                 continue
             }
             msgs.push(...this.visitAs(part))
-            const {start, end} = this.getRange(part)
+            const { start, end } = this.getRange(part)
             expr += `"${' '.repeat(end - start)}"`
         }
-        const {start} = this.getRange(node)
+        const { start } = this.getRange(node)
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))
         return msgs
     }
 
-    _visitChildren = (nodes: Node[]): Message[] => this.mixedVisitor.visit({
-        children: nodes,
-        commentDirectives: this.commentDirectives,
-        inCompoundText: this.inCompoundText,
-        scope: 'markup',
-        element: this.currentElement as string,
-        useComponent: this.currentElement !== 'title'
-    })
+    _visitChildren = (nodes: Node[]): Message[] =>
+        this.mixedVisitor.visit({
+            children: nodes,
+            commentDirectives: this.commentDirectives,
+            inCompoundText: this.inCompoundText,
+            scope: 'markup',
+            element: this.currentElement as string,
+            useComponent: this.currentElement !== 'title',
+        })
 
     visitFragmentNode = (node: FragmentNode): Message[] => this._visitChildren(node.children)
 
@@ -221,7 +214,7 @@ export class AstroTransformer extends Transformer {
             element: this.currentElement,
             attribute: node.name,
         }
-        let {start} = this.getRange(node)
+        let { start } = this.getRange(node)
         if (node.kind !== 'empty') {
             start = this.content.indexOf('=', start) + 1
         }
@@ -283,10 +276,7 @@ export class AstroTransformer extends Transformer {
             this.mstr.appendLeft(0, '---\n')
             this.mstr.appendRight(0, '---\n')
         }
-        const header = [
-            `import ${rtRenderFunc} from "@wuchale/astro/runtime.js"`,
-            this.initRuntime(),
-        ].join('\n')
+        const header = [`import ${rtRenderFunc} from "@wuchale/astro/runtime.js"`, this.initRuntime()].join('\n')
         return this.finalize(msgs, this.frontMatterStart ?? 0, header)
     }
 }

@@ -9,16 +9,16 @@ export type RuntimeCollection = {
 
 export type LoaderState = {
     load: LoaderFunc
-    catalogs: {[loadID: string]: CatalogModule | undefined}
+    catalogs: { [loadID: string]: CatalogModule | undefined }
     collection: RuntimeCollection
 }
 
 export function defaultCollection(store: Record<string, Runtime>): RuntimeCollection {
     return {
-        get: loadID => store[loadID],
+        get: (loadID) => store[loadID],
         set: (loadID, rt) => {
             store[loadID] = rt
-        }
+        },
     }
 }
 
@@ -29,13 +29,22 @@ const emptyRuntime = toRuntime()
 /**
  * - `key` is a unique identifier for the group
  * - `loadIDs` and `load` MUST be imported from the loader virtual modules or proxies.
-*/
-export function registerLoaders(key: string, load: LoaderFunc, loadIDs: string[], collection?: RuntimeCollection): (fileID: string) => Runtime {
-    states[key] = { load, catalogs: Object.fromEntries(loadIDs.map(id => [id])), collection: collection ?? defaultCollection({}) }
+ */
+export function registerLoaders(
+    key: string,
+    load: LoaderFunc,
+    loadIDs: string[],
+    collection?: RuntimeCollection,
+): (fileID: string) => Runtime {
+    states[key] = {
+        load,
+        catalogs: Object.fromEntries(loadIDs.map((id) => [id])),
+        collection: collection ?? defaultCollection({}),
+    }
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyRuntime)
     }
-    return loadID => states[key].collection.get(loadID)
+    return (loadID) => states[key].collection.get(loadID)
 }
 
 /* Sets the most recently loaded locale as the current one */
@@ -47,11 +56,11 @@ export function commitLocale(locale: string) {
     }
 }
 
-/** 
+/**
  * Loads catalogs using registered async loaders.
  * Can be called anywhere you want to set the locale.
  * `commit` can be `false` if you want to delay the rendering, use `commitLocale` later
-*/
+ */
 export async function loadLocale(locale: string, commit = true): Promise<void> {
     const promises: Promise<CatalogModule>[] = []
     const statesArr: [string, LoaderState][] = []
@@ -68,12 +77,12 @@ export async function loadLocale(locale: string, commit = true): Promise<void> {
     commit && commitLocale(locale)
 }
 
-/** 
+/**
  * Loads catalogs using registered sync loaders.
  * Can be called anywhere you want to set the locale.
  * The loadCatalog function should be from a sync proxy.
  * `commit` can be `false` if you want to delay the rendering, use `commitLocale` later
-*/
+ */
 export function loadLocaleSync(locale: string, commit = true) {
     for (const state of Object.values(states)) {
         for (const loadID of Object.keys(state.catalogs)) {

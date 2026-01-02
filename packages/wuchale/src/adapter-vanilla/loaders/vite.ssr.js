@@ -1,5 +1,5 @@
-import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
 import { currentRuntime } from 'wuchale/load-utils/server'
+import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
 
 export const key = '${KEY}'
 export { loadCatalog, loadIDs } // for loading before runWithLocale

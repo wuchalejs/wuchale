@@ -1,10 +1,10 @@
 // $$ node %f
 
-// @ts-expect-error
-import { testContentSetup, testDirSetup, absDir, ts } from '../../wuchale/tests/check.ts'
+import { type AstroArgs, adapter } from '@wuchale/astro'
 import { rm } from 'fs/promises'
-import { adapter, type AstroArgs } from '@wuchale/astro'
 import type { CompiledElement } from 'wuchale'
+// @ts-expect-error
+import { absDir, testContentSetup, testDirSetup, ts } from '../../wuchale/tests/check.ts'
 
 const dirBase = absDir(import.meta.url)
 
@@ -25,7 +25,7 @@ export async function testContent(
     expectedTranslations: string,
     expectedCompiled: CompiledElement[],
     filename?: string,
-    conf: object = adapterOpts
+    conf: object = adapterOpts,
 ) {
     try {
         await rm(adapterOpts.localesDir as string, { recursive: true })
@@ -38,7 +38,7 @@ export async function testContent(
         expectedContent,
         expectedTranslations,
         expectedCompiled,
-        filename ?? testFile
+        filename ?? testFile,
     )
 }
 

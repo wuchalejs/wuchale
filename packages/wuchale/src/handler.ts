@@ -1,18 +1,24 @@
-import { dirname, isAbsolute, resolve, normalize, relative, join } from 'node:path'
-import { platform } from 'node:process'
-import { glob } from "tinyglobby"
-import { IndexTracker, Message } from "./adapters.js"
-import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from "./adapters.js"
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
-import { compileTranslation, type CompiledElement, type Mixed } from "./compile.js"
-import AIQueue, { type ItemType } from "./ai/index.js"
+import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path'
+import { platform } from 'node:process'
+import {
+    compile as compileUrlPattern,
+    match as matchUrlPattern,
+    pathToRegexp,
+    stringify,
+    type Token,
+} from 'path-to-regexp'
 import pm, { type Matcher } from 'picomatch'
-import PO from "pofile"
-import { type ConfigPartial, getLanguageName } from "./config.js"
+import PO from 'pofile'
+import { glob } from 'tinyglobby'
+import { varNames } from './adapter-utils/index.js'
+import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from './adapters.js'
+import { IndexTracker, Message } from './adapters.js'
+import AIQueue, { type ItemType } from './ai/index.js'
+import { type CompiledElement, compileTranslation, type Mixed } from './compile.js'
+import { type ConfigPartial, getLanguageName } from './config.js'
 import { color, type Logger } from './log.js'
 import { catalogVarName } from './runtime.js'
-import { varNames } from './adapter-utils/index.js'
-import { match as matchUrlPattern, compile as compileUrlPattern, pathToRegexp, type Token, stringify } from 'path-to-regexp'
 import { localizeDefault, type URLLocalizer, type URLManifest } from './url.js'
 
 type PluralRule = {
@@ -45,7 +51,7 @@ const getFuncPlainDefault = '_w_load_'
 const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
-const objKeyLocale = (locale: string) => locale.includes('-') ? `'${locale}'` : locale
+const objKeyLocale = (locale: string) => (locale.includes('-') ? `'${locale}'` : locale)
 
 export async function loadPOFile(filename: string): Promise<PO> {
     return new Promise((res, rej) => {
@@ -69,7 +75,7 @@ async function loadCatalogFromPO(filename: string): Promise<POFile> {
     let pluralRule: PluralRule
     const pluralHeader = po.headers['Plural-Forms']
     if (pluralHeader) {
-        pluralRule = <PluralRule><unknown>PO.parsePluralForms(pluralHeader)
+        pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
         pluralRule.nplurals = Number(pluralRule.nplurals)
     } else {
         pluralRule = defaultPluralRule
@@ -78,7 +84,7 @@ async function loadCatalogFromPO(filename: string): Promise<POFile> {
         catalog,
         pluralRule,
         // @ts-expect-error
-        headers: po.headers
+        headers: po.headers,
     }
 }
 
@@ -88,7 +94,6 @@ function poDumpToString(items: ItemType[]) {
     return po.toString()
 }
 
-
 async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
     const po = new PO()
     po.headers = headers
@@ -96,7 +101,7 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
         po.items.push(item)
     }
     return new Promise((res, rej) => {
-        po.save(filename, err => {
+        po.save(filename, (err) => {
             if (err) {
                 rej(err)
             } else {
@@ -134,10 +139,9 @@ type GranularState = {
     indexTracker: IndexTracker
 }
 
-type TransformOutputCode = { code?: string, map?: any }
+type TransformOutputCode = { code?: string; map?: any }
 
 export class AdapterHandler {
-
     key: string
     /** config.locales and adapter's sourceLocale */
     #allLocales: string[]
@@ -202,10 +206,11 @@ export class AdapterHandler {
         for (const ext of this.#adapter.loaderExts) {
             const pathClient = loaderPathHead + ext
             const same = { client: pathClient, server: pathClient }
-            const diff = { client: pathClient, server: loaderPathHead + '.server' + ext}
+            const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
             if (this.#adapter.defaultLoaderPath == null) {
                 paths.push(diff, same)
-            } else if (typeof this.#adapter.defaultLoaderPath === 'string') { // same file for both
+            } else if (typeof this.#adapter.defaultLoaderPath === 'string') {
+                // same file for both
                 paths.push(same)
             } else {
                 paths.push(diff)
@@ -238,7 +243,7 @@ export class AdapterHandler {
     }
 
     #proxyFileName(sync = false) {
-        let namePart = `${this.key}.proxy`
+        const namePart = `${this.key}.proxy`
         if (sync) {
             return `${namePart}.sync.js`
         }
@@ -309,7 +314,9 @@ export class AdapterHandler {
         for (const [i, id] of loadIDs.entries()) {
             const importsByLocale: string[] = []
             for (const loc of this.#config.locales) {
-                importsByLocale.push(`${objKeyLocale(loc)}: () => import('${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`)
+                importsByLocale.push(
+                    `${objKeyLocale(loc)}: () => import('${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`,
+                )
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
         }
@@ -325,7 +332,9 @@ export class AdapterHandler {
             const importedByLocale: string[] = []
             for (const [i, loc] of this.#config.locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
-                imports.push(`import * as ${locKey} from '${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`)
+                imports.push(
+                    `import * as ${locKey} from '${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`,
+                )
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }
             object.push(`${id}: {${importedByLocale.join(',')}}`)
@@ -356,7 +365,7 @@ export class AdapterHandler {
             // using custom loaders
             return
         }
-        await mkdir(this.#generatedDir, {recursive: true})
+        await mkdir(this.#generatedDir, { recursive: true })
         for (const side in this.loaderPath) {
             let loaderTemplate: string
             if (typeof this.#adapter.defaultLoaderPath === 'string') {
@@ -364,7 +373,8 @@ export class AdapterHandler {
             } else {
                 loaderTemplate = this.#adapter.defaultLoaderPath[side]
             }
-            const loaderContent = (await readFile(loaderTemplate)).toString()
+            const loaderContent = (await readFile(loaderTemplate))
+                .toString()
                 .replace('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replace('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
                 .replace('${DATA}', `./${dataFileName}`)
@@ -379,13 +389,13 @@ export class AdapterHandler {
         if (typeof compiledTranslatedPatt === 'string') {
             return compiledTranslatedPatt
         }
-        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
+        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map((part) => {
             if (typeof part === 'number') {
                 return keys[part]
             }
-            return {type: 'text', value: part}
+            return { type: 'text', value: part }
         })
-        return stringify({tokens: urlTokens})
+        return stringify({ tokens: urlTokens })
     }
 
     writeUrlFiles = async () => {
@@ -393,12 +403,12 @@ export class AdapterHandler {
         if (!patterns) {
             return
         }
-        const manifest: URLManifest = patterns.map(patt => {
+        const manifest: URLManifest = patterns.map((patt) => {
             const catalogPattKey = this.#urlPatternKeys.get(patt)!
-            const {keys} = pathToRegexp(patt)
+            const { keys } = pathToRegexp(patt)
             return [
                 patt,
-                this.#config.locales.map(loc => {
+                this.#config.locales.map((loc) => {
                     let pattern = patt
                     const item = this.sharedState.poFilesByLoc.get(loc)!.catalog.get(catalogPattKey)
                     if (item) {
@@ -406,7 +416,7 @@ export class AdapterHandler {
                         pattern = this.urlPatternFromTranslate(patternTranslated, keys)
                     }
                     return this.localizeUrl?.(pattern, loc) ?? pattern
-                })
+                }),
             ]
         })
         const urlManifestData = [
@@ -419,7 +429,7 @@ export class AdapterHandler {
             `import {locales} from "./${dataFileName}"`,
             `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
             `export const getLocale = (/** @type {URL} */ url) => getLocaleDefault(url, locales) ?? '${this.#config.locales[0]}'`,
-            `export const matchUrl = URLMatcher(manifest, locales)`
+            `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
         await writeFile(this.#urlsFname, urlFileContent)
     }
@@ -452,13 +462,16 @@ export class AdapterHandler {
             // for handleHotUpdate
             this.catalogPathsToLocales.set(this.#catalogsFname.get(loc)!, loc)
             if (loc !== this.#sourceLocale && this.#config.ai) {
-                this.#aiQueues.set(loc, new AIQueue(
-                    sourceLocaleName,
-                    getLanguageName(loc),
-                    this.#config.ai,
-                    async () => await this.savePoAndCompile(loc),
-                    this.#log,
-                ))
+                this.#aiQueues.set(
+                    loc,
+                    new AIQueue(
+                        sourceLocaleName,
+                        getLanguageName(loc),
+                        this.#config.ai,
+                        async () => await this.savePoAndCompile(loc),
+                        this.#log,
+                    ),
+                )
             }
             if (this.sharedState.ownerKey === this.key) {
                 this.sharedState.poFilesByLoc.set(loc, {
@@ -478,10 +491,10 @@ export class AdapterHandler {
     }
 
     urlPatternToTranslate = (pattern: string) => {
-        const {keys} = pathToRegexp(pattern)
-        const compile = compileUrlPattern(pattern, {encode: false})
+        const { keys } = pathToRegexp(pattern)
+        const compile = compileUrlPattern(pattern, { encode: false })
         const paramsReplace = {}
-        for (const [i, {name}] of keys.entries()) {
+        for (const [i, { name }] of keys.entries()) {
             paramsReplace[name] = `{${i}}`
         }
         return compile(paramsReplace)
@@ -500,13 +513,13 @@ export class AdapterHandler {
                 }
                 return new Message(locPattern, undefined, context)
             })
-            const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
+            const urlPatternCatKeys = urlPatternMsgs.map((msg) => msg.toKey())
             for (const [key, item] of catalog.entries()) {
                 if (!item.flags[urlPatternFlag]) {
                     continue
                 }
                 if (!urlPatternCatKeys.includes(key)) {
-                    item.references = item.references.filter(r => r !== this.key)
+                    item.references = item.references.filter((r) => r !== this.key)
                     if (item.references.length === 0) {
                         item.obsolete = true
                     }
@@ -571,7 +584,10 @@ export class AdapterHandler {
     loadCatalogModule = (locale: string, loadID: string | null, hmrVersion: number) => {
         let compiledData = this.sharedState.compiled.get(locale)!
         if (this.#adapter.granularLoad) {
-            compiledData = loadID && this.granularStateByID.get(loadID)?.compiled?.get(locale) || { hasPlurals: false, items: [] }
+            compiledData = (loadID && this.granularStateByID.get(loadID)?.compiled?.get(locale)) || {
+                hasPlurals: false,
+                items: [],
+            }
         }
         const compiledItems = JSON.stringify(compiledData.items)
         const plural = `n => ${this.sharedState.poFilesByLoc.get(locale)!.pluralRule.plural}`
@@ -607,17 +623,20 @@ export class AdapterHandler {
             if (stateG) {
                 state = stateG
             } else {
-                let compiledLoaded: Map<string, Compiled> = new Map()
+                const compiledLoaded: Map<string, Compiled> = new Map()
                 state = {
                     id,
                     compiled: new Map(),
                     indexTracker: new IndexTracker(),
                 }
                 for (const loc of this.#allLocales) {
-                    state.compiled.set(loc, compiledLoaded.get(loc) ?? {
-                        hasPlurals: false,
-                        items: [],
-                    })
+                    state.compiled.set(
+                        loc,
+                        compiledLoaded.get(loc) ?? {
+                            hasPlurals: false,
+                            items: [],
+                        },
+                    )
                 }
                 this.granularStateByID.set(id, state)
                 await this.writeProxies()
@@ -629,7 +648,7 @@ export class AdapterHandler {
 
     matchUrl = (url: string) => {
         for (const pattern of this.#adapter.url?.patterns ?? []) {
-            if (matchUrlPattern(pattern, {decode: false})(url)) {
+            if (matchUrlPattern(pattern, { decode: false })(url)) {
                 return pattern
             }
         }
@@ -648,15 +667,15 @@ export class AdapterHandler {
         const patternItem = catalog.get(this.#urlPatternKeys.get(relevantPattern) ?? '')
         if (patternItem) {
             // e.g. patternItem.msgid: /items/{0}
-            const matchedUrl = matchUrlPattern(relevantPattern, {decode: false})(key)
+            const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
             // e.g. matchUrl.params: {rest: 'foo/{0}'}
             if (matchedUrl) {
                 const translatedPattern = patternItem.msgstr[0] || patternItem.msgid
                 // e.g. translatedPattern: /elementos/{0}
-                const {keys} = pathToRegexp(relevantPattern)
+                const { keys } = pathToRegexp(relevantPattern)
                 const translatedPattUrl = this.urlPatternFromTranslate(translatedPattern, keys)
                 // e.g. translatedPattUrl: /elementos/:rest
-                const compileTranslated = compileUrlPattern(translatedPattUrl, {encode: false})
+                const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
                 toCompile = compileTranslated(matchedUrl.params)
                 // e.g. toCompile: /elementos/foo/{0}
             }
@@ -676,11 +695,12 @@ export class AdapterHandler {
         const sharedCompiledSourceItems = this.sharedState.compiled.get(this.#sourceLocale)?.items // ?. for sourceLocale itself
         const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
         for (const [key, poItem] of [...catalog.entries(), ...this.sharedState.extractedUrls.get(loc)!.entries()]) {
-            if (poItem.flags[urlPatternFlag]) { // useless in compiled catalog
+            if (poItem.flags[urlPatternFlag]) {
+                // useless in compiled catalog
                 continue
             }
             // compile only if it came from a file under this adapter
-            if (!poItem.references.some(f => this.fileMatches(f))) {
+            if (!poItem.references.some((f) => this.fileMatches(f))) {
                 continue
             }
             const index = this.sharedState.indexTracker.get(key)
@@ -741,7 +761,7 @@ export class AdapterHandler {
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
-        const options = { ignore: [ this.#adapter.localesDir ] }
+        const options = { ignore: [this.#adapter.localesDir] }
         if (this.#adapter.outDir) {
             options.ignore.push(this.#adapter.outDir)
         }
@@ -766,12 +786,12 @@ export class AdapterHandler {
 
     savePO = async (loc: string) => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
-        const fullHead = { ...poFile.headers ?? {} }
+        const fullHead = { ...(poFile.headers ?? {}) }
         const updateHeaders = [
-            ['Plural-Forms', [
-                `nplurals=${poFile.pluralRule.nplurals}`,
-                `plural=${poFile.pluralRule.plural};`,
-            ].join('; ')],
+            [
+                'Plural-Forms',
+                [`nplurals=${poFile.pluralRule.nplurals}`, `plural=${poFile.pluralRule.plural};`].join('; '),
+            ],
             ['Source-Language', this.#sourceLocale],
             ['Language', loc],
             ['MIME-Version', '1.0'],
@@ -796,7 +816,8 @@ export class AdapterHandler {
 
     savePoAndCompile = async (loc: string) => {
         this.onBeforeWritePO?.()
-        if (this.#mode === 'cli') { // save for the end
+        if (this.#mode === 'cli') {
+            // save for the end
             return
         }
         await this.savePO(loc)
@@ -842,10 +863,7 @@ export class AdapterHandler {
             `${loaderImportGetRuntime} as ${getRuntimePlain}`,
             `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
         ]
-        head = [
-            `import {${importsFuncs.join(', ')}} from "${loaderPath}"`,
-            ...head,
-        ]
+        head = [`import {${importsFuncs.join(', ')}} from "${loaderPath}"`, ...head]
         if (!this.#adapter.bundleLoad) {
             return head.join('\n')
         }
@@ -857,11 +875,7 @@ export class AdapterHandler {
             imports.push(`import * as ${locKW} from '${importFrom}'`)
             objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
-        return [
-            ...imports,
-            ...head,
-            `const ${bundleCatalogsVarName} = {${objElms.join(',')}}`
-        ].join('\n')
+        return [...imports, ...head, `const ${bundleCatalogsVarName} = {${objElms.join(',')}}`].join('\n')
     }
 
     #prepareRuntimeExpr = (loadID: string): CatalogExpr => {
@@ -881,13 +895,13 @@ export class AdapterHandler {
     handleMessages = async (loc: string, msgs: Message[], filename: string): Promise<string[]> => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
         const extractedUrls = this.sharedState.extractedUrls.get(loc)!
-        const previousReferences: Map<string, {count: number, indices: number[]}> = new Map()
+        const previousReferences: Map<string, { count: number; indices: number[] }> = new Map()
         for (const item of poFile.catalog.values()) {
             if (!item.references.includes(filename)) {
                 continue
             }
             const key = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt).toKey()
-            previousReferences.set(key, {count: 0, indices: []})
+            previousReferences.set(key, { count: 0, indices: [] })
             for (const [i, ref] of item.references.entries()) {
                 if (ref !== filename) {
                     continue
@@ -925,7 +939,7 @@ export class AdapterHandler {
             if (msgInfo.context) {
                 poItem.msgctxt = msgInfo.context
             }
-            const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
+            const newComments = msgInfo.comments.map((c) => c.replace(/\s+/g, ' ').trim())
             let iStartComm: number
             if (key in previousReferences) {
                 const prevRef = previousReferences.get(key)!
@@ -998,7 +1012,13 @@ export class AdapterHandler {
         return hmrKeys
     }
 
-    transform = async (content: string, filename: string, hmrVersion = -1, forServer = false, direct = false): Promise<TransformOutputCode> => {
+    transform = async (
+        content: string,
+        filename: string,
+        hmrVersion = -1,
+        forServer = false,
+        direct = false,
+    ): Promise<TransformOutputCode> => {
         if (platform === 'win32') {
             filename = filename.replaceAll('\\', '/')
         }
@@ -1037,10 +1057,11 @@ export class AdapterHandler {
             if (msgs.length && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#config.locales) {
-                    hmrData.data[loc] = hmrKeys.get(loc)?.map(key => {
-                        const index = indexTracker.get(key)
-                        return [ index, compiled.get(loc)!.items[index] ]
-                    }) ?? []
+                    hmrData.data[loc] =
+                        hmrKeys.get(loc)?.map((key) => {
+                            const index = indexTracker.get(key)
+                            return [index, compiled.get(loc)!.items[index]]
+                        }) ?? []
                 }
             }
         }
@@ -1070,17 +1091,17 @@ export class AdapterHandler {
                 for (const item of items) {
                     // unreference all references that belong to this adapter
                     if (item.flags[urlPatternFlag]) {
-                        item.references = item.references.filter(ref => ref !== this.key)
+                        item.references = item.references.filter((ref) => ref !== this.key)
                     } else {
                         // don't touch other adapters' files. related extracted comments handled by handler
-                        item.references = item.references.filter(ref => {
+                        item.references = item.references.filter((ref) => {
                             if (this.fileMatches(ref)) {
                                 return false
                             }
                             if (this.sharedState.ownerKey !== this.key) {
                                 return true
                             }
-                            return this.sharedState.otherFileMatches.some(match => match(ref))
+                            return this.sharedState.otherFileMatches.some((match) => match(ref))
                         })
                     }
                 }
@@ -1114,5 +1135,4 @@ export class AdapterHandler {
             }
         }
     }
-
 }

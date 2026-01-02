@@ -1,29 +1,33 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-import toRuntime from 'wuchale/runtime'
-import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
-import { adapter, getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
-import { registerLoaders, loadLocaleSync, defaultCollection } from 'wuchale/load-utils'
-import { loadCatalogs } from 'wuchale/load-utils/pure'
-import { compileTranslation } from '../dist/compile.js'
 import { statfs } from 'fs/promises'
-import { URLMatcher } from 'wuchale/url'
 import type { CompiledElement } from 'wuchale'
+import { adapter, getDefaultLoaderPath } from 'wuchale/adapter-vanilla'
+import { defaultCollection, loadLocaleSync, registerLoaders } from 'wuchale/load-utils'
+import { loadCatalogs } from 'wuchale/load-utils/pure'
+import { loadLocales, runWithLocale } from 'wuchale/load-utils/server'
+import toRuntime from 'wuchale/runtime'
+import { URLMatcher } from 'wuchale/url'
+import { compileTranslation } from '../dist/compile.js'
 // @ts-expect-error
-import { testContent, basic, adapterOpts, ts } from './check.ts'
+import { adapterOpts, basic, testContent, ts } from './check.ts'
 
-test('Compile messages', function(t) {
-    const testCompile = (msg: string, expect: CompiledElement) => t.assert.deepEqual(compileTranslation(msg, ''), expect)
+test('Compile messages', (t) => {
+    const testCompile = (msg: string, expect: CompiledElement) =>
+        t.assert.deepEqual(compileTranslation(msg, ''), expect)
     testCompile('Foo', 'Foo')
     testCompile('Foo {0}', ['Foo ', 0])
     testCompile('Foo <0>bar</0>', ['Foo ', [0, 'bar']])
     testCompile('Foo <0>bar {0}</0>', ['Foo ', [0, 'bar ', 0]])
     testCompile('Foo <0>bar {0}<0/></0>', ['Foo ', [0, 'bar ', 0, [0]]])
-    testCompile(
-        'foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar',
-        ['foo ', [ 0, 'bold <form>ignored ', [ 0 ], ' ', 0, ' ', [ 1, 'nest ', 0 ] ], ' ', [ 1 ], ' bar'],
-    )
+    testCompile('foo <0>bold <form>ignored <0/> {0} <1>nest {0}</1></0> <1/> bar', [
+        'foo ',
+        [0, 'bold <form>ignored ', [0], ' ', 0, ' ', [1, 'nest ', 0]],
+        ' ',
+        [1],
+        ' bar',
+    ])
 })
 
 test('Default loader file paths', async () => {
@@ -38,19 +42,27 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Simple expression and assignment', async t => {
-    await testContent(t, ts`
+test('Simple expression and assignment', async (t) => {
+    await testContent(
+        t,
+        ts`
         'No extraction!' // simple expression
         const varName = 'No extraction' // simple assignment
         const noExtract = call('Foo')
-    `, undefined, `
+    `,
+        undefined,
+        `
     msgid ""
     msgstr ""
-    `, [])
+    `,
+        [],
+    )
 })
 
-test('Ignore file', async t => {
-    await testContent(t, ts`
+test('Ignore file', async (t) => {
+    await testContent(
+        t,
+        ts`
         // @wc-ignore-file
         function foo() {
             const varName = 'No extraction'
@@ -59,14 +71,20 @@ test('Ignore file', async t => {
         function bar() {
             return 'Ignored'
         }
-    `, undefined, `
+    `,
+        undefined,
+        `
     msgid ""
     msgstr ""
-    `, [])
+    `,
+        [],
+    )
 })
 
-test('Inside function definitions', async t => {
-    await testContent(t, ts`
+test('Inside function definitions', async (t) => {
+    await testContent(
+        t,
+        ts`
         'use strict'
         function foo(): string {
             const varName = 'Hello'
@@ -83,7 +101,8 @@ test('Inside function definitions', async t => {
             }
             return \`Hello \${a\}\`
         }
-    `, ts`
+    `,
+        ts`
         'use strict'
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
@@ -107,7 +126,8 @@ test('Inside function definitions', async t => {
             }
             return _w_runtime_(3, [a])
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -130,11 +150,15 @@ test('Inside function definitions', async t => {
     #: tests/test-dir/test.js
     msgid "Hello {0}"
     msgstr "Hello {0}"
-    `, ['Hello', 'Inside func property', 'Extracted', ['Hello ', 0]])
+    `,
+        ['Hello', 'Inside func property', 'Extracted', ['Hello ', 0]],
+    )
 })
 
-test('Inside class declarations', async t => {
-    await testContent(t, ts`
+test('Inside class declarations', async (t) => {
+    await testContent(
+        t,
+        ts`
         class foo {
             constructor() {
                 return 'Hello'
@@ -144,7 +168,8 @@ test('Inside class declarations', async t => {
                 return 'Hello'
             }
         }
-    `, ts`
+    `,
+        ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         class foo {
@@ -158,7 +183,8 @@ test('Inside class declarations', async t => {
                 return _w_runtime_(0)
             }
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -167,11 +193,15 @@ test('Inside class declarations', async t => {
     msgid "Hello"
     msgstr "Hello"
 
-    `, ['Hello'])
+    `,
+        ['Hello'],
+    )
 })
 
-test('Runtime init place', async t => {
-    await testContent(t, ts`
+test('Runtime init place', async (t) => {
+    await testContent(
+        t,
+        ts`
         function foo() {
             'foo'
             some.call()
@@ -180,7 +210,8 @@ test('Runtime init place', async t => {
             }
             return 'Hello'
         }
-    `, ts`
+    `,
+        ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/main.loader.js"
 
         function foo() {
@@ -192,7 +223,8 @@ test('Runtime init place', async t => {
             }
             return _w_runtime_(0)
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -200,11 +232,14 @@ test('Runtime init place', async t => {
     msgid "Hello"
     msgstr "Hello"
 
-    `, ['Hello'])
+    `,
+        ['Hello'],
+    )
 })
 
-test('Plural and patterns', async t => {
-    await testContent(t,
+test('Plural and patterns', async (t) => {
+    await testContent(
+        t,
         ts`
             const f = () => plural(items, ['One item', '# items'])
             function foo() {
@@ -236,7 +271,8 @@ test('Plural and patterns', async t => {
                     format2(foo),
                 ]
             }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -245,25 +281,30 @@ test('Plural and patterns', async t => {
     msgid_plural "# items"
     msgstr[0] "One item"
     msgstr[1] "# items"
-    `, [ [ 'One item', '# items' ] ], adapter({
+    `,
+        [['One item', '# items']],
+        adapter({
             ...adapterOpts,
             patterns: [
-                {name: 'plural', args: ['other', 'message', 'pluralFunc']},
-                {name: 'format0', args: ['other', 'locale']},
-                {name: 'format1', args: ['other', 'other', 'locale', 'other']},
-                {name: 'format2', args: ['locale']},
+                { name: 'plural', args: ['other', 'message', 'pluralFunc'] },
+                { name: 'format0', args: ['other', 'locale'] },
+                { name: 'format1', args: ['other', 'other', 'locale', 'other'] },
+                { name: 'format2', args: ['locale'] },
             ],
-        })
+        }),
     )
 })
 
-test('HMR', async t => {
-    await testContent(t, ts`
+test('HMR', async (t) => {
+    await testContent(
+        t,
+        ts`
         function foo(): string {
             const varName = 'Hello'
             return varName
         }
-    `, ts`
+    `,
+        ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../test-tmp/main.loader.js"
 
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
@@ -285,7 +326,8 @@ test('HMR', async t => {
             const varName = _w_runtime_(0)
             return varName
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -293,20 +335,24 @@ test('HMR', async t => {
     msgid "Hello"
     msgstr "Hello"
 
-    `, ['Hello'], basic, 1)
+    `,
+        ['Hello'],
+        basic,
+        1,
+    )
 })
 
 const testCatalog = {
-    p: (n: number) => n == 1 ? 0 : 1,
+    p: (n: number) => (n == 1 ? 0 : 1),
     c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // compound message
         ['One item', '# items'], // plurals
-    ]
+    ],
 }
 const loaderFunc = () => testCatalog
 
-test('Loading and runtime', async t => {
+test('Loading and runtime', async (t) => {
     const collection = {}
     const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
@@ -324,7 +370,7 @@ function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
     return msgs.join('_') + args.join('_')
 }
 
-test('Runtime', t => {
+test('Runtime', (t) => {
     const rt = toRuntime(testCatalog)
     t.assert.equal(rt(0), 'Hello')
     t.assert.equal(rt(1, ['User']), 'Hello User!')
@@ -334,32 +380,51 @@ test('Runtime', t => {
 })
 
 // This should be run AFTER the test Runtime completes
-test('Runtime server side', async t => {
-    const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
+test('Runtime server side', async (t) => {
+    const getRT = await loadLocales('main', ['main'], (_) => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
         return getRT('main')(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })
 
-test('URL matcher', t => {
-    const matcher = URLMatcher([
+test('URL matcher', (t) => {
+    const matcher = URLMatcher(
         [
-            "/path",
-            ["/en/path","/es/ruta"]
+            ['/path', ['/en/path', '/es/ruta']],
+            ['/*rest', ['/en/*rest', '/es/*rest']],
+            ['/', ['/en', '/es']],
         ],
-        [
-            "/*rest",
-            ["/en/*rest","/es/*rest"]
-        ],
-        [
-            "/",
-            ["/en","/es"]
-        ],
-    ], ['en', 'es'])
-    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {path: '/', locale: null, altPatterns: { en: '/en', es: '/es' }, params: {}})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {path: '/foo', locale: 'en', altPatterns: { en: '/en/*rest', es: '/es/*rest' }, params: {rest: 'foo'}})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {path: '/', locale: 'en', altPatterns: { en: '/en', es: '/es' }, params: {}})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {path: '/', locale: 'es', altPatterns: { en: '/en', es: '/es' }, params: {}})
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {path: '/path', locale: 'es', altPatterns: { en: '/en/path', es: '/es/ruta' }, params: {}})
+        ['en', 'es'],
+    )
+    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {
+        path: '/',
+        locale: null,
+        altPatterns: { en: '/en', es: '/es' },
+        params: {},
+    })
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {
+        path: '/foo',
+        locale: 'en',
+        altPatterns: { en: '/en/*rest', es: '/es/*rest' },
+        params: { rest: 'foo' },
+    })
+    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {
+        path: '/',
+        locale: 'en',
+        altPatterns: { en: '/en', es: '/es' },
+        params: {},
+    })
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {
+        path: '/',
+        locale: 'es',
+        altPatterns: { en: '/en', es: '/es' },
+        params: {},
+    })
+    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {
+        path: '/path',
+        locale: 'es',
+        altPatterns: { en: '/en/path', es: '/es/ruta' },
+        params: {},
+    })
 })

@@ -1,4 +1,5 @@
 export { MixedVisitor } from './mixed-visitor.js'
+
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { HeuristicResultChecked } from '../adapters.js'
@@ -25,9 +26,9 @@ export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.
 export type RuntimeVars = ReturnType<typeof runtimeVars>
 
 export function nonWhitespaceText(msgStr: string): [number, string, number] {
-    let trimmedS = msgStr.trimStart()
+    const trimmedS = msgStr.trimStart()
     const startWh = msgStr.length - trimmedS.length
-    let trimmed = trimmedS.trimEnd()
+    const trimmed = trimmedS.trimEnd()
     const endWh = trimmedS.length - trimmed.length
     return [startWh, trimmed, endWh]
 }

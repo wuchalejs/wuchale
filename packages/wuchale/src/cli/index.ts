@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { defaultConfigNames, getConfig, type Config } from "../config.js"
 import { parseArgs } from 'node:util'
-import { color, logLevels, type LogLevel } from "../log.js"
-import { extract } from "./extract.js"
-import { status } from "./status.js"
+import { type Config, defaultConfigNames, getConfig } from '../config.js'
+import { color, type LogLevel, logLevels } from '../log.js'
+import { extract } from './extract.js'
+import { status } from './status.js'
 
 const { positionals, values } = parseArgs({
     options: {
@@ -33,7 +33,7 @@ const { positionals, values } = parseArgs({
         help: {
             type: 'boolean',
             short: 'h',
-        }
+        },
     },
     allowPositionals: true,
 })
@@ -60,8 +60,8 @@ Options:
 
 async function getConfigNLocales(): Promise<[Config, string[]]> {
     const config = await getConfig(values.config)
-    config.logLevel = values["log-level"] as LogLevel
-    return [ config, config.locales ]
+    config.logLevel = values['log-level'] as LogLevel
+    return [config, config.locales]
 }
 
 if (values.help) {
@@ -70,7 +70,7 @@ if (values.help) {
 } else if (cmd == null) {
     await extract((await getConfigNLocales())[0], values.clean, values.watch, values.sync)
 } else if (cmd === 'status') {
-    await status(...await getConfigNLocales())
+    await status(...(await getConfigNLocales()))
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)

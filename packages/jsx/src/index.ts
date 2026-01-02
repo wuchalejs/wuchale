@@ -1,19 +1,12 @@
-import { defaultGenerateLoadID, deepMergeObjects, createHeuristic, defaultHeuristicOpts } from 'wuchale'
-import { pluralPattern, getDefaultLoaderPath as getDefaultLoaderPathVanilla } from 'wuchale/adapter-vanilla'
-import type {
-    HeuristicFunc,
-    Adapter,
-    AdapterArgs,
-    RuntimeConf,
-    LoaderChoice,
-    CreateHeuristicOpts,
-} from 'wuchale'
-import { JSXTransformer, type JSXLib } from "./transformer.js"
+import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
+import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
+import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
+import { type JSXLib, JSXTransformer } from './transformer.js'
 
 export function createJsxHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return msg => {
+    return (msg) => {
         const defRes = defaultHeuristic(msg)
         if (!defRes) {
             return false
@@ -37,34 +30,34 @@ export type JSXArgs = AdapterArgs<LoadersAvailable> & {
 }
 
 const defaultRuntime: RuntimeConf = {
-    initReactive: ({funcName, nested}) => {
+    initReactive: ({ funcName, nested }) => {
         const inTopLevel = funcName == null
-        const insideReactive =  !inTopLevel && !nested && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
+        const insideReactive =
+            !inTopLevel && !nested && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
         return inTopLevel ? null : insideReactive
     },
-    useReactive: ({funcName, nested}) =>
-        funcName != null
-            && !nested
-            && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
-    ,
+    useReactive: ({ funcName, nested }) =>
+        funcName != null &&
+        !nested &&
+        ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0])),
     reactive: {
-        wrapInit: expr => expr,
-        wrapUse: expr => expr,
+        wrapInit: (expr) => expr,
+        wrapUse: (expr) => expr,
     },
     plain: {
-        wrapInit: expr => expr,
-        wrapUse: expr => expr,
+        wrapInit: (expr) => expr,
+        wrapUse: (expr) => expr,
     },
 }
 
 const defaultRuntimeSolid: RuntimeConf = {
     ...defaultRuntime,
-    initReactive: ({funcName}) => funcName == null ? true : null, // init only in top level
+    initReactive: ({ funcName }) => (funcName == null ? true : null), // init only in top level
     useReactive: true, // always reactive, because solidjs doesn't have a problem with it
     reactive: {
-        wrapInit: expr => `() => ${expr}`,
-        wrapUse: expr => `${expr}()`
-    }
+        wrapInit: (expr) => `() => ${expr}`,
+        wrapUse: (expr) => `${expr}()`,
+    },
 }
 
 const defaultArgs: JSXArgs = {
@@ -96,14 +89,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
-    let {
-        heuristic,
-        patterns,
-        variant,
-        runtime,
-        loader,
-        ...rest
-    } = deepMergeObjects(args, defaultArgs)
+    let { heuristic, patterns, variant, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
     if (variant === 'solidjs' && args.runtime == null) {
         runtime = defaultRuntimeSolid
     }
@@ -124,7 +110,7 @@ export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,
         getRuntimeVars: {
-            reactive: 'useW_load_rx_'
+            reactive: 'useW_load_rx_',
         },
         ...rest,
     }

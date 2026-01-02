@@ -1,8 +1,8 @@
-import { resolve } from "node:path"
-import { type Adapter } from "./adapters.js"
-import type { AI } from "./ai/index.js"
-import { defaultGemini } from "./ai/gemini.js"
-import type { LogLevel } from "./log.js"
+import { resolve } from 'node:path'
+import type { Adapter } from './adapters.js'
+import { defaultGemini } from './ai/gemini.js'
+import type { AI } from './ai/index.js'
+import type { LogLevel } from './log.js'
 
 export type ConfigPartial = {
     locales: string[]
@@ -52,7 +52,7 @@ export function deepMergeObjects<Type extends {}>(source: Partial<Type>, target:
     return full
 }
 
-export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map(ext => `wuchale.config.${ext}`)
+export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map((ext) => `wuchale.config.${ext}`)
 
 const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
 export const getLanguageName = (code: string) => displayName.of(code) ?? code

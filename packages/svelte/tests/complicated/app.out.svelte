@@ -1,17 +1,17 @@
 <script module>
-    const normalParam = 44;
+const normalParam = 44
 
-    import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
-    import W_tx_ from "@wuchale/svelte/runtime.svelte"
-    const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
+import W_tx_ from '@wuchale/svelte/runtime.svelte'
+import { getRuntime as _w_load_, getRuntimeRx as _w_load_rx_ } from '../test-tmp/svelte.loader.svelte.js'
 
+const _w_runtime_mod_ = $derived(_w_load_rx_('svelte'))
 
-    function someFunction(a, b, c) {
-        const _w_runtime_mod_ = _w_load_('svelte')
-        const value = _w_runtime_mod_(0)
-        const next = _w_runtime_mod_(1, [a, b])
-        return next + c + value
-    }
+function someFunction(a, b, c) {
+    const _w_runtime_mod_ = _w_load_('svelte')
+    const value = _w_runtime_mod_(0)
+    const next = _w_runtime_mod_(1, [a, b])
+    return next + c + value
+}
 </script>
 
 <script>

@@ -1,6 +1,6 @@
-import type { LoaderFunc } from './index.js'
-import toRuntime, { type Runtime } from '../runtime.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import toRuntime, { type Runtime } from '../runtime.js'
+import type { LoaderFunc } from './index.js'
 
 // by key, by loadID
 type LoadedRuntimes = Record<string, Record<string, Runtime>>
@@ -10,7 +10,7 @@ const runtimes: Record<string, LoadedRuntimes> = {}
 export const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
 const emptyRuntime = toRuntime()
 
-let warningShown = {}
+const warningShown = {}
 
 export function currentRuntime(key: string, loadID: string) {
     const runtime = runtimeCtx.getStore()?.[key]?.[loadID]
@@ -21,12 +21,19 @@ export function currentRuntime(key: string, loadID: string) {
     if (warningShown[warnKey]) {
         return emptyRuntime
     }
-    console.warn(`Catalog for '${warnKey}' not found.\n  Either 'runWithLocale' was not called or the environment has a problem.`)
+    console.warn(
+        `Catalog for '${warnKey}' not found.\n  Either 'runWithLocale' was not called or the environment has a problem.`,
+    )
     warningShown[warnKey] = true
     return emptyRuntime
 }
 
-export async function loadLocales(key: string, loadIDs: string[], load: LoaderFunc, locales: string[]): Promise<(loadID: string) => Runtime> {
+export async function loadLocales(
+    key: string,
+    loadIDs: string[],
+    load: LoaderFunc,
+    locales: string[],
+): Promise<(loadID: string) => Runtime> {
     if (loadIDs == null) {
         loadIDs = [key]
     }

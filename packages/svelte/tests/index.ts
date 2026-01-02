@@ -1,10 +1,10 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-// @ts-expect-error
-import { testContent, testDir, svelte, js, testFileJs, adapterOpts } from './check.ts'
 import { getDefaultLoaderPath } from '@wuchale/svelte'
 import { statfs } from 'fs/promises'
+// @ts-expect-error
+import { adapterOpts, js, svelte, testContent, testDir, testFileJs } from './check.ts'
 
 test('Default loader file paths', async () => {
     for (const loader of ['svelte', 'sveltekit', 'bundle']) {
@@ -18,26 +18,34 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Simple text', async t => {
-    await testContent(t, 'Hello', svelte`
+test('Simple text', async (t) => {
+    await testContent(
+        t,
+        'Hello',
+        svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_('svelte'))
         </script>
         {_w_runtime_(0)}
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
     #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'])
+    `,
+        ['Hello'],
+    )
 })
 
-test('JS module files', async t => {
-    await testContent(t, js`
+test('JS module files', async (t) => {
+    await testContent(
+        t,
+        js`
         const varName = 'Simple bare assign'
         'No translation!' // simple expression
         const alreadyDerived = $derived(call('Foo'))
@@ -48,7 +56,8 @@ test('JS module files', async t => {
             return 'Should extract'
         }
 
-    `, js`
+    `,
+        js`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
         const _w_runtime_ = $derived(_w_load_rx_('svelte'))
 
@@ -62,7 +71,8 @@ test('JS module files', async t => {
             const _w_runtime_ = _w_load_('svelte')
             return _w_runtime_(3)
         }
-    `, `
+    `,
+        `
         msgid ""
         msgstr ""
 
@@ -81,11 +91,16 @@ test('JS module files', async t => {
         #: tests/test-dir/test.svelte.js
         msgid "Should extract"
         msgstr "Should extract"
-    `, ['Simple bare assign', 'Foo', 'Hello', 'Should extract'], testFileJs)
+    `,
+        ['Simple bare assign', 'Foo', 'Hello', 'Should extract'],
+        testFileJs,
+    )
 })
 
-test('Simple element with new lines', async t => {
-    await testContent(t, svelte`
+test('Simple element with new lines', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <script>
             // Intentionally empty
         </script>
@@ -93,7 +108,7 @@ test('Simple element with new lines', async t => {
             Hello
             There
         </p>`,
-    svelte`
+        svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
@@ -103,7 +118,8 @@ test('Simple element with new lines', async t => {
         <p title={loggedIn && _w_runtime_(0)}>
             {_w_runtime_(1)}
         </p>
-    `, `
+    `,
+        `
         msgid ""
         msgstr ""
 
@@ -118,11 +134,15 @@ test('Simple element with new lines', async t => {
         msgstr ""
         "Hello\\n"
         "There"
-    `, ['Hello', 'Hello\nThere'])
+    `,
+        ['Hello', 'Hello\nThere'],
+    )
 })
 
-test('Ignore and include', async t => {
-    await testContent(t, svelte`
+test('Ignore and include', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <div>
             <svg><path d="M100 200" /></svg>
             <p>{'hello there'}</p>
@@ -131,7 +151,8 @@ test('Ignore and include', async t => {
             <!-- @wc-include -->
             {'include this'}
         </div>
-    `, svelte`
+    `,
+        svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
@@ -145,30 +166,41 @@ test('Ignore and include', async t => {
             <!-- @wc-include -->
             {_w_runtime_(0)}
         </div>
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
     #: tests/test-dir/test.svelte
     msgid "include this"
     msgstr "include this"
-    `, ['include this'])
+    `,
+        ['include this'],
+    )
 })
 
-test('Ignore file', async t => {
-    await testContent(t, svelte`
+test('Ignore file', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <!-- @wc-ignore-file -->
         <p>Ignored</p>
         <p>Ignored</p>
         <p>Ignored</p>
-    `, undefined, `
+    `,
+        undefined,
+        `
     msgid ""
     msgstr ""
-    `, [])
+    `,
+        [],
+    )
 })
 
-test('URLs', async t => {
-    await testContent(t, svelte`
+test('URLs', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <script>
             goto(\`/translated/\${44}\`)
             const url = {
@@ -182,7 +214,8 @@ test('URLs', async t => {
         <a href={\`/translated/\${44}\`}>Hello</a>
         <a href="/notinpattern">Hello</a>
         <a href="/">Hello</a>
-    `, svelte`
+    `,
+        svelte`
         <script>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
@@ -199,7 +232,8 @@ test('URLs', async t => {
         <a href={_w_runtime_(0, [44])}>{_w_runtime_(3)}</a>
         <a href="/notinpattern">{_w_runtime_(3)}</a>
         <a href={_w_runtime_(6)}>{_w_runtime_(3)}</a>
-    `, `
+    `,
+        `
         msgid ""
         msgstr ""
 
@@ -219,25 +253,29 @@ test('URLs', async t => {
         msgstr "Hello"
     `,
         [
-            [ '/en/translated/', 0 ],
-            [ '/en/translated/somewhere/', 0 ],
+            ['/en/translated/', 0],
+            ['/en/translated/somewhere/', 0],
             '/en/translated/hello',
             'Hello',
             '/en/translated/hello/there',
-            [ '/en/translated/very/deep/link/', 0 ],
-            '/en'
+            ['/en/translated/very/deep/link/', 0],
+            '/en',
         ],
         undefined,
         {
-            ...adapterOpts, url: {
-            patterns: ['/translated/*rest', '/'],
-            localize: true
-        }
-    })
+            ...adapterOpts,
+            url: {
+                patterns: ['/translated/*rest', '/'],
+                localize: true,
+            },
+        },
+    )
 })
 
-test('SCSS no problem', async t => {
-    await testContent(t, svelte`
+test('SCSS no problem', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <style lang="scss">
           $primary: #4caf50;
 
@@ -246,14 +284,20 @@ test('SCSS no problem', async t => {
             font-weight: bold;
           }
         </style>
-    `, undefined, `
+    `,
+        undefined,
+        `
         msgid ""
         msgstr ""
-    `, [])
+    `,
+        [],
+    )
 })
 
-test('Exported snippet', async t => {
-    await testContent(t, svelte`
+test('Exported snippet', async (t) => {
+    await testContent(
+        t,
+        svelte`
         <script module>
             export const bar = {
                 feel: () => {
@@ -266,7 +310,8 @@ test('Exported snippet', async t => {
         {#snippet foo()}
             <div>Hello</div>
         {/snippet}
-    `, svelte`
+    `,
+        svelte`
         <script module>
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
@@ -287,7 +332,8 @@ test('Exported snippet', async t => {
         {#snippet foo()}
             <div>{_w_runtime_mod_(0)}</div>
         {/snippet}
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -295,12 +341,14 @@ test('Exported snippet', async t => {
     #: tests/test-dir/test.svelte
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'])
+    `,
+        ['Hello'],
+    )
 })
 
-
-test('Context', async t => {
-    await testContent(t,
+test('Context', async (t) => {
+    await testContent(
+        t,
         svelte`
             <p>{/* @wc-context: music */ 'String'}</p>
             <p>{/* @wc-context: programming */ 'String'}</p>
@@ -321,7 +369,8 @@ test('Context', async t => {
             <p>{_w_runtime_(2)}</p>
             <!-- @wc-context: distance -->
             <p>{_w_runtime_(3)}</p>
-    `, `
+    `,
+        `
         msgid ""
         msgstr ""
 
@@ -344,9 +393,11 @@ test('Context', async t => {
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"
-    `, [ 'String', 'String', 'Close', 'Close',  ])
+    `,
+        ['String', 'String', 'Close', 'Close'],
+    )
 })
 
-test('Multiple in one file', async t => await testDir(t, 'multiple'))
+test('Multiple in one file', async (t) => await testDir(t, 'multiple'))
 
-test('Complicated', async t => await testDir(t, 'complicated'))
+test('Complicated', async (t) => await testDir(t, 'complicated'))

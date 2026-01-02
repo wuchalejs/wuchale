@@ -7,12 +7,14 @@
         "dev": "npm run clean; tsc --build tsconfig.build.json --watch",
         "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
         "test": "npm run test --workspaces",
+        "fmt": "npx @biomejs/biome check --write",
         "v": "npx changeset"
     },
     "workspaces": [
         "packages/*"
     ],
     "devDependencies": {
+        "@biomejs/biome": "2.3.10",
         "@changesets/cli": "^2.29.8"
     }
 }

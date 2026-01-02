@@ -1,6 +1,6 @@
-import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
-import { locales } from '${DATA}'
 import { loadLocales } from 'wuchale/load-utils/server'
+import { locales } from '${DATA}'
+import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
 
 export { loadIDs, loadCatalog }
 export const key = '${KEY}'

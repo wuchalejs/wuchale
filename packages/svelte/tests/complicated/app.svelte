@@ -1,11 +1,11 @@
 <script module>
-    const normalParam = 44;
+const normalParam = 44
 
-    function someFunction(a, b, c) {
-        const value = 'Extract'
-        const next = `Interpolate ${a} ${b}`
-        return next + c + value
-    }
+function someFunction(a, b, c) {
+    const value = 'Extract'
+    const next = `Interpolate ${a} ${b}`
+    return next + c + value
+}
 </script>
 
 <script>

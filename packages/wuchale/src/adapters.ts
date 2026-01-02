@@ -1,7 +1,7 @@
-import type { CompiledElement } from "./compile.js"
-import type { URLLocalizer } from "./url.js"
+import type { CompiledElement } from './compile.js'
+import type { URLLocalizer } from './url.js'
 
-type TxtScope = "script" | "markup" | "attribute"
+type TxtScope = 'script' | 'markup' | 'attribute'
 
 export type HeuristicDetailsBase = {
     scope: TxtScope
@@ -9,7 +9,7 @@ export type HeuristicDetailsBase = {
     attribute?: string
 }
 
-export type ScriptDeclType = "variable" | "function" | "class" | "expression"
+export type ScriptDeclType = 'variable' | 'function' | 'class' | 'expression'
 
 export type HeuristicDetails = HeuristicDetailsBase & {
     file: string
@@ -29,10 +29,9 @@ export type HeuristicDetails = HeuristicDetailsBase & {
 
 export type MessageType = 'message' | 'url'
 
-const someHeuDet: HeuristicDetails = {file: '', scope: 'markup', insideProgram: true}
+const someHeuDet: HeuristicDetails = { file: '', scope: 'markup', insideProgram: true }
 
 export class Message {
-
     msgStr: string[] // array for plurals
     plural: boolean = false
     context?: string
@@ -40,21 +39,27 @@ export class Message {
     details: HeuristicDetails
     type: MessageType = 'message'
 
-    constructor(msgStr: string | (string | null | undefined)[], heuristicDetails: HeuristicDetails = someHeuDet, context?: string) {
+    constructor(
+        msgStr: string | (string | null | undefined)[],
+        heuristicDetails: HeuristicDetails = someHeuDet,
+        context?: string,
+    ) {
         if (typeof msgStr === 'string') {
             this.msgStr = [msgStr]
         } else {
-            this.msgStr = msgStr.filter(str => str != null)
+            this.msgStr = msgStr.filter((str) => str != null)
         }
-        this.msgStr = this.msgStr.map(
-            msg => msg.split('\n').map(line => line.trim()).join('\n')
+        this.msgStr = this.msgStr.map((msg) =>
+            msg
+                .split('\n')
+                .map((line) => line.trim())
+                .join('\n'),
         )
         this.details = heuristicDetails
         this.context = context
     }
 
     toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
-
 }
 
 export type HeuristicResultChecked = MessageType | false // after checking all heuristic functions
@@ -73,7 +78,7 @@ export const defaultHeuristicOpts = {
 export type CreateHeuristicOpts = typeof defaultHeuristicOpts
 
 export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
-    return msg => {
+    return (msg) => {
         if (msg.details.element && opts.ignoreElements.includes(msg.details.element)) {
             return false
         }
@@ -122,7 +127,10 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (msg.details.declaring === 'expression' && !msg.details.funcName) {
             return false
         }
-        if (!msg.details.call || !msg.details.call.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call)) {
+        if (
+            !msg.details.call ||
+            (!msg.details.call.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call))
+        ) {
             return 'message'
         }
         return false
@@ -133,7 +141,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
 export const defaultHeuristic = createHeuristic(defaultHeuristicOpts)
 
 /** Default heuristic which ignores messages outside functions in the `script` scope */
-export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
+export const defaultHeuristicFuncOnly: HeuristicFunc = (msg) => {
     if (defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)) {
         return 'message'
     }
@@ -143,7 +151,6 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
 export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
 
 export class IndexTracker {
-
     indices: Map<string, number> = new Map()
     nextIndex: number = 0
 
@@ -159,10 +166,13 @@ export class IndexTracker {
     }
 }
 
-export type GlobConf = string | string[] | {
-    include: string | string[],
-    ignore: string | string[],
-}
+export type GlobConf =
+    | string
+    | string[]
+    | {
+          include: string | string[]
+          ignore: string | string[]
+      }
 
 export type CatalogExpr = {
     plain: string
@@ -199,7 +209,7 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type DecideReactiveDetails<RTCtxT> = RTCtxT & {funcName?: string, nested: boolean, file: string}
+export type DecideReactiveDetails<RTCtxT> = RTCtxT & { funcName?: string; nested: boolean; file: string }
 
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
@@ -250,7 +260,7 @@ export type CodePattern = {
     args: ('message' | 'pluralFunc' | 'locale' | 'other')[]
 }
 
-export type LoaderChoice<LoadersAvailable> = LoadersAvailable | string & {} | 'custom'
+export type LoaderChoice<LoadersAvailable> = LoadersAvailable | (string & {}) | 'custom'
 
 export type AdapterArgs<LoadersAvailable, RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
     loader: LoaderChoice<LoadersAvailable>

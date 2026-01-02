@@ -1,5 +1,5 @@
-import { loadCatalog, loadIDs } from '${PROXY}'
 import { registerLoaders } from 'wuchale/load-utils'
+import { loadCatalog, loadIDs } from '${PROXY}'
 
 const key = '${KEY}'
 

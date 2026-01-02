@@ -9,9 +9,9 @@ const CLOSE = Symbol()
 const SELF_CLOSE = Symbol()
 const PLACEHOLDER = Symbol()
 
-const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
+const digitRange = ['0', '9'].map((d) => d.charCodeAt(0))
 
-function extractSpecial(msgStr: string, start: number): [Symbol | null, number | null, number] {
+function extractSpecial(msgStr: string, start: number): [symbol | null, number | null, number] {
     const inPlaceHolder = msgStr[start] === '{'
     const inTag = msgStr[start] === '<'
     if (!inTag && !inPlaceHolder) {
@@ -96,7 +96,8 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
             }
         } else if (type === SELF_CLOSE) {
             compiled.push([n as number])
-        } else { // placeholder
+        } else {
+            // placeholder
             compiled.push(n as number)
         }
         i = newI

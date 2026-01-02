@@ -1,4 +1,4 @@
-import type { Mixed, CompiledElement, CompositePayload } from "./compile.js"
+import type { CompiledElement, CompositePayload, Mixed } from './compile.js'
 
 export const catalogVarName = 'c' as 'c'
 export type CatalogModule = {
@@ -26,13 +26,13 @@ export function onInvalid(newOnInvalid: typeof onInvalidFunc) {
 
 // using pre-minified methods
 export type Runtime = {
-    _: CatalogModule;
-    l?: string;
-    c: (id: number) => Mixed | CompositePayload[]; // composite context
-    x: (ctx: Mixed, args?: any[], start?: number) => string; // mixed to string
-    t: (tag: CallableFunction, id: number, args?: any[]) => any; // tagged template
-    p: (id: number) => any; // plural text
-    (id: number, args?: any[]): any; // most frequent use as direct call
+    _: CatalogModule
+    l?: string
+    c: (id: number) => Mixed | CompositePayload[] // composite context
+    x: (ctx: Mixed, args?: any[], start?: number) => string // mixed to string
+    t: (tag: CallableFunction, id: number, args?: any[]) => any // tagged template
+    p: (id: number) => any // plural text
+    (id: number, args?: any[]): any // most frequent use as direct call
 }
 
 /** get translation using composite context */
@@ -42,7 +42,8 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
         const fragment = ctx[i]
         if (typeof fragment === 'string') {
             msgStr += fragment
-        } else { // index of non-text children
+        } else {
+            // index of non-text children
             msgStr += args[fragment]
         }
     }
@@ -50,7 +51,6 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
 }
 
 export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] }, locale?: string): Runtime {
-
     const catalog = mod[catalogVarName]
 
     /** get composite context */
@@ -76,8 +76,8 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
     rt.t = (tag: CallableFunction, id: number, args?: any[]) => {
         const ctx = getCompositeContext(id) as Mixed
         return tag(
-            ctx.filter(m => typeof m === 'string'),
-            ...ctx.filter(m => typeof m === 'number').map(a => args?.[a])
+            ctx.filter((m) => typeof m === 'string'),
+            ...ctx.filter((m) => typeof m === 'number').map((a) => args?.[a]),
         )
     }
 

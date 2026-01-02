@@ -1,4 +1,4 @@
-import { defineConfig } from "wuchale"
+import { defineConfig } from 'wuchale'
 import { adapter } from 'wuchale/adapter-vanilla'
 
 export default defineConfig({
@@ -9,5 +9,5 @@ export default defineConfig({
             localesDir: './tests/test-tmp/',
             loader: 'server',
         }),
-    }
+    },
 })

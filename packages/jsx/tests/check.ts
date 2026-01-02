@@ -1,10 +1,10 @@
 // $$ node %f
 
-// @ts-expect-error
-import { testContentSetup, testDirSetup, absDir, ts } from '../../wuchale/tests/check.ts'
-import { rm } from 'fs/promises'
 import { adapter, type JSXArgs } from '@wuchale/jsx'
+import { rm } from 'fs/promises'
 import type { CompiledElement } from 'wuchale'
+// @ts-expect-error
+import { absDir, testContentSetup, testDirSetup, ts } from '../../wuchale/tests/check.ts'
 
 const dirBase = absDir(import.meta.url)
 
@@ -16,11 +16,28 @@ export const adapterOpts: Partial<JSXArgs> = {
 
 const testFile = `${dirBase}/test-dir/test.jsx`
 
-export async function testContent(t: any, content: string, expectedContent: string | undefined, expectedTranslations: string, expectedCompiled: CompiledElement[], filename?: string, conf: object = adapterOpts) {
+export async function testContent(
+    t: any,
+    content: string,
+    expectedContent: string | undefined,
+    expectedTranslations: string,
+    expectedCompiled: CompiledElement[],
+    filename?: string,
+    conf: object = adapterOpts,
+) {
     try {
-        await rm(adapterOpts.localesDir as string, {recursive: true})
+        await rm(adapterOpts.localesDir as string, { recursive: true })
     } catch {}
-    await testContentSetup(t, adapter(conf as JSXArgs), 'jsx', content, expectedContent, expectedTranslations, expectedCompiled, filename ?? testFile)
+    await testContentSetup(
+        t,
+        adapter(conf as JSXArgs),
+        'jsx',
+        content,
+        expectedContent,
+        expectedTranslations,
+        expectedCompiled,
+        filename ?? testFile,
+    )
 }
 
 const jx = adapter(adapterOpts)

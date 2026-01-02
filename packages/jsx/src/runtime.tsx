@@ -7,7 +7,10 @@ export type WuchaleComponentProps = {
     a: any[]
 }
 
-export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): string | Mixed | Composite | undefined {
+export function selectFragment(
+    { n, x, t, a }: WuchaleComponentProps,
+    i: number,
+): string | Mixed | Composite | undefined {
     if (typeof x === 'string') {
         return x
     }
@@ -26,5 +29,5 @@ export function selectFragment({n, x, t, a}: WuchaleComponentProps, i: number): 
 }
 
 export default (props: WuchaleComponentProps) => {
-    return props.x.map((fragment, i) => selectFragment({...props, x: fragment as Composite}, i))
+    return props.x.map((fragment, i) => selectFragment({ ...props, x: fragment as Composite }, i))
 }

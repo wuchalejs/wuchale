@@ -1,7 +1,8 @@
 <script>
-    import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/svelte.loader.svelte.js"
-    import W_tx_ from "@wuchale/svelte/runtime.svelte"
-    const _w_runtime_ = $derived(_w_load_rx_('svelte'))
+import W_tx_ from '@wuchale/svelte/runtime.svelte'
+import { getRuntime as _w_load_, getRuntimeRx as _w_load_rx_ } from '../test-tmp/svelte.loader.svelte.js'
+
+const _w_runtime_ = $derived(_w_load_rx_('svelte'))
 </script>
 <h1>{_w_runtime_(0)}</h1>
 <p>{_w_runtime_(1)}</p>

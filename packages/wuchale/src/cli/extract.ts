@@ -1,8 +1,8 @@
-import type { Config } from "../config.js"
-import { AdapterHandler, type SharedStates } from "../handler.js"
-import { color, Logger } from "../log.js"
-import { readFile } from "node:fs/promises"
+import { readFile } from 'node:fs/promises'
 import { watch as watchFS } from 'chokidar'
+import type { Config } from '../config.js'
+import { AdapterHandler, type SharedStates } from '../handler.js'
+import { color, Logger } from '../log.js'
 
 function extractor(handler: AdapterHandler, logger: Logger) {
     const adapterName = color.magenta(handler.key)
@@ -33,7 +33,7 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
     }
     // watch
     logger.info('Watching for changes')
-    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h, logger)])
+    const handlersWithExtr = handlers.map((h) => [h.fileMatches, extractor(h, logger)])
     watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
         if (!['add', 'change'].includes(event)) {
             return

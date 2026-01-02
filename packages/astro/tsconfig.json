@@ -4,8 +4,6 @@
         "outDir": "dist",
         "composite": true
     },
-    "references": [
-        { "path": "../wuchale" }
-    ],
+    "references": [{ "path": "../wuchale" }],
     "include": ["src", "tests", "../wuchale/tests", "../wuchale/ambient.d.ts"]
 }

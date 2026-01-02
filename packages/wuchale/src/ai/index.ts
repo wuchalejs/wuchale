@@ -21,7 +21,6 @@ export type AI = {
 // implements a queue for a sequential translation useful for vite's transform during dev
 // as vite can do async transform
 export default class AIQueue {
-
     batches: Batch[] = []
     nextBatchId: number = 0
     running: Promise<void> | null = null
@@ -68,7 +67,7 @@ export default class AIQueue {
             this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
         }
-        let unTranslated: ItemType[] = batch.messages.slice(translated.length)
+        const unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             if (item.msgid !== batch.messages[i]?.msgid) {
                 unTranslated.push(item)
@@ -82,7 +81,7 @@ export default class AIQueue {
         }
         if (unTranslated.length) {
             this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
-            await this.translate({id: batch.id, messages: unTranslated})
+            await this.translate({ id: batch.id, messages: unTranslated })
         } else {
             this.log.info(`${logStart}: ${color.green('translated')}`)
         }
@@ -115,7 +114,7 @@ export default class AIQueue {
         }
         if (messages.length > 0) {
             opInfo.push([color.yellow('(new)'), this.nextBatchId, messages.length])
-            this.batches.push({id: this.nextBatchId, messages})
+            this.batches.push({ id: this.nextBatchId, messages })
             this.nextBatchId++
         }
         for (const [opType, batchId, msgsLen] of opInfo) {
@@ -125,5 +124,4 @@ export default class AIQueue {
             this.running = this.run()
         }
     }
-
 }

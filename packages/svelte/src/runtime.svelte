@@ -1,5 +1,5 @@
 <script>
-    const {n = false, x, t, a} = $props()
+const { n = false, x, t, a } = $props()
 </script>
 
 {#each x as fragment, i}

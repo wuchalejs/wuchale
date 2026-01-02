@@ -1,6 +1,6 @@
-import { AdapterHandler, loadPOFile } from "../handler.js"
-import { type Config, getLanguageName } from "../config.js"
-import { color, Logger } from "../log.js"
+import { type Config, getLanguageName } from '../config.js'
+import { AdapterHandler, loadPOFile } from '../handler.js'
+import { color, Logger } from '../log.js'
 
 type POStats = {
     total: number
@@ -10,7 +10,7 @@ type POStats = {
 
 async function statPO(filename: string): Promise<POStats> {
     const po = await loadPOFile(filename)
-    const stats: POStats = {total: 0, untranslated: 0, obsolete: 0}
+    const stats: POStats = { total: 0, untranslated: 0, obsolete: 0 }
     for (const item of po.items) {
         stats.total++
         if (!item.msgstr[0]) {
@@ -25,7 +25,7 @@ async function statPO(filename: string): Promise<POStats> {
 
 export async function status(config: Config, locales: string[]) {
     // console.log because if the user invokes this command, they want full info regardless of config
-    console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
+    console.log(`Locales: ${locales.map((l) => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
         const loaderPath = await handler.getLoaderPath()
@@ -39,7 +39,7 @@ export async function status(config: Config, locales: string[]) {
             console.warn(color.yellow('  No loader file found.'))
             console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
         }
-        const statsData: Record<string, {Total: number, Untranslated: number, Obsolete: number}> = {}
+        const statsData: Record<string, { Total: number; Untranslated: number; Obsolete: number }> = {}
         for (const locale of locales) {
             let stats: POStats
             try {
@@ -51,7 +51,7 @@ export async function status(config: Config, locales: string[]) {
                 console.warn(color.yellow('  No catalog found.'))
                 continue
             }
-            const {total, obsolete, untranslated} = stats
+            const { total, obsolete, untranslated } = stats
             const locName = getLanguageName(locale)
             statsData[locName] = {
                 Total: total,

@@ -1,22 +1,8 @@
-import {
-    defaultGenerateLoadID,
-    deepMergeObjects,
-    createHeuristic,
-    defaultHeuristicOpts,
-} from "wuchale"
-import { pluralPattern } from "wuchale/adapter-vanilla"
-import type {
-    HeuristicFunc,
-    Adapter,
-    AdapterArgs,
-    RuntimeConf,
-    LoaderChoice,
-    CreateHeuristicOpts,
-} from "wuchale"
-import {
-    AstroTransformer,
-} from "./transformer.js"
-import { loaderPathResolver } from "wuchale/adapter-utils"
+import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
+import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts } from 'wuchale'
+import { loaderPathResolver } from 'wuchale/adapter-utils'
+import { pluralPattern } from 'wuchale/adapter-vanilla'
+import { AstroTransformer } from './transformer.js'
 
 /**
  * Create a heuristic function optimized for Astro files
@@ -24,7 +10,7 @@ import { loaderPathResolver } from "wuchale/adapter-utils"
  */
 export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return msg => {
+    return (msg) => {
         const defRes = defaultHeuristic(msg)
         if (!defRes) {
             return false
@@ -48,7 +34,7 @@ export type AstroArgs = AdapterArgs<LoadersAvailable>
 
 const defaultRuntime: RuntimeConf = {
     // Astro is SSR-only, so we use non-reactive runtime by default
-    initReactive: ({ funcName }) => funcName == null ? false : null, // Only init in top-level functions
+    initReactive: ({ funcName }) => (funcName == null ? false : null), // Only init in top-level functions
     // Astro is SSR - always use non-reactive
     useReactive: () => false,
     reactive: {
@@ -103,13 +89,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
  * ```
  */
 export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
-    const {
-        heuristic,
-        patterns,
-        runtime,
-        loader,
-        ...rest
-    } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
 
     return {
         transform: async ({ content, filename, index, expr, matchUrl }) => {

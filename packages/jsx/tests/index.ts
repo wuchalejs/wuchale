@@ -1,10 +1,10 @@
 // $$ cd .. && npm run test
 
 import { test } from 'node:test'
-// @ts-expect-error
-import { testContent, tsx, adapterOpts } from './check.ts'
 import { getDefaultLoaderPath } from '@wuchale/jsx'
 import { statfs } from 'fs/promises'
+// @ts-expect-error
+import { adapterOpts, testContent, tsx } from './check.ts'
 
 test('Default loader file paths', async () => {
     for (const loader of ['default', 'react', 'solidjs']) {
@@ -18,8 +18,10 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('React basic', async t => {
-    await testContent(t, tsx`
+test('React basic', async (t) => {
+    await testContent(
+        t,
+        tsx`
         'use server'
         function Foo() {
             'use client'
@@ -28,7 +30,8 @@ test('React basic', async t => {
         function m() {
             return <p data-novalue>Hello</p>
         }
-    `, tsx`
+    `,
+        tsx`
         'use server'
         import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
@@ -43,22 +46,28 @@ test('React basic', async t => {
             const _w_runtime_ = _w_load_('jsx')
             return <p data-novalue>{_w_runtime_(0)}</p>
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
     #: tests/test-dir/test.jsx
     #: tests/test-dir/test.jsx
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'])
+    `,
+        ['Hello'],
+    )
 })
 
-test('SolidJS basic', async t => {
-    await testContent(t, tsx`
+test('SolidJS basic', async (t) => {
+    await testContent(
+        t,
+        tsx`
         function Foo(): Component {
             return <p>Hello</p>
         }
-    `, tsx`
+    `,
+        tsx`
         import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
@@ -67,17 +76,24 @@ test('SolidJS basic', async t => {
         function Foo(): Component {
             return <p>{_w_runtime_()(0)}</p>
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
     #: tests/test-dir/test.jsx
     msgid "Hello"
     msgstr "Hello"
-    `, ['Hello'], undefined, {...adapterOpts, variant: 'solidjs'})
+    `,
+        ['Hello'],
+        undefined,
+        { ...adapterOpts, variant: 'solidjs' },
+    )
 })
 
-test('Ignore and include', async t => {
-    await testContent(t, tsx`
+test('Ignore and include', async (t) => {
+    await testContent(
+        t,
+        tsx`
         function foo() {
             return <div>
                 <svg><path d="M100 200" /></svg>
@@ -88,7 +104,8 @@ test('Ignore and include', async t => {
                 {'include this'}
             </div>
         }
-    `, tsx`
+    `,
+        tsx`
         import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
@@ -103,18 +120,23 @@ test('Ignore and include', async t => {
                 {_w_runtime_(0)}
             </div>
         }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
     #: tests/test-dir/test.jsx
     msgid "include this"
     msgstr "include this"
-    `, ['include this'])
+    `,
+        ['include this'],
+    )
 })
 
-test('Ignore file', async t => {
-    await testContent(t, tsx`
+test('Ignore file', async (t) => {
+    await testContent(
+        t,
+        tsx`
         // @wc-ignore-file
         function Foo() {
             return <p>Ignored</p>
@@ -122,14 +144,20 @@ test('Ignore file', async t => {
         function Bar() {
             return <p>Ignored</p>
         }
-    `, undefined, `
+    `,
+        undefined,
+        `
     msgid ""
     msgstr ""
-    `, [])
+    `,
+        [],
+    )
 })
 
-test('Context', async t => {
-    await testContent(t, tsx`
+test('Context', async (t) => {
+    await testContent(
+        t,
+        tsx`
         const m = () => {
             return <>
                 <p>{/* @wc-context: music */ 'String'}</p>
@@ -139,7 +167,8 @@ test('Context', async t => {
                 {/* @wc-context: distance */}
                 <p>Close</p>
             </>
-        }`, tsx`
+        }`,
+        tsx`
             import {getRuntime as _w_load_, getRuntimeRx as useW_load_rx_} from "../test-tmp/jsx.loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
@@ -153,7 +182,8 @@ test('Context', async t => {
                     {/* @wc-context: distance */}
                     <p>{_w_runtime_(3)}</p>
                 </>
-            }`, `
+            }`,
+        `
         msgid ""
         msgstr ""
 
@@ -176,11 +206,14 @@ test('Context', async t => {
         msgctxt "distance"
         msgid "Close"
         msgstr "Close"
-    `, [ 'String', 'String', 'Close', 'Close',  ])
+    `,
+        ['String', 'String', 'Close', 'Close'],
+    )
 })
 
-test('Plural', async t => {
-    await testContent(t,
+test('Plural', async (t) => {
+    await testContent(
+        t,
         tsx`
             function m() {
                 return <p>{plural(items, ['One item', '# items'])}</p>
@@ -193,7 +226,8 @@ test('Plural', async t => {
                 const _w_runtime_ = _w_load_('jsx')
                 return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
             }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -202,11 +236,14 @@ test('Plural', async t => {
     msgid_plural "# items"
     msgstr[0] "One item"
     msgstr[1] "# items"
-    `, [ [ 'One item', '# items' ] ])
+    `,
+        [['One item', '# items']],
+    )
 })
 
-test('Nested and mixed', async t => {
-    await testContent(t,
+test('Nested and mixed', async (t) => {
+    await testContent(
+        t,
         tsx`
             function m() {
                 return <>
@@ -225,7 +262,8 @@ test('Nested and mixed', async t => {
                     <p><W_tx_ x={_w_runtime_.c(1)} a={[num]} /></p>
                 </>
             }
-    `, `
+    `,
+        `
     msgid ""
     msgstr ""
 
@@ -237,5 +275,10 @@ test('Nested and mixed', async t => {
     #: tests/test-dir/test.jsx
     msgid "{0} messages"
     msgstr "{0} messages"
-    `, [ ['Hello and ', [0, 'welcome'], ' to ', [1, 'the app'], '!'], [0, ' messages'] ])
+    `,
+        [
+            ['Hello and ', [0, 'welcome'], ' to ', [1, 'the app'], '!'],
+            [0, ' messages'],
+        ],
+    )
 })

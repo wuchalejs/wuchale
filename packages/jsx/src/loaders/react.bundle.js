@@ -1,10 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toRuntime from 'wuchale/runtime'
 import { locales } from '${DATA}'
 
 let locale = locales[0]
 
-const callbacks = new Set([(/** @type {string} */ loc) => {locale = loc}])
+const callbacks = new Set([
+    (/** @type {string} */ loc) => {
+        locale = loc
+    },
+])
 
 /**
  * @param {string} locale
@@ -26,4 +30,5 @@ export const getRuntimeRx = (/** @type {{[locale: string]: import('wuchale/runti
 }
 
 // non-reactive
-export const getRuntime = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => toRuntime(catalogs[locale], locale)
+export const getRuntime = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) =>
+    toRuntime(catalogs[locale], locale)

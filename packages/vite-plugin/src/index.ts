@@ -1,8 +1,8 @@
 // $$ cd ../.. && npm run test
-import { relative, resolve } from "node:path"
-import { platform } from "node:process"
-import { getConfig as getConfig, Logger, AdapterHandler } from "wuchale"
-import type { Config, Mode, SharedStates } from "wuchale"
+import { relative, resolve } from 'node:path'
+import { platform } from 'node:process'
+import type { Config, Mode, SharedStates } from 'wuchale'
+import { AdapterHandler, getConfig, Logger } from 'wuchale'
 
 const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -25,7 +25,6 @@ type ConfUpdate = {
 }
 
 class Wuchale {
-
     name = pluginName
 
     #config: Config
@@ -35,7 +34,7 @@ class Wuchale {
     #adaptersByConfUpdate: Map<string, AdapterHandler> = new Map()
     #adaptersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
     #granularLoadAdapters: AdapterHandler[] = []
-    #singleCompiledCatalogs: Set<String> = new Set()
+    #singleCompiledCatalogs: Set<string> = new Set()
 
     #log: Logger
     #mode: Mode
@@ -59,14 +58,7 @@ class Wuchale {
         const sharedState: SharedStates = new Map()
         const adaptersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
-            const handler = new AdapterHandler(
-                adapter,
-                key,
-                this.#config,
-                this.#mode,
-                this.#projectRoot,
-                this.#log,
-            )
+            const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
             await handler.init(sharedState)
             handler.onBeforeWritePO = () => {
                 this.#lastSourceTriggeredPOWrite = performance.now()
@@ -91,11 +83,13 @@ class Wuchale {
                         // same loader for both ssr and client, no problem
                         continue
                     }
-                    throw new Error([
-                        'While catalogs can be shared, the same loader cannot be used by multiple adapters',
-                        `Conflicting: ${key} and ${otherKey}`,
-                        'Specify a different loaderPath for one of them.'
-                    ].join('\n'))
+                    throw new Error(
+                        [
+                            'While catalogs can be shared, the same loader cannot be used by multiple adapters',
+                            `Conflicting: ${key} and ${otherKey}`,
+                            'Specify a different loaderPath for one of them.',
+                        ].join('\n'),
+                    )
                 }
                 adaptersByLoaderPath.set(loaderPath, handler)
             }
@@ -111,7 +105,7 @@ class Wuchale {
         }
     }
 
-    configResolved = async (config: { env: { DEV?: boolean }, root: string }) => {
+    configResolved = async (config: { env: { DEV?: boolean }; root: string }) => {
         if (config.env.DEV) {
             this.#mode = 'dev'
         } else {
@@ -163,12 +157,7 @@ class Wuchale {
             for (const loadID of adapter.getLoadIDs()) {
                 const fileID = resolve(adapter.getCompiledFilePath(loc, loadID))
                 for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
-                    ctx.server.moduleGraph.invalidateModule(
-                        module,
-                        invalidatedModules,
-                        ctx.timestamp,
-                        false,
-                    )
+                    ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
                 }
             }
         }
@@ -178,7 +167,7 @@ class Wuchale {
         }
     }
 
-    #transformHandler = async (code: string, id: string, options?: {ssr?: boolean | undefined}) => {
+    #transformHandler = async (code: string, id: string, options?: { ssr?: boolean | undefined }) => {
         if (this.#mode === 'dev' && !this.#config.hmr) {
             return {}
         }

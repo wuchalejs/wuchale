@@ -1,13 +1,13 @@
 import type { AI } from './index.js'
 
 const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-const headers = {'Content-Type': 'application/json'}
+const headers = { 'Content-Type': 'application/json' }
 
 interface GeminiRes {
     error?: {
-        code: number,
-        message: string,
-    },
+        code: number
+        message: string
+    }
     candidates?: {
         content: {
             parts: { text: string }[]
@@ -18,14 +18,16 @@ interface GeminiRes {
 function prepareData(content: string, instruction: string, think: boolean) {
     return {
         system_instruction: {
-            parts: [{ text: instruction }]
+            parts: [{ text: instruction }],
         },
         contents: [{ parts: [{ text: content }] }],
-        generationConfig: think ? undefined : {
-            thinkingConfig: {
-                thinkingBudget: 0
-            }
-        }
+        generationConfig: think
+            ? undefined
+            : {
+                  thinkingConfig: {
+                      thinkingBudget: 0,
+                  },
+              },
     }
 }
 
@@ -37,7 +39,13 @@ type GeminiOpts = {
     parallel?: number
 }
 
-export function gemini({apiKey = 'env', model = 'gemini-2.5-flash', batchSize = 50, think = false, parallel = 4}: GeminiOpts = {}): AI | null {
+export function gemini({
+    apiKey = 'env',
+    model = 'gemini-2.5-flash',
+    batchSize = 50,
+    think = false,
+    parallel = 4,
+}: GeminiOpts = {}): AI | null {
     if (apiKey === 'env') {
         apiKey = process.env.GEMINI_API_KEY ?? ''
     }
@@ -51,12 +59,11 @@ export function gemini({apiKey = 'env', model = 'gemini-2.5-flash', batchSize = 
         translate: async (content: string, instruction: string) => {
             const data = prepareData(content, instruction, think)
             const res = await fetch(`${url}${model}:generateContent`, {
-
                 method: 'POST',
-                headers: {...headers, 'x-goog-api-key': apiKey},
-                body: JSON.stringify(data)
+                headers: { ...headers, 'x-goog-api-key': apiKey },
+                body: JSON.stringify(data),
             })
-            const json = await res.json() as GeminiRes
+            const json = (await res.json()) as GeminiRes
             if (json.error) {
                 throw new Error(`error: ${json.error.code} ${json.error.message}`)
             }

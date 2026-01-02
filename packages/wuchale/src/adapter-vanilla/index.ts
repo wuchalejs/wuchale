@@ -1,16 +1,10 @@
 // $$ cd .. && npm run test
 
-import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
-import { deepMergeObjects } from "../config.js"
-import type {
-    AdapterArgs,
-    Adapter,
-    RuntimeConf,
-    CodePattern,
-    LoaderChoice,
-} from "../adapters.js"
-import { Transformer } from "./transformer.js"
 import { loaderPathResolver } from '../adapter-utils/index.js'
+import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
+import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
+import { deepMergeObjects } from '../config.js'
+import { Transformer } from './transformer.js'
 
 export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
@@ -34,13 +28,13 @@ const defaultArgs: VanillaArgs = {
     generateLoadID: defaultGenerateLoadID,
     loader: 'vite',
     runtime: {
-        initReactive: ({nested}) => nested ? null : false,
+        initReactive: ({ nested }) => (nested ? null : false),
         useReactive: false,
         plain: {
-            wrapInit: expr => expr,
-            wrapUse: expr => expr,
-        }
-    }
+            wrapInit: (expr) => expr,
+            wrapUse: (expr) => expr,
+        },
+    },
 }
 
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../../src/adapter-vanilla/loaders', 'js')
@@ -62,24 +56,19 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: Partial<VanillaArgs> = defaultArgs): Adapter => {
-    const {
-        heuristic,
-        patterns,
-        runtime,
-        loader,
-        ...rest
-    } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr, matchUrl }) => new Transformer(
-            content,
-            filename,
-            index,
-            heuristic,
-            patterns,
-            expr,
-            runtime as RuntimeConf,
-            matchUrl,
-        ).transform(),
+        transform: ({ content, filename, index, expr, matchUrl }) =>
+            new Transformer(
+                content,
+                filename,
+                index,
+                heuristic,
+                patterns,
+                expr,
+                runtime as RuntimeConf,
+                matchUrl,
+            ).transform(),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
         runtime,

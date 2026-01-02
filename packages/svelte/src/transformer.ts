@@ -1,19 +1,19 @@
-import MagicString from "magic-string"
-import type { Program, AnyNode, VariableDeclarator, Identifier, Declaration, Literal, TemplateLiteral } from "acorn"
-import { parse, preprocess, type AST, type Preprocessor } from "svelte/compiler"
-import { Message } from 'wuchale'
-import { Transformer, parseScript } from 'wuchale/adapter-vanilla'
+import type { AnyNode, Declaration, Identifier, Literal, Program, TemplateLiteral, VariableDeclarator } from 'acorn'
+import MagicString from 'magic-string'
+import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
 import type {
-    IndexTracker,
-    HeuristicFunc,
-    TransformOutput,
     CatalogExpr,
-    RuntimeConf,
     CodePattern,
     HeuristicDetailsBase,
+    HeuristicFunc,
+    IndexTracker,
+    Message,
+    RuntimeConf,
+    TransformOutput,
     UrlMatcher,
 } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText, varNames } from "wuchale/adapter-utils"
+import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils'
+import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -27,7 +27,7 @@ type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Co
 // for use before actually parsing the code,
 // to remove the contents of e.g. <style lang="scss">
 // without messing up indices for magic-string
-const removeSCSS: Preprocessor = ({attributes, content}) => {
+const removeSCSS: Preprocessor = ({ attributes, content }) => {
     if (attributes.lang) {
         return {
             code: ' '.repeat(content.length),
@@ -41,7 +41,6 @@ export type RuntimeCtxSv = {
 }
 
 export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
-
     // state
     currentElement?: string
     inCompoundText: boolean = false
@@ -69,11 +68,19 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
         const msgs = this.defaultVisitVariableDeclarator(node)
         const init = node.init
-        if (!msgs.length || this.heuristciDetails.declaring != null || init == null || ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)) {
+        if (
+            !msgs.length ||
+            this.heuristciDetails.declaring != null ||
+            init == null ||
+            ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)
+        ) {
             return msgs
         }
-        const needsWrapping = msgs.some(msg => {
-            if (msg.details.topLevelCall && ['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
+        const needsWrapping = msgs.some((msg) => {
+            if (
+                msg.details.topLevelCall &&
+                ['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)
+            ) {
                 return false
             }
             if (msg.details.declaring !== 'variable') {
@@ -82,78 +89,80 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             return true
         })
         if (!needsWrapping) {
-			return msgs
+            return msgs
         }
-		const isExported = this.moduleExportRanges.some(([start, end]) => init.start >= start && init.end <= end)
-		if (!isExported) {
-			this.mstr.appendLeft(init.start, '$derived(')
-			this.mstr.appendRight(init.end, ')')
-		}
+        const isExported = this.moduleExportRanges.some(([start, end]) => init.start >= start && init.end <= end)
+        if (!isExported) {
+            this.mstr.appendLeft(init.start, '$derived(')
+            this.mstr.appendRight(init.end, ')')
+        }
         return msgs
     }
 
-    initMixedVisitor = () => new MixedVisitor<MixedNodesTypes>({
-        mstr: this.mstr,
-        vars: this.vars,
-        getRange: node => ({ start: node.start, end: node.end }),
-        isText: node => node.type === 'Text',
-        isComment: node => node.type === 'Comment',
-        leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
-        isExpression: node => node.type === 'ExpressionTag',
-        getTextContent: (node: AST.Text) => node.data,
-        getCommentData: (node: AST.Comment) => node.data.trim(),
-        canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),
-        visitFunc: (child, inCompoundText) => {
-            const inCompoundTextPrev = this.inCompoundText
-            this.inCompoundText = inCompoundText
-            const childTxts = this.visitSv(child)
-            this.inCompoundText = inCompoundTextPrev // restore
-            return childTxts
-        },
-        visitExpressionTag: this.visitExpressionTag,
-        fullHeuristicDetails: this.fullHeuristicDetails,
-        checkHeuristic: this.getHeuristicMessageType,
-        index: this.index,
-        wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
-            const snippets: string[] = []
-            // create and reference snippets
-            for (const [childStart, childEnd, haveCtx] of nestedRanges) {
-                const snippetName = `${snipPrefix}${this.currentSnippet}`
-                snippets.push(snippetName)
-                this.currentSnippet++
-                const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
-                this.mstr.appendRight(childStart, snippetBegin)
-                this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
-            }
-            let begin = `\n<${rtComponent}`
-            if (snippets.length) {
-                begin += ` t={[${snippets.join(', ')}]}`
-            }
-            begin += ' x='
-            if (this.inCompoundText) {
-                begin += `{${this.vars().nestCtx}} n`
-            } else {
-                const index = this.index.get(msgInfo.toKey())
-                begin += `{${this.vars().rtCtx}(${index})}`
-            }
-            let end = ' />\n'
-            if (hasExprs) {
-                begin += ' a={['
-                end = ']}' + end
-            }
-            this.mstr.appendLeft(lastChildEnd, begin)
-            this.mstr.appendRight(lastChildEnd, end)
-        },
-    })
+    initMixedVisitor = () =>
+        new MixedVisitor<MixedNodesTypes>({
+            mstr: this.mstr,
+            vars: this.vars,
+            getRange: (node) => ({ start: node.start, end: node.end }),
+            isText: (node) => node.type === 'Text',
+            isComment: (node) => node.type === 'Comment',
+            leaveInPlace: (node) => ['ConstTag', 'SnippetBlock'].includes(node.type),
+            isExpression: (node) => node.type === 'ExpressionTag',
+            getTextContent: (node: AST.Text) => node.data,
+            getCommentData: (node: AST.Comment) => node.data.trim(),
+            canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),
+            visitFunc: (child, inCompoundText) => {
+                const inCompoundTextPrev = this.inCompoundText
+                this.inCompoundText = inCompoundText
+                const childTxts = this.visitSv(child)
+                this.inCompoundText = inCompoundTextPrev // restore
+                return childTxts
+            },
+            visitExpressionTag: this.visitExpressionTag,
+            fullHeuristicDetails: this.fullHeuristicDetails,
+            checkHeuristic: this.getHeuristicMessageType,
+            index: this.index,
+            wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+                const snippets: string[] = []
+                // create and reference snippets
+                for (const [childStart, childEnd, haveCtx] of nestedRanges) {
+                    const snippetName = `${snipPrefix}${this.currentSnippet}`
+                    snippets.push(snippetName)
+                    this.currentSnippet++
+                    const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
+                    this.mstr.appendRight(childStart, snippetBegin)
+                    this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
+                }
+                let begin = `\n<${rtComponent}`
+                if (snippets.length) {
+                    begin += ` t={[${snippets.join(', ')}]}`
+                }
+                begin += ' x='
+                if (this.inCompoundText) {
+                    begin += `{${this.vars().nestCtx}} n`
+                } else {
+                    const index = this.index.get(msgInfo.toKey())
+                    begin += `{${this.vars().rtCtx}(${index})}`
+                }
+                let end = ' />\n'
+                if (hasExprs) {
+                    begin += ' a={['
+                    end = ']}' + end
+                }
+                this.mstr.appendLeft(lastChildEnd, begin)
+                this.mstr.appendRight(lastChildEnd, end)
+            },
+        })
 
-    visitFragment = (node: AST.Fragment): Message[] => this.mixedVisitor.visit({
-        children: node.nodes,
-        commentDirectives: this.commentDirectives,
-        inCompoundText: this.inCompoundText,
-        scope: 'markup',
-        element: this.currentElement as string,
-        useComponent: this.currentElement !== 'title'
-    })
+    visitFragment = (node: AST.Fragment): Message[] =>
+        this.mixedVisitor.visit({
+            children: node.nodes,
+            commentDirectives: this.commentDirectives,
+            inCompoundText: this.inCompoundText,
+            scope: 'markup',
+            element: this.currentElement as string,
+            useComponent: this.currentElement !== 'title',
+        })
 
     visitRegularElement = (node: AST.ElementLike): Message[] => {
         const currentElement = this.currentElement
@@ -178,7 +187,11 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         if (!pass) {
             return []
         }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(
+            node.start + startWh,
+            node.end - endWh,
+            `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`,
+        )
         return [msgInfo]
     }
 
@@ -266,10 +279,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     }
 
     visitEachBlock = (node: AST.EachBlock): Message[] => {
-        const msgs = [
-            ...this.visit(node.expression as AnyNode),
-            ...this.visitSv(node.body),
-        ]
+        const msgs = [...this.visit(node.expression as AnyNode), ...this.visitSv(node.body)]
         if (node.key) {
             msgs.push(...this.visit(node.key as AnyNode))
         }
@@ -280,10 +290,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     }
 
     visitKeyBlock = (node: AST.KeyBlock): Message[] => {
-        return [
-            ...this.visit(node.expression as AnyNode),
-            ...this.visitSv(node.fragment),
-        ]
+        return [...this.visit(node.expression as AnyNode), ...this.visitSv(node.fragment)]
     }
 
     visitAwaitBlock = (node: AST.AwaitBlock): Message[] => {
@@ -292,22 +299,22 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             msgs.push(...this.visitFragment(node.then))
         }
         if (node.pending) {
-            msgs.push(...this.visitFragment(node.pending),)
+            msgs.push(...this.visitFragment(node.pending))
         }
         if (node.catch) {
-            msgs.push(...this.visitFragment(node.catch),)
+            msgs.push(...this.visitFragment(node.catch))
         }
         return msgs
     }
 
-    visitSvelteBody = (node: AST.SvelteBody): Message[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteBody = (node: AST.SvelteBody): Message[] => node.attributes.flatMap(this.visitSv)
 
-    visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.flatMap(this.visitSv)
 
-    visitSvelteElement = (node: AST.SvelteElement): Message[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteElement = (node: AST.SvelteElement): Message[] => node.attributes.flatMap(this.visitSv)
 
     visitSvelteBoundary = (node: AST.SvelteBoundary): Message[] => [
-        ...node.attributes.map(this.visitSv).flat(),
+        ...node.attributes.flatMap(this.visitSv),
         ...this.visitSv(node.fragment),
     ]
 
@@ -315,14 +322,14 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
 
     visitTitleElement = (node: AST.TitleElement): Message[] => this.visitRegularElement(node)
 
-    visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.map(this.visitSv).flat()
+    visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.flatMap(this.visitSv)
 
     visitRoot = (node: AST.Root): Message[] => {
         const msgs: Message[] = []
         if (node.module) {
             const prevRtVar = this.currentRtVar
             this.currentRtVar = rtModuleVar
-            this.runtimeCtx = {module: true}
+            this.runtimeCtx = { module: true }
             this.commentDirectives = {} // reset
             // @ts-expect-error
             msgs.push(...this.visitProgram(node.module.content))
@@ -334,7 +341,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
                     runtimeInit,
                 )
             }
-            this.runtimeCtx = {module: false} // reset
+            this.runtimeCtx = { module: false } // reset
             this.currentRtVar = prevRtVar // reset
         }
         if (node.instance) {
@@ -380,10 +387,10 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         const isComponent = this.heuristciDetails.file.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
-            const prepd = await preprocess(this.content, {style: removeSCSS})
+            const prepd = await preprocess(this.content, { style: removeSCSS })
             ast = parse(prepd.code, { modern: true })
         } else {
-            [ast, this.comments] = parseScript(this.content)
+            ;[ast, this.comments] = parseScript(this.content)
         }
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()

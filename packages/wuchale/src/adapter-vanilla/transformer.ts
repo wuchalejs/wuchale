@@ -1,29 +1,35 @@
 // $$ cd .. && npm run test
 
-import MagicString from "magic-string"
-import type * as Estree from "acorn"
-import { Parser } from 'acorn'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
+import type * as Estree from 'acorn'
+import { Parser } from 'acorn'
+import MagicString from 'magic-string'
+import {
+    type CommentDirectives,
+    type RuntimeVars,
+    runtimeVars,
+    updateCommentDirectives,
+    varNames,
+} from '../adapter-utils/index.js'
 import type {
-    HeuristicDetailsBase,
-    HeuristicFunc,
-    IndexTracker,
-    TransformOutput,
-    HeuristicDetails,
-    RuntimeConf,
     CatalogExpr,
     CodePattern,
-    UrlMatcher,
+    HeuristicDetails,
+    HeuristicDetailsBase,
+    HeuristicFunc,
     HeuristicResultChecked,
+    IndexTracker,
     MessageType,
-} from "../adapters.js"
-import { updateCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
+    RuntimeConf,
+    TransformOutput,
+    UrlMatcher,
+} from '../adapters.js'
+import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
 
 export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
     ecmaVersion: 'latest',
-    locations: true
+    locations: true,
 }
 
 const ScriptParser = Parser.extend(tsPlugin())
@@ -35,7 +41,7 @@ export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Commen
         {
             ...scriptParseOptions,
             // parse comments for when they are not part of the AST
-            onToken: token => {
+            onToken: (token) => {
                 if (accumulateComments.length) {
                     comments[token.start] = accumulateComments
                 }
@@ -48,7 +54,7 @@ export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Commen
                     start: -1,
                     end: -1,
                 })
-            }
+            },
         },
         comments,
     ]
@@ -62,7 +68,6 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
 export class Transformer<RTCtxT = {}> {
-
     index: IndexTracker
     heuristic: HeuristicFunc
     content: string
@@ -77,26 +82,39 @@ export class Transformer<RTCtxT = {}> {
 
     // state
     commentDirectives: CommentDirectives = {}
-    heuristciDetails: HeuristicDetails = {file: '', scope: 'script', insideProgram: true}
+    heuristciDetails: HeuristicDetails = { file: '', scope: 'script', insideProgram: true }
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
     /** will be passed to decide which runtime variable to use */
     runtimeCtx: RTCtxT = {} as RTCtxT
 
-    constructor(content: string, filename: string, index: IndexTracker, heuristic: HeuristicFunc, patterns: CodePattern[], catalogExpr: CatalogExpr, rtConf: RuntimeConf<RTCtxT>, matchUrl: UrlMatcher, rtBaseVars = [varNames.rt]) {
+    constructor(
+        content: string,
+        filename: string,
+        index: IndexTracker,
+        heuristic: HeuristicFunc,
+        patterns: CodePattern[],
+        catalogExpr: CatalogExpr,
+        rtConf: RuntimeConf<RTCtxT>,
+        matchUrl: UrlMatcher,
+        rtBaseVars = [varNames.rt],
+    ) {
         this.index = index
         this.heuristic = heuristic
         this.patterns = patterns
         this.content = content
         this.heuristciDetails.file = filename
         this.matchUrl = matchUrl
-        const topLevelUseReactive = typeof rtConf.useReactive === 'boolean' ? () => rtConf.useReactive : ({
-            nested: false,
-            file: filename,
-            ctx: this.runtimeCtx,
-        })
+        const topLevelUseReactive =
+            typeof rtConf.useReactive === 'boolean'
+                ? () => rtConf.useReactive
+                : {
+                      nested: false,
+                      file: filename,
+                      ctx: this.runtimeCtx,
+                  }
 
-        const vars: Record<string, {[key in 'plain' | 'reactive']: RuntimeVars}> = {}
+        const vars: Record<string, { [key in 'plain' | 'reactive']: RuntimeVars }> = {}
         // to enable the use of different runtime vars for different places, right now for svelte <script module>s
         for (const baseVar of rtBaseVars) {
             vars[baseVar] = {
@@ -106,12 +124,15 @@ export class Transformer<RTCtxT = {}> {
         }
         this.currentRtVar = rtBaseVars[0]
         this.vars = () => {
-            const useReactive = typeof rtConf.useReactive === 'boolean' ? rtConf.useReactive : rtConf.useReactive({
-                funcName: this.heuristciDetails.funcName ?? undefined,
-                nested: this.heuristciDetails.funcIsNested ?? false,
-                file: filename,
-                ...this.runtimeCtx,
-            }) ?? topLevelUseReactive
+            const useReactive =
+                typeof rtConf.useReactive === 'boolean'
+                    ? rtConf.useReactive
+                    : (rtConf.useReactive({
+                          funcName: this.heuristciDetails.funcName ?? undefined,
+                          nested: this.heuristciDetails.funcIsNested ?? false,
+                          file: filename,
+                          ...this.runtimeCtx,
+                      }) ?? topLevelUseReactive)
             const currentVars = vars[this.currentRtVar]
             return useReactive ? currentVars.reactive : currentVars.plain
         }
@@ -185,13 +206,14 @@ export class Transformer<RTCtxT = {}> {
         return [msgInfo]
     }
 
-    visitArrayExpression = (node: Estree.ArrayExpression): Message[] => node.elements.map(elm => elm ? this.visit(elm) : []).flat()
+    visitArrayExpression = (node: Estree.ArrayExpression): Message[] =>
+        node.elements.flatMap((elm) => (elm ? this.visit(elm) : []))
 
-    visitSequenceExpression = (node: Estree.SequenceExpression): Message[] => node.expressions.map(this.visit).flat()
+    visitSequenceExpression = (node: Estree.SequenceExpression): Message[] => node.expressions.flatMap(this.visit)
 
-    visitObjectExpression = (node: Estree.ObjectExpression): Message[] => node.properties.map(this.visit).flat()
+    visitObjectExpression = (node: Estree.ObjectExpression): Message[] => node.properties.flatMap(this.visit)
 
-    visitObjectPattern = (node: Estree.ObjectPattern): Message[] => node.properties.map(this.visit).flat()
+    visitObjectPattern = (node: Estree.ObjectPattern): Message[] => node.properties.flatMap(this.visit)
 
     visitRestElement = (node: Estree.RestElement): Message[] => this.visit(node.argument)
 
@@ -214,7 +236,7 @@ export class Transformer<RTCtxT = {}> {
 
     visitChainExpression = (node: Estree.ChainExpression): Message[] => this.visit(node.expression)
 
-    visitNewExpression = (node: Estree.NewExpression): Message[] => node.arguments.map(this.visit).flat()
+    visitNewExpression = (node: Estree.NewExpression): Message[] => node.arguments.flatMap(this.visit)
 
     defaultVisitCallExpression = (node: Estree.CallExpression): Message[] => {
         const msgs = this.visit(node.callee)
@@ -232,7 +254,7 @@ export class Transformer<RTCtxT = {}> {
             return this.defaultVisitCallExpression(node)
         }
         const calleeName = node.callee.name
-        const pattern = this.patterns.find(p => p.name === calleeName)
+        const pattern = this.patterns.find((p) => p.name === calleeName)
         if (!pattern) {
             return this.defaultVisitCallExpression(node)
         }
@@ -291,7 +313,11 @@ export class Transformer<RTCtxT = {}> {
                 if (typeof argVal.value !== 'string') {
                     return this.defaultVisitCallExpression(node)
                 }
-                const msgInfo = new Message(argVal.value, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
+                const msgInfo = new Message(
+                    argVal.value,
+                    this.fullHeuristicDetails({ scope: 'script' }),
+                    this.commentDirectives.context,
+                )
                 updates.push([argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`])
                 msgs.push(msgInfo)
                 continue
@@ -311,7 +337,11 @@ export class Transformer<RTCtxT = {}> {
                 candidates.push(elm.value)
             }
             // plural(num, ['Form one', 'Form two'])
-            const msgInfo = new Message(candidates, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
+            const msgInfo = new Message(
+                candidates,
+                this.fullHeuristicDetails({ scope: 'script' }),
+                this.commentDirectives.context,
+            )
             msgInfo.plural = true
             const index = this.index.get(msgInfo.toKey())
             msgs.push(msgInfo)
@@ -412,7 +442,7 @@ export class Transformer<RTCtxT = {}> {
     }
 
     defaultVisitVariableDeclarator = (node: Estree.VariableDeclarator): Message[] => {
-        let atTopLevelDefn = this.heuristciDetails.insideProgram && !this.heuristciDetails.declaring
+        const atTopLevelDefn = this.heuristciDetails.insideProgram && !this.heuristciDetails.declaring
         if (!node.init) {
             return []
         }
@@ -437,9 +467,11 @@ export class Transformer<RTCtxT = {}> {
     // for e.g. svelte to surrounded with $derived
     visitVariableDeclarator = this.defaultVisitVariableDeclarator
 
-    visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] => node.declarations.map(this.visitVariableDeclarator).flat()
+    visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] =>
+        node.declarations.flatMap(this.visitVariableDeclarator)
 
-    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] => node.declaration ? this.visit(node.declaration) : []
+    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] =>
+        node.declaration ? this.visit(node.declaration) : []
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
@@ -456,7 +488,12 @@ export class Transformer<RTCtxT = {}> {
                 continue
             }
             // TODO: use deep return checks after using state passing to visitors
-            if (this.mstr.toString() !== currentContent || bod.type === 'IfStatement' && bod.consequent.type === 'BlockStatement' && bod.consequent.body.some(n => n.type === 'ReturnStatement')) {
+            if (
+                this.mstr.toString() !== currentContent ||
+                (bod.type === 'IfStatement' &&
+                    bod.consequent.type === 'BlockStatement' &&
+                    bod.consequent.body.some((n) => n.type === 'ReturnStatement'))
+            ) {
                 bodyStart = bod.start
             }
         }
@@ -472,9 +509,10 @@ export class Transformer<RTCtxT = {}> {
             if (this.realBodyStarts.has(node.start)) {
                 return node.start
             }
-            if (nonLiteralStart == null
-                && node.type !== 'ImportDeclaration'
-                && (node.type !== 'ExpressionStatement' || node.expression.type !== 'Literal')
+            if (
+                nonLiteralStart == null &&
+                node.type !== 'ImportDeclaration' &&
+                (node.type !== 'ExpressionStatement' || node.expression.type !== 'Literal')
             ) {
                 nonLiteralStart = node.start
             }
@@ -492,10 +530,7 @@ export class Transformer<RTCtxT = {}> {
             const initRuntime = this.initRuntime(this.heuristciDetails.funcName, prevFuncDef ?? undefined)
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
-                    this.mstr.prependLeft(
-                        this.getRealBodyStart(node.body) ?? node.start,
-                        initRuntime,
-                    )
+                    this.mstr.prependLeft(this.getRealBodyStart(node.body) ?? node.start, initRuntime)
                 } else {
                     // get real start if surrounded by parens
                     let start = node.start - 1
@@ -527,13 +562,14 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): Message[] => this.visitFunctionBody(node.body, '', node.end)
+    visitArrowFunctionExpression = (node: Estree.ArrowFunctionExpression): Message[] =>
+        this.visitFunctionBody(node.body, '', node.end)
 
     visitFunctionExpression = (node: Estree.FunctionExpression): Message[] => this.visitFunctionBody(node.body, '')
 
     visitBlockStatement = (node: Estree.BlockStatement): Message[] => this.visitStatementsNSaveRealBodyStart(node.body)
 
-    visitReturnStatement = (node: Estree.ReturnStatement): Message[] => node.argument ? this.visit(node.argument) : []
+    visitReturnStatement = (node: Estree.ReturnStatement): Message[] => (node.argument ? this.visit(node.argument) : [])
 
     visitIfStatement = (node: Estree.IfStatement): Message[] => {
         const msgs = this.visit(node.test)
@@ -552,13 +588,14 @@ export class Transformer<RTCtxT = {}> {
             if (body.type === 'MethodDefinition') {
                 msgs.push(...this.visit(body.key))
                 const methodName = this.content.slice(body.key.start, body.key.end)
-                if (body.value.type === 'FunctionExpression') { // and not e.g. TSDeclareMethod
+                if (body.value.type === 'FunctionExpression') {
+                    // and not e.g. TSDeclareMethod
                     msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
                 }
             } else if (body.type === 'StaticBlock') {
                 const currentFuncDef = this.heuristciDetails.funcName
                 this.heuristciDetails.funcName = `${node.id.name}.[static]`
-                msgs.push(...body.body.map(this.visit).flat())
+                msgs.push(...body.body.flatMap(this.visit))
                 this.heuristciDetails.funcName = currentFuncDef // restore
             }
         }
@@ -566,7 +603,10 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    checkHeuristicTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails?: HeuristicDetailsBase): HeuristicResultChecked => {
+    checkHeuristicTemplateLiteral = (
+        node: Estree.TemplateLiteral,
+        heurDetails?: HeuristicDetailsBase,
+    ): HeuristicResultChecked => {
         let heurTxt = ''
         for (const quasi of node.quasis) {
             heurTxt += quasi.value.cooked ?? ''
@@ -596,7 +636,11 @@ export class Transformer<RTCtxT = {}> {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const msgInfo = new Message(msgStr, this.fullHeuristicDetails({scope: 'script'}), this.commentDirectives.context)
+        const msgInfo = new Message(
+            msgStr,
+            this.fullHeuristicDetails({ scope: 'script' }),
+            this.commentDirectives.context,
+        )
         msgInfo.type = msgTyp
         msgInfo.comments = comments
         const index = this.index.get(msgInfo.toKey())
@@ -604,24 +648,29 @@ export class Transformer<RTCtxT = {}> {
         return [index, msgs]
     }
 
-    visitTemplateLiteral = (node: Estree.TemplateLiteral, heurDetails: HeuristicDetailsBase | boolean = false): Message[] => {
+    visitTemplateLiteral = (
+        node: Estree.TemplateLiteral,
+        heurDetails: HeuristicDetailsBase | boolean = false,
+    ): Message[] => {
         let msgTyp: MessageType = 'message'
         if (heurDetails !== true) {
-            const heuRes = this.checkHeuristicTemplateLiteral(node, typeof heurDetails === 'boolean' ? undefined : heurDetails)
+            const heuRes = this.checkHeuristicTemplateLiteral(
+                node,
+                typeof heurDetails === 'boolean' ? undefined : heurDetails,
+            )
             if (!heuRes) {
-                return node.expressions.map(this.visit).flat()
+                return node.expressions.flatMap(this.visit)
             }
             msgTyp = heuRes
         }
         const [index, msgs] = this.visitTemplateLiteralQuasis(node, msgTyp)
-        const {start: start0, end: end0} = node.quasis[0]
+        const { start: start0, end: end0 } = node.quasis[0]
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
         if (node.expressions.length) {
             begin += ', ['
             end = ']' + end
             this.mstr.update(start0 - 1, end0 + 2, begin)
-            // @ts-ignore
             this.mstr.update(node.end - 1, node.end, end)
         } else {
             this.mstr.update(start0 - 1, end0 + 1, begin + end)
@@ -638,7 +687,7 @@ export class Transformer<RTCtxT = {}> {
             const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi, heuRes)
             msgs = msgsNew
             this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
-            const {start, end, expressions} = node.quasi
+            const { start, end, expressions } = node.quasi
             if (expressions.length > 0) {
                 this.mstr.update(start, expressions[0].start, `, ${index}, [`)
                 this.mstr.update(end - 1, end, `])`)
@@ -651,7 +700,8 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    visitSwitchStatement = (node: Estree.SwitchStatement): Message[] => node.cases.map(c => c.consequent.map(this.visit)).flat().flat()
+    visitSwitchStatement = (node: Estree.SwitchStatement): Message[] =>
+        node.cases.flatMap((c) => c.consequent.map(this.visit)).flat()
 
     visitTryStatement = (node: Estree.TryStatement): Message[] => {
         const msgs = this.visit(node.block)
@@ -664,9 +714,9 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    visitTSAsExpression = (node: {expression: Estree.AnyNode}): Message[] => this.visit(node.expression)
+    visitTSAsExpression = (node: { expression: Estree.AnyNode }): Message[] => this.visit(node.expression)
 
-    visitTSTypeAssertion = (node: {expression: Estree.AnyNode}): Message[] => this.visit(node.expression)
+    visitTSTypeAssertion = (node: { expression: Estree.AnyNode }): Message[] => this.visit(node.expression)
 
     visitProgram = (node: Estree.Program): Message[] => {
         this.heuristciDetails.insideProgram = true
@@ -693,29 +743,30 @@ export class Transformer<RTCtxT = {}> {
         return res
     }
 
-    visit = (node: Estree.AnyNode): Message[] => this.visitWithCommentDirectives(node, () => {
-        if (this.commentDirectives.forceType === false) {
-            return []
-        }
-        let msgs = []
-        const visitor = this[`visit${node.type}`]
-        if (visitor != null) {
-            msgs = visitor(node)
-            // } else {
-            //     console.log(node)
-        }
-        return msgs
-    })
+    visit = (node: Estree.AnyNode): Message[] =>
+        this.visitWithCommentDirectives(node, () => {
+            if (this.commentDirectives.forceType === false) {
+                return []
+            }
+            let msgs = []
+            const visitor = this[`visit${node.type}`]
+            if (visitor != null) {
+                msgs = visitor(node)
+                // } else {
+                //     console.log(node)
+            }
+            return msgs
+        })
 
     finalize = (msgs: Message[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput => ({
         msgs,
-        output: header => {
+        output: (header) => {
             this.mstr.prependRight(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
             return {
                 code: this.mstr.toString(),
                 map: this.mstr.generateMap(),
             }
-        }
+        },
     })
 
     transform = (): TransformOutput => {

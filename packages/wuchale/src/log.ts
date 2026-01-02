@@ -31,7 +31,7 @@ export type LogLevel = keyof typeof logLevels
 export class Logger {
     #logLevel: number
 
-    constructor (logLevelName: LogLevel) {
+    constructor(logLevelName: LogLevel) {
         this.#logLevel = logLevels[logLevelName]
     }
 

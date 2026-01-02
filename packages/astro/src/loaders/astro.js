@@ -1,7 +1,8 @@
 // Astro loader template (server-side, synchronous)
 // This is a template file that wuchale will use to generate the actual loader
-import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
+
 import { currentRuntime } from 'wuchale/load-utils/server'
+import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
 
 const key = '${KEY}'
 

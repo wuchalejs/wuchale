@@ -1,6 +1,6 @@
-import { loadCatalog, loadIDs } from '${PROXY}'
+import { useEffect, useState } from 'react'
 import { registerLoaders } from 'wuchale/load-utils'
-import { useState, useEffect } from 'react'
+import { loadCatalog, loadIDs } from '${PROXY}'
 
 export const key = '${KEY}'
 /** @type {{[loadID: string]: Set<Function>}} */
@@ -14,8 +14,10 @@ const collection = {
     get: getRuntime,
     set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').Runtime} */ runtime) => {
         store[loadID] = runtime // for when useEffect hasn't run yet
-        callbacks[loadID]?.forEach(cb => cb(runtime))
-    }
+        callbacks[loadID]?.forEach((cb) => {
+            cb(runtime)
+        })
+    },
 }
 
 registerLoaders(key, loadCatalog, loadIDs, collection)

@@ -1,19 +1,19 @@
 {
-  "compilerOptions": {
-    "moduleResolution": "nodenext",
-    "target": "es2022",
-    "module": "nodenext",
-    "lib": ["es2022"],
-    "declaration": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "resolveJsonModule": true,
-    "strictNullChecks": true,
-    "noImplicitAny": false,
-    "sourceMap": true,
-    "declarationMap": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "checkJs": true
-  }
+    "compilerOptions": {
+        "moduleResolution": "nodenext",
+        "target": "es2022",
+        "module": "nodenext",
+        "lib": ["es2022"],
+        "declaration": true,
+        "verbatimModuleSyntax": true,
+        "isolatedModules": true,
+        "resolveJsonModule": true,
+        "strictNullChecks": true,
+        "noImplicitAny": false,
+        "sourceMap": true,
+        "declarationMap": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "checkJs": true
+    }
 }
