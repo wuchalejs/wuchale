@@ -6,7 +6,7 @@
         "useIgnoreFile": true
     },
     "files": {
-        "includes": ["**", "!!**/*.d.ts"],
+        "includes": ["**", "!!**/*.d.ts", "!!packages/*/tests/**/*.out.*"],
         "ignoreUnknown": false
     },
     "formatter": {
