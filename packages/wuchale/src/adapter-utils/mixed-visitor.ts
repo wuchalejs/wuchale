@@ -2,7 +2,7 @@
 
 import type MagicString from "magic-string"
 import { IndexTracker, Message, type HeuristicDetails, type HeuristicDetailsBase, type HeuristicFunc, type MessageType } from "../adapters.js"
-import { commentPrefix, nonWhitespaceText, type RuntimeVars, type CommentDirectives } from "./index.js"
+import { commentPrefix, nonWhitespaceText, updateCommentDirectives, type RuntimeVars, type CommentDirectives } from "./index.js"
 
 type NestedRanges = [number, number, boolean][]
 
@@ -42,13 +42,15 @@ type VisitProps<NodeT> = {
 
 export interface MixedVisitor<NodeT> extends InitProps<NodeT> {}
 
+type SeparateVisitRes = [boolean, boolean, boolean, MessageType, Message[]]
+
 export class MixedVisitor<NodeT> {
 
     constructor(props: InitProps<NodeT>) {
         Object.assign(this, props)
     }
 
-    separatelyVisitChildren = (props: VisitProps<NodeT>): [boolean, boolean, boolean, MessageType, Message[]] => {
+    separatelyVisitChildren = (props: VisitProps<NodeT>): SeparateVisitRes => {
         let hasTextChild = false
         let hasNonTextChild = false
         let heurStr = ''
@@ -85,12 +87,37 @@ export class MixedVisitor<NodeT> {
         }
         // can't be extracted as one; visit each separately if markup
         const msgs: Message[] = []
-        if (props.scope === 'markup') {
-            for (const child of props.children) {
+        const res: SeparateVisitRes = [true, false, false, heurMsgType || 'message', msgs]
+        if (props.scope !== 'markup') {
+            return res
+        }
+        const commentDirectivesOrig: CommentDirectives = {...props.commentDirectives}
+        let lastVisitIsComment = false
+        for (const child of props.children) {
+            if (this.isComment(child)) {
+                updateCommentDirectives(this.getCommentData(child), props.commentDirectives)
+                lastVisitIsComment = true
+                continue
+            }
+            if (this.isText(child) && !this.getTextContent(child).trim()) {
+                continue
+            }
+            if (props.commentDirectives.ignoreFile) {
+                break
+            }
+            if (props.commentDirectives.forceType !== false) {
                 msgs.push(...this.visitFunc(child, props.inCompoundText))
             }
+            if (!lastVisitIsComment) {
+                continue
+            }
+            // restore. like Object.assign but in reverse for keys
+            for (const key in props.commentDirectives) {
+                props.commentDirectives[key] = commentDirectivesOrig[key]
+            }
+            lastVisitIsComment = false
         }
-        return [true, false, false, heurMsgType || 'message', msgs]
+        return res
     }
 
     visit = (props: VisitProps<NodeT>): Message[] => {

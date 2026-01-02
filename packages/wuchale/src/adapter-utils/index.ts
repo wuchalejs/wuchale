@@ -53,8 +53,7 @@ export type CommentDirectives = {
     context?: string
 }
 
-export function processCommentDirectives(data: string, current: CommentDirectives) {
-    const directives: CommentDirectives = {...current}
+export function updateCommentDirectives(data: string, directives: CommentDirectives) {
     if (data === commentDirectives.ignore) {
         directives.forceType = false
     }
@@ -70,5 +69,4 @@ export function processCommentDirectives(data: string, current: CommentDirective
     if (data.startsWith(commentDirectives.context)) {
         directives.context = data.slice(commentDirectives.context.length).trim()
     }
-    return directives
 }

@@ -14,7 +14,7 @@ import type {
     CodePattern,
     UrlMatcher,
 } from 'wuchale'
-import { nonWhitespaceText, MixedVisitor, processCommentDirectives, type CommentDirectives } from "wuchale/adapter-utils"
+import { nonWhitespaceText, MixedVisitor } from "wuchale/adapter-utils"
 
 const JsxParser = Parser.extend(tsPlugin({jsx: true}))
 
@@ -35,7 +35,6 @@ export class JSXTransformer extends Transformer {
     // state
     currentElement?: string
     inCompoundText: boolean = false
-    commentDirectivesStack: CommentDirectives[] = []
     lastVisitIsComment: boolean = false
     currentJsxKey?: number
 
@@ -179,9 +178,7 @@ export class JSXTransformer extends Transformer {
         return comment.slice(2, -2).trim()
     }
 
-    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => {
-        return this.visit(node.expression as Estree.Expression)
-    }
+    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => this.visit(node.expression as Estree.Expression)
 
     visitJSXAttribute = (node: JX.JSXAttribute): Message[] => {
         if (node.value == null) {
@@ -229,43 +226,7 @@ export class JSXTransformer extends Transformer {
 
     visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): Message[] => this.visit(node.argument as Estree.Expression)
 
-    visitJSXEmptyExpression = (node: JX.JSXEmptyExpression): Message[] => {
-        const commentContents = this.getMarkupCommentBody(node)
-        if (!commentContents) {
-            return []
-        }
-        this.commentDirectives = processCommentDirectives(commentContents, this.commentDirectives)
-        if (this.lastVisitIsComment) {
-            this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = this.commentDirectives
-        } else {
-            this.commentDirectivesStack.push(this.commentDirectives)
-        }
-        this.lastVisitIsComment = true
-        return []
-    }
-
-    visitJx = (node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] => {
-        if (node.type === 'JSXText' && !node.value.trim()) {
-            return []
-        }
-        if (node.type === 'JSXExpressionContainer' && node.expression.type === 'JSXEmptyExpression') { // markup comment
-            return this.visitJSXEmptyExpression(node.expression)
-        }
-        let msgs: Message[] = []
-        const commentDirectivesPrev = this.commentDirectives
-        if (this.lastVisitIsComment) {
-            this.commentDirectives = this.commentDirectivesStack.pop() as CommentDirectives
-            this.lastVisitIsComment = false
-        }
-        if (this.commentDirectives.ignoreFile) {
-            return []
-        }
-        if (this.commentDirectives.forceType !== false) {
-            msgs = this.visit(node as Estree.AnyNode)
-        }
-        this.commentDirectives = commentDirectivesPrev
-        return msgs
-    }
+    visitJx = (node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] => this.visit(node as Estree.AnyNode)
 
     transformJx = (lib: JSXLib): TransformOutput => {
         // jsx vs type casting is not ambiguous in all files except .ts files

@@ -15,8 +15,6 @@ import type {
 import {
     nonWhitespaceText,
     MixedVisitor,
-    processCommentDirectives,
-    type CommentDirectives,
 } from "wuchale/adapter-utils"
 import { parse } from "@astrojs/compiler"
 import type {
@@ -50,8 +48,6 @@ export class AstroTransformer extends Transformer {
     // state
     currentElement?: string
     inCompoundText: boolean = false
-    commentDirectivesStack: CommentDirectives[] = []
-    lastVisitIsComment: boolean = false
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitor<MixedAstroNodes>
@@ -116,7 +112,7 @@ export class AstroTransformer extends Transformer {
         leaveInPlace: node => [''].includes(node.type),
         isExpression: node => node.type === 'expression',
         getTextContent: (node: TextNode) => node.value,
-        getCommentData: (node: CommentNode) => node.value,
+        getCommentData: (node: CommentNode) => node.value.trim(),
         canHaveChildren: (node) => nodesWithChildren.includes(node.type),
         visitFunc: (child, inCompoundText) => {
             const inCompoundTextPrev = this.inCompoundText
@@ -274,44 +270,9 @@ export class AstroTransformer extends Transformer {
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
-    visitroot = (node: RootNode): Message[] => {
-        const msgs: Message[] = []
-        // ?? [] because it's undefined on an empty file
-        for (const rootChild of node.children ?? []) {
-            msgs.push(...this.visitAs(rootChild))
-        }
-        return msgs
-    }
+    visitroot = (node: RootNode): Message[] => this._visitChildren(node.children)
 
-    visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => {
-        if (node.type === 'comment') {
-            this.commentDirectives = processCommentDirectives(node.value.trim(), this.commentDirectives)
-            if (this.lastVisitIsComment) {
-                this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = this.commentDirectives
-            } else {
-                this.commentDirectivesStack.push(this.commentDirectives)
-            }
-            this.lastVisitIsComment = true
-            return []
-        }
-        if (node.type === 'text' && !node.value.trim()) {
-            return []
-        }
-        let msgs: Message[] = []
-        const commentDirectivesPrev = this.commentDirectives
-        if (this.lastVisitIsComment) {
-            this.commentDirectives = this.commentDirectivesStack.pop() as CommentDirectives
-            this.lastVisitIsComment = false
-        }
-        if (this.commentDirectives.ignoreFile) {
-            return []
-        }
-        if (this.commentDirectives.forceType !== false) {
-            msgs = this.visit(node as Estree.AnyNode)
-        }
-        this.commentDirectives = commentDirectivesPrev
-        return msgs
-    }
+    visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
 
     transformAs = async (): Promise<TransformOutput> => {
         const { ast } = await parse(this.content)

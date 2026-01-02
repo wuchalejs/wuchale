@@ -18,7 +18,7 @@ import type {
     HeuristicResultChecked,
     MessageType,
 } from "../adapters.js"
-import { processCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
+import { updateCommentDirectives, runtimeVars, varNames, type RuntimeVars, type CommentDirectives } from "../adapter-utils/index.js"
 
 export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
@@ -681,13 +681,15 @@ export class Transformer<RTCtxT = {}> {
         const comments = this.comments[node.start]
         // @ts-expect-error
         for (const comment of node.leadingComments ?? comments ?? []) {
-            this.commentDirectives = processCommentDirectives(comment.value.trim(), this.commentDirectives)
+            updateCommentDirectives(comment.value.trim(), this.commentDirectives)
         }
         if (this.commentDirectives.ignoreFile) {
             return []
         }
         const res = func()
-        this.commentDirectives = commentDirectives // restore
+        for (const key in this.commentDirectives) {
+            this.commentDirectives[key] = commentDirectives[key] // restore
+        }
         return res
     }
 

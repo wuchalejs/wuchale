@@ -13,7 +13,7 @@ import type {
     HeuristicDetailsBase,
     UrlMatcher,
 } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText, processCommentDirectives, varNames, type CommentDirectives } from "wuchale/adapter-utils"
+import { MixedVisitor, nonWhitespaceText, varNames } from "wuchale/adapter-utils"
 
 const nodesWithChildren = ['RegularElement', 'Component']
 
@@ -45,8 +45,6 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     // state
     currentElement?: string
     inCompoundText: boolean = false
-    commentDirectivesStack: CommentDirectives[] = []
-    lastVisitIsComment: boolean = false
     currentSnippet: number = 0
     moduleExportRanges: [number, number][] = [] // to choose which runtime var to use for snippets
 
@@ -103,7 +101,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
         isExpression: node => node.type === 'ExpressionTag',
         getTextContent: (node: AST.Text) => node.data,
-        getCommentData: (node: AST.Comment) => node.data,
+        getCommentData: (node: AST.Comment) => node.data.trim(),
         canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),
         visitFunc: (child, inCompoundText) => {
             const inCompoundTextPrev = this.inCompoundText
@@ -347,35 +345,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         return msgs
     }
 
-    visitSv = (node: AST.SvelteNode | AnyNode): Message[] => {
-        if (node.type === 'Comment') {
-            this.commentDirectives = processCommentDirectives(node.data.trim(), this.commentDirectives)
-            if (this.lastVisitIsComment) {
-                this.commentDirectivesStack[this.commentDirectivesStack.length - 1] = this.commentDirectives
-            } else {
-                this.commentDirectivesStack.push(this.commentDirectives)
-            }
-            this.lastVisitIsComment = true
-            return []
-        }
-        if (node.type === 'Text' && !node.data.trim()) {
-            return []
-        }
-        let msgs: Message[] = []
-        const commentDirectivesPrev = this.commentDirectives
-        if (this.lastVisitIsComment) {
-            this.commentDirectives = this.commentDirectivesStack.pop() as CommentDirectives
-            this.lastVisitIsComment = false
-        }
-        if (this.commentDirectives.ignoreFile) {
-            return []
-        }
-        if (this.commentDirectives.forceType !== false) {
-            msgs = this.visit(node as AnyNode)
-        }
-        this.commentDirectives = commentDirectivesPrev
-        return msgs
-    }
+    visitSv = (node: AST.SvelteNode | AnyNode): Message[] => this.visit(node as AnyNode)
 
     /** collects the ranges that will be checked if a snippet identifier is exported using RegExp test to simplify */
     collectModuleExportRanges = (script: AST.Script) => {
