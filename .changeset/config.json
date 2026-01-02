@@ -1,6 +1,6 @@
 {
     "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-    "changelog": ["@changesets/changelog-github", { "repo": "wuchalejs/wuchale" }],
+    "changelog": ["@svitejs/changesets-changelog-github-compact", { "repo": "wuchalejs/wuchale" }],
     "commit": false,
     "fixed": [],
     "linked": [],
