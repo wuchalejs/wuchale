@@ -6,6 +6,8 @@ import { color, type Logger } from '../log.js'
 
 export type ItemType = InstanceType<typeof PO.Item>
 
+const MAX_RETRIES = 30
+
 type Batch = {
     id: number
     messages: ItemType[]
@@ -55,7 +57,7 @@ export default class AIQueue {
 
     #requestName = (id: number) => `${color.cyan(this.ai.name)}: ${this.targetLang} [${id}]`
 
-    translate = async (batch: Batch) => {
+    translate = async (batch: Batch, attempt = 0) => {
         const logStart = this.#requestName(batch.id)
         let translated: ItemType[]
         try {
@@ -79,12 +81,17 @@ export default class AIQueue {
                 unTranslated.push(item)
             }
         }
-        if (unTranslated.length) {
-            this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
-            await this.translate({ id: batch.id, messages: unTranslated })
-        } else {
+        if (unTranslated.length === 0) {
             this.log.info(`${logStart}: ${color.green('translated')}`)
+            return
         }
+        attempt++
+        if (attempt === MAX_RETRIES) {
+            this.log.error(`${logStart}: Giving up after ${attempt} unsuccessful retries`)
+            return
+        }
+        this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
+        await this.translate({ id: batch.id, messages: unTranslated }, attempt)
     }
 
     run = async () => {
