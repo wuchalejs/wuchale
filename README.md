@@ -19,10 +19,11 @@ toolkit that requires no code changes. Write your components naturally, and
 `wuchale` automatically extracts and replaces translatable messages at build
 time.
 
-- **✨ No extra syntax!** - Your normal code is enough, your codebase stays clean
+- **🧼 No extra syntax!** - Your normal code is enough, your codebase stays clean
 - **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
 - **🔌 Zero-effort integration** - Add i18n to existing projects without rewriting code
-- **🤖 Optional AI translation** - Configurable integration for automatic on-the-fly translations
+- **🧩 Framework agnostic** - Works with React, Preact, Svelte(Kit), SolidJS, Astro, and plain JS/TS
+- **✨ Optional AI translation** - Configurable integration for automatic on-the-fly translations
 - **⚡ Full, granular HMR support** - Live updates during development, including AI auto-translation
 - **📦 Tiny footprint** - Very few (less than 5) additional dependencies, no bloated `node_modules`
 - **🧠 Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
@@ -31,12 +32,14 @@ time.
 ## A taste
 
 With traditional i18n:
+
 ```svelte
 <p>{t('Hello')}</p>
 <p><Trans>Welcome {userName}</Trans></p>
 ```
 
 With `wuchale`:
+
 ```svelte
 <p>Hello</p>
 <p>Welcome {userName}</p>
