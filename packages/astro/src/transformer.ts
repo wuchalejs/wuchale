@@ -263,7 +263,7 @@ export class AstroTransformer extends Transformer {
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
-    visitroot = (node: RootNode): Message[] => this._visitChildren(node.children)
+    visitroot = (node: RootNode): Message[] => this._visitChildren(node.children ?? []) // can be undefined!
 
     visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
 
