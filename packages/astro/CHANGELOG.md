@@ -1,5 +1,11 @@
 # @wuchale/astro
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix error on empty file ([`3334c2a`](https://github.com/wuchalejs/wuchale/commit/3334c2a9440c83f70ec2bf452e25039c827c77a6))
+
 ## 0.2.1
 
 ### Patch Changes
