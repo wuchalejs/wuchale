@@ -8,18 +8,18 @@
   <a href="https://npmjs.com/package/wuchale"><img src="https://img.shields.io/npm/v/wuchale?logo=npm&logoColor=red&color=blue" alt="npm package"></a>
   <a href="https://github.com/wuchalejs/wuchale/actions/workflows/ci.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/ci.yml/badge.svg?branch=main" alt="build status"></a>
   <a href="https://pr.new/wuchalejs/wuchale"><img src="https://developer.stackblitz.com/img/start_pr_dark_small.svg" alt="Start new PR in StackBlitz Codeflow"></a>
-  <a href="https://discord.gg/ypVSZTbzvG"><img src="https://img.shields.io/badge/chat-discord-blue?style=flat&logo=discord" alt="discord chat"></a>
+  <a href="https://wuchale.dev/chat"><img src="https://img.shields.io/badge/chat-discord-blue?style=flat&logo=discord" alt="discord chat"></a>
 </p>
 <br/>
 
 # 📜`wuchale`🪶
 
 **`wuchale`** (pronounced "wuh-cha-lay") is a compile-time internationalization
-(i18n) toolkit that requires zero code changes. Write your components
-naturally, and `wuchale` automatically extracts and replaces translatable
-strings at build time.
+toolkit that requires no code changes. Write your components naturally, and
+`wuchale` automatically extracts and replaces translatable messages at build
+time.
 
-- **✨ No extra syntax!** - Your normal code is enough
+- **✨ No extra syntax!** - Your normal code is enough, your codebase stays clean
 - **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
 - **🔌 Zero-effort integration** - Add i18n to existing projects without rewriting code
 - **🤖 Optional AI translation** - Configurable integration for automatic on-the-fly translations
@@ -28,12 +28,9 @@ strings at build time.
 - **🧠 Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
 - **🌍 Standard .po files** - Compatible with existing translation tools and workflows
 
-## Why `wuchale`?
+## A taste
 
-Traditional i18n solutions require you to wrap every translatable string with
-function calls or components. `wuchale` doesn't.
-
-Traditional i18n:
+With traditional i18n:
 ```svelte
 <p>{t('Hello')}</p>
 <p><Trans>Welcome {userName}</Trans></p>
@@ -45,25 +42,29 @@ With `wuchale`:
 <p>Welcome {userName}</p>
 ```
 
-Write your code naturally. No imports, no wrappers, no annotations. `wuchale`
-handles everything at compile time by analyzing your code and automatically
-extracting translatable strings.
+No imports, no wrappers, no annotations. `wuchale` handles everything at
+compile time by analyzing your code and automatically extracting translatable
+strings.
 
 ## Getting started
 
-`wuchale` can be used in several ways depending on your project setup:
+See the [Getting Started guide](https://wuchale.dev/intro/start/) for
+instructions specific to your project type.
 
-- **Standalone CLI** - For any JavaScript/TypeScript project
-- **Vite Plugin** - For Vite-based projects with vanilla JS/TS
-- **Framework Adapters** - Specialized support for React/Preact, Svelte, SolidJS, and Astro
+## How it works
 
-**Installation and setup varies by use case.** See the [Getting Started
-guide](https://wuchale.dev/intro/start/) for detailed instructions specific to
-your project type.
+`wuchale` uses static Abstract Syntax Tree (AST) analysis to:
 
-### Basic Example
+1. **Scan your source code** and identify translatable text content
+2. **Extract strings** into standard `.po` translation files
+3. **Replace strings** with translation function calls that access the messages by indices
+4. **Generate compact catalogs** using arrays instead of string keys, synchronized with the indices
 
-Once set up, write your components naturally:
+Your original code stays clean and readable, while the build output is automatically internationalized.
+
+## Example
+
+Let's say you have:
 
 ```jsx
 // src/components/Welcome.jsx
@@ -78,24 +79,49 @@ function Welcome({ name }) {
 }
 ```
 
-Extract translatable strings (done automatically when using Vite):
+The messages are extracted into a `.po` file. for Spanish for example, after translation, it looks like:
 
-```bash
-npx wuchale
+```po
+#~ src/components/Welcome.jsx
+msgid "Welcome to our app!"
+msgstr "¡Bienvenido a nuestra aplicación!"
+
+#~ src/components/Welcome.jsx
+msgid "Hello, {0}! How are you today?"
+msgstr "¡Hola, {0}! ¿Cómo estás hoy?"
+
+#~ src/components/Welcome.jsx
+msgid "Get started"
+msgstr "Comenzar"
 ```
 
-This generates `.po` files with all your translatable strings, ready for translation.
+Then they are compiled into a compact form optimized for loading (just an array):
 
-## How it works
+```js
+export let c = ["¡Bienvenido a nuestra aplicación!",["¡Hola, ",0,"! ¿Cómo estás hoy?"],"Comenzar"]
+```
 
-`wuchale` uses static Abstract Syntax Tree (AST) analysis to:
+And your code is transformed into a version that accesses them by index:
 
-1. **Scan your source code** and identify translatable text content
-2. **Extract strings** into standard `.po` translation files
-3. **Replace strings** with translation function calls that access the messages by indices
-4. **Generate compact catalogs** using arrays instead of string keys, synchronized with the indices
+```jsx
+// src/components/Welcome.jsx
+import { _load_ } from '../locales/loader.js'
 
-Your original code stays clean and readable, while the build output is automatically internationalized.
+function Welcome({ name }) {
+  const _w_runtime_ = _load_('main')
+  return (
+    <div>
+      <h1>{_w_runtime_(0)}</h1>
+      <p>{_w_runtime_(1, [name])}</p>
+      <button>{_w_runtime_(2)}</button>
+    </div>
+  )
+}
+```
+
+Check out full working examples for different setups at
+**[`wuchalejs/examples`](https://github.com/wuchalejs/examples)** to see
+`wuchale` in action with different frameworks.
 
 ## Supported Features
 
@@ -117,16 +143,6 @@ This is a monorepo that houses these packages:
 | `@wuchale/svelte`    | Svelte adapter    |[![@wuchale/svelte](https://img.shields.io/npm/v/@wuchale/svelte?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/svelte)|
 | `@wuchale/astro`    | Astro adapter    |[![@wuchale/astro](https://img.shields.io/npm/v/@wuchale/astro?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/astro)|
 | `@wuchale/vite-plugin`    | The Vite plugin    |[![@wuchale/vite-plugin](https://img.shields.io/npm/v/@wuchale/vite-plugin?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/vite-plugin)|
-
-## Examples
-
-Check out working examples at
-**[`wuchalejs/examples`](https://github.com/wuchalejs/examples)** to see
-`wuchale` in action with different frameworks.
-
-## 📖 Documentation
-
-See the full guide at: [wuchale.dev](https://wuchale.dev/).
 
 ## FAQ
 
