@@ -1,5 +1,14 @@
 # @wuchale/astro
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix possible infinite retries on ai translate error/mistake ([`2b9a61a`](https://github.com/wuchalejs/wuchale/commit/2b9a61a06bded742d4dcfada843a2a0696c28ade))
+
+- Updated dependencies [[`2b9a61a`](https://github.com/wuchalejs/wuchale/commit/2b9a61a06bded742d4dcfada843a2a0696c28ade)]:
+  - wuchale@0.19.1
+
 ## 0.2.0
 
 ### Minor Changes

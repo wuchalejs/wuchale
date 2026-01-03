@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.18.0",
+    "version": "0.18.1",
     "description": "Protobuf-like i18n from plain code: Svelte adapter",
     "scripts": {
         "dev": "tsc --watch",
@@ -53,7 +53,7 @@
     "dependencies": {
         "svelte": "^5.37.0",
         "magic-string": "^0.30.21",
-        "wuchale": "^0.19.0"
+        "wuchale": "^0.19.1"
     },
     "devDependencies": {
         "acorn": "^8.15.0",
