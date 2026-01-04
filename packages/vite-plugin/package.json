@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/vite-plugin",
-    "version": "0.16.1",
+    "version": "0.16.2",
     "description": "Protobuf-like i18n from plain code: Vite plugin",
     "scripts": {
         "dev": "tsc --watch",
