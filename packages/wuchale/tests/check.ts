@@ -1,5 +1,6 @@
 // $$ node %f
 
+import type { TestContext } from 'node:test'
 import { readFile, rm } from 'fs/promises'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
@@ -48,7 +49,7 @@ export function trimLines(str: string) {
 }
 
 export async function testContentSetup(
-    t: any,
+    t: TestContext,
     adapter: Adapter,
     key: string,
     content: string,
@@ -71,7 +72,7 @@ export async function testContentSetup(
 }
 
 export async function testDirSetup(
-    t: any,
+    t: TestContext,
     adapter: Adapter,
     key: string,
     dir: string,

@@ -1,5 +1,6 @@
 // $$ node %f
 
+import type { TestContext } from 'node:test'
 import { adapter, type JSXArgs } from '@wuchale/jsx'
 import { rm } from 'fs/promises'
 import type { CompiledElement } from 'wuchale'
@@ -17,7 +18,7 @@ export const adapterOpts: Partial<JSXArgs> = {
 const testFile = `${dirBase}/test-dir/test.jsx`
 
 export async function testContent(
-    t: any,
+    t: TestContext,
     content: string,
     expectedContent: string | undefined,
     expectedTranslations: string,
@@ -42,7 +43,7 @@ export async function testContent(
 
 const jx = adapter(adapterOpts)
 
-export async function testDir(t: any, dir: string) {
+export async function testDir(t: TestContext, dir: string) {
     try {
         await rm(adapterOpts.localesDir + 'en.po')
     } catch {}

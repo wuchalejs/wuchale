@@ -1,5 +1,6 @@
 // $$ node %f
 
+import type { TestContext } from 'node:test'
 import { type AstroArgs, adapter } from '@wuchale/astro'
 import { rm } from 'fs/promises'
 import type { CompiledElement } from 'wuchale'
@@ -19,7 +20,7 @@ const testFile = `${dirBase}/test-dir/test.astro`
 const astroAdapter = adapter(adapterOpts)
 
 export async function testContent(
-    t: any,
+    t: TestContext,
     content: string,
     expectedContent: string | undefined,
     expectedTranslations: string,
@@ -42,7 +43,7 @@ export async function testContent(
     )
 }
 
-export async function testDir(t: any, dir: string) {
+export async function testDir(t: TestContext, dir: string) {
     try {
         await rm(adapterOpts.localesDir + 'en.po')
     } catch {}

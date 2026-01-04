@@ -1,5 +1,6 @@
 // $$ node %f
 
+import type { TestContext } from 'node:test'
 import { adapter, type SvelteArgs } from '@wuchale/svelte'
 import { rm } from 'fs/promises'
 import type { CompiledElement } from 'wuchale'
@@ -24,7 +25,7 @@ const testFile = `${dirBase}/test-dir/test.svelte`
 export const testFileJs = `${dirBase}/test-dir/test.svelte.js`
 
 export async function testContent(
-    t: any,
+    t: TestContext,
     content: string,
     expectedContent: string | undefined,
     expectedTranslations: string,
@@ -48,7 +49,7 @@ export async function testContent(
     )
 }
 
-export async function testDir(t: any, dir: string) {
+export async function testDir(t: TestContext, dir: string) {
     try {
         await rm(adapterOpts.localesDir as string, { recursive: true })
     } catch {}
