@@ -8,7 +8,8 @@
         "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
         "test": "npm run test --workspaces",
         "fmt": "npx @biomejs/biome check --write",
-        "v": "npx changeset"
+        "v": "npx changeset",
+        "postinstall": "ln -s ../../scripts/pre-commit .git/hooks/pre-commit"
     },
     "workspaces": [
         "packages/*"
