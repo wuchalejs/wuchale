@@ -42,10 +42,13 @@ class Wuchale {
     #configPath?: string
 
     #hmrVersion = -1
+    #hmrDelayThreshold: number
     #lastSourceTriggeredPOWrite: number = 0
 
-    constructor(configPath?: string) {
+    constructor(configPath?: string, hmrDelayThreshold = 1000) {
         this.#configPath = configPath
+        // threshold to consider po file change is manual edit instead of a sideeffect of editing code
+        this.#hmrDelayThreshold = hmrDelayThreshold
     }
 
     #init = async () => {
@@ -147,7 +150,7 @@ class Wuchale {
             return
         }
         // catalog changed
-        const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < 1000 // long enough threshold
+        const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < this.#hmrDelayThreshold
         const invalidatedModules = new Set()
         for (const adapter of adapters) {
             const loc = adapter.catalogPathsToLocales.get(ctx.file)!
@@ -188,7 +191,7 @@ class Wuchale {
         return {}
     }
 
-    transform = { order: <'pre'>'pre', handler: this.#transformHandler }
+    transform = { order: 'pre' as const, handler: this.#transformHandler }
 }
 
-export const wuchale = (configPath?: string) => new Wuchale(configPath)
+export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => new Wuchale(configPath, hmrDelayThreshold)

@@ -34,7 +34,7 @@ export async function getOutput(
     return { code, catalogs: poFilesByLoc, compiled }
 }
 
-function trimLines(str: string) {
+export function trimLines(str: string) {
     if (!str) {
         return
     }

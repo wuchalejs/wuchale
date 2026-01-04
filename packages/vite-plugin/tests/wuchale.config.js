@@ -5,9 +5,9 @@ export default defineConfig({
     locales: ['en'],
     adapters: {
         main: adapter({
-            files: './*.test.js',
+            files: './tests/*.test.js',
             localesDir: './tests/test-tmp/',
-            loader: 'server',
+            loader: 'vite',
         }),
     },
 })
