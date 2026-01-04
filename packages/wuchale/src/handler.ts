@@ -101,7 +101,7 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
         po.items.push(item)
     }
     return new Promise((res, rej) => {
-        po.save(filename, (err) => {
+        po.save(filename, err => {
             if (err) {
                 rej(err)
             } else {
@@ -389,7 +389,7 @@ export class AdapterHandler {
         if (typeof compiledTranslatedPatt === 'string') {
             return compiledTranslatedPatt
         }
-        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map((part) => {
+        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
             if (typeof part === 'number') {
                 return keys[part]
             }
@@ -403,12 +403,12 @@ export class AdapterHandler {
         if (!patterns) {
             return
         }
-        const manifest: URLManifest = patterns.map((patt) => {
+        const manifest: URLManifest = patterns.map(patt => {
             const catalogPattKey = this.#urlPatternKeys.get(patt)!
             const { keys } = pathToRegexp(patt)
             return [
                 patt,
-                this.#config.locales.map((loc) => {
+                this.#config.locales.map(loc => {
                     let pattern = patt
                     const item = this.sharedState.poFilesByLoc.get(loc)!.catalog.get(catalogPattKey)
                     if (item) {
@@ -513,13 +513,13 @@ export class AdapterHandler {
                 }
                 return new Message(locPattern, undefined, context)
             })
-            const urlPatternCatKeys = urlPatternMsgs.map((msg) => msg.toKey())
+            const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
             for (const [key, item] of catalog.entries()) {
                 if (!item.flags[urlPatternFlag]) {
                     continue
                 }
                 if (!urlPatternCatKeys.includes(key)) {
-                    item.references = item.references.filter((r) => r !== this.key)
+                    item.references = item.references.filter(r => r !== this.key)
                     if (item.references.length === 0) {
                         item.obsolete = true
                     }
@@ -700,7 +700,7 @@ export class AdapterHandler {
                 continue
             }
             // compile only if it came from a file under this adapter
-            if (!poItem.references.some((f) => this.fileMatches(f))) {
+            if (!poItem.references.some(f => this.fileMatches(f))) {
                 continue
             }
             const index = this.sharedState.indexTracker.get(key)
@@ -939,7 +939,7 @@ export class AdapterHandler {
             if (msgInfo.context) {
                 poItem.msgctxt = msgInfo.context
             }
-            const newComments = msgInfo.comments.map((c) => c.replace(/\s+/g, ' ').trim())
+            const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
             let iStartComm: number
             if (key in previousReferences) {
                 const prevRef = previousReferences.get(key)!
@@ -1058,7 +1058,7 @@ export class AdapterHandler {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#config.locales) {
                     hmrData.data[loc] =
-                        hmrKeys.get(loc)?.map((key) => {
+                        hmrKeys.get(loc)?.map(key => {
                             const index = indexTracker.get(key)
                             return [index, compiled.get(loc)!.items[index]]
                         }) ?? []
@@ -1091,17 +1091,17 @@ export class AdapterHandler {
                 for (const item of items) {
                     // unreference all references that belong to this adapter
                     if (item.flags[urlPatternFlag]) {
-                        item.references = item.references.filter((ref) => ref !== this.key)
+                        item.references = item.references.filter(ref => ref !== this.key)
                     } else {
                         // don't touch other adapters' files. related extracted comments handled by handler
-                        item.references = item.references.filter((ref) => {
+                        item.references = item.references.filter(ref => {
                             if (this.fileMatches(ref)) {
                                 return false
                             }
                             if (this.sharedState.ownerKey !== this.key) {
                                 return true
                             }
-                            return this.sharedState.otherFileMatches.some((match) => match(ref))
+                            return this.sharedState.otherFileMatches.some(match => match(ref))
                         })
                     }
                 }

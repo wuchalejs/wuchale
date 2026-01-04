@@ -13,7 +13,7 @@ import { compileTranslation } from '../dist/compile.js'
 // @ts-expect-error
 import { adapterOpts, basic, testContent, ts } from './check.ts'
 
-test('Compile messages', (t) => {
+test('Compile messages', t => {
     const testCompile = (msg: string, expect: CompiledElement) =>
         t.assert.deepEqual(compileTranslation(msg, ''), expect)
     testCompile('Foo', 'Foo')
@@ -42,7 +42,7 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Simple expression and assignment', async (t) => {
+test('Simple expression and assignment', async t => {
     await testContent(
         t,
         ts`
@@ -59,7 +59,7 @@ test('Simple expression and assignment', async (t) => {
     )
 })
 
-test('Ignore file', async (t) => {
+test('Ignore file', async t => {
     await testContent(
         t,
         ts`
@@ -81,7 +81,7 @@ test('Ignore file', async (t) => {
     )
 })
 
-test('Inside function definitions', async (t) => {
+test('Inside function definitions', async t => {
     await testContent(
         t,
         ts`
@@ -155,7 +155,7 @@ test('Inside function definitions', async (t) => {
     )
 })
 
-test('Inside class declarations', async (t) => {
+test('Inside class declarations', async t => {
     await testContent(
         t,
         ts`
@@ -198,7 +198,7 @@ test('Inside class declarations', async (t) => {
     )
 })
 
-test('Runtime init place', async (t) => {
+test('Runtime init place', async t => {
     await testContent(
         t,
         ts`
@@ -237,7 +237,7 @@ test('Runtime init place', async (t) => {
     )
 })
 
-test('Plural and patterns', async (t) => {
+test('Plural and patterns', async t => {
     await testContent(
         t,
         ts`
@@ -295,7 +295,7 @@ test('Plural and patterns', async (t) => {
     )
 })
 
-test('HMR', async (t) => {
+test('HMR', async t => {
     await testContent(
         t,
         ts`
@@ -352,7 +352,7 @@ const testCatalog = {
 }
 const loaderFunc = () => testCatalog
 
-test('Loading and runtime', async (t) => {
+test('Loading and runtime', async t => {
     const collection = {}
     const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
@@ -370,7 +370,7 @@ function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
     return msgs.join('_') + args.join('_')
 }
 
-test('Runtime', (t) => {
+test('Runtime', t => {
     const rt = toRuntime(testCatalog)
     t.assert.equal(rt(0), 'Hello')
     t.assert.equal(rt(1, ['User']), 'Hello User!')
@@ -380,15 +380,15 @@ test('Runtime', (t) => {
 })
 
 // This should be run AFTER the test Runtime completes
-test('Runtime server side', async (t) => {
-    const getRT = await loadLocales('main', ['main'], (_) => testCatalog, ['en'])
+test('Runtime server side', async t => {
+    const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
         return getRT('main')(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })
 
-test('URL matcher', (t) => {
+test('URL matcher', t => {
     const matcher = URLMatcher(
         [
             ['/path', ['/en/path', '/es/ruta']],

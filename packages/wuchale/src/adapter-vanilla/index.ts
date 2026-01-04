@@ -31,8 +31,8 @@ const defaultArgs: VanillaArgs = {
         initReactive: ({ nested }) => (nested ? null : false),
         useReactive: false,
         plain: {
-            wrapInit: (expr) => expr,
-            wrapUse: (expr) => expr,
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
         },
     },
 }

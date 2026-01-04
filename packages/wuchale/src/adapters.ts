@@ -47,12 +47,12 @@ export class Message {
         if (typeof msgStr === 'string') {
             this.msgStr = [msgStr]
         } else {
-            this.msgStr = msgStr.filter((str) => str != null)
+            this.msgStr = msgStr.filter(str => str != null)
         }
-        this.msgStr = this.msgStr.map((msg) =>
+        this.msgStr = this.msgStr.map(msg =>
             msg
                 .split('\n')
-                .map((line) => line.trim())
+                .map(line => line.trim())
                 .join('\n'),
         )
         this.details = heuristicDetails
@@ -78,7 +78,7 @@ export const defaultHeuristicOpts = {
 export type CreateHeuristicOpts = typeof defaultHeuristicOpts
 
 export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
-    return (msg) => {
+    return msg => {
         if (msg.details.element && opts.ignoreElements.includes(msg.details.element)) {
             return false
         }
@@ -141,7 +141,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
 export const defaultHeuristic = createHeuristic(defaultHeuristicOpts)
 
 /** Default heuristic which ignores messages outside functions in the `script` scope */
-export const defaultHeuristicFuncOnly: HeuristicFunc = (msg) => {
+export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
     if (defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)) {
         return 'message'
     }

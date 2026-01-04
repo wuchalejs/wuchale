@@ -25,7 +25,7 @@ async function statPO(filename: string): Promise<POStats> {
 
 export async function status(config: Config, locales: string[]) {
     // console.log because if the user invokes this command, they want full info regardless of config
-    console.log(`Locales: ${locales.map((l) => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
+    console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
         const loaderPath = await handler.getLoaderPath()

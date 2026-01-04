@@ -33,7 +33,7 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
     }
     // watch
     logger.info('Watching for changes')
-    const handlersWithExtr = handlers.map((h) => [h.fileMatches, extractor(h, logger)])
+    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h, logger)])
     watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
         if (!['add', 'change'].includes(event)) {
             return

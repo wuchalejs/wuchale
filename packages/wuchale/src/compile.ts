@@ -9,7 +9,7 @@ const CLOSE = Symbol()
 const SELF_CLOSE = Symbol()
 const PLACEHOLDER = Symbol()
 
-const digitRange = ['0', '9'].map((d) => d.charCodeAt(0))
+const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
 
 function extractSpecial(msgStr: string, start: number): [symbol | null, number | null, number] {
     const inPlaceHolder = msgStr[start] === '{'

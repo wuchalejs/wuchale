@@ -18,7 +18,7 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Basic markup', async (t) => {
+test('Basic markup', async t => {
     await testContent(
         t,
         astro`
@@ -46,7 +46,7 @@ test('Basic markup', async (t) => {
     )
 })
 
-test('Comment before frontmatter', async (t) => {
+test('Comment before frontmatter', async t => {
     await testContent(
         t,
         astro`
@@ -75,7 +75,7 @@ test('Comment before frontmatter', async (t) => {
     )
 })
 
-test('Ignore and include', async (t) => {
+test('Ignore and include', async t => {
     await testContent(
         t,
         astro`
@@ -115,7 +115,7 @@ test('Ignore and include', async (t) => {
     )
 })
 
-test('Ignore file', async (t) => {
+test('Ignore file', async t => {
     await testContent(
         t,
         astro`
@@ -132,7 +132,7 @@ test('Ignore file', async (t) => {
     )
 })
 
-test('Context', async (t) => {
+test('Context', async t => {
     await testContent(
         t,
         astro`
@@ -184,7 +184,7 @@ test('Context', async (t) => {
     )
 })
 
-test('Plural', async (t) => {
+test('Plural', async t => {
     await testContent(
         t,
         astro`
@@ -212,7 +212,7 @@ test('Plural', async (t) => {
     )
 })
 
-test('Nested and mixed', async (t) => {
+test('Nested and mixed', async t => {
     await testContent(
         t,
         astro`

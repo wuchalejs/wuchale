@@ -8,7 +8,7 @@ export type { RuntimeCtxSv }
 
 export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return (msg) => {
+    return msg => {
         const defRes = defaultHeuristic(msg)
         if (!defRes) {
             return false
@@ -28,7 +28,7 @@ export const svelteDefaultHeuristic = createSvelteHeuristic(defaultHeuristicOpts
 export const svelteKitDefaultHeuristic = createSvelteHeuristic({ ...defaultHeuristicOpts, urlCalls: ['goto'] })
 
 /** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
-export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = (msg) => {
+export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
     const defRes = svelteDefaultHeuristic(msg)
     if (!defRes) {
         return false
@@ -68,12 +68,12 @@ const defaultArgs: SvelteArgs = {
             return file.endsWith('.svelte.js') || module ? inTopLevel : true
         },
         reactive: {
-            wrapInit: (expr) => `$derived(${expr})`,
-            wrapUse: (expr) => expr,
+            wrapInit: expr => `$derived(${expr})`,
+            wrapUse: expr => expr,
         },
         plain: {
-            wrapInit: (expr) => expr,
-            wrapUse: (expr) => expr,
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
         },
     },
 }

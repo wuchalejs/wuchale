@@ -56,21 +56,21 @@ export class JSXTransformer extends Transformer {
         new MixedVisitor<MixedNodesTypes>({
             mstr: this.mstr,
             vars: this.vars,
-            getRange: (node) => ({
+            getRange: node => ({
                 start: node.start,
                 end: node.end,
             }),
-            isComment: (node) =>
+            isComment: node =>
                 node.type === 'JSXExpressionContainer' &&
                 node.expression.type === 'JSXEmptyExpression' &&
                 node.expression.end > node.expression.start,
-            isText: (node) => node.type === 'JSXText',
+            isText: node => node.type === 'JSXText',
             leaveInPlace: () => false,
-            isExpression: (node) => node.type === 'JSXExpressionContainer',
+            isExpression: node => node.type === 'JSXExpressionContainer',
             getTextContent: (node: JX.JSXText) => node.value,
             getCommentData: (node: JX.JSXExpressionContainer) =>
                 this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
-            canHaveChildren: (node) => nodesWithChildren.includes(node.type),
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: (child, inCompoundText) => {
                 const inCompoundTextPrev = this.inCompoundText
                 this.inCompoundText = inCompoundText
@@ -150,7 +150,7 @@ export class JSXTransformer extends Transformer {
         }
         if (this.inCompoundText && this.currentJsxKey != null) {
             const key = node.openingElement.attributes.find(
-                (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'key',
+                attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
             )
             if (!key) {
                 this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.currentJsxKey}"`)

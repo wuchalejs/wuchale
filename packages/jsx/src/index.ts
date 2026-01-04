@@ -6,7 +6,7 @@ import { type JSXLib, JSXTransformer } from './transformer.js'
 
 export function createJsxHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return (msg) => {
+    return msg => {
         const defRes = defaultHeuristic(msg)
         if (!defRes) {
             return false
@@ -41,12 +41,12 @@ const defaultRuntime: RuntimeConf = {
         !nested &&
         ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0])),
     reactive: {
-        wrapInit: (expr) => expr,
-        wrapUse: (expr) => expr,
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
     },
     plain: {
-        wrapInit: (expr) => expr,
-        wrapUse: (expr) => expr,
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
     },
 }
 
@@ -55,8 +55,8 @@ const defaultRuntimeSolid: RuntimeConf = {
     initReactive: ({ funcName }) => (funcName == null ? true : null), // init only in top level
     useReactive: true, // always reactive, because solidjs doesn't have a problem with it
     reactive: {
-        wrapInit: (expr) => `() => ${expr}`,
-        wrapUse: (expr) => `${expr}()`,
+        wrapInit: expr => `() => ${expr}`,
+        wrapUse: expr => `${expr}()`,
     },
 }
 

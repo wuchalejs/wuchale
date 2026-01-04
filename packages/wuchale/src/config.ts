@@ -52,7 +52,7 @@ export function deepMergeObjects<Type extends {}>(source: Partial<Type>, target:
     return full
 }
 
-export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map((ext) => `wuchale.config.${ext}`)
+export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map(ext => `wuchale.config.${ext}`)
 
 const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
 export const getLanguageName = (code: string) => displayName.of(code) ?? code

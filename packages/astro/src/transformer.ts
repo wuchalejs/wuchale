@@ -99,13 +99,13 @@ export class AstroTransformer extends Transformer {
             mstr: this.mstr,
             vars: this.vars,
             getRange: this.getRange,
-            isText: (node) => node.type === 'text',
-            isComment: (node) => node.type === 'comment',
-            leaveInPlace: (node) => [''].includes(node.type),
-            isExpression: (node) => node.type === 'expression',
+            isText: node => node.type === 'text',
+            isComment: node => node.type === 'comment',
+            leaveInPlace: node => [''].includes(node.type),
+            isExpression: node => node.type === 'expression',
             getTextContent: (node: TextNode) => node.value,
             getCommentData: (node: CommentNode) => node.value.trim(),
-            canHaveChildren: (node) => nodesWithChildren.includes(node.type),
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: (child, inCompoundText) => {
                 const inCompoundTextPrev = this.inCompoundText
                 this.inCompoundText = inCompoundText

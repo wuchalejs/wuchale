@@ -18,7 +18,7 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Simple text', async (t) => {
+test('Simple text', async t => {
     await testContent(
         t,
         'Hello',
@@ -42,7 +42,7 @@ test('Simple text', async (t) => {
     )
 })
 
-test('JS module files', async (t) => {
+test('JS module files', async t => {
     await testContent(
         t,
         js`
@@ -97,7 +97,7 @@ test('JS module files', async (t) => {
     )
 })
 
-test('Simple element with new lines', async (t) => {
+test('Simple element with new lines', async t => {
     await testContent(
         t,
         svelte`
@@ -139,7 +139,7 @@ test('Simple element with new lines', async (t) => {
     )
 })
 
-test('Ignore and include', async (t) => {
+test('Ignore and include', async t => {
     await testContent(
         t,
         svelte`
@@ -179,7 +179,7 @@ test('Ignore and include', async (t) => {
     )
 })
 
-test('Ignore file', async (t) => {
+test('Ignore file', async t => {
     await testContent(
         t,
         svelte`
@@ -197,7 +197,7 @@ test('Ignore file', async (t) => {
     )
 })
 
-test('URLs', async (t) => {
+test('URLs', async t => {
     await testContent(
         t,
         svelte`
@@ -272,7 +272,7 @@ test('URLs', async (t) => {
     )
 })
 
-test('SCSS no problem', async (t) => {
+test('SCSS no problem', async t => {
     await testContent(
         t,
         svelte`
@@ -294,7 +294,7 @@ test('SCSS no problem', async (t) => {
     )
 })
 
-test('Exported snippet', async (t) => {
+test('Exported snippet', async t => {
     await testContent(
         t,
         svelte`
@@ -346,7 +346,7 @@ test('Exported snippet', async (t) => {
     )
 })
 
-test('Context', async (t) => {
+test('Context', async t => {
     await testContent(
         t,
         svelte`
@@ -398,6 +398,6 @@ test('Context', async (t) => {
     )
 })
 
-test('Multiple in one file', async (t) => await testDir(t, 'multiple'))
+test('Multiple in one file', async t => await testDir(t, 'multiple'))
 
-test('Complicated', async (t) => await testDir(t, 'complicated'))
+test('Complicated', async t => await testDir(t, 'complicated'))

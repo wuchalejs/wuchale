@@ -41,7 +41,7 @@ export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Commen
         {
             ...scriptParseOptions,
             // parse comments for when they are not part of the AST
-            onToken: (token) => {
+            onToken: token => {
                 if (accumulateComments.length) {
                     comments[token.start] = accumulateComments
                 }
@@ -207,7 +207,7 @@ export class Transformer<RTCtxT = {}> {
     }
 
     visitArrayExpression = (node: Estree.ArrayExpression): Message[] =>
-        node.elements.flatMap((elm) => (elm ? this.visit(elm) : []))
+        node.elements.flatMap(elm => (elm ? this.visit(elm) : []))
 
     visitSequenceExpression = (node: Estree.SequenceExpression): Message[] => node.expressions.flatMap(this.visit)
 
@@ -254,7 +254,7 @@ export class Transformer<RTCtxT = {}> {
             return this.defaultVisitCallExpression(node)
         }
         const calleeName = node.callee.name
-        const pattern = this.patterns.find((p) => p.name === calleeName)
+        const pattern = this.patterns.find(p => p.name === calleeName)
         if (!pattern) {
             return this.defaultVisitCallExpression(node)
         }
@@ -492,7 +492,7 @@ export class Transformer<RTCtxT = {}> {
                 this.mstr.toString() !== currentContent ||
                 (bod.type === 'IfStatement' &&
                     bod.consequent.type === 'BlockStatement' &&
-                    bod.consequent.body.some((n) => n.type === 'ReturnStatement'))
+                    bod.consequent.body.some(n => n.type === 'ReturnStatement'))
             ) {
                 bodyStart = bod.start
             }
@@ -701,7 +701,7 @@ export class Transformer<RTCtxT = {}> {
     }
 
     visitSwitchStatement = (node: Estree.SwitchStatement): Message[] =>
-        node.cases.flatMap((c) => c.consequent.map(this.visit)).flat()
+        node.cases.flatMap(c => c.consequent.map(this.visit)).flat()
 
     visitTryStatement = (node: Estree.TryStatement): Message[] => {
         const msgs = this.visit(node.block)
@@ -760,7 +760,7 @@ export class Transformer<RTCtxT = {}> {
 
     finalize = (msgs: Message[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput => ({
         msgs,
-        output: (header) => {
+        output: header => {
             this.mstr.prependRight(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
             return {
                 code: this.mstr.toString(),

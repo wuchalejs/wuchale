@@ -10,7 +10,7 @@ import { AstroTransformer } from './transformer.js'
  */
 export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return (msg) => {
+    return msg => {
         const defRes = defaultHeuristic(msg)
         if (!defRes) {
             return false
@@ -38,12 +38,12 @@ const defaultRuntime: RuntimeConf = {
     // Astro is SSR - always use non-reactive
     useReactive: () => false,
     reactive: {
-        wrapInit: (expr) => expr,
-        wrapUse: (expr) => expr,
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
     },
     plain: {
-        wrapInit: (expr) => expr,
-        wrapUse: (expr) => expr,
+        wrapInit: expr => expr,
+        wrapUse: expr => expr,
     },
 }
 

@@ -15,7 +15,7 @@ export type LoaderState = {
 
 export function defaultCollection(store: Record<string, Runtime>): RuntimeCollection {
     return {
-        get: (loadID) => store[loadID],
+        get: loadID => store[loadID],
         set: (loadID, rt) => {
             store[loadID] = rt
         },
@@ -38,13 +38,13 @@ export function registerLoaders(
 ): (fileID: string) => Runtime {
     states[key] = {
         load,
-        catalogs: Object.fromEntries(loadIDs.map((id) => [id])),
+        catalogs: Object.fromEntries(loadIDs.map(id => [id])),
         collection: collection ?? defaultCollection({}),
     }
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyRuntime)
     }
-    return (loadID) => states[key].collection.get(loadID)
+    return loadID => states[key].collection.get(loadID)
 }
 
 /* Sets the most recently loaded locale as the current one */

@@ -76,7 +76,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         ) {
             return msgs
         }
-        const needsWrapping = msgs.some((msg) => {
+        const needsWrapping = msgs.some(msg => {
             if (
                 msg.details.topLevelCall &&
                 ['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)
@@ -103,11 +103,11 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         new MixedVisitor<MixedNodesTypes>({
             mstr: this.mstr,
             vars: this.vars,
-            getRange: (node) => ({ start: node.start, end: node.end }),
-            isText: (node) => node.type === 'Text',
-            isComment: (node) => node.type === 'Comment',
-            leaveInPlace: (node) => ['ConstTag', 'SnippetBlock'].includes(node.type),
-            isExpression: (node) => node.type === 'ExpressionTag',
+            getRange: node => ({ start: node.start, end: node.end }),
+            isText: node => node.type === 'Text',
+            isComment: node => node.type === 'Comment',
+            leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
+            isExpression: node => node.type === 'ExpressionTag',
             getTextContent: (node: AST.Text) => node.data,
             getCommentData: (node: AST.Comment) => node.data.trim(),
             canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),

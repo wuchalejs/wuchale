@@ -18,7 +18,7 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('React basic', async (t) => {
+test('React basic', async t => {
     await testContent(
         t,
         tsx`
@@ -59,7 +59,7 @@ test('React basic', async (t) => {
     )
 })
 
-test('SolidJS basic', async (t) => {
+test('SolidJS basic', async t => {
     await testContent(
         t,
         tsx`
@@ -90,7 +90,7 @@ test('SolidJS basic', async (t) => {
     )
 })
 
-test('Ignore and include', async (t) => {
+test('Ignore and include', async t => {
     await testContent(
         t,
         tsx`
@@ -133,7 +133,7 @@ test('Ignore and include', async (t) => {
     )
 })
 
-test('Ignore file', async (t) => {
+test('Ignore file', async t => {
     await testContent(
         t,
         tsx`
@@ -154,7 +154,7 @@ test('Ignore file', async (t) => {
     )
 })
 
-test('Context', async (t) => {
+test('Context', async t => {
     await testContent(
         t,
         tsx`
@@ -211,7 +211,7 @@ test('Context', async (t) => {
     )
 })
 
-test('Plural', async (t) => {
+test('Plural', async t => {
     await testContent(
         t,
         tsx`
@@ -241,7 +241,7 @@ test('Plural', async (t) => {
     )
 })
 
-test('Nested and mixed', async (t) => {
+test('Nested and mixed', async t => {
     await testContent(
         t,
         tsx`

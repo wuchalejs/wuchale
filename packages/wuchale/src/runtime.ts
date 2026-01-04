@@ -76,8 +76,8 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
     rt.t = (tag: CallableFunction, id: number, args?: any[]) => {
         const ctx = getCompositeContext(id) as Mixed
         return tag(
-            ctx.filter((m) => typeof m === 'string'),
-            ...ctx.filter((m) => typeof m === 'number').map((a) => args?.[a]),
+            ctx.filter(m => typeof m === 'string'),
+            ...ctx.filter(m => typeof m === 'number').map(a => args?.[a]),
         )
     }
 
