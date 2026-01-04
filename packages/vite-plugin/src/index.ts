@@ -93,7 +93,7 @@ class Wuchale {
                 }
                 adaptersByLoaderPath.set(loaderPath, handler)
             }
-            for (const fname of Object.keys(handler.catalogPathsToLocales)) {
+            for (const fname of handler.catalogPathsToLocales.keys()) {
                 const handlers = this.#adaptersByCatalogPath.get(fname)
                 if (handlers) {
                     handlers.push(handler)
@@ -150,7 +150,7 @@ class Wuchale {
         const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < 1000 // long enough threshold
         const invalidatedModules = new Set()
         for (const adapter of adapters) {
-            const loc = adapter.catalogPathsToLocales[ctx.file]
+            const loc = adapter.catalogPathsToLocales.get(ctx.file)!
             if (!sourceTriggered) {
                 await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
             }
