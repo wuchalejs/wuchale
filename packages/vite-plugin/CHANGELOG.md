@@ -1,5 +1,11 @@
 # @wuchale/vite-plugin
 
+## 0.16.2
+
+### Patch Changes
+
+- Fix not reloading after po file edit ([`bfb59fc`](https://github.com/wuchalejs/wuchale/commit/bfb59fc11e5344678c9a6fa6bbaa0ba9e50a04a9))
+
 ## 0.16.1
 
 ### Patch Changes
