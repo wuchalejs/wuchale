@@ -18,7 +18,7 @@ export type Config = ConfigPartial & {
 type ConfigWithOptional = Partial<Config>
 
 export const defaultConfig: Config = {
-    locales: [],
+    locales: ['en'],
     adapters: {},
     hmr: true,
     ai: defaultGemini,
