@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.19.2
+
+### Patch Changes
+
+- Allow return outside function for astro frontmatter ([`823f78e`](https://github.com/wuchalejs/wuchale/commit/823f78e8f83174551d5dfb4b125d2934f8b6396d))
+
 ## 0.19.1
 
 ### Patch Changes
