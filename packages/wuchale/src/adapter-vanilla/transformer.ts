@@ -30,6 +30,11 @@ export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
     ecmaVersion: 'latest',
     locations: true,
+    // relaxed because checking correctness is not the focus here
+    allowReturnOutsideFunction: true,
+    allowAwaitOutsideFunction: true,
+    allowSuperOutsideMethod: true,
+    allowImportExportEverywhere: true,
 }
 
 const ScriptParser = Parser.extend(tsPlugin())

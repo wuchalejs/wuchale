@@ -140,6 +140,23 @@ test('Object attributes', async t => {
     )
 })
 
+test('Frontmatter return', async t => {
+    await testContent(
+        t,
+        astro`
+            ---
+            return Astro.rewrite("/404");
+            ---
+    `,
+        undefined,
+        `
+        msgid ""
+        msgstr ""
+    `,
+        [],
+    )
+})
+
 test('Ignore file', async t => {
     await testContent(
         t,
