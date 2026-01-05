@@ -1,5 +1,11 @@
 # @wuchale/astro
 
+## 0.2.3
+
+### Patch Changes
+
+- Fix parsing errors on object attributes, visit spread attributes ([`8fda2a4`](https://github.com/wuchalejs/wuchale/commit/8fda2a470d3dabccce7f45953f0f227c346c44d9))
+
 ## 0.2.2
 
 ### Patch Changes
