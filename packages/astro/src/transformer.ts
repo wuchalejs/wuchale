@@ -12,7 +12,9 @@ import type {
     RootNode,
     TextNode,
 } from '@astrojs/compiler/types'
+import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
+import { Parser } from 'acorn'
 import MagicString from 'magic-string'
 import type {
     CatalogExpr,
@@ -26,7 +28,14 @@ import type {
     UrlMatcher,
 } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
-import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
+import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
+
+const ExprParser = Parser.extend(tsPlugin())
+
+export function parseExpr(content: string): [Estree.Expression, Estree.Comment[][]] {
+    const [opts, comments] = scriptParseOptionsWithComments()
+    return [ExprParser.parseExpressionAt(content, 0, opts), comments]
+}
 
 // Astro nodes that can have children
 const nodesWithChildren = ['element', 'component', 'custom-element', 'fragment']
@@ -147,17 +156,11 @@ export class AstroTransformer extends Transformer {
             },
         })
 
-    _parseAndVisitExpr = (expr: string, startOffset: number, startFromProgram = false): Message[] => {
-        const [ast, comments] = parseScript(expr)
+    _parseAndVisitExpr = (expr: string, startOffset: number, asScript = false): Message[] => {
+        const [ast, comments] = (asScript ? parseScript : parseExpr)(expr)
         this.comments = comments
         this.mstr.offset = startOffset
-        // not just visit Program because visitProgram sets insideProgram to true
-        let msgs: Message[]
-        if (startFromProgram) {
-            msgs = this.visit(ast)
-        } else {
-            msgs = ast.body.flatMap(this.visit)
-        }
+        const msgs = this.visit(ast)
         this.mstr.offset = 0 // restore
         return msgs
     }
@@ -215,6 +218,9 @@ export class AstroTransformer extends Transformer {
             attribute: node.name,
         }
         let { start } = this.getRange(node)
+        if (node.kind === 'spread') {
+            return this._parseAndVisitExpr(node.name, start)
+        }
         if (node.kind !== 'empty') {
             start = this.content.indexOf('=', start) + 1
         }

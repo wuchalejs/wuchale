@@ -115,6 +115,31 @@ test('Ignore and include', async t => {
     )
 })
 
+test('Object attributes', async t => {
+    await testContent(
+        t,
+        astro`<Comp objProps={{foo: 'Hello', bar: 67}} {...foo['Hello']} />`,
+        astro`
+        ---
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../test-tmp/astro.loader.js"
+        import _w_Tx_ from "@wuchale/astro/runtime.js"
+        const _w_runtime_ = _w_load_('astro')
+        ---
+        <Comp objProps={{foo: _w_runtime_(0), bar: 67}} {...foo[_w_runtime_(0)]} />
+    `,
+        `
+    msgid ""
+    msgstr ""
+
+    #: tests/test-dir/test.astro
+    #: tests/test-dir/test.astro
+    msgid "Hello"
+    msgstr "Hello"
+    `,
+        ['Hello'],
+    )
+})
+
 test('Ignore file', async t => {
     await testContent(
         t,
