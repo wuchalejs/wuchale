@@ -56,12 +56,10 @@ instructions specific to your project type.
 
 ## How it works
 
-`wuchale` uses static Abstract Syntax Tree (AST) analysis to:
-
-1. **Scan your source code** and identify translatable text content
-2. **Extract strings** into standard `.po` translation files
-3. **Replace strings** with translation function calls that access the messages by indices
-4. **Generate compact catalogs** using arrays instead of string keys, synchronized with the indices
+1. **Scans your source code** using AST and identify translatable text content
+2. **Extracts strings** into standard `.po` translation files for translators
+3. **Compiles catalogs** into compact modules which export arrays
+4. **Replaces strings** with translation function calls that access messages by indices from the arrays
 
 Your original code stays clean and readable, while the build output is automatically internationalized.
 
@@ -147,35 +145,9 @@ This is a monorepo that houses these packages:
 | `@wuchale/astro`    | Astro adapter    |[![@wuchale/astro](https://img.shields.io/npm/v/@wuchale/astro?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/astro)|
 | `@wuchale/vite-plugin`    | The Vite plugin    |[![@wuchale/vite-plugin](https://img.shields.io/npm/v/@wuchale/vite-plugin?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/vite-plugin)|
 
-## FAQ
-
-**Q: How does this work without changing my code?**
-A: `wuchale` statically analyzes your source code, extracts translatable
-strings, and replaces them with translation calls in the compiled output. If
-you use Vite, this is done on the fly. If you use the CLI, you can configure it
-to output the transformed code to a directory.
-
-**Q: What frameworks and bundlers are supported?**
-A: Currently React, Svelte, and SolidJS, plus vanilla JS/TS. And the JSX adapter
-can thoretically work with any JSX based library. The core system is
-framework-agnostic with specialized adapters for each framework. And Vite is
-the only supported bundler. The other way to use it is the CLI.
-
-**Q: Is this compatible with existing translation workflows?**
-A: Yes! `wuchale` uses standard `.po` files, so it works with existing
-translation tools, services, and workflows.
-
-**Q: What about performance?**
-A: Translation catalogs are compiled into very compact modules that only
-contain the messages in an array. This gives the smallest possible bundle size
-out there. Additionally, interpolations and nested messages are already
-prepared for simple concatenation during runtime to avoid complex string
-manipulations like replace and regex manipulations, making the runtime very
-fast.
-
 ## 🤝 Contributing
 
-Contributions are welcome! Please check out our test suites located inside each
+Contributions are welcome! Please check out the test suites located inside each
 package for examples of supported scenarios.
 
 ## ❤️ Sponsors
