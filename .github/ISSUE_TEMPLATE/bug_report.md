@@ -23,7 +23,7 @@ Steps to reproduce the behavior:
 
 **Output of `npx wuchale --sync` and last file contents**
 
-_(Run `npx wuchale --sync`, it prints messages `Extracting from {file}...`. If an error occurs, please paste the error, and the contents of the last `{file}`)
+_(Run `npx wuchale --sync`, it prints messages `Extracting from {file}...`. If an error occurs, please paste the error, and the (non-sensitive) contents of the last `{file}`)
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
