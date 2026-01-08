@@ -80,13 +80,15 @@ export class AstroTransformer extends Transformer {
             if (nextChild != null) {
                 actualEnd = nextChild.position?.start?.offset ?? 0
                 if (nextChild.type === 'expression') {
-                    actualEnd = this.content.indexOf('{', actualEnd)
+                    // Use lastIndexOf to handle byte/char offset mismatch from multi-byte chars
+                    actualEnd = this.content.lastIndexOf('{', actualEnd)
                 }
             } else {
                 actualEnd = this.content.lastIndexOf('}', containerEnd) + 1
             }
             this.correctedExprRanges.set(child, {
-                start: this.content.indexOf('{', child.position?.start?.offset ?? 0),
+                // Use lastIndexOf: byte offsets >= char offsets, so search backward finds correct position
+                start: this.content.lastIndexOf('{', child.position?.start?.offset ?? 0),
                 end: actualEnd,
             })
         }
@@ -168,6 +170,9 @@ export class AstroTransformer extends Transformer {
     visitexpression = (node: ExpressionNode): Message[] => {
         let expr = ''
         const msgs: Message[] = []
+        if (!node.children) {
+            return msgs
+        }
         for (const part of node.children) {
             if (part.type === 'text') {
                 expr += part.value
@@ -175,7 +180,8 @@ export class AstroTransformer extends Transformer {
             }
             msgs.push(...this.visitAs(part))
             const { start, end } = this.getRange(part)
-            expr += `"${' '.repeat(end - start)}"`
+            const length = Math.max(0, end - start)
+            expr += `"${' '.repeat(length)}"`
         }
         const { start } = this.getRange(node)
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))
