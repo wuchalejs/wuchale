@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/astro",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "description": "Wuchale i18n adapter for Astro files",
     "scripts": {
         "dev": "tsc --watch",

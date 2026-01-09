@@ -1,5 +1,11 @@
 # @wuchale/astro
 
+## 0.2.5
+
+### Patch Changes
+
+- Fix various parsing errors caused by differences in offset units (bytes in go, indices in js) when files contain unicode characters ([`67c4e82`](https://github.com/wuchalejs/wuchale/commit/67c4e822274592ccc6ce242ce8750f6e932272e9))
+
 ## 0.2.4
 
 ### Patch Changes
