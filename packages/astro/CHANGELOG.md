@@ -1,5 +1,14 @@
 # @wuchale/astro
 
+## 0.2.7
+
+### Patch Changes
+
+- Fix error on empty file (regression fix) ([`2b1f249`](https://github.com/wuchalejs/wuchale/commit/2b1f249d96517b537fda00550352b18ab6cf4bdd))
+
+- Updated dependencies [[`324fb80`](https://github.com/wuchalejs/wuchale/commit/324fb80cc5d174d7b30ee43d0d704d30516473dc)]:
+  - wuchale@0.19.4
+
 ## 0.2.6
 
 ### Patch Changes

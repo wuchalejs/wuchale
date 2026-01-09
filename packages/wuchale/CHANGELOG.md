@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.19.4
+
+### Patch Changes
+
+- Fix possible type error on generated compiled catalogs when using plural functions ([`324fb80`](https://github.com/wuchalejs/wuchale/commit/324fb80cc5d174d7b30ee43d0d704d30516473dc))
+
 ## 0.19.3
 
 ### Patch Changes
