@@ -1,5 +1,11 @@
 # @wuchale/astro
 
+## 0.2.6
+
+### Patch Changes
+
+- Fix error when parsing self closing tags in expressions due to astro's limitation ([`1d5ec83`](https://github.com/wuchalejs/wuchale/commit/1d5ec83318aefe6d3d8df73d9a3004d0f8ca7d3a))
+
 ## 0.2.5
 
 ### Patch Changes
