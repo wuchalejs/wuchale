@@ -42,9 +42,12 @@ const nodesWithChildren = ['element', 'component', 'custom-element', 'fragment']
 
 const rtRenderFunc = '_w_Tx_'
 
+const u8decoder = new TextDecoder()
+
 type MixedAstroNodes = Node
 
 export class AstroTransformer extends Transformer {
+    byteArray: Uint8Array
     // state
     currentElement?: string
     inCompoundText: boolean = false
@@ -53,7 +56,7 @@ export class AstroTransformer extends Transformer {
     mixedVisitor: MixedVisitor<MixedAstroNodes>
 
     // astro's compiler gives wrong offsets for expressions
-    correctedExprRanges: WeakMap<Node, { start: number; end: number }> = new WeakMap()
+    correctedExprRanges: WeakMap<Node | AttributeNode, { start: number; end: number }> = new WeakMap()
 
     constructor(
         content: string,
@@ -67,39 +70,54 @@ export class AstroTransformer extends Transformer {
     ) {
         // trim() is VERY important, without it offset positions become wrong due to astro's parser
         super(content.trim(), filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
+        this.byteArray = new Uint8Array(Buffer.from(this.content))
         this.heuristciDetails.insideProgram = false
+    }
+
+    _byteOffsetToIndex = (offset?: number) => {
+        // this is necessary because offsets come from astro's go parser, which works with bytes
+        // and that can cause misalignments when there are unicode characters
+        if (offset === undefined) {
+            return -1
+        }
+        return u8decoder.decode(this.byteArray.slice(0, offset)).length
     }
 
     _saveCorrectedExprRanges = (nodes: Node[], containerEnd: number) => {
         for (const [i, child] of nodes.entries()) {
-            if (child.type !== 'expression') {
+            const isExpr = child.type === 'expression'
+            const isMeta = child.type === 'element' && child.name === 'meta'
+            if (!(isExpr || isMeta)) {
                 continue
             }
+            let start = this._byteOffsetToIndex(child.position?.start?.offset)
+            if (isExpr) {
+                start = this.content.indexOf('{', start)
+            }
             const nextChild = nodes[i + 1]
-            let actualEnd: number
+            let end: number = this._byteOffsetToIndex(child.position?.end?.offset)
             if (nextChild != null) {
-                actualEnd = nextChild.position?.start?.offset ?? 0
+                end = this._byteOffsetToIndex(nextChild.position?.start?.offset)
                 if (nextChild.type === 'expression') {
-                    actualEnd = this.content.indexOf('{', actualEnd)
+                    end = this.content.indexOf('{', end)
                 }
             } else {
-                actualEnd = this.content.lastIndexOf('}', containerEnd) + 1
+                const lookFor = isExpr ? '}' : '>'
+                end = this.content.lastIndexOf(lookFor, containerEnd) + lookFor.length
             }
-            this.correctedExprRanges.set(child, {
-                start: this.content.indexOf('{', child.position?.start?.offset ?? 0),
-                end: actualEnd,
-            })
+            this.correctedExprRanges.set(child, { start, end })
         }
     }
 
     getRange = (node: Node | AttributeNode) => {
-        if (node.type === 'expression') {
-            return this.correctedExprRanges.get(node) ?? { start: -1, end: -1 }
+        const corrected = this.correctedExprRanges.get(node)
+        if (corrected) {
+            return corrected
         }
         const { start, end } = node.position ?? {}
         return {
-            start: start?.offset ?? -1,
-            end: end?.offset ?? -1,
+            start: this._byteOffsetToIndex(start?.offset),
+            end: this._byteOffsetToIndex(end?.offset),
         }
     }
 
@@ -166,8 +184,14 @@ export class AstroTransformer extends Transformer {
     }
 
     visitexpression = (node: ExpressionNode): Message[] => {
+        if (!node.children?.length) {
+            // can be undefined!
+            return []
+        }
         let expr = ''
         const msgs: Message[] = []
+        const { start, end } = this.getRange(node)
+        this._saveCorrectedExprRanges(node.children, end)
         for (const part of node.children) {
             if (part.type === 'text') {
                 expr += part.value
@@ -177,7 +201,6 @@ export class AstroTransformer extends Transformer {
             const { start, end } = this.getRange(part)
             expr += `"${' '.repeat(end - start)}"`
         }
-        const { start } = this.getRange(node)
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))
         return msgs
     }
@@ -201,7 +224,8 @@ export class AstroTransformer extends Transformer {
         for (const attrib of node.attributes) {
             msgs.push(...this.visitAs(attrib))
         }
-        this._saveCorrectedExprRanges(node.children, node.position?.end?.offset ?? 0)
+        const { end } = this.getRange(node)
+        this._saveCorrectedExprRanges(node.children, end)
         msgs.push(...this._visitChildren(node.children))
         this.currentElement = currentElement
         return msgs
@@ -269,7 +293,10 @@ export class AstroTransformer extends Transformer {
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
-    visitroot = (node: RootNode): Message[] => this._visitChildren(node.children ?? []) // can be undefined!
+    visitroot = (node: RootNode): Message[] => {
+        this._saveCorrectedExprRanges(node.children, this.content.length)
+        return this._visitChildren(node.children ?? []) // can be undefined!
+    }
 
     visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
 

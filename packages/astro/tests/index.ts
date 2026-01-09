@@ -18,11 +18,11 @@ test('Default loader file paths', async () => {
     }
 })
 
-test('Basic markup', async t => {
+test('Basic markup with unicode', async t => {
     await testContent(
         t,
         astro`
-        <p>Hello</p>
+        <p>Hello 😋</p>
         <p data-novalue>Hello</p>
     `,
         astro`
@@ -32,17 +32,21 @@ test('Basic markup', async t => {
         const _w_runtime_ = _w_load_('astro')
         ---
         <p>{_w_runtime_(0)}</p>
-        <p data-novalue>{_w_runtime_(0)}</p>
+        <p data-novalue>{_w_runtime_(1)}</p>
     `,
         `
     msgid ""
     msgstr ""
+
     #: tests/test-dir/test.astro
+    msgid "Hello 😋"
+    msgstr "Hello 😋"
+
     #: tests/test-dir/test.astro
     msgid "Hello"
     msgstr "Hello"
     `,
-        ['Hello'],
+        ['Hello 😋', 'Hello'],
     )
 })
 
