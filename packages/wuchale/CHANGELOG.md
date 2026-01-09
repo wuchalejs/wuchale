@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.19.3
+
+### Patch Changes
+
+- Fix multiple issues revealed in #234 ([`2966ded`](https://github.com/wuchalejs/wuchale/commit/2966ded917ab26aac9b08f7dd3b6f67b311f8569))
+
 ## 0.19.2
 
 ### Patch Changes
