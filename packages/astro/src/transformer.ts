@@ -295,8 +295,10 @@ export class AstroTransformer extends Transformer {
     }
 
     visitroot = (node: RootNode): Message[] => {
-        this._saveCorrectedRanges(node.children, this.content.length)
-        return this._visitChildren(node.children ?? []) // can be undefined!
+        // node.children can be undefined!
+        const children = node.children ?? []
+        this._saveCorrectedRanges(children, this.content.length)
+        return this._visitChildren(children)
     }
 
     visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
