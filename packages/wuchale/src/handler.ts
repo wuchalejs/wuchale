@@ -782,7 +782,7 @@ export class AdapterHandler {
                 options.ignore.push(...conf.ignore)
             }
         }
-        return [patterns, options]
+        return [patterns.map(normalizeSep), options]
     }
 
     savePO = async (loc: string) => {
