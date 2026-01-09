@@ -3,6 +3,7 @@
 import { type TestContext, test } from 'node:test'
 import { rm } from 'fs/promises'
 import { resolve } from 'path'
+import { normalizeSep } from 'wuchale'
 // @ts-expect-error
 import { trimLines, ts } from '../../wuchale/tests/check.ts'
 import { wuchale } from '../dist/index.js'
@@ -93,7 +94,7 @@ test('handleHotUpdate', async (t: TestContext) => {
     t.assert.deepEqual(res2, [])
     t.assert.deepEqual(wsMsg!, { type: 'full-reload' })
     t.assert.partialDeepStrictEqual(
-        { id: resolve('tests/test-tmp/.wuchale/main.main.en.compiled.js') },
+        { id: normalizeSep(resolve('tests/test-tmp/.wuchale/main.main.en.compiled.js')) },
         invalidatedModule!,
     )
     t.assert.deepEqual(invalidatedModules!, new Set())
