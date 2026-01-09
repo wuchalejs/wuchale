@@ -37,8 +37,8 @@ export function parseExpr(content: string): [Estree.Expression, Estree.Comment[]
     return [ExprParser.parseExpressionAt(content, 0, opts), comments]
 }
 
-// Astro nodes that can have children
-const nodesWithChildren = ['element', 'component', 'custom-element', 'fragment']
+const tagNodes = ['element', 'component', 'custom-element']
+const nodesWithChildren = [...tagNodes, 'fragment']
 
 const rtRenderFunc = '_w_Tx_'
 
@@ -83,11 +83,11 @@ export class AstroTransformer extends Transformer {
         return u8decoder.decode(this.byteArray.slice(0, offset)).length
     }
 
-    _saveCorrectedExprRanges = (nodes: Node[], containerEnd: number) => {
+    _saveCorrectedRanges = (nodes: Node[], containerEnd: number) => {
         for (const [i, child] of nodes.entries()) {
             const isExpr = child.type === 'expression'
-            const isMeta = child.type === 'element' && child.name === 'meta'
-            if (!(isExpr || isMeta)) {
+            const isTag = tagNodes.includes(child.type)
+            if (!(isExpr || isTag)) {
                 continue
             }
             let start = this._byteOffsetToIndex(child.position?.start?.offset)
@@ -191,7 +191,7 @@ export class AstroTransformer extends Transformer {
         let expr = ''
         const msgs: Message[] = []
         const { start, end } = this.getRange(node)
-        this._saveCorrectedExprRanges(node.children, end)
+        this._saveCorrectedRanges(node.children, end)
         for (const part of node.children) {
             if (part.type === 'text') {
                 expr += part.value
@@ -199,6 +199,7 @@ export class AstroTransformer extends Transformer {
             }
             msgs.push(...this.visitAs(part))
             const { start, end } = this.getRange(part)
+            if (end == -1) console.log(part, node)
             expr += `"${' '.repeat(end - start)}"`
         }
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))
@@ -225,7 +226,7 @@ export class AstroTransformer extends Transformer {
             msgs.push(...this.visitAs(attrib))
         }
         const { end } = this.getRange(node)
-        this._saveCorrectedExprRanges(node.children, end)
+        this._saveCorrectedRanges(node.children, end)
         msgs.push(...this._visitChildren(node.children))
         this.currentElement = currentElement
         return msgs
@@ -294,7 +295,7 @@ export class AstroTransformer extends Transformer {
     }
 
     visitroot = (node: RootNode): Message[] => {
-        this._saveCorrectedExprRanges(node.children, this.content.length)
+        this._saveCorrectedRanges(node.children, this.content.length)
         return this._visitChildren(node.children ?? []) // can be undefined!
     }
 
