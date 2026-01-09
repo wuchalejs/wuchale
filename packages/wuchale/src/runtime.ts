@@ -75,10 +75,22 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
     /** for tagged template strings */
     rt.t = (tag: CallableFunction, id: number, args?: any[]) => {
         const ctx = getCompositeContext(id) as Mixed
-        return tag(
-            ctx.filter(m => typeof m === 'string'),
-            ...ctx.filter(m => typeof m === 'number').map(a => args?.[a]),
-        )
+        const strings: string[] = []
+        const exprs: number[] = []
+        if (typeof ctx[0] === 'number') {
+            strings.push('')
+        }
+        for (const x of ctx) {
+            if (typeof x === 'string') {
+                strings.push(x)
+                continue
+            }
+            exprs.push(args?.[x])
+        }
+        if (typeof ctx.at(-1) === 'number') {
+            strings.push('')
+        }
+        return tag(strings, ...exprs)
     }
 
     /** get translation for plural */

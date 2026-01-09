@@ -29,12 +29,13 @@ function deepAssign<Type extends {}>(fromObj: Partial<Type>, toObj: Type) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
             delete toObj[key]
+            continue
         }
         if (!value || Array.isArray(value) || typeof value !== 'object') {
             toObj[key] = value
             continue
         }
-        // objects
+        // value is an object. force prepare an object on the destination
         if (!toObj[key] || Array.isArray(toObj[key]) || typeof toObj[key] !== 'object') {
             toObj[key] = {}
         }

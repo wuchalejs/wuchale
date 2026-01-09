@@ -346,8 +346,9 @@ const testCatalog = {
     p: (n: number) => (n == 1 ? 0 : 1),
     c: [
         'Hello', // simple message
-        ['Hello ', 0, '!'], // compound message
+        ['Hello ', 0, '!'], // mixed message
         ['One item', '# items'], // plurals
+        ['Hello ', 0], // mixed message ending with arg
     ],
 }
 const loaderFunc = () => testCatalog
@@ -375,8 +376,8 @@ test('Runtime', t => {
     t.assert.equal(rt(0), 'Hello')
     t.assert.equal(rt(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.p(2), ['One item', '# items'])
-    t.assert.equal(taggedHandler`foo ${1} bar ${2}`, 'foo _ bar _1_2')
-    t.assert.equal(rt.t(taggedHandler, 1, [3]), 'Hello _!3')
+    t.assert.equal(rt.t(taggedHandler, 1, [3]), taggedHandler`Hello ${3}!`)
+    t.assert.equal(rt.t(taggedHandler, 3, [3]), taggedHandler`Hello ${3}`)
 })
 
 // This should be run AFTER the test Runtime completes

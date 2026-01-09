@@ -111,6 +111,13 @@ async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {})
     })
 }
 
+export function normalizeSep(path: string) {
+    if (platform !== 'win32') {
+        return path
+    }
+    return path.replaceAll('\\', '/')
+}
+
 export type Mode = 'dev' | 'build' | 'cli'
 
 type Compiled = {
@@ -264,10 +271,7 @@ export class AdapterHandler {
     }
 
     #getImportPath(filename: string, importer?: string) {
-        filename = relative(dirname(importer ?? filename), filename)
-        if (platform === 'win32') {
-            filename = filename.replaceAll('\\', '/')
-        }
+        filename = normalizeSep(relative(dirname(importer ?? filename), filename))
         if (!filename.startsWith('.')) {
             filename = `./${filename}`
         }
@@ -296,8 +300,8 @@ export class AdapterHandler {
         const baseType = 'import("wuchale/runtime").CatalogModule'
         return `
             ${syncImports?.join('\n') ?? ''}
-            /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod
-            /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs
+            /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod */
+            /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs */
             /** @type {{[loadID: string]: KeyCatalogs}} */
             const catalogs = {${catalogs.join(',')}}
             export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => {
@@ -354,10 +358,7 @@ export class AdapterHandler {
         if (!isAbsolute(catalog)) {
             catalog = normalize(`${this.#projectRoot}/${catalog}`)
         }
-        if (platform === 'win32') {
-            catalog = catalog.replaceAll('\\', '/')
-        }
-        return catalog
+        return normalizeSep(catalog)
     }
 
     #initFiles = async () => {
@@ -941,17 +942,8 @@ export class AdapterHandler {
             }
             const newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
             let iStartComm: number
-            if (key in previousReferences) {
-                const prevRef = previousReferences.get(key)!
-                iStartComm = (prevRef.indices.shift() ?? 0) * newComments.length // cannot be pop for determinism
-                const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
-                if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
-                    commentsChanged = true
-                }
-                if (prevRef.indices.length === 0) {
-                    previousReferences.delete(key)
-                }
-            } else {
+            const prevRef = previousReferences.get(key)
+            if (prevRef == null) {
                 poItem.references.push(filename)
                 poItem.references.sort() // make deterministic
                 iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
@@ -959,6 +951,15 @@ export class AdapterHandler {
                     newRefs = true // now it references it
                 } else {
                     newUrlRefs = true // no write needed but just compile
+                }
+            } else {
+                iStartComm = (prevRef.indices.shift() ?? 0) * newComments.length // cannot be pop for determinism
+                const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
+                if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
+                    commentsChanged = true
+                }
+                if (prevRef.indices.length === 0) {
+                    previousReferences.delete(key)
                 }
             }
             if (newComments.length) {
@@ -1019,9 +1020,7 @@ export class AdapterHandler {
         forServer = false,
         direct = false,
     ): Promise<TransformOutputCode> => {
-        if (platform === 'win32') {
-            filename = filename.replaceAll('\\', '/')
-        }
+        filename = normalizeSep(filename)
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         let compiled = this.sharedState.compiled

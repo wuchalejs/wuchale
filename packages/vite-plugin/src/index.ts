@@ -1,8 +1,7 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from 'node:path'
-import { platform } from 'node:process'
 import type { Config, Mode, SharedStates } from 'wuchale'
-import { AdapterHandler, getConfig, Logger } from 'wuchale'
+import { AdapterHandler, getConfig, Logger, normalizeSep } from 'wuchale'
 
 const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -71,15 +70,11 @@ class Wuchale {
                 this.#granularLoadAdapters.push(handler)
             } else {
                 for (const locale of this.#config.locales) {
-                    this.#singleCompiledCatalogs.add(resolve(handler.getCompiledFilePath(locale, null)))
+                    this.#singleCompiledCatalogs.add(normalizeSep(resolve(handler.getCompiledFilePath(locale, null))))
                 }
             }
             for (const path of Object.values(handler.loaderPath)) {
-                let loaderPath = resolve(path)
-                if (platform === 'win32') {
-                    // seems vite does this for the importer field in the resolveId hook
-                    loaderPath = loaderPath.replaceAll('\\', '/')
-                }
+                const loaderPath = normalizeSep(resolve(path))
                 if (adaptersByLoaderPath.has(loaderPath)) {
                     const otherKey = adaptersByLoaderPath.get(loaderPath)?.key
                     if (otherKey === key) {
@@ -104,7 +99,7 @@ class Wuchale {
                     this.#adaptersByCatalogPath.set(fname, [handler])
                 }
             }
-            this.#adaptersByConfUpdate.set(resolve(adapter.localesDir, confUpdateName), handler)
+            this.#adaptersByConfUpdate.set(normalizeSep(resolve(adapter.localesDir, confUpdateName)), handler)
         }
     }
 
@@ -139,8 +134,8 @@ class Wuchale {
             // for granular as well
             for (const adapter of this.#granularLoadAdapters) {
                 for (const loc of this.#config.locales) {
-                    for (const id in adapter.granularStateByID) {
-                        if (resolve(adapter.getCompiledFilePath(loc, id)) === ctx.file) {
+                    for (const id of adapter.granularStateByID.keys()) {
+                        if (normalizeSep(resolve(adapter.getCompiledFilePath(loc, id))) === ctx.file) {
                             return []
                         }
                     }
@@ -158,7 +153,7 @@ class Wuchale {
                 await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
             }
             for (const loadID of adapter.getLoadIDs()) {
-                const fileID = resolve(adapter.getCompiledFilePath(loc, loadID))
+                const fileID = normalizeSep(resolve(adapter.getCompiledFilePath(loc, loadID)))
                 for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
                     ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
                 }

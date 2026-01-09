@@ -71,14 +71,15 @@ export default class AIQueue {
         }
         const unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
-            if (item.msgid !== batch.messages[i]?.msgid) {
-                unTranslated.push(item)
+            const destItem = batch.messages[i]
+            if (item.msgid !== destItem?.msgid) {
+                unTranslated.push(destItem)
                 continue
             }
             if (item.msgstr[0]) {
-                batch.messages[i].msgstr = item.msgstr
+                destItem.msgstr = item.msgstr
             } else {
-                unTranslated.push(item)
+                unTranslated.push(destItem)
             }
         }
         if (unTranslated.length === 0) {
