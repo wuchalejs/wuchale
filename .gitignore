@@ -3,3 +3,4 @@ rnd
 packages/*/tests/test-tmp/
 dist
 **/*.tsbuildinfo
+packages/go/main
