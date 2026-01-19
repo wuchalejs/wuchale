@@ -86,7 +86,7 @@
         "tinyglobby": "^0.2.15"
     },
     "devDependencies": {
-        "@types/node": "~24.10.4",
+        "@types/node": "~24.10.9",
         "@types/picomatch": "^4.0.1",
         "typescript": "^5.9.3"
     },
