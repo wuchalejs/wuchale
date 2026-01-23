@@ -10,5 +10,5 @@ automatically extracts and replaces translatable strings at build time.
 
 - Main documentation: [wuchale.dev](https://wuchale.dev)
 - Setup instructions: [Getting started](https://wuchale.dev/intro/start/)
-- Adapter docs: [JSX](https://wuchale.dev/adapters/svelte)
+- Adapter docs: [Svelte](https://wuchale.dev/adapters/svelte)
 - Repository: [wuchalejs/wuchale](https://github.com/wuchalejs/wuchale)
