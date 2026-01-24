@@ -25,15 +25,11 @@ const rtModuleVar = varNames.rt + 'mod_'
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
 
 // for use before actually parsing the code,
-// to remove the contents of e.g. <style lang="scss">
+// to remove the contents of e.g. <style lang="scss"> which can cause parse errors
 // without messing up indices for magic-string
-const removeSCSS: Preprocessor = ({ attributes, content }) => {
-    if (attributes.lang) {
-        return {
-            code: ' '.repeat(content.length),
-        }
-    }
-}
+const removeCSS: Preprocessor = ({ content }) => ({
+    code: ' '.repeat(content.length),
+})
 
 export type RuntimeCtxSv = {
     // inside of <script module> or not
@@ -387,7 +383,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         const isComponent = this.heuristciDetails.file.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
-            const prepd = await preprocess(this.content, { style: removeSCSS })
+            const prepd = await preprocess(this.content, { style: removeCSS })
             ast = parse(prepd.code, { modern: true })
         } else {
             ;[ast, this.comments] = parseScript(this.content)
