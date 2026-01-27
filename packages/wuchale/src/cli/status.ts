@@ -1,5 +1,6 @@
 import { type Config, getLanguageName } from '../config.js'
-import { AdapterHandler, loadPOFile } from '../handler.js'
+import { AdapterHandler } from '../handler/index.js'
+import { loadPOFile } from '../handler/pofile.js'
 import { color, Logger } from '../log.js'
 
 type POStats = {

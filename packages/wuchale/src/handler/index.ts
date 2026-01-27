@@ -11,33 +11,24 @@ import {
 import pm, { type Matcher } from 'picomatch'
 import PO from 'pofile'
 import { glob } from 'tinyglobby'
-import { varNames } from './adapter-utils/index.js'
-import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from './adapters.js'
-import { IndexTracker, Message } from './adapters.js'
-import AIQueue, { type ItemType } from './ai/index.js'
-import { type CompiledElement, compileTranslation, type Mixed } from './compile.js'
-import { type ConfigPartial, getLanguageName } from './config.js'
-import { color, type Logger } from './log.js'
-import { catalogVarName } from './runtime.js'
-import { localizeDefault, type URLLocalizer, type URLManifest } from './url.js'
-
-type PluralRule = {
-    nplurals: number
-    plural: string
-}
-
-const defaultPluralRule: PluralRule = {
-    nplurals: 2,
-    plural: 'n == 1 ? 0 : 1',
-}
-
-type Catalog = Map<string, ItemType>
-
-type POFile = {
-    catalog: Catalog
-    headers: Record<string, string>
-    pluralRule: PluralRule
-}
+import { varNames } from '../adapter-utils/index.js'
+import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from '../adapters.js'
+import { IndexTracker, Message } from '../adapters.js'
+import AIQueue from '../ai/index.js'
+import { type CompiledElement, compileTranslation, type Mixed } from '../compile.js'
+import { type ConfigPartial, getLanguageName } from '../config.js'
+import { color, type Logger } from '../log.js'
+import { catalogVarName } from '../runtime.js'
+import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
+import {
+    type Catalog,
+    defaultPluralRule,
+    type ItemType,
+    loadCatalogFromPO,
+    POFile,
+    poDumpToString,
+    saveCatalogToPO,
+} from './pofile.js'
 
 const dataFileName = 'data.js'
 const generatedDir = '.wuchale'
@@ -52,64 +43,6 @@ const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
 const objKeyLocale = (locale: string) => (locale.includes('-') ? `'${locale}'` : locale)
-
-export async function loadPOFile(filename: string): Promise<PO> {
-    return new Promise((res, rej) => {
-        PO.load(filename, (err, po) => {
-            if (err) {
-                rej(err)
-            } else {
-                res(po)
-            }
-        })
-    })
-}
-
-async function loadCatalogFromPO(filename: string): Promise<POFile> {
-    const po = await loadPOFile(filename)
-    const catalog: Catalog = new Map()
-    for (const item of po.items) {
-        const msgInfo = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt)
-        catalog.set(msgInfo.toKey(), item)
-    }
-    let pluralRule: PluralRule
-    const pluralHeader = po.headers['Plural-Forms']
-    if (pluralHeader) {
-        pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
-        pluralRule.nplurals = Number(pluralRule.nplurals)
-    } else {
-        pluralRule = defaultPluralRule
-    }
-    return {
-        catalog,
-        pluralRule,
-        // @ts-expect-error
-        headers: po.headers,
-    }
-}
-
-function poDumpToString(items: ItemType[]) {
-    const po = new PO()
-    po.items = items
-    return po.toString()
-}
-
-async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
-    const po = new PO()
-    po.headers = headers
-    for (const item of catalog.values()) {
-        po.items.push(item)
-    }
-    return new Promise((res, rej) => {
-        po.save(filename, err => {
-            if (err) {
-                rej(err)
-            } else {
-                res()
-            }
-        })
-    })
-}
 
 export function normalizeSep(path: string) {
     if (platform !== 'win32') {
@@ -475,11 +408,7 @@ export class AdapterHandler {
                 )
             }
             if (this.sharedState.ownerKey === this.key) {
-                this.sharedState.poFilesByLoc.set(loc, {
-                    catalog: new Map(),
-                    pluralRule: defaultPluralRule,
-                    headers: {},
-                })
+                this.sharedState.poFilesByLoc.set(loc, new POFile([], defaultPluralRule, {}))
                 this.sharedState.extractedUrls.set(loc, new Map())
             }
             await this.loadCatalogNCompile(loc)
@@ -787,32 +716,8 @@ export class AdapterHandler {
 
     savePO = async (loc: string) => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
-        const fullHead = { ...(poFile.headers ?? {}) }
-        const updateHeaders = [
-            [
-                'Plural-Forms',
-                [`nplurals=${poFile.pluralRule.nplurals}`, `plural=${poFile.pluralRule.plural};`].join('; '),
-            ],
-            ['Source-Language', this.#sourceLocale],
-            ['Language', loc],
-            ['MIME-Version', '1.0'],
-            ['Content-Type', 'text/plain; charset=utf-8'],
-            ['Content-Transfer-Encoding', '8bit'],
-        ]
-        for (const [key, val] of updateHeaders) {
-            fullHead[key] = val
-        }
-        const now = new Date().toISOString()
-        const defaultHeaders = [
-            ['POT-Creation-Date', now],
-            ['PO-Revision-Date', now],
-        ]
-        for (const [key, val] of defaultHeaders) {
-            if (!fullHead[key]) {
-                fullHead[key] = val
-            }
-        }
-        await saveCatalogToPO(poFile.catalog, this.#catalogsFname.get(loc)!, fullHead)
+        poFile.updateHeaders(loc, this.#sourceLocale)
+        await saveCatalogToPO(poFile, this.#catalogsFname.get(loc)!)
     }
 
     savePoAndCompile = async (loc: string) => {
