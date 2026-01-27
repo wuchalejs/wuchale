@@ -38,6 +38,6 @@ export {
     defineConfig,
     getConfig,
 } from './config.js'
-export type { Mode, SharedStates } from './handler.js'
-export { AdapterHandler, normalizeSep } from './handler.js'
+export type { Mode, SharedStates } from './handler/index.js'
+export { AdapterHandler, normalizeSep } from './handler/index.js'
 export { Logger } from './log.js'

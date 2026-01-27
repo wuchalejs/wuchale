@@ -2,9 +2,8 @@
 // $$ node %f
 
 import PO from 'pofile'
+import type { ItemType } from '../handler/pofile.js'
 import { color, type Logger } from '../log.js'
-
-export type ItemType = InstanceType<typeof PO.Item>
 
 const MAX_RETRIES = 30
 
