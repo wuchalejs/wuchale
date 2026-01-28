@@ -70,10 +70,12 @@ class Wuchale {
                 this.#granularLoadAdapters.push(handler)
             } else {
                 for (const locale of this.#config.locales) {
-                    this.#singleCompiledCatalogs.add(normalizeSep(resolve(handler.getCompiledFilePath(locale, null))))
+                    this.#singleCompiledCatalogs.add(
+                        normalizeSep(resolve(handler.files.getCompiledFilePath(locale, null))),
+                    )
                 }
             }
-            for (const path of Object.values(handler.loaderPath)) {
+            for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
                 if (adaptersByLoaderPath.has(loaderPath)) {
                     const otherKey = adaptersByLoaderPath.get(loaderPath)?.key
@@ -135,7 +137,7 @@ class Wuchale {
             for (const adapter of this.#granularLoadAdapters) {
                 for (const loc of this.#config.locales) {
                     for (const id of adapter.granularStateByID.keys()) {
-                        if (normalizeSep(resolve(adapter.getCompiledFilePath(loc, id))) === ctx.file) {
+                        if (normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, id))) === ctx.file) {
                             return []
                         }
                     }
@@ -152,8 +154,8 @@ class Wuchale {
             if (!sourceTriggered) {
                 await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
             }
-            for (const loadID of adapter.getLoadIDs()) {
-                const fileID = normalizeSep(resolve(adapter.getCompiledFilePath(loc, loadID)))
+            for (const loadID of adapter.getLoadIDs()[0]) {
+                const fileID = normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID)))
                 for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
                     ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
                 }
