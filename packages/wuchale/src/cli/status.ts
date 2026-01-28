@@ -1,5 +1,6 @@
 import { type Config, getLanguageName } from '../config.js'
-import { AdapterHandler, loadPOFile } from '../handler.js'
+import { AdapterHandler } from '../handler/index.js'
+import { loadPOFile } from '../handler/pofile.js'
 import { color, Logger } from '../log.js'
 
 type POStats = {
@@ -28,7 +29,7 @@ export async function status(config: Config, locales: string[]) {
     console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
-        const loaderPath = await handler.getLoaderPath()
+        const loaderPath = await handler.files.getLoaderPath()
         console.log(`${color.magenta(key)}:`)
         if (loaderPath) {
             console.log(`  Loader files:`)

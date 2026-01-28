@@ -1,6 +1,5 @@
-import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path'
-import { platform } from 'node:process'
+import { readFile } from 'node:fs/promises'
+import { isAbsolute, join, normalize, resolve } from 'node:path'
 import {
     compile as compileUrlPattern,
     match as matchUrlPattern,
@@ -11,36 +10,25 @@ import {
 import pm, { type Matcher } from 'picomatch'
 import PO from 'pofile'
 import { glob } from 'tinyglobby'
-import { varNames } from './adapter-utils/index.js'
-import type { Adapter, CatalogExpr, GlobConf, HMRData, LoaderPath } from './adapters.js'
-import { IndexTracker, Message } from './adapters.js'
-import AIQueue, { type ItemType } from './ai/index.js'
-import { type CompiledElement, compileTranslation, type Mixed } from './compile.js'
-import { type ConfigPartial, getLanguageName } from './config.js'
-import { color, type Logger } from './log.js'
-import { catalogVarName } from './runtime.js'
-import { localizeDefault, type URLLocalizer, type URLManifest } from './url.js'
+import { varNames } from '../adapter-utils/index.js'
+import type { Adapter, CatalogExpr, GlobConf, HMRData } from '../adapters.js'
+import { IndexTracker, Message } from '../adapters.js'
+import AIQueue from '../ai/index.js'
+import { type CompiledElement, compileTranslation, type Mixed } from '../compile.js'
+import { type ConfigPartial, getLanguageName } from '../config.js'
+import { color, type Logger } from '../log.js'
+import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
+import { Files, normalizeSep, objKeyLocale } from './files.js'
+import {
+    type Catalog,
+    defaultPluralRule,
+    type ItemType,
+    loadCatalogFromPO,
+    POFile,
+    poDumpToString,
+    saveCatalogToPO,
+} from './pofile.js'
 
-type PluralRule = {
-    nplurals: number
-    plural: string
-}
-
-const defaultPluralRule: PluralRule = {
-    nplurals: 2,
-    plural: 'n == 1 ? 0 : 1',
-}
-
-type Catalog = Map<string, ItemType>
-
-type POFile = {
-    catalog: Catalog
-    headers: Record<string, string>
-    pluralRule: PluralRule
-}
-
-const dataFileName = 'data.js'
-const generatedDir = '.wuchale'
 export const urlPatternFlag = 'url-pattern'
 const urlExtractedFlag = 'url-extracted'
 
@@ -50,73 +38,6 @@ const loaderImportGetRuntimeRx = 'getRuntimeRx'
 const getFuncPlainDefault = '_w_load_'
 const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
-
-const objKeyLocale = (locale: string) => (locale.includes('-') ? `'${locale}'` : locale)
-
-export async function loadPOFile(filename: string): Promise<PO> {
-    return new Promise((res, rej) => {
-        PO.load(filename, (err, po) => {
-            if (err) {
-                rej(err)
-            } else {
-                res(po)
-            }
-        })
-    })
-}
-
-async function loadCatalogFromPO(filename: string): Promise<POFile> {
-    const po = await loadPOFile(filename)
-    const catalog: Catalog = new Map()
-    for (const item of po.items) {
-        const msgInfo = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt)
-        catalog.set(msgInfo.toKey(), item)
-    }
-    let pluralRule: PluralRule
-    const pluralHeader = po.headers['Plural-Forms']
-    if (pluralHeader) {
-        pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
-        pluralRule.nplurals = Number(pluralRule.nplurals)
-    } else {
-        pluralRule = defaultPluralRule
-    }
-    return {
-        catalog,
-        pluralRule,
-        // @ts-expect-error
-        headers: po.headers,
-    }
-}
-
-function poDumpToString(items: ItemType[]) {
-    const po = new PO()
-    po.items = items
-    return po.toString()
-}
-
-async function saveCatalogToPO(catalog: Catalog, filename: string, headers = {}): Promise<void> {
-    const po = new PO()
-    po.headers = headers
-    for (const item of catalog.values()) {
-        po.items.push(item)
-    }
-    return new Promise((res, rej) => {
-        po.save(filename, err => {
-            if (err) {
-                rej(err)
-            } else {
-                res()
-            }
-        })
-    })
-}
-
-export function normalizeSep(path: string) {
-    if (platform !== 'win32') {
-        return path
-    }
-    return path.replaceAll('\\', '/')
-}
 
 export type Mode = 'dev' | 'build' | 'cli'
 
@@ -154,15 +75,11 @@ export class AdapterHandler {
     #allLocales: string[]
     #sourceLocale: string
 
-    // paths
-    loaderPath: LoaderPath
-    proxyPath: string
-    proxySyncPath: string
+    #projectRoot: string
 
     #config: ConfigPartial
     fileMatches: Matcher
     localizeUrl?: URLLocalizer
-    #projectRoot: string
 
     #adapter: Adapter
 
@@ -174,10 +91,9 @@ export class AdapterHandler {
 
     #catalogsFname: Map<string, string> = new Map()
     #urlPatternKeys: Map<string, string> = new Map()
-    #urlManifestFname: string
-    #urlsFname: string
-    #generatedDir: string
     catalogPathsToLocales: Map<string, string> = new Map()
+
+    files: Files
 
     #mode: Mode
     #aiQueues: Map<string, AIQueue> = new Map()
@@ -193,7 +109,6 @@ export class AdapterHandler {
         this.#projectRoot = projectRoot
         this.#config = config
         this.#log = log
-        this.#generatedDir = `${adapter.localesDir}/${generatedDir}`
         if (typeof adapter.url?.localize === 'function') {
             this.localizeUrl = adapter.url.localize
         } else if (adapter.url?.localize) {
@@ -205,184 +120,6 @@ export class AdapterHandler {
         if (!this.#allLocales.includes(this.#sourceLocale)) {
             this.#allLocales.push(this.#sourceLocale)
         }
-    }
-
-    getLoaderPaths(): LoaderPath[] {
-        const loaderPathHead = join(this.#adapter.localesDir, `${this.key}.loader`)
-        const paths: LoaderPath[] = []
-        for (const ext of this.#adapter.loaderExts) {
-            const pathClient = loaderPathHead + ext
-            const same = { client: pathClient, server: pathClient }
-            const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
-            if (this.#adapter.defaultLoaderPath == null) {
-                paths.push(diff, same)
-            } else if (typeof this.#adapter.defaultLoaderPath === 'string') {
-                // same file for both
-                paths.push(same)
-            } else {
-                paths.push(diff)
-            }
-        }
-        return paths
-    }
-
-    async getLoaderPath(): Promise<LoaderPath> {
-        const paths = this.getLoaderPaths()
-        for (const path of paths) {
-            let bothExist = true
-            for (const side in path) {
-                try {
-                    await statfs(path[side])
-                } catch (err: any) {
-                    if (err.code !== 'ENOENT') {
-                        throw err
-                    }
-                    bothExist = false
-                    break
-                }
-            }
-            if (!bothExist) {
-                continue
-            }
-            return path
-        }
-        return paths[0]
-    }
-
-    #proxyFileName(sync = false) {
-        const namePart = `${this.key}.proxy`
-        if (sync) {
-            return `${namePart}.sync.js`
-        }
-        return `${namePart}.js`
-    }
-
-    async #initPaths() {
-        this.loaderPath = await this.getLoaderPath()
-        this.proxyPath = join(this.#generatedDir, this.#proxyFileName())
-        this.proxySyncPath = join(this.#generatedDir, this.#proxyFileName(true))
-        this.#urlManifestFname = join(this.#generatedDir, `${this.key}.urls.js`)
-        this.#urlsFname = join(this.#adapter.localesDir, `${this.key}.url.js`)
-    }
-
-    getCompiledFilePath(loc: string, id: string | null) {
-        const ownerKey = this.sharedState.ownerKey
-        return join(this.#generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
-    }
-
-    #getImportPath(filename: string, importer?: string) {
-        filename = normalizeSep(relative(dirname(importer ?? filename), filename))
-        if (!filename.startsWith('.')) {
-            filename = `./${filename}`
-        }
-        return filename
-    }
-
-    getLoadIDs(forImport = false): string[] {
-        const loadIDs: string[] = []
-        if (this.#adapter.granularLoad) {
-            for (const state of this.granularStateByID.values()) {
-                // only the ones with ready messages
-                if (state.compiled.get(this.#sourceLocale)!.items.length) {
-                    loadIDs.push(state.id)
-                }
-            }
-        } else if (forImport) {
-            loadIDs.push(this.sharedState.ownerKey)
-        } else {
-            loadIDs.push(this.key)
-        }
-        return loadIDs
-    }
-
-    // typed to work regardless of user's noUncheckedIndexedAccess setting in tsconfig
-    genProxy(catalogs: string[], loadIDs: string[], syncImports?: string[]) {
-        const baseType = 'import("wuchale/runtime").CatalogModule'
-        return `
-            ${syncImports?.join('\n') ?? ''}
-            /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod */
-            /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs */
-            /** @type {{[loadID: string]: KeyCatalogs}} */
-            const catalogs = {${catalogs.join(',')}}
-            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => {
-                return /** @type {CatalogMod} */ (/** @type {KeyCatalogs} */ (catalogs[loadID])[locale])${syncImports ? '' : '()'}
-            }
-            export const loadIDs = ['${loadIDs.join("', '")}']
-        `
-    }
-
-    getProxy() {
-        const imports: string[] = []
-        const loadIDs = this.getLoadIDs()
-        const loadIDsImport = this.getLoadIDs(true)
-        for (const [i, id] of loadIDs.entries()) {
-            const importsByLocale: string[] = []
-            for (const loc of this.#config.locales) {
-                importsByLocale.push(
-                    `${objKeyLocale(loc)}: () => import('${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`,
-                )
-            }
-            imports.push(`${id}: {${importsByLocale.join(',')}}`)
-        }
-        return this.genProxy(imports, loadIDs)
-    }
-
-    getProxySync() {
-        const loadIDs = this.getLoadIDs()
-        const loadIDsImport = this.getLoadIDs(true)
-        const imports: string[] = []
-        const object: string[] = []
-        for (const [il, id] of loadIDs.entries()) {
-            const importedByLocale: string[] = []
-            for (const [i, loc] of this.#config.locales.entries()) {
-                const locKey = `_w_c_${id}_${i}_`
-                imports.push(
-                    `import * as ${locKey} from '${this.#getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`,
-                )
-                importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
-            }
-            object.push(`${id}: {${importedByLocale.join(',')}}`)
-        }
-        return this.genProxy(object, loadIDs, imports)
-    }
-
-    getData() {
-        return [
-            `export const sourceLocale = '${this.#sourceLocale}'`,
-            `export const locales = ['${this.#config.locales.join("','")}']`,
-        ].join('\n')
-    }
-
-    catalogFileName = (locale: string): string => {
-        let catalog = join(this.#adapter.localesDir, `${locale}.po`)
-        if (!isAbsolute(catalog)) {
-            catalog = normalize(`${this.#projectRoot}/${catalog}`)
-        }
-        return normalizeSep(catalog)
-    }
-
-    #initFiles = async () => {
-        if (this.#adapter.defaultLoaderPath == null) {
-            // using custom loaders
-            return
-        }
-        await mkdir(this.#generatedDir, { recursive: true })
-        for (const side in this.loaderPath) {
-            let loaderTemplate: string
-            if (typeof this.#adapter.defaultLoaderPath === 'string') {
-                loaderTemplate = this.#adapter.defaultLoaderPath
-            } else {
-                loaderTemplate = this.#adapter.defaultLoaderPath[side]
-            }
-            const loaderContent = (await readFile(loaderTemplate))
-                .toString()
-                .replace('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
-                .replace('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
-                .replace('${DATA}', `./${dataFileName}`)
-                .replace('${KEY}', this.key)
-            await writeFile(this.loaderPath[side], loaderContent)
-        }
-        await writeFile(join(this.#adapter.localesDir, dataFileName), this.getData())
     }
 
     urlPatternFromTranslate = (patternTranslated: string, keys: Token[]) => {
@@ -399,45 +136,30 @@ export class AdapterHandler {
         return stringify({ tokens: urlTokens })
     }
 
-    writeUrlFiles = async () => {
-        const patterns = this.#adapter.url?.patterns
-        if (!patterns) {
-            return
+    catalogFileName = (locale: string): string => {
+        let catalog = join(this.#adapter.localesDir, `${locale}.po`)
+        if (!isAbsolute(catalog)) {
+            catalog = normalize(`${this.#projectRoot}/${catalog}`)
         }
-        const manifest: URLManifest = patterns.map(patt => {
-            const catalogPattKey = this.#urlPatternKeys.get(patt)!
-            const { keys } = pathToRegexp(patt)
-            return [
-                patt,
-                this.#config.locales.map(loc => {
-                    let pattern = patt
-                    const item = this.sharedState.poFilesByLoc.get(loc)!.catalog.get(catalogPattKey)
-                    if (item) {
-                        const patternTranslated = item.msgstr[0] || item.msgid
-                        pattern = this.urlPatternFromTranslate(patternTranslated, keys)
-                    }
-                    return this.localizeUrl?.(pattern, loc) ?? pattern
-                }),
-            ]
-        })
-        const urlManifestData = [
-            `/** @type {import('wuchale/url').URLManifest} */`,
-            `export default ${JSON.stringify(manifest)}`,
-        ].join('\n')
-        await writeFile(this.#urlManifestFname, urlManifestData)
-        const urlFileContent = [
-            'import {URLMatcher, getLocaleDefault} from "wuchale/url"',
-            `import {locales} from "./${dataFileName}"`,
-            `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
-            `export const getLocale = (/** @type {URL} */ url) => getLocaleDefault(url, locales) ?? '${this.#config.locales[0]}'`,
-            `export const matchUrl = URLMatcher(manifest, locales)`,
-        ].join('\n')
-        await writeFile(this.#urlsFname, urlFileContent)
+        return normalizeSep(catalog)
+    }
+
+    /** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */
+    getLoadIDs(): [string[], string[]] {
+        const loadIDs: string[] = []
+        if (!this.#adapter.granularLoad) {
+            return [[this.key], [this.sharedState.ownerKey]]
+        }
+        for (const state of this.granularStateByID.values()) {
+            // only the ones with ready messages
+            if (state.compiled.get(this.#sourceLocale)!.items.length) {
+                loadIDs.push(state.id)
+            }
+        }
+        return [loadIDs, loadIDs]
     }
 
     init = async (sharedStates: SharedStates) => {
-        await this.#initPaths()
-        await this.#initFiles()
         const sourceLocaleName = getLanguageName(this.#sourceLocale)
         const sharedState = sharedStates.get(this.#adapter.localesDir)
         if (sharedState == null) {
@@ -458,6 +180,8 @@ export class AdapterHandler {
             sharedState.otherFileMatches.push(this.fileMatches)
             this.sharedState = sharedState
         }
+        this.files = new Files(this.#adapter, this.key, this.sharedState.ownerKey)
+        await this.files.init(this.#config.locales, this.#sourceLocale)
         for (const loc of this.#allLocales) {
             this.#catalogsFname.set(loc, this.catalogFileName(loc))
             // for handleHotUpdate
@@ -475,16 +199,12 @@ export class AdapterHandler {
                 )
             }
             if (this.sharedState.ownerKey === this.key) {
-                this.sharedState.poFilesByLoc.set(loc, {
-                    catalog: new Map(),
-                    pluralRule: defaultPluralRule,
-                    headers: {},
-                })
+                this.sharedState.poFilesByLoc.set(loc, new POFile([], defaultPluralRule, {}))
                 this.sharedState.extractedUrls.set(loc, new Map())
             }
             await this.loadCatalogNCompile(loc)
         }
-        await this.writeProxies()
+        await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         await this.initUrlPatterns()
         if (this.#mode === 'build') {
             await this.directScanFS(false, false)
@@ -499,6 +219,29 @@ export class AdapterHandler {
             paramsReplace[name] = `{${i}}`
         }
         return compile(paramsReplace)
+    }
+
+    buildUrlManifest = (): URLManifest => {
+        const patterns = this.#adapter.url?.patterns
+        if (!patterns) {
+            return []
+        }
+        return patterns.map(patt => {
+            const catalogPattKey = this.#urlPatternKeys.get(patt)!
+            const { keys } = pathToRegexp(patt)
+            return [
+                patt,
+                this.#config.locales.map(loc => {
+                    let pattern = patt
+                    const item = this.sharedState.poFilesByLoc.get(loc)!.catalog.get(catalogPattKey)
+                    if (item) {
+                        const patternTranslated = item.msgstr[0] || item.msgid
+                        pattern = this.urlPatternFromTranslate(patternTranslated, keys)
+                    }
+                    return this.localizeUrl?.(pattern, loc) ?? pattern
+                }),
+            ]
+        })
     }
 
     initUrlPatterns = async () => {
@@ -565,7 +308,7 @@ export class AdapterHandler {
                 await this.savePoAndCompile(loc)
             }
         }
-        await this.writeUrlFiles()
+        await this.files.writeUrlFiles(this.buildUrlManifest(), this.#config.locales[0])
     }
 
     loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
@@ -580,40 +323,6 @@ export class AdapterHandler {
             }
         }
         await this.compile(loc, hmrVersion)
-    }
-
-    loadCatalogModule = (locale: string, loadID: string | null, hmrVersion: number) => {
-        let compiledData = this.sharedState.compiled.get(locale)!
-        if (this.#adapter.granularLoad) {
-            compiledData = (loadID && this.granularStateByID.get(loadID)?.compiled?.get(locale)) || {
-                hasPlurals: false,
-                items: [],
-            }
-        }
-        const compiledItems = JSON.stringify(compiledData.items)
-        const plural = `(/** @type number */ n) => ${this.sharedState.poFilesByLoc.get(locale)!.pluralRule.plural}`
-        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let ${catalogVarName} = ${compiledItems}`
-        if (compiledData.hasPlurals) {
-            module = `${module}\nexport let p = ${plural}`
-        }
-        if (this.#mode !== 'dev') {
-            return module
-        }
-        return `
-            ${module}
-            // only during dev, for HMR
-            let latestVersion = ${hmrVersion}
-            // @ts-ignore
-            export function update({ version, data }) {
-                if (latestVersion >= version) {
-                    return
-                }
-                for (const [ index, item ] of data['${locale}'] ?? []) {
-                    ${catalogVarName}[index] = item
-                }
-                latestVersion = version
-            }
-        `
     }
 
     async #getGranularState(filename: string): Promise<GranularState> {
@@ -640,7 +349,7 @@ export class AdapterHandler {
                     )
                 }
                 this.granularStateByID.set(id, state)
-                await this.writeProxies()
+                await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
             }
             this.granularStateByFile.set(filename, state)
         }
@@ -685,6 +394,35 @@ export class AdapterHandler {
             toCompile = this.localizeUrl(toCompile || key, locale)
         }
         return toCompile
+    }
+
+    writeCompiled = async (loc: string, hmrVersion = -1) => {
+        let compiledData = this.sharedState.compiled.get(loc)!
+        const pluralRule = this.sharedState.poFilesByLoc.get(loc)!.pluralRule.plural
+        const hmrVersionMode = this.#mode === 'dev' ? hmrVersion : null
+        await this.files.writeCatalogModule(
+            compiledData.items,
+            compiledData.hasPlurals ? pluralRule : null,
+            loc,
+            hmrVersionMode,
+            null,
+        )
+        if (!this.#adapter.granularLoad) {
+            return
+        }
+        for (const state of this.granularStateByID.values()) {
+            compiledData = state.compiled?.get(loc) || {
+                hasPlurals: false,
+                items: [],
+            }
+            await this.files.writeCatalogModule(
+                compiledData.items,
+                compiledData.hasPlurals ? pluralRule : null,
+                loc,
+                hmrVersionMode,
+                state.id,
+            )
+        }
     }
 
     compile = async (loc: string, hmrVersion = -1) => {
@@ -735,30 +473,6 @@ export class AdapterHandler {
         await this.writeCompiled(loc, hmrVersion)
     }
 
-    writeCompiled = async (loc: string, hmrVersion = -1) => {
-        await writeFile(this.getCompiledFilePath(loc, null), this.loadCatalogModule(loc, null, hmrVersion))
-        if (!this.#adapter.granularLoad) {
-            return
-        }
-        for (const state of this.granularStateByID.values()) {
-            await writeFile(this.getCompiledFilePath(loc, state.id), this.loadCatalogModule(loc, state.id, hmrVersion))
-        }
-    }
-
-    writeProxies = async () => {
-        await writeFile(this.proxyPath, this.getProxy())
-        await writeFile(this.proxySyncPath, this.getProxySync())
-    }
-
-    writeTransformed = async (filename: string, content: string) => {
-        if (!this.#adapter.outDir) {
-            return
-        }
-        const fname = resolve(this.#adapter.outDir + '/' + filename)
-        await mkdir(dirname(fname), { recursive: true })
-        await writeFile(fname, content)
-    }
-
     globConfToArgs = (conf: GlobConf): [string[], { ignore: string[] }] => {
         let patterns: string[] = []
         // ignore generated files
@@ -787,32 +501,8 @@ export class AdapterHandler {
 
     savePO = async (loc: string) => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
-        const fullHead = { ...(poFile.headers ?? {}) }
-        const updateHeaders = [
-            [
-                'Plural-Forms',
-                [`nplurals=${poFile.pluralRule.nplurals}`, `plural=${poFile.pluralRule.plural};`].join('; '),
-            ],
-            ['Source-Language', this.#sourceLocale],
-            ['Language', loc],
-            ['MIME-Version', '1.0'],
-            ['Content-Type', 'text/plain; charset=utf-8'],
-            ['Content-Transfer-Encoding', '8bit'],
-        ]
-        for (const [key, val] of updateHeaders) {
-            fullHead[key] = val
-        }
-        const now = new Date().toISOString()
-        const defaultHeaders = [
-            ['POT-Creation-Date', now],
-            ['PO-Revision-Date', now],
-        ]
-        for (const [key, val] of defaultHeaders) {
-            if (!fullHead[key]) {
-                fullHead[key] = val
-            }
-        }
-        await saveCatalogToPO(poFile.catalog, this.#catalogsFname.get(loc)!, fullHead)
+        poFile.updateHeaders(loc, this.#sourceLocale)
+        await saveCatalogToPO(poFile, this.#catalogsFname.get(loc)!)
     }
 
     savePoAndCompile = async (loc: string) => {
@@ -859,7 +549,7 @@ export class AdapterHandler {
         if (this.#adapter.outDir) {
             loaderRelTo = resolve(this.#adapter.outDir + '/' + filename)
         }
-        const loaderPath = this.#getImportPath(forServer ? this.loaderPath.server : this.loaderPath.client, loaderRelTo)
+        const loaderPath = this.files.getImportLoaderPath(forServer, loaderRelTo)
         const importsFuncs = [
             `${loaderImportGetRuntime} as ${getRuntimePlain}`,
             `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
@@ -872,7 +562,7 @@ export class AdapterHandler {
         const objElms: string[] = []
         for (const [i, loc] of this.#config.locales.entries()) {
             const locKW = `_w_c_${i}_`
-            const importFrom = this.#getImportPath(this.getCompiledFilePath(loc, loadID), loaderRelTo)
+            const importFrom = this.files.getImportPath(this.files.getCompiledFilePath(loc, loadID), loaderRelTo)
             imports.push(`import * as ${locKW} from '${importFrom}'`)
             objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
@@ -1068,7 +758,7 @@ export class AdapterHandler {
         if (msgs.length) {
             output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
         }
-        await this.writeTransformed(filename, output.code ?? content)
+        await this.files.writeTransformed(filename, output.code ?? content)
         return output
     }
 

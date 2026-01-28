@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { watch as watchFS } from 'chokidar'
 import type { Config } from '../config.js'
-import { AdapterHandler, type SharedStates } from '../handler.js'
+import { AdapterHandler, type SharedStates } from '../handler/index.js'
 import { color, Logger } from '../log.js'
 
 function extractor(handler: AdapterHandler, logger: Logger) {
