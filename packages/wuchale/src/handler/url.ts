@@ -15,7 +15,8 @@ import { type Catalog, type ItemType } from './pofile.js'
 export const urlPatternFlag = 'url-pattern'
 
 export class URLHandler {
-    #urlPatternKeys: Map<string, string> = new Map()
+    patternKeys: Map<string, string> = new Map()
+
     localizeUrl?: URLLocalizer
     patterns?: string[] = []
 
@@ -54,7 +55,7 @@ export class URLHandler {
 
     buildManifest = (catalogs: Map<string, Catalog>): URLManifest =>
         this.patterns?.map(patt => {
-            const catalogPattKey = this.#urlPatternKeys.get(patt)!
+            const catalogPattKey = this.patternKeys.get(patt)!
             const { keys } = pathToRegexp(patt)
             const locPatterns: string[] = []
             for (const [loc, catalog] of catalogs) {
@@ -73,7 +74,6 @@ export class URLHandler {
         locale: string,
         sourceLocale: string,
         catalog: Catalog,
-        adapterKey: string,
         aiQueue: AIQueue,
     ): Promise<boolean> => {
         const urlPatterns = this.patterns ?? []
@@ -87,25 +87,11 @@ export class URLHandler {
             return new Message(locPattern, undefined, context)
         })
         const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
-        for (const [key, item] of catalog.entries()) {
-            if (!item.flags[urlPatternFlag]) {
-                continue
-            }
-            if (!urlPatternCatKeys.includes(key)) {
-                item.references = item.references.filter(r => r !== adapterKey)
-                if (item.references.length === 0) {
-                    item.obsolete = true
-                }
-            }
-        }
         const untranslated: ItemType[] = []
         let needWriteCatalog = false
         for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
             const key = urlPatternCatKeys[i]
-            this.#urlPatternKeys.set(urlPatterns[i], key) // save for href translate
-            if (locPattern.search(/\p{L}/u) === -1) {
-                continue
-            }
+            this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
             if (!item || !item.flags[urlPatternFlag]) {
                 item = new PO.Item()
@@ -115,18 +101,18 @@ export class URLHandler {
             if (locale === sourceLocale) {
                 item.msgstr = [locPattern]
             }
-            if (!item.references.includes(adapterKey)) {
-                item.references.push(adapterKey)
-                item.references.sort()
-                needWriteCatalog = true
-            }
             item.msgctxt = urlPatternMsgs[i].context
             item.flags[urlPatternFlag] = true
             item.obsolete = false
             catalog.set(key, item)
-            if (!item.msgstr[0]) {
-                untranslated.push(item)
+            if (item.msgstr[0]) {
+                continue
             }
+            if (locPattern.search(/\p{L}/u) === -1) {
+                item.msgstr.push(item.msgid)
+                continue
+            }
+            untranslated.push(item)
         }
         if (untranslated.length && locale !== sourceLocale) {
             aiQueue.add(untranslated)
@@ -152,7 +138,7 @@ export class URLHandler {
             return toCompile
         }
         // e.g. relevantPattern: /items/:rest
-        const patternItem = catalog.get(this.#urlPatternKeys.get(relevantPattern) ?? '')
+        const patternItem = catalog.get(this.patternKeys.get(relevantPattern) ?? '')
         if (patternItem) {
             // e.g. patternItem.msgid: /items/{0}
             const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)

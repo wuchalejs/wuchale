@@ -1,7 +1,7 @@
 import { type Matcher } from 'picomatch'
 import { IndexTracker } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
-import { type Catalog, POFile } from './pofile.js'
+import { POFile } from './pofile.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -10,18 +10,18 @@ export type Compiled = {
 
 export type CompiledCatalogs = Map<string, Compiled>
 
+/** shared states among multiple adapters handlers */
 export type SharedState = {
     ownerKey: string
     sourceLocale: string
     otherFileMatches: Matcher[]
     poFilesByLoc: Map<string, POFile>
     compiled: CompiledCatalogs
-    extractedUrls: Map<string, Catalog>
     indexTracker: IndexTracker
 }
 
-/* shared states among multiple adapters handlers, by localesDir */
 export class SharedStates {
+    // by localesDir
     states: Map<string, SharedState> = new Map()
 
     getAdd = (localesDir: string, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
@@ -34,7 +34,6 @@ export class SharedStates {
                 poFilesByLoc: new Map(),
                 indexTracker: new IndexTracker(),
                 compiled: new Map(),
-                extractedUrls: new Map(),
             }
             this.states.set(localesDir, sharedState)
         } else {

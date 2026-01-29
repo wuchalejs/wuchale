@@ -237,11 +237,28 @@ test('URLs', async t => {
         msgid ""
         msgstr ""
 
-        #: svelte
+        #. /translated/{0} placeholder {0}: 44
+        #. /translated/somewhere/{0} placeholder {0}: 45
+        #. /translated/hello
+        #. /translated/hello/there
+        #. /translated/very/deep/link/{0} placeholder {0}: 44
+        #. /translated/{0} placeholder {0}: 44
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
+        #: tests/test-dir/test.svelte
         #, url-pattern
         msgctxt "original: /translated/*rest"
         msgid "/translated/{0}"
         msgstr "/translated/{0}"
+
+        #. /
+        #: tests/test-dir/test.svelte
+        #, url-pattern
+        msgid "/"
+        msgstr "/"
 
         #: tests/test-dir/test.svelte
         #: tests/test-dir/test.svelte

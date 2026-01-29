@@ -1,7 +1,7 @@
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { platform } from 'node:process'
-import type { Adapter, LoaderPath } from '../adapters.js'
+import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
 import { catalogVarName } from '../runtime.js'
 import { type URLManifest } from '../url.js'
@@ -16,6 +16,32 @@ export function normalizeSep(path: string) {
         return path
     }
     return path.replaceAll('\\', '/')
+}
+
+export function globConfToArgs(conf: GlobConf, localesDir: string, outDir?: string): [string[], { ignore: string[] }] {
+    let patterns: string[] = []
+    // ignore generated files
+    const options = { ignore: [localesDir] }
+    if (outDir) {
+        options.ignore.push(outDir)
+    }
+    if (typeof conf === 'string') {
+        patterns = [conf]
+    } else if (Array.isArray(conf)) {
+        patterns = conf
+    } else {
+        if (typeof conf.include === 'string') {
+            patterns.push(conf.include)
+        } else {
+            patterns = conf.include
+        }
+        if (typeof conf.ignore === 'string') {
+            options.ignore.push(conf.ignore)
+        } else {
+            options.ignore.push(...conf.ignore)
+        }
+    }
+    return [patterns.map(normalizeSep), options]
 }
 
 export class Files {
