@@ -29,7 +29,6 @@ export async function getOutput(
 ): Promise<{ code: any; catalogs: any; compiled: any }> {
     const handler = new AdapterHandler(adapter, key, config, 'dev', process.cwd(), new Logger('error'))
     await handler.init(new Map())
-    await handler.initUrlPatterns()
     const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
     return { code, catalogs: poFilesByLoc, compiled }

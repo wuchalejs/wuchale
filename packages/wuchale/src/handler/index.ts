@@ -1,12 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, normalize, resolve } from 'node:path'
-import {
-    compile as compileUrlPattern,
-    match as matchUrlPattern,
-    pathToRegexp,
-    stringify,
-    type Token,
-} from 'path-to-regexp'
 import pm, { type Matcher } from 'picomatch'
 import PO from 'pofile'
 import { glob } from 'tinyglobby'
@@ -14,10 +7,9 @@ import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, CatalogExpr, GlobConf, HMRData } from '../adapters.js'
 import { IndexTracker, Message } from '../adapters.js'
 import AIQueue from '../ai/index.js'
-import { type CompiledElement, compileTranslation, type Mixed } from '../compile.js'
+import { type CompiledElement, compileTranslation } from '../compile.js'
 import { type ConfigPartial, getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
-import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
 import { Files, normalizeSep, objKeyLocale } from './files.js'
 import {
     type Catalog,
@@ -28,8 +20,8 @@ import {
     poDumpToString,
     saveCatalogToPO,
 } from './pofile.js'
+import { URLHandler, urlPatternFlag } from './url.js'
 
-export const urlPatternFlag = 'url-pattern'
 const urlExtractedFlag = 'url-extracted'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -79,7 +71,6 @@ export class AdapterHandler {
 
     #config: ConfigPartial
     fileMatches: Matcher
-    localizeUrl?: URLLocalizer
 
     #adapter: Adapter
 
@@ -90,10 +81,11 @@ export class AdapterHandler {
     granularStateByID: Map<string, GranularState> = new Map()
 
     #catalogsFname: Map<string, string> = new Map()
-    #urlPatternKeys: Map<string, string> = new Map()
     catalogPathsToLocales: Map<string, string> = new Map()
 
+    // sub handlers
     files: Files
+    url: URLHandler
 
     #mode: Mode
     #aiQueues: Map<string, AIQueue> = new Map()
@@ -104,36 +96,18 @@ export class AdapterHandler {
 
     constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
         this.#adapter = adapter
+        this.url = new URLHandler(adapter.url)
         this.key = key
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
         this.#log = log
-        if (typeof adapter.url?.localize === 'function') {
-            this.localizeUrl = adapter.url.localize
-        } else if (adapter.url?.localize) {
-            this.localizeUrl = localizeDefault
-        }
         this.fileMatches = pm(...this.globConfToArgs(this.#adapter.files))
         this.#allLocales = [...this.#config.locales]
         this.#sourceLocale = this.#adapter.sourceLocale ?? this.#config.locales[0]
         if (!this.#allLocales.includes(this.#sourceLocale)) {
             this.#allLocales.push(this.#sourceLocale)
         }
-    }
-
-    urlPatternFromTranslate = (patternTranslated: string, keys: Token[]) => {
-        const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
-        if (typeof compiledTranslatedPatt === 'string') {
-            return compiledTranslatedPatt
-        }
-        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
-            if (typeof part === 'number') {
-                return keys[part]
-            }
-            return { type: 'text', value: part }
-        })
-        return stringify({ tokens: urlTokens })
     }
 
     catalogFileName = (locale: string): string => {
@@ -203,112 +177,21 @@ export class AdapterHandler {
                 this.sharedState.extractedUrls.set(loc, new Map())
             }
             await this.loadCatalogNCompile(loc)
-        }
-        await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
-        await this.initUrlPatterns()
-        if (this.#mode === 'build') {
-            await this.directScanFS(false, false)
-        }
-    }
-
-    urlPatternToTranslate = (pattern: string) => {
-        const { keys } = pathToRegexp(pattern)
-        const compile = compileUrlPattern(pattern, { encode: false })
-        const paramsReplace = {}
-        for (const [i, { name }] of keys.entries()) {
-            paramsReplace[name] = `{${i}}`
-        }
-        return compile(paramsReplace)
-    }
-
-    buildUrlManifest = (): URLManifest => {
-        const patterns = this.#adapter.url?.patterns
-        if (!patterns) {
-            return []
-        }
-        return patterns.map(patt => {
-            const catalogPattKey = this.#urlPatternKeys.get(patt)!
-            const { keys } = pathToRegexp(patt)
-            return [
-                patt,
-                this.#config.locales.map(loc => {
-                    let pattern = patt
-                    const item = this.sharedState.poFilesByLoc.get(loc)!.catalog.get(catalogPattKey)
-                    if (item) {
-                        const patternTranslated = item.msgstr[0] || item.msgid
-                        pattern = this.urlPatternFromTranslate(patternTranslated, keys)
-                    }
-                    return this.localizeUrl?.(pattern, loc) ?? pattern
-                }),
-            ]
-        })
-    }
-
-    initUrlPatterns = async () => {
-        for (const loc of this.#allLocales) {
             const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
-            const urlPatterns = this.#adapter.url?.patterns ?? []
-            const urlPatternsForTranslate = urlPatterns.map(this.urlPatternToTranslate)
-            const urlPatternMsgs = urlPatterns.map((patt, i) => {
-                const locPattern = urlPatternsForTranslate[i]
-                let context: string | undefined
-                if (locPattern !== patt) {
-                    context = `original: ${patt}`
-                }
-                return new Message(locPattern, undefined, context)
-            })
-            const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
-            for (const [key, item] of catalog.entries()) {
-                if (!item.flags[urlPatternFlag]) {
-                    continue
-                }
-                if (!urlPatternCatKeys.includes(key)) {
-                    item.references = item.references.filter(r => r !== this.key)
-                    if (item.references.length === 0) {
-                        item.obsolete = true
-                    }
-                }
-            }
-            const untranslated: ItemType[] = []
-            let needWriteCatalog = false
-            for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
-                const key = urlPatternCatKeys[i]
-                this.#urlPatternKeys.set(urlPatterns[i], key) // save for href translate
-                if (locPattern.search(/\p{L}/u) === -1) {
-                    continue
-                }
-                let item = catalog.get(key)
-                if (!item || !item.flags[urlPatternFlag]) {
-                    item = new PO.Item()
-                    needWriteCatalog = true
-                }
-                item.msgid = locPattern
-                if (loc === this.#sourceLocale) {
-                    item.msgstr = [locPattern]
-                }
-                if (!item.references.includes(this.key)) {
-                    item.references.push(this.key)
-                    item.references.sort()
-                    needWriteCatalog = true
-                }
-                item.msgctxt = urlPatternMsgs[i].context
-                item.flags[urlPatternFlag] = true
-                item.obsolete = false
-                catalog.set(key, item)
-                if (!item.msgstr[0]) {
-                    untranslated.push(item)
-                }
-            }
-            if (untranslated.length && loc !== this.#sourceLocale) {
-                const aiQueue = this.#aiQueues.get(loc)!
-                aiQueue.add(untranslated)
-                await aiQueue.running
-            }
+            const aiQueue = this.#aiQueues.get(loc)!
+            const needWriteCatalog = await this.url.initPatterns(loc, this.#sourceLocale, catalog, this.key, aiQueue)
             if (needWriteCatalog) {
                 await this.savePoAndCompile(loc)
             }
         }
-        await this.files.writeUrlFiles(this.buildUrlManifest(), this.#config.locales[0])
+        await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
+        const catalogsByLoc = new Map(
+            this.#config.locales.map(loc => [loc, this.sharedState.poFilesByLoc.get(loc)!.catalog]),
+        )
+        await this.files.writeUrlFiles(this.url.buildManifest(catalogsByLoc), this.#config.locales[0])
+        if (this.#mode === 'build') {
+            await this.directScanFS(false, false)
+        }
     }
 
     loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
@@ -354,46 +237,6 @@ export class AdapterHandler {
             this.granularStateByFile.set(filename, state)
         }
         return state
-    }
-
-    matchUrl = (url: string) => {
-        for (const pattern of this.#adapter.url?.patterns ?? []) {
-            if (matchUrlPattern(pattern, { decode: false })(url)) {
-                return pattern
-            }
-        }
-        return null
-    }
-
-    getUrlToCompile = (key: string, locale: string) => {
-        // e.g. key: /items/foo/{0}
-        const catalog = this.sharedState.poFilesByLoc.get(locale)!.catalog
-        let toCompile = key
-        const relevantPattern = this.matchUrl(key)
-        if (relevantPattern == null) {
-            return toCompile
-        }
-        // e.g. relevantPattern: /items/:rest
-        const patternItem = catalog.get(this.#urlPatternKeys.get(relevantPattern) ?? '')
-        if (patternItem) {
-            // e.g. patternItem.msgid: /items/{0}
-            const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
-            // e.g. matchUrl.params: {rest: 'foo/{0}'}
-            if (matchedUrl) {
-                const translatedPattern = patternItem.msgstr[0] || patternItem.msgid
-                // e.g. translatedPattern: /elementos/{0}
-                const { keys } = pathToRegexp(relevantPattern)
-                const translatedPattUrl = this.urlPatternFromTranslate(translatedPattern, keys)
-                // e.g. translatedPattUrl: /elementos/:rest
-                const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
-                toCompile = compileTranslated(matchedUrl.params)
-                // e.g. toCompile: /elementos/foo/{0}
-            }
-        }
-        if (this.localizeUrl) {
-            toCompile = this.localizeUrl(toCompile || key, locale)
-        }
-        return toCompile
     }
 
     writeCompiled = async (loc: string, hmrVersion = -1) => {
@@ -455,7 +298,7 @@ export class AdapterHandler {
             } else {
                 let toCompile = poItem.msgstr[0]
                 if (poItem.flags[urlExtractedFlag]) {
-                    toCompile = this.getUrlToCompile(key, loc)
+                    toCompile = this.url.matchToCompile(key, loc, catalog)
                 }
                 compiled = compileTranslation(toCompile, fallback)
             }
@@ -725,7 +568,7 @@ export class AdapterHandler {
             filename,
             index: indexTracker,
             expr: this.#prepareRuntimeExpr(loadID),
-            matchUrl: this.matchUrl,
+            matchUrl: this.url.match,
         })
         let hmrData: HMRData | null = null
         if (this.#mode !== 'build' || direct) {
@@ -774,7 +617,8 @@ export class AdapterHandler {
     async directScanFS(clean: boolean, sync: boolean) {
         const dumps: Map<string, string> = new Map()
         for (const loc of this.#allLocales) {
-            const items = Array.from(this.sharedState.poFilesByLoc.get(loc)!.catalog.values())
+            const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
+            const items = Array.from(catalog.values())
             dumps.set(loc, poDumpToString(items))
             if (clean) {
                 for (const item of items) {
@@ -795,7 +639,8 @@ export class AdapterHandler {
                     }
                 }
             }
-            await this.initUrlPatterns()
+            const aiQueue = this.#aiQueues.get(loc)!
+            await this.url.initPatterns(loc, this.#sourceLocale, catalog, this.key, aiQueue)
         }
         const filePaths = await glob(...this.globConfToArgs(this.#adapter.files))
         const extract = this.directFileHandler()
