@@ -41,5 +41,5 @@ export {
 export { normalizeSep } from './handler/files.js'
 export type { Mode } from './handler/index.js'
 export { AdapterHandler } from './handler/index.js'
-export type { SharedStates } from './handler/state.js'
+export { SharedStates } from './handler/state.js'
 export { Logger } from './log.js'

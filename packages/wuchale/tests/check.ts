@@ -5,7 +5,7 @@ import { readFile, rm } from 'fs/promises'
 import { dirname, relative } from 'path'
 import PO from 'pofile'
 import { fileURLToPath } from 'url'
-import { type Adapter, AdapterHandler, type CompiledElement, defaultConfig, Logger } from 'wuchale'
+import { type Adapter, AdapterHandler, type CompiledElement, defaultConfig, Logger, SharedStates } from 'wuchale'
 import { adapter, type VanillaArgs } from 'wuchale/adapter-vanilla'
 
 export const absDir = (fileurl: string) => relative(process.cwd(), dirname(fileURLToPath(fileurl))) || '.'
@@ -28,7 +28,7 @@ export async function getOutput(
     hmrVersion: number,
 ): Promise<{ code: any; catalogs: any; compiled: any }> {
     const handler = new AdapterHandler(adapter, key, config, 'dev', process.cwd(), new Logger('error'))
-    await handler.init(new Map())
+    await handler.init(new SharedStates())
     const { code } = await handler.transform(content, filename, hmrVersion)
     const { poFilesByLoc, compiled } = handler.sharedState
     return { code, catalogs: poFilesByLoc, compiled }

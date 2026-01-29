@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { watch as watchFS } from 'chokidar'
 import type { Config } from '../config.js'
 import { AdapterHandler } from '../handler/index.js'
-import type { SharedStates } from '../handler/state.js'
+import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
 
 function extractor(handler: AdapterHandler, logger: Logger) {
@@ -18,7 +18,7 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
     const logger = new Logger(config.logLevel)
     !watch && logger.info('Extracting...')
     const handlers: AdapterHandler[] = []
-    const sharedState: SharedStates = new Map()
+    const sharedState = new SharedStates()
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), logger)
         await handler.init(sharedState)

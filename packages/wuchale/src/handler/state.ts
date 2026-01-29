@@ -21,17 +21,31 @@ export type SharedState = {
 }
 
 /* shared states among multiple adapters handlers, by localesDir */
-export type SharedStates = Map<string, SharedState>
+export class SharedStates {
+    states: Map<string, SharedState> = new Map()
 
-export const newSharedState = (key: string, sourceLocale: string): SharedState => ({
-    ownerKey: key,
-    sourceLocale: sourceLocale,
-    otherFileMatches: [],
-    poFilesByLoc: new Map(),
-    indexTracker: new IndexTracker(),
-    compiled: new Map(),
-    extractedUrls: new Map(),
-})
+    getAdd = (localesDir: string, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
+        let sharedState = this.states.get(localesDir)
+        if (sharedState == null) {
+            sharedState = {
+                ownerKey: key,
+                sourceLocale: sourceLocale,
+                otherFileMatches: [],
+                poFilesByLoc: new Map(),
+                indexTracker: new IndexTracker(),
+                compiled: new Map(),
+                extractedUrls: new Map(),
+            }
+            this.states.set(localesDir, sharedState)
+        } else {
+            if (sharedState.sourceLocale !== sourceLocale) {
+                throw new Error('Adapters with different source locales cannot share catalogs.')
+            }
+            sharedState.otherFileMatches.push(fileMatches)
+        }
+        return sharedState
+    }
+}
 
 type GranularState = {
     id: string
@@ -52,33 +66,34 @@ export class State {
     }
 
     async byFileCreate(filename: string, locales: string[]): Promise<GranularState> {
-        let state = this.byFile.get(filename)!
-        if (state == null) {
-            const id = this.generateLoadID(filename)
-            const stateG = this.byID.get(id)
-            if (stateG) {
-                state = stateG
-            } else {
-                const compiledLoaded: Map<string, Compiled> = new Map()
-                state = {
-                    id,
-                    compiled: new Map(),
-                    indexTracker: new IndexTracker(),
-                }
-                for (const loc of locales) {
-                    state.compiled.set(
-                        loc,
-                        compiledLoaded.get(loc) ?? {
-                            hasPlurals: false,
-                            items: [],
-                        },
-                    )
-                }
-                this.byID.set(id, state)
-                await this.writeProxies()
-            }
-            this.byFile.set(filename, state)
+        let state = this.byFile.get(filename)
+        if (state != null) {
+            return state
         }
+        const id = this.generateLoadID(filename)
+        const stateG = this.byID.get(id)
+        if (stateG) {
+            state = stateG
+        } else {
+            const compiledLoaded: Map<string, Compiled> = new Map()
+            state = {
+                id,
+                compiled: new Map(),
+                indexTracker: new IndexTracker(),
+            }
+            for (const loc of locales) {
+                state.compiled.set(
+                    loc,
+                    compiledLoaded.get(loc) ?? {
+                        hasPlurals: false,
+                        items: [],
+                    },
+                )
+            }
+            this.byID.set(id, state)
+            await this.writeProxies()
+        }
+        this.byFile.set(filename, state)
         return state
     }
 }
