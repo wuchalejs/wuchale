@@ -5,14 +5,13 @@ import PO from 'pofile'
 import { glob } from 'tinyglobby'
 import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, CatalogExpr, GlobConf, HMRData } from '../adapters.js'
-import { IndexTracker, Message } from '../adapters.js'
+import { Message } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import { type ConfigPartial, getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
 import { Files, normalizeSep, objKeyLocale } from './files.js'
 import {
-    type Catalog,
     defaultPluralRule,
     type ItemType,
     loadCatalogFromPO,
@@ -20,6 +19,7 @@ import {
     poDumpToString,
     saveCatalogToPO,
 } from './pofile.js'
+import { newSharedState, type SharedState, type SharedStates, State } from './state.js'
 import { URLHandler, urlPatternFlag } from './url.js'
 
 const urlExtractedFlag = 'url-extracted'
@@ -32,32 +32,6 @@ const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
 export type Mode = 'dev' | 'build' | 'cli'
-
-type Compiled = {
-    hasPlurals: boolean
-    items: CompiledElement[]
-}
-
-type CompiledCatalogs = Map<string, Compiled>
-
-type SharedState = {
-    ownerKey: string
-    sourceLocale: string
-    otherFileMatches: Matcher[]
-    poFilesByLoc: Map<string, POFile>
-    compiled: CompiledCatalogs
-    extractedUrls: Map<string, Catalog>
-    indexTracker: IndexTracker
-}
-
-/* shared states among multiple adapters handlers, by localesDir */
-export type SharedStates = Map<string, SharedState>
-
-type GranularState = {
-    id: string
-    compiled: CompiledCatalogs
-    indexTracker: IndexTracker
-}
 
 type TransformOutputCode = { code?: string; map?: any }
 
@@ -76,9 +50,7 @@ export class AdapterHandler {
 
     /* Shared state with other adapter handlers */
     sharedState: SharedState
-
-    granularStateByFile: Map<string, GranularState> = new Map()
-    granularStateByID: Map<string, GranularState> = new Map()
+    granularState: State
 
     #catalogsFname: Map<string, string> = new Map()
     catalogPathsToLocales: Map<string, string> = new Map()
@@ -124,7 +96,7 @@ export class AdapterHandler {
         if (!this.#adapter.granularLoad) {
             return [[this.key], [this.sharedState.ownerKey]]
         }
-        for (const state of this.granularStateByID.values()) {
+        for (const state of this.granularState.byID.values()) {
             // only the ones with ready messages
             if (state.compiled.get(this.#sourceLocale)!.items.length) {
                 loadIDs.push(state.id)
@@ -137,15 +109,7 @@ export class AdapterHandler {
         const sourceLocaleName = getLanguageName(this.#sourceLocale)
         const sharedState = sharedStates.get(this.#adapter.localesDir)
         if (sharedState == null) {
-            this.sharedState = {
-                ownerKey: this.key,
-                sourceLocale: this.#sourceLocale,
-                otherFileMatches: [],
-                poFilesByLoc: new Map(),
-                indexTracker: new IndexTracker(),
-                compiled: new Map(),
-                extractedUrls: new Map(),
-            }
+            this.sharedState = newSharedState(this.key, this.#sourceLocale)
             sharedStates.set(this.#adapter.localesDir, this.sharedState)
         } else {
             if (sharedState.sourceLocale !== this.#sourceLocale) {
@@ -156,6 +120,8 @@ export class AdapterHandler {
         }
         this.files = new Files(this.#adapter, this.key, this.sharedState.ownerKey)
         await this.files.init(this.#config.locales, this.#sourceLocale)
+        const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
+        this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
         for (const loc of this.#allLocales) {
             this.#catalogsFname.set(loc, this.catalogFileName(loc))
             // for handleHotUpdate
@@ -196,47 +162,12 @@ export class AdapterHandler {
 
     loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
         if (this.sharedState.ownerKey === this.key) {
-            try {
-                this.sharedState.poFilesByLoc.set(loc, await loadCatalogFromPO(this.#catalogsFname.get(loc)!))
-            } catch (err) {
-                if (err.code !== 'ENOENT') {
-                    throw err
-                }
-                this.#log.warn(`${color.magenta(this.key)}: Catalog not found for ${color.cyan(loc)}`)
+            const poFile = await loadCatalogFromPO(this.#catalogsFname.get(loc)!, this.key, this.#log)
+            if (poFile) {
+                this.sharedState.poFilesByLoc.set(loc, poFile)
             }
         }
         await this.compile(loc, hmrVersion)
-    }
-
-    async #getGranularState(filename: string): Promise<GranularState> {
-        let state = this.granularStateByFile.get(filename)!
-        if (state == null) {
-            const id = this.#adapter.generateLoadID(filename)
-            const stateG = this.granularStateByID.get(id)
-            if (stateG) {
-                state = stateG
-            } else {
-                const compiledLoaded: Map<string, Compiled> = new Map()
-                state = {
-                    id,
-                    compiled: new Map(),
-                    indexTracker: new IndexTracker(),
-                }
-                for (const loc of this.#allLocales) {
-                    state.compiled.set(
-                        loc,
-                        compiledLoaded.get(loc) ?? {
-                            hasPlurals: false,
-                            items: [],
-                        },
-                    )
-                }
-                this.granularStateByID.set(id, state)
-                await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
-            }
-            this.granularStateByFile.set(filename, state)
-        }
-        return state
     }
 
     writeCompiled = async (loc: string, hmrVersion = -1) => {
@@ -253,7 +184,7 @@ export class AdapterHandler {
         if (!this.#adapter.granularLoad) {
             return
         }
-        for (const state of this.granularStateByID.values()) {
+        for (const state of this.granularState.byID.values()) {
             compiledData = state.compiled?.get(loc) || {
                 hasPlurals: false,
                 items: [],
@@ -307,7 +238,7 @@ export class AdapterHandler {
                 continue
             }
             for (const fname of poItem.references) {
-                const state = await this.#getGranularState(fname)
+                const state = await this.granularState.byFileCreate(fname, this.#allLocales)
                 const compiledLoc = state.compiled.get(loc)!
                 compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
                 compiledLoc.items[state.indexTracker.get(key)] = compiled
@@ -558,7 +489,7 @@ export class AdapterHandler {
         let loadID = this.key
         let compiled = this.sharedState.compiled
         if (this.#adapter.granularLoad) {
-            const state = await this.#getGranularState(filename)
+            const state = await this.granularState.byFileCreate(filename, this.#allLocales)
             indexTracker = state.indexTracker
             loadID = state.id
             compiled = state.compiled
