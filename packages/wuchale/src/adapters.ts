@@ -229,6 +229,11 @@ export type LoaderPath = {
     server: string
 }
 
+export type URLConf = {
+    patterns?: string[]
+    localize?: boolean | URLLocalizer
+}
+
 export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     sourceLocale?: string
     files: GlobConf
@@ -237,10 +242,7 @@ export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     outDir?: string
     granularLoad: boolean
     bundleLoad: boolean
-    url?: {
-        patterns?: string[]
-        localize?: boolean | URLLocalizer
-    }
+    url?: URLConf
     generateLoadID: (filename: string) => string
     runtime: Partial<RuntimeConf<RTCtxT>>
 }
