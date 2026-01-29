@@ -1,32 +1,96 @@
 import { readFile } from 'node:fs/promises'
 import { watch as watchFS } from 'chokidar'
+import { glob } from 'tinyglobby'
 import type { Config } from '../config.js'
+import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
+import { poDumpToString } from '../handler/pofile.js'
 import { SharedStates } from '../handler/state.js'
+import { urlPatternFlag } from '../handler/url.js'
 import { color, Logger } from '../log.js'
 
-function extractor(handler: AdapterHandler, logger: Logger) {
-    const adapterName = color.magenta(handler.key)
-    return async (filename: string) => {
-        logger.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
-        const contents = await readFile(filename)
-        await handler.transform(contents.toString(), filename)
+type VisitFileFunc = (filename: string) => Promise<void>
+
+async function directScanFS(
+    handler: AdapterHandler,
+    extract: VisitFileFunc,
+    filePaths: string[],
+    clean: boolean,
+    sync: boolean,
+    logger: Logger,
+) {
+    const dumps: Map<string, string> = new Map()
+    for (const loc of handler.allLocales) {
+        const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
+        const items = Array.from(catalog.values())
+        dumps.set(loc, poDumpToString(items))
+        if (clean) {
+            for (const item of items) {
+                // unreference all references that belong to this adapter
+                if (item.flags[urlPatternFlag]) {
+                    item.references = item.references.filter(ref => ref !== handler.key)
+                } else {
+                    // don't touch other adapters' files. related extracted comments handled by handler
+                    item.references = item.references.filter(ref => {
+                        if (handler.fileMatches(ref)) {
+                            return false
+                        }
+                        if (handler.sharedState.ownerKey !== handler.key) {
+                            return true
+                        }
+                        return handler.sharedState.otherFileMatches.some(match => match(ref))
+                    })
+                }
+            }
+        }
+        await handler.initUrlPatterns(loc, catalog)
+    }
+    if (sync) {
+        for (const fPath of filePaths) {
+            await extract(fPath)
+        }
+    } else {
+        await Promise.all(filePaths.map(extract))
+    }
+    if (clean) {
+        logger.info('Cleaning...')
+    }
+    for (const loc of this.allLocales) {
+        const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
+        if (clean) {
+            for (const [key, item] of catalog.entries()) {
+                if (item.references.length === 0) {
+                    catalog.delete(key)
+                }
+            }
+        }
+        const newDump = poDumpToString(Array.from(catalog.values()))
+        if (newDump !== dumps.get(loc)) {
+            await this.savePO(loc)
+        }
     }
 }
 
 export async function extract(config: Config, clean: boolean, watch: boolean, sync: boolean) {
     const logger = new Logger(config.logLevel)
     !watch && logger.info('Extracting...')
-    const handlers: AdapterHandler[] = []
+    const handlers: [AdapterHandler, VisitFileFunc, string[]][] = []
     const sharedState = new SharedStates()
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), logger)
         await handler.init(sharedState)
-        handlers.push(handler)
+        const adapterName = color.magenta(handler.key)
+        const extract = async (filename: string) => {
+            logger.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
+            const contents = await readFile(filename)
+            await handler.transform(contents.toString(), filename)
+        }
+        const filePaths = await glob(...globConfToArgs(adapter.files, adapter.localesDir, adapter.outDir))
+        handlers.push([handler, extract, filePaths])
     }
     // other loop to make sure that all otherFileMatchers are collected
-    for (const handler of handlers) {
-        await handler.directScanFS(clean, sync)
+    for (const [handler, extract, files] of handlers) {
+        await directScanFS(handler, extract, files, clean, sync, logger)
     }
     if (!watch) {
         logger.info('Extraction finished.')
@@ -34,13 +98,12 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
     }
     // watch
     logger.info('Watching for changes')
-    const handlersWithExtr = handlers.map(h => [h.fileMatches, extractor(h, logger)])
     watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
         if (!['add', 'change'].includes(event)) {
             return
         }
-        for (const [fileMatches, extract] of handlersWithExtr) {
-            if (fileMatches(filename)) {
+        for (const [handler, extract] of handlers) {
+            if (handler.fileMatches(filename)) {
                 await extract(filename)
             }
         }
