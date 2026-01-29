@@ -19,7 +19,7 @@ import {
     poDumpToString,
     saveCatalogToPO,
 } from './pofile.js'
-import { newSharedState, type SharedState, type SharedStates, State } from './state.js'
+import { type SharedState, SharedStates, State } from './state.js'
 import { URLHandler, urlPatternFlag } from './url.js'
 
 const urlExtractedFlag = 'url-extracted'
@@ -107,17 +107,7 @@ export class AdapterHandler {
 
     init = async (sharedStates: SharedStates) => {
         const sourceLocaleName = getLanguageName(this.#sourceLocale)
-        const sharedState = sharedStates.get(this.#adapter.localesDir)
-        if (sharedState == null) {
-            this.sharedState = newSharedState(this.key, this.#sourceLocale)
-            sharedStates.set(this.#adapter.localesDir, this.sharedState)
-        } else {
-            if (sharedState.sourceLocale !== this.#sourceLocale) {
-                throw new Error('Adapters with different source locales cannot share catalogs.')
-            }
-            sharedState.otherFileMatches.push(this.fileMatches)
-            this.sharedState = sharedState
-        }
+        this.sharedState = sharedStates.getAdd(this.#adapter.localesDir, this.key, this.#sourceLocale, this.fileMatches)
         this.files = new Files(this.#adapter, this.key, this.sharedState.ownerKey)
         await this.files.init(this.#config.locales, this.#sourceLocale)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
@@ -150,7 +140,7 @@ export class AdapterHandler {
                 await this.savePoAndCompile(loc)
             }
         }
-        await this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
+        await writeProxies()
         const catalogsByLoc = new Map(
             this.#config.locales.map(loc => [loc, this.sharedState.poFilesByLoc.get(loc)!.catalog]),
         )

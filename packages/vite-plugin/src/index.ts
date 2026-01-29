@@ -1,7 +1,6 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from 'node:path'
-import type { Config, Mode, SharedStates } from 'wuchale'
-import { AdapterHandler, getConfig, Logger, normalizeSep } from 'wuchale'
+import { AdapterHandler, type Config, getConfig, Logger, type Mode, normalizeSep, SharedStates } from 'wuchale'
 
 const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -57,11 +56,11 @@ class Wuchale {
         if (adaptersData.length === 0) {
             throw Error('At least one adapter is needed.')
         }
-        const sharedState: SharedStates = new Map()
+        const sharedStates = new SharedStates()
         const adaptersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
             const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
-            await handler.init(sharedState)
+            await handler.init(sharedStates)
             handler.onBeforeWritePO = () => {
                 this.#lastSourceTriggeredPOWrite = performance.now()
             }
