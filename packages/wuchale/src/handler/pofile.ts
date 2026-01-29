@@ -1,5 +1,6 @@
 import PO from 'pofile'
 import { Message } from '../adapters.js'
+import { color, type Logger } from '../log.js'
 
 export type ItemType = InstanceType<typeof PO.Item>
 
@@ -66,8 +67,21 @@ export async function loadPOFile(filename: string): Promise<PO> {
     })
 }
 
-export async function loadCatalogFromPO(filename: string): Promise<POFile> {
-    const po = await loadPOFile(filename)
+export async function loadCatalogFromPO(
+    filename: string,
+    adapterKey: string,
+    logger: Logger,
+): Promise<POFile | undefined> {
+    let po: PO
+    try {
+        po = await loadPOFile(filename)
+    } catch (err) {
+        if (err.code !== 'ENOENT') {
+            throw err
+        }
+        logger.warn(`${color.magenta(adapterKey)}: Catalog not found at ${color.cyan(filename)}`)
+        return
+    }
     let pluralRule: PluralRule
     const pluralHeader = po.headers['Plural-Forms']
     if (pluralHeader) {

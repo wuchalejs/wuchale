@@ -136,7 +136,7 @@ class Wuchale {
             // for granular as well
             for (const adapter of this.#granularLoadAdapters) {
                 for (const loc of this.#config.locales) {
-                    for (const id of adapter.granularStateByID.keys()) {
+                    for (const id of adapter.granularState.byID.keys()) {
                         if (normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, id))) === ctx.file) {
                             return []
                         }
