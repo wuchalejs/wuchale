@@ -74,7 +74,7 @@ export class URLHandler {
         locale: string,
         sourceLocale: string,
         catalog: Catalog,
-        aiQueue: AIQueue,
+        aiQueue?: AIQueue,
     ): Promise<boolean> => {
         const urlPatterns = this.patterns ?? []
         const urlPatternsForTranslate = urlPatterns.map(this.patternToTranslate)
@@ -114,7 +114,7 @@ export class URLHandler {
             }
             untranslated.push(item)
         }
-        if (untranslated.length && locale !== sourceLocale) {
+        if (untranslated.length && locale !== sourceLocale && aiQueue) {
             aiQueue.add(untranslated)
             await aiQueue.running
         }

@@ -95,7 +95,7 @@ export class AdapterHandler {
     }
 
     initUrlPatterns = async (loc: string, catalog: Catalog) => {
-        const aiQueue = this.#aiQueues.get(loc)!
+        const aiQueue = this.#aiQueues.get(loc)
         return await this.url.initPatterns(loc, this.sourceLocale, catalog, aiQueue)
     }
 
@@ -186,6 +186,7 @@ export class AdapterHandler {
         const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
         for (const [itemKey, poItem] of catalog.entries()) {
             // compile only if it came from a file under this adapter
+            // for urls, skip if not referenced in links
             if (!poItem.references.some(f => this.fileMatches(f))) {
                 continue
             }

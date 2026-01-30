@@ -55,8 +55,8 @@ async function directScanFS(
     if (clean) {
         logger.info('Cleaning...')
     }
-    for (const loc of this.allLocales) {
-        const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
+    for (const loc of handler.allLocales) {
+        const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
         if (clean) {
             for (const [key, item] of catalog.entries()) {
                 if (item.references.length === 0) {
@@ -66,7 +66,7 @@ async function directScanFS(
         }
         const newDump = poDumpToString(Array.from(catalog.values()))
         if (newDump !== dumps.get(loc)) {
-            await this.savePO(loc)
+            await handler.savePO(loc)
         }
     }
 }
@@ -88,7 +88,7 @@ export async function extract(config: Config, clean: boolean, watch: boolean, sy
         const filePaths = await glob(...globConfToArgs(adapter.files, adapter.localesDir, adapter.outDir))
         handlers.push([handler, extract, filePaths])
     }
-    // other loop to make sure that all otherFileMatchers are collected
+    // separate loop to make sure that all otherFileMatchers are collected
     for (const [handler, extract, files] of handlers) {
         await directScanFS(handler, extract, files, clean, sync, logger)
     }
