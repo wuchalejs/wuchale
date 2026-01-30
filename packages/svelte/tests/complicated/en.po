@@ -5,8 +5,7 @@ msgstr ""
 msgid "Extract"
 msgstr "Extract"
 
-#. placeholder {0}: a
-#. placeholder {1}: b
+#. 0: a; 1: b
 #: tests/complicated/app.svelte
 msgid "Interpolate {0} {1}"
 msgstr "Interpolate {0} {1}"
@@ -15,7 +14,7 @@ msgstr "Interpolate {0} {1}"
 msgid "Extracted name"
 msgstr "Extracted name"
 
-#. placeholder {0}: msg
+#. 0: msg
 #: tests/complicated/app.svelte
 msgid "This page says: {0}"
 msgstr "This page says: {0}"
@@ -55,7 +54,7 @@ msgstr "And this"
 msgid "Okay?"
 msgstr "Okay?"
 
-#. placeholder {0}: p.name
+#. 0: p.name
 #: tests/complicated/app.svelte
 msgid "Extract {0}"
 msgstr "Extract {0}"
@@ -69,7 +68,7 @@ msgstr "Bar"
 msgid "Extracted"
 msgstr "Extracted"
 
-#. placeholder {0}: 'handled'
+#. 0: 'handled'
 #: tests/complicated/app.svelte
 msgid "Also {0}"
 msgstr "Also {0}"
@@ -82,13 +81,12 @@ msgstr "Extracted Text"
 msgid "extracted anyway"
 msgstr "extracted anyway"
 
-#. placeholder {0}: json.title
+#. 0: json.title
 #: tests/complicated/app.svelte
 msgid "{0} other blocks"
 msgstr "{0} other blocks"
 
-#. placeholder {0}: member
-#. placeholder {1}: x
+#. 0: member; 1: x
 #: tests/complicated/app.svelte
 msgid "Loops and {0} {1} <0/> Supported"
 msgstr "Loops and {0} {1} <0/> Supported"
@@ -97,7 +95,7 @@ msgstr "Loops and {0} {1} <0/> Supported"
 msgid "Conditionals, <0/>"
 msgstr "Conditionals, <0/>"
 
-#. placeholder {0}: obj.property["non-extracted text"]["Extracted text"]
+#. 0: obj.property["non-extracted text"]["Extracted text"]
 #: tests/complicated/app.svelte
 msgid "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"
 msgstr "This is a very {0} Complicated <0>and even <0><0>depply</0> nested {0}</0> content</0> With <1/>"

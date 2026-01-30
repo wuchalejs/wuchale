@@ -151,7 +151,7 @@ export class MixedVisitor<NodeT> {
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
         const msgs: Message[] = []
-        const comments: string[] = []
+        const placeholders: [number, string][] = []
         for (const child of props.children) {
             if (this.isComment(child)) {
                 continue
@@ -183,11 +183,8 @@ export class MixedVisitor<NodeT> {
                 if (!hasCompoundText) {
                     continue
                 }
-                const placeholder = `{${iArg}}`
-                msgStr += placeholder
-                comments.push(
-                    `placeholder ${placeholder}: ${this.mstr.original.slice(chRange.start + 1, chRange.end - 1)}`,
-                )
+                msgStr += `{${iArg}}`
+                placeholders.push([iArg, this.mstr.original.slice(chRange.start + 1, chRange.end - 1)])
                 let moveStart = chRange.start
                 if (iArg > 0) {
                     this.mstr.update(chRange.start, chRange.start + 1, ', ')
@@ -239,7 +236,7 @@ export class MixedVisitor<NodeT> {
             props.commentDirectives.context,
         )
         msgInfo.type = heurMsgType
-        msgInfo.comments = comments
+        msgInfo.placeholders = placeholders
         if (hasTextChild || hasTextDescendants) {
             msgs.push(msgInfo)
         } else {

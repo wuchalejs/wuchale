@@ -355,9 +355,9 @@ export class AdapterHandler {
                 }
                 poFile.catalog.set(key, poItem)
             }
-            let newComments = msgInfo.comments.map(c => c.replace(/\s+/g, ' ').trim())
+            let newComment = msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`).join('; ')
             if (msgInfo.type === 'url') {
-                newComments = [`${msgInfo.toKey()} ${newComments.join('; ')}`.trim()]
+                newComment = `${msgInfo.toKey()} ${newComment}`.trim()
             } else if (msgInfo.context) {
                 poItem.msgctxt = msgInfo.context
             }
@@ -366,20 +366,20 @@ export class AdapterHandler {
             if (prevRef == null) {
                 poItem.references.push(filename)
                 poItem.references.sort() // make deterministic
-                iStartComm = poItem.references.lastIndexOf(filename) * newComments.length
+                iStartComm = poItem.references.lastIndexOf(filename)
                 newRefs = true // now it references it
             } else {
-                iStartComm = (prevRef.indices.shift() ?? 0) * newComments.length // cannot be pop for determinism
-                const prevComments = poItem.extractedComments.slice(iStartComm, iStartComm + newComments.length)
-                if (prevComments.length !== newComments.length || prevComments.some((c, i) => c !== newComments[i])) {
+                iStartComm = prevRef.indices.shift() ?? 0 // cannot be pop for determinism
+                const prevComment = poItem.extractedComments[iStartComm]
+                if (prevComment !== newComment) {
                     commentsChanged = true
                 }
                 if (prevRef.indices.length === 0) {
                     previousReferences.delete(key)
                 }
             }
-            if (newComments.length) {
-                poItem.extractedComments.splice(iStartComm, newComments.length, ...newComments)
+            if (newComment) {
+                poItem.extractedComments.splice(iStartComm, 1, newComment)
             }
             poItem.obsolete = false
             if (msgInfo.type === 'url') {
@@ -404,7 +404,7 @@ export class AdapterHandler {
                 item.references.splice(index, 1)
                 item.extractedComments.splice(index * commentPerRef, commentPerRef)
             }
-            if (item.references.length === 0) {
+            if (item.references.length === 0 && !item.flags[urlPatternFlag]) {
                 item.obsolete = true
             }
         }

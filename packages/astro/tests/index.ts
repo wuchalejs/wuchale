@@ -288,7 +288,7 @@ test('Nested and mixed', async t => {
     msgid "Hello and <0>welcome</0> to <1>the app</1>!"
     msgstr "Hello and <0>welcome</0> to <1>the app</1>!"
 
-    #. placeholder {0}: num
+    #. 0: num
     #: tests/test-dir/test.astro
     msgid "{0} messages"
     msgstr "{0} messages"
