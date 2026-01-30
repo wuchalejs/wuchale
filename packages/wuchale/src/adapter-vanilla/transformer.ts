@@ -627,13 +627,12 @@ export class Transformer<RTCtxT = {}> {
     visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
         const msgs: Message[] = []
         let msgStr = node.quasis[0].value?.cooked ?? ''
-        const comments: string[] = []
+        const placeholders: [number, string][] = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]
-            const placeholder = `{${i}}`
-            msgStr += `${placeholder}${quasi.value.cooked}`
-            comments.push(`placeholder ${placeholder}: ${this.content.slice(expr.start, expr.end)}`)
+            msgStr += `{${i}}${quasi.value.cooked}`
+            placeholders.push([i, this.content.slice(expr.start, expr.end)])
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
@@ -647,7 +646,7 @@ export class Transformer<RTCtxT = {}> {
             this.commentDirectives.context,
         )
         msgInfo.type = msgTyp
-        msgInfo.comments = comments
+        msgInfo.placeholders = placeholders
         const index = this.index.get(msgInfo.toKey())
         msgs.push(msgInfo)
         return [index, msgs]
@@ -753,7 +752,7 @@ export class Transformer<RTCtxT = {}> {
             if (this.commentDirectives.forceType === false) {
                 return []
             }
-            let msgs = []
+            let msgs: Message[] = []
             const visitor = this[`visit${node.type}`]
             if (visitor != null) {
                 msgs = visitor(node)

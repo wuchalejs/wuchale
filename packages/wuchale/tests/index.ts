@@ -144,8 +144,8 @@ test('Inside function definitions', async t => {
     msgid "Extracted"
     msgstr "Extracted"
 
-    #. placeholder {0}: a
-    #. placeholder {0}: a
+    #. 0: a
+    #. 0: a
     #: tests/test-dir/test.js
     #: tests/test-dir/test.js
     msgid "Hello {0}"

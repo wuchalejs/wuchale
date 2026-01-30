@@ -35,7 +35,7 @@ export class Message {
     msgStr: string[] // array for plurals
     plural: boolean = false
     context?: string
-    comments: string[] = []
+    placeholders: [number, string][] = []
     details: HeuristicDetails
     type: MessageType = 'message'
 
