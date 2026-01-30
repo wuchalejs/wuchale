@@ -14,6 +14,7 @@ export type {
     MessageType,
     RuntimeConf,
     TransformOutput,
+    URLConf,
     UrlMatcher,
 } from './adapters.js'
 export {
