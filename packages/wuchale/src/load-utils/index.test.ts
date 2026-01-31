@@ -1,7 +1,8 @@
-// $ node --import '#test-resolve' %f
+// $ node --import ../../testing/resolve.ts %f
 
 import { test } from 'node:test'
-import { testCatalog } from '#test-utils'
+// @ts-expect-error
+import { testCatalog } from '../../testing/utils.ts'
 import { defaultCollection, loadLocaleSync, registerLoaders } from './index.js'
 import { loadCatalogs } from './pure.js'
 import { loadLocales, runWithLocale } from './server.js'

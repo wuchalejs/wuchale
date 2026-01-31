@@ -1,4 +1,4 @@
-// $ node --import '#test-resolve' %f
+// $ node --import ../testing/resolve.ts %f
 
 import { test } from 'node:test'
 import { URLMatcher } from './url.js'

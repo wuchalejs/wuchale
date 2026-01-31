@@ -1,7 +1,8 @@
-// $ node --import '#test-resolve' %f
+// $ node --import ../../testing/resolve.ts %f
 
 import { test } from 'node:test'
-import { transformTest, ts } from '#test-utils'
+// @ts-expect-error
+import { transformTest, ts } from '../../testing/utils.ts'
 import { IndexTracker, type RuntimeConf } from '../adapters.js'
 import { URLHandler } from '../handler/url.js'
 import { defaultArgs } from './index.js'

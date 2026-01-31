@@ -1,15 +1,15 @@
 // $$ node --import ../../wuchale/testing/resolve.ts %f
 
+import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 import { rm } from 'fs/promises'
-import { resolve } from 'path'
 import { type Config, defaultConfig, normalizeSep } from 'wuchale'
 import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
 import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { Wuchale } from './index.js'
 
-const file = new URL('foo.js', import.meta.url).pathname // needs to match files, relative to root
+const file = resolve(import.meta.dirname, 'foo.js') // needs to match files, relative to root
 
 const code = ts`
     function foo() {
@@ -17,9 +17,9 @@ const code = ts`
     }
 `
 
-const tmpDir = new URL('../tmp', import.meta.url).pathname
+const tmpDir = resolve(import.meta.dirname, '../tmp')
 
-const defaultLoader = new URL('../../wuchale/src/adapter-vanilla/loaders/server.js', import.meta.url).pathname
+const defaultLoader = resolve(import.meta.dirname, '../../wuchale/src/adapter-vanilla/loaders/server.js')
 
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
@@ -106,12 +106,12 @@ test('handleHotUpdate', async (t: TestContext) => {
     const res1 = await plugin.handleHotUpdate(ctx)
     t.assert.strictEqual(res1, undefined)
     t.assert.strictEqual(invalidatedModule!, undefined)
-    ctx.file = `${tmpDir}/en.po`
+    ctx.file = normalizeSep(resolve(tmpDir, 'en.po'))
     const res2 = await plugin.handleHotUpdate(ctx)
     t.assert.deepEqual(res2, [])
     t.assert.deepEqual(wsMsg!, { type: 'full-reload' })
     t.assert.partialDeepStrictEqual(
-        { id: normalizeSep(resolve(new URL('../tmp/.wuchale/main.main.en.compiled.js', import.meta.url).pathname)) },
+        { id: normalizeSep(resolve(import.meta.dirname, '../tmp/.wuchale/main.main.en.compiled.js')) },
         invalidatedModule!,
     )
     t.assert.deepEqual(invalidatedModules!, new Set())

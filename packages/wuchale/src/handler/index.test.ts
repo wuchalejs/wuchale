@@ -1,7 +1,9 @@
-// $ node --import '#test-resolve' %f
+// $ node --import ../../testing/resolve.ts %f
 
+import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
-import { dummyTransform, trimLines, ts } from '#test-utils'
+// @ts-expect-error
+import { dummyTransform, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
 import { type Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
@@ -13,9 +15,9 @@ const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
     files: '*.js', // filename needs to match
-    localesDir: new URL('../../testing/tmp', import.meta.url).pathname,
+    localesDir: resolve(import.meta.dirname, '../../testing/tmp'),
     loaderExts: ['.js'],
-    defaultLoaderPath: new URL('../adapter-vanilla/loaders/server.js', import.meta.url).pathname,
+    defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
 }
 
 const handler = new AdapterHandler(adapter, 'test', defaultConfig, 'dev', import.meta.dirname, new Logger('error'))
