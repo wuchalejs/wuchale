@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.20.0
+
+### Minor Changes
+
+- Store references for URL items just like any other message, and use it to avoid startup visit ([#250](https://github.com/wuchalejs/wuchale/pull/250))
+
 ## 0.19.4
 
 ### Patch Changes
