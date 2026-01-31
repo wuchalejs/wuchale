@@ -17,13 +17,13 @@ registerHooks({
             const parentPath = fileURLToPath(parentURL ?? '')
             const parentDir = dirname(parentPath)
             if (
-                !specifier.includes('/dist/') &&
+                !(specifier.includes('/dist/') || specifier.includes('\\dist\\')) &&
                 (parentURL.includes('.test.') || parentDir === thisDir) &&
-                (specifier.startsWith('./') || specifier.startsWith('../'))
+                specifier.startsWith('.')
             ) {
                 const absoluteTarget = pathResolve(parentDir, specifier)
-                if (absoluteTarget.includes('/src/')) {
-                    const redirectedPath = absoluteTarget.replace('/src/', '/dist/')
+                if (absoluteTarget.includes('/src/') || absoluteTarget.includes('\\src\\')) {
+                    const redirectedPath = absoluteTarget.replace('/src/', '/dist/').replace('\\src\\', '\\dist\\')
                     const newUrl = pathToFileURL(redirectedPath).href
                     return nextResolve(newUrl)
                 }
