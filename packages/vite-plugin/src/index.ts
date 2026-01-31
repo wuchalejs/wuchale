@@ -22,7 +22,9 @@ type ConfUpdate = {
     hmr: boolean
 }
 
-class Wuchale {
+type ConfigLoader = () => Promise<Config>
+
+export class Wuchale {
     name = pluginName
 
     #config: Config
@@ -37,20 +39,20 @@ class Wuchale {
     #log: Logger
     #mode: Mode
 
-    #configPath?: string
+    #loadConfig: ConfigLoader
 
     #hmrVersion = -1
     #hmrDelayThreshold: number
     #lastSourceTriggeredPOWrite: number = 0
 
-    constructor(configPath?: string, hmrDelayThreshold = 1000) {
-        this.#configPath = configPath
+    constructor(loadConfig: () => Promise<Config>, hmrDelayThreshold = 1000) {
+        this.#loadConfig = loadConfig
         // threshold to consider po file change is manual edit instead of a sideeffect of editing code
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
 
     #init = async () => {
-        this.#config = await getConfig(this.#configPath)
+        this.#config = await this.#loadConfig()
         this.#log = new Logger(this.#config.logLevel)
         const adaptersData = Object.entries(this.#config.adapters)
         if (adaptersData.length === 0) {
@@ -190,4 +192,6 @@ class Wuchale {
     transform = { order: 'pre' as const, handler: this.#transformHandler }
 }
 
-export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => new Wuchale(configPath, hmrDelayThreshold)
+export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
+    return new Wuchale(() => getConfig(configPath), hmrDelayThreshold)
+}

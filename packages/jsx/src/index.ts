@@ -60,7 +60,7 @@ const defaultRuntimeSolid: RuntimeConf = {
     },
 }
 
-const defaultArgs: JSXArgs = {
+export const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
     localesDir: './src/locales',
     patterns: [pluralPattern],

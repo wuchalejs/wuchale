@@ -1,54 +1,71 @@
-// $$ cd .. && npm run test
+// $$ node --import ../../wuchale/testing/resolve.ts %f
 
 import { type TestContext, test } from 'node:test'
 import { rm } from 'fs/promises'
 import { resolve } from 'path'
-import { normalizeSep } from 'wuchale'
+import { type Config, defaultConfig, normalizeSep } from 'wuchale'
+import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
-import { trimLines, ts } from '../../wuchale/tests/check.ts'
-import { wuchale } from '../dist/index.js'
+import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
+import { Wuchale } from './index.js'
 
-const plugin = wuchale('./tests/wuchale.config.js', 0)
+const file = new URL('foo.js', import.meta.url).pathname // needs to match files, relative to root
 
-const file = 'tests/foo.test.js'
 const code = ts`
     function foo() {
         return 'Hello'
     }
 `
 
+const tmpDir = new URL('../tmp', import.meta.url).pathname
+
+const defaultLoader = new URL('../../wuchale/src/adapter-vanilla/loaders/server.js', import.meta.url).pathname
+
+const loadConfig = async (): Promise<Config> => ({
+    ...defaultConfig,
+    adapters: {
+        main: {
+            ...defaultArgs,
+            transform: dummyTransform,
+            files: '*.js', // filename needs to match
+            localesDir: tmpDir,
+            loaderExts: ['.js'],
+            defaultLoaderPath: {
+                client: defaultLoader,
+                server: defaultLoader,
+            },
+        },
+    },
+})
+
+const plugin = new Wuchale(loadConfig, 0)
+
 test('configResolved', async () => {
     try {
-        await rm('./test-tmp', { recursive: true })
+        await rm(tmpDir, { recursive: true })
     } catch {}
-    await plugin.configResolved({ env: { DEV: true }, root: '.' })
+    await plugin.configResolved({ env: { DEV: true }, root: import.meta.dirname })
 })
 
 test('transform basic', async (t: TestContext) => {
     const output = await plugin.transform.handler(code, file)
     t.assert.strictEqual(
-        trimLines(output.code ?? '') ?? '',
+        trimLines(output.code),
         trimLines(ts`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./test-tmp/main.loader.js"
-        function foo() {
-            const _w_runtime_ = _w_load_('main')
-            return _w_runtime_(0)
-        }
-    `),
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tmp/main.loader.js"
+            _w_load_('main')(0)
+        `),
     )
 })
 
 test('transform ssr', async (t: TestContext) => {
-    await plugin.configResolved({ env: { DEV: false }, root: '.' })
+    await plugin.configResolved({ env: { DEV: false }, root: import.meta.dirname })
     const output = await plugin.transform.handler(code, file, { ssr: true })
     t.assert.strictEqual(
-        trimLines(output.code ?? '') ?? '',
+        trimLines(output.code),
         trimLines(ts`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./test-tmp/main.loader.server.js"
-        function foo() {
-            const _w_runtime_ = _w_load_('main')
-            return _w_runtime_(0)
-        }
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tmp/main.loader.server.js"
+        _w_load_('main')(0)
     `),
     )
 })
@@ -89,12 +106,12 @@ test('handleHotUpdate', async (t: TestContext) => {
     const res1 = await plugin.handleHotUpdate(ctx)
     t.assert.strictEqual(res1, undefined)
     t.assert.strictEqual(invalidatedModule!, undefined)
-    ctx.file = 'tests/test-tmp/en.po'
+    ctx.file = `${tmpDir}/en.po`
     const res2 = await plugin.handleHotUpdate(ctx)
     t.assert.deepEqual(res2, [])
     t.assert.deepEqual(wsMsg!, { type: 'full-reload' })
     t.assert.partialDeepStrictEqual(
-        { id: normalizeSep(resolve('tests/test-tmp/.wuchale/main.main.en.compiled.js')) },
+        { id: normalizeSep(resolve(new URL('../tmp/.wuchale/main.main.en.compiled.js', import.meta.url).pathname)) },
         invalidatedModule!,
     )
     t.assert.deepEqual(invalidatedModules!, new Set())
@@ -103,12 +120,12 @@ test('handleHotUpdate', async (t: TestContext) => {
 })
 
 test('transform with hmr', async (t: TestContext) => {
-    await plugin.configResolved({ env: { DEV: true }, root: '.' })
+    await plugin.configResolved({ env: { DEV: true }, root: import.meta.dirname })
     const output = await plugin.transform.handler(code, file)
     t.assert.strictEqual(
-        trimLines(output.code ?? '') ?? '',
+        trimLines(output.code),
         trimLines(ts`
-        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./test-tmp/main.loader.js"
+        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../tmp/main.loader.js"
         const _w_hmrUpdate_ = {"version":0,"data":{"en":[[0,"Hello"]]}}
         function _w_load_(loadID) {
             const _w_rt_ = _w_load_hmr_(loadID)
@@ -120,10 +137,7 @@ test('transform with hmr', async (t: TestContext) => {
             _w_rt_?._?.update?.(_w_hmrUpdate_)
             return _w_rt_
         }
-        function foo() {
-            const _w_runtime_ = _w_load_('main')
-            return _w_runtime_(0)
-        }
+        _w_load_('main')(0)
     `),
     )
 })

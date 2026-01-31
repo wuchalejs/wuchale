@@ -57,11 +57,14 @@ export class Files {
     #urlsFname: string
     #generatedDir: string
 
-    constructor(adapter: Adapter, key: string, ownerKey: string) {
+    #projectRoot: string
+
+    constructor(adapter: Adapter, key: string, ownerKey: string, root: string) {
         this.key = key
         this.ownerKey = ownerKey
         this.#adapter = adapter
         this.#generatedDir = `${adapter.localesDir}/${generatedDir}`
+        this.#projectRoot = root
     }
 
     getLoaderPaths(): LoaderPath[] {
@@ -128,7 +131,8 @@ export class Files {
     }
 
     getImportPath(filename: string, importer?: string) {
-        filename = normalizeSep(relative(dirname(importer ?? filename), filename))
+        const relTo = importer ? resolve(this.#projectRoot, importer) : filename
+        filename = normalizeSep(relative(dirname(relTo), filename))
         if (!filename.startsWith('.')) {
             filename = `./${filename}`
         }

@@ -14,6 +14,30 @@ import { type Catalog, type ItemType } from './pofile.js'
 
 export const urlPatternFlag = 'url-pattern'
 
+export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
+    const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
+    if (typeof compiledTranslatedPatt === 'string') {
+        return compiledTranslatedPatt
+    }
+    const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
+        if (typeof part === 'number') {
+            return keys[part]
+        }
+        return { type: 'text', value: part }
+    })
+    return stringify({ tokens: urlTokens })
+}
+
+export function patternToTranslate(pattern: string) {
+    const { keys } = pathToRegexp(pattern)
+    const compile = compileUrlPattern(pattern, { encode: false })
+    const paramsReplace = {}
+    for (const [i, { name }] of keys.entries()) {
+        paramsReplace[name] = `{${i}}`
+    }
+    return compile(paramsReplace)
+}
+
 export class URLHandler {
     patternKeys: Map<string, string> = new Map()
 
@@ -29,30 +53,6 @@ export class URLHandler {
         this.patterns = urlConf?.patterns
     }
 
-    patternFromTranslate = (patternTranslated: string, keys: Token[]) => {
-        const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
-        if (typeof compiledTranslatedPatt === 'string') {
-            return compiledTranslatedPatt
-        }
-        const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
-            if (typeof part === 'number') {
-                return keys[part]
-            }
-            return { type: 'text', value: part }
-        })
-        return stringify({ tokens: urlTokens })
-    }
-
-    patternToTranslate = (pattern: string) => {
-        const { keys } = pathToRegexp(pattern)
-        const compile = compileUrlPattern(pattern, { encode: false })
-        const paramsReplace = {}
-        for (const [i, { name }] of keys.entries()) {
-            paramsReplace[name] = `{${i}}`
-        }
-        return compile(paramsReplace)
-    }
-
     buildManifest = (catalogs: Map<string, Catalog>): URLManifest =>
         this.patterns?.map(patt => {
             const catalogPattKey = this.patternKeys.get(patt)!
@@ -63,7 +63,7 @@ export class URLHandler {
                 const item = catalog.get(catalogPattKey)
                 if (item) {
                     const patternTranslated = item.msgstr[0] || item.msgid
-                    pattern = this.patternFromTranslate(patternTranslated, keys)
+                    pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(this.localizeUrl?.(pattern, loc) ?? pattern)
             }
@@ -77,7 +77,7 @@ export class URLHandler {
         aiQueue?: AIQueue,
     ): Promise<boolean> => {
         const urlPatterns = this.patterns ?? []
-        const urlPatternsForTranslate = urlPatterns.map(this.patternToTranslate)
+        const urlPatternsForTranslate = urlPatterns.map(patternToTranslate)
         const urlPatternMsgs = urlPatterns.map((patt, i) => {
             const locPattern = urlPatternsForTranslate[i]
             let context: string | undefined
@@ -147,7 +147,7 @@ export class URLHandler {
                 const translatedPattern = patternItem.msgstr[0] || patternItem.msgid
                 // e.g. translatedPattern: /elementos/{0}
                 const { keys } = pathToRegexp(relevantPattern)
-                const translatedPattUrl = this.patternFromTranslate(translatedPattern, keys)
+                const translatedPattUrl = patternFromTranslate(translatedPattern, keys)
                 // e.g. translatedPattUrl: /elementos/:rest
                 const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
                 toCompile = compileTranslated(matchedUrl.params)

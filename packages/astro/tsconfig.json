@@ -5,5 +5,5 @@
         "composite": true
     },
     "references": [{ "path": "../wuchale" }],
-    "include": ["src", "tests", "../wuchale/tests", "../wuchale/ambient.d.ts"]
+    "include": ["src", "../wuchale/tests", "../wuchale/ambient.d.ts"]
 }

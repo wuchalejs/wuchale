@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
-        "test": "node tests/index.ts"
+        "test": "node --import '#test-resolve' --test"
     },
     "keywords": [
         "i18n",
@@ -63,6 +63,10 @@
             "types": "./dist/url.d.ts",
             "default": "./dist/url.js"
         }
+    },
+    "imports": {
+        "#test-utils": "./testing/utils.ts",
+        "#test-resolve": "./testing/resolve.ts"
     },
     "bin": {
         "wuchale": "./dist/cli/index.js"

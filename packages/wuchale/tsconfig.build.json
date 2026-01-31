@@ -4,5 +4,5 @@
         "rootDir": "src"
     },
     "include": ["src"],
-    "exclude": ["./src/adapter-vanilla/loaders/"]
+    "exclude": ["./src/adapter-vanilla/loaders/", "**/*.test.ts"]
 }

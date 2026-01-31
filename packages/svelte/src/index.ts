@@ -49,7 +49,7 @@ type LoadersAvailable = 'svelte' | 'sveltekit'
 
 export type SvelteArgs = AdapterArgs<LoadersAvailable, RuntimeCtxSv>
 
-const defaultArgs: SvelteArgs = {
+export const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     localesDir: './src/locales',
     patterns: [pluralPattern],

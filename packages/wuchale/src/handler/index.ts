@@ -102,7 +102,7 @@ export class AdapterHandler {
     init = async (sharedStates: SharedStates) => {
         const sourceLocaleName = getLanguageName(this.sourceLocale)
         this.sharedState = sharedStates.getAdd(this.#adapter.localesDir, this.key, this.sourceLocale, this.fileMatches)
-        this.files = new Files(this.#adapter, this.key, this.sharedState.ownerKey)
+        this.files = new Files(this.#adapter, this.key, this.sharedState.ownerKey, this.#projectRoot)
         await this.files.init(this.#config.locales, this.sourceLocale)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.#adapter.generateLoadID)

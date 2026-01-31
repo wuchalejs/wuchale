@@ -47,7 +47,7 @@ const defaultRuntime: RuntimeConf = {
     },
 }
 
-const defaultArgs: AstroArgs = {
+export const defaultArgs: AstroArgs = {
     files: 'src/**/*.astro',
     localesDir: './src/locales',
     patterns: [pluralPattern],

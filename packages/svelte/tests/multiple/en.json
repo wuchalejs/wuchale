@@ -1,9 +1,0 @@
-[
-    "Title",
-    "Welcome to the app",
-    ["Nested ", [0, "non-mixed"]],
-    ["Nested ", [0, "mixed with ", 0]],
-    ["Nested ", [0]],
-    ["Result: ", 0, " ", 1, " / ", 2, "..."],
-    ["Nested deep nontext ", [0]]
-]

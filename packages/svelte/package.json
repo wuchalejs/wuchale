@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
-        "test": "node tests/index.ts"
+        "test": "node --import ../wuchale/testing/resolve.ts --test"
     },
     "keywords": [
         "i18n",
