@@ -48,3 +48,33 @@ test('HMR', async (t: TestContext) => {
     `),
     )
 })
+
+test('transform error includes adapter and file context', async (t: TestContext) => {
+    const badAdapter: Adapter = {
+        ...adapter,
+        transform: () => {
+            const e = new Error('boom')
+            ;(e as any).frame = '1: <svelte:window />\n   ^'
+            throw e
+        },
+    }
+    const badHandler = new AdapterHandler(
+        badAdapter,
+        'bad',
+        defaultConfig,
+        'dev',
+        import.meta.dirname,
+        new Logger('error'),
+    )
+    await badHandler.init(new SharedStates())
+
+    await t.assert.rejects(
+        () => badHandler.transform(ts`'Hello'`, 'test.js'),
+        (err: any) => {
+            t.assert.ok(err instanceof Error)
+            t.assert.ok(err.message.startsWith('bad: transform failed for test.js\nboom'))
+            t.assert.ok(err.message.includes('<svelte:window />'))
+            return true
+        },
+    )
+})
