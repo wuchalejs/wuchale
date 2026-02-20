@@ -59,9 +59,8 @@ export class Files {
 
     #projectRoot: string
 
-    constructor(adapter: Adapter, key: string, ownerKey: string, root: string) {
+    constructor(adapter: Adapter, key: string, root: string) {
         this.key = key
-        this.ownerKey = ownerKey
         this.#adapter = adapter
         this.#generatedDir = `${adapter.localesDir}/${generatedDir}`
         this.#projectRoot = root
@@ -191,7 +190,8 @@ export class Files {
         await writeFile(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
     }
 
-    init = async (locales: string[], sourceLocale: string) => {
+    init = async (locales: string[], ownerKey: string, sourceLocale: string) => {
+        this.ownerKey = ownerKey
         await this.#initPaths()
         await mkdir(this.#generatedDir, { recursive: true })
         // data file
