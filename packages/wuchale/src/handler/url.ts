@@ -5,12 +5,11 @@ import {
     stringify,
     type Token,
 } from 'path-to-regexp'
-import PO from 'pofile'
 import { Message, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
 import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
-import { type Catalog, type ItemType } from './pofile.js'
+import { type Catalog, type ItemType, newItem } from './pofile.js'
 
 export const urlPatternFlag = 'url-pattern'
 
@@ -62,7 +61,7 @@ export class URLHandler {
                 let pattern = patt
                 const item = catalog.get(catalogPattKey)
                 if (item) {
-                    const patternTranslated = item.msgstr[0] || item.msgid
+                    const patternTranslated = item.msgstr[0] || item.msgid[0]
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(this.localizeUrl?.(pattern, loc) ?? pattern)
@@ -93,23 +92,23 @@ export class URLHandler {
             const key = urlPatternCatKeys[i]
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
-            if (!item || !item.flags[urlPatternFlag]) {
-                item = new PO.Item()
+            if (!item || !item.urlPattern) {
+                item = newItem({
+                    msgid: [locPattern],
+                    urlPattern: true,
+                })
+                catalog.set(key, item)
                 needWriteCatalog = true
             }
-            item.msgid = locPattern
             if (locale === sourceLocale) {
                 item.msgstr = [locPattern]
             }
-            item.msgctxt = urlPatternMsgs[i].context
-            item.flags[urlPatternFlag] = true
-            item.obsolete = false
-            catalog.set(key, item)
+            item.context = urlPatternMsgs[i].context
             if (item.msgstr[0]) {
                 continue
             }
             if (locPattern.search(/\p{L}/u) === -1) {
-                item.msgstr.push(item.msgid)
+                item.msgstr = item.msgid
                 continue
             }
             untranslated.push(item)
@@ -144,7 +143,7 @@ export class URLHandler {
             const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
             // e.g. matchUrl.params: {rest: 'foo/{0}'}
             if (matchedUrl) {
-                const translatedPattern = patternItem.msgstr[0] || patternItem.msgid
+                const translatedPattern = patternItem.msgstr[0] || patternItem.msgid[0]
                 // e.g. translatedPattern: /elementos/{0}
                 const { keys } = pathToRegexp(relevantPattern)
                 const translatedPattUrl = patternFromTranslate(translatedPattern, keys)

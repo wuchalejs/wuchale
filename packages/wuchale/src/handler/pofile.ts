@@ -2,7 +2,79 @@ import PO from 'pofile'
 import { Message } from '../adapters.js'
 import { color, type Logger } from '../log.js'
 
-export type ItemType = InstanceType<typeof PO.Item>
+type POItem = InstanceType<typeof PO.Item>
+
+export type FileRef = {
+    file: string
+    /**
+     * multiple refs per file with multiple placeholders
+     * and in the case of urls, **the first ones will be links**
+     */
+    refs: string[][]
+}
+
+export interface ItemType {
+    msgid: string[]
+    msgstr: string[]
+    context?: string
+    references: FileRef[]
+    comments: string[]
+    urlPattern?: boolean
+}
+
+export const newItem = (init: Partial<ItemType> = {}): ItemType => ({
+    msgid: init.msgid ?? [],
+    msgstr: init.msgstr ?? [],
+    context: init.context,
+    references: init.references ?? [],
+    comments: init.comments ?? [],
+    urlPattern: init.urlPattern,
+})
+
+export function itemToPOItem(item: ItemType): POItem {
+    const poi = new PO.Item()
+    poi.msgid = item.msgid[0]
+    poi.msgid_plural = item.msgid[1]
+    poi.msgstr = item.msgstr
+    poi.msgctxt = item.context
+    item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
+    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
+    poi.extractedComments = item.references.filter(r => r.refs.length).flatMap(r => r.refs.map(ps => ps.join('; ')))
+    poi.obsolete = !item.urlPattern && item.references.length === 0 // url patterns may only be needed for routing
+    if (item.urlPattern) {
+        poi.flags[urlPatternFlag] = true
+    }
+    return poi
+}
+
+export function poitemToItem(item: POItem): ItemType {
+    const references: FileRef[] = []
+    let lastRef: FileRef = { file: '', refs: [] }
+    const urlPattern = item.flags[urlPatternFlag] ?? false
+    for (const [i, ref] of item.references.entries()) {
+        if (ref !== lastRef.file) {
+            lastRef = { file: ref, refs: [] }
+            references.push(lastRef)
+        }
+        const comm = item.extractedComments[i]?.trim()
+        if (!comm) {
+            continue
+        }
+        lastRef.refs.push(comm.split('; '))
+    }
+    const msgid = [item.msgid]
+    if (item.msgid_plural) {
+        msgid.push(item.msgid_plural)
+    }
+    return {
+        msgid,
+        msgstr: item.msgstr,
+        context: item.msgctxt,
+        comments: item.comments,
+        references,
+        urlPattern,
+    }
+}
 
 export type PluralRule = {
     nplurals: number
@@ -14,6 +86,8 @@ export const defaultPluralRule: PluralRule = {
     plural: 'n == 1 ? 0 : 1',
 }
 
+const urlPatternFlag = 'url-pattern'
+
 export type Catalog = Map<string, ItemType>
 
 export class POFile {
@@ -23,7 +97,7 @@ export class POFile {
 
     constructor(items: ItemType[], pluralRule: PluralRule, headers: Record<string, string>) {
         for (const item of items) {
-            const msgInfo = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt)
+            const msgInfo = new Message(item.msgid, undefined, item.context)
             this.catalog.set(msgInfo.toKey(), item)
         }
         this.headers = headers
@@ -90,12 +164,12 @@ export async function loadCatalogFromPO(
     } else {
         pluralRule = defaultPluralRule
     }
-    return new POFile(po.items, pluralRule, po.headers as Record<string, string>)
+    return new POFile(po.items.map(poitemToItem), pluralRule, po.headers as Record<string, string>)
 }
 
 export function poDumpToString(items: ItemType[]) {
     const po = new PO()
-    po.items = items
+    po.items = items.map(itemToPOItem)
     return po.toString()
 }
 
@@ -103,7 +177,7 @@ export async function saveCatalogToPO(pofile: POFile, filename: string): Promise
     const po = new PO()
     po.headers = pofile.headers
     for (const item of pofile.catalog.values()) {
-        po.items.push(item)
+        po.items.push(itemToPOItem(item))
     }
     return new Promise((res, rej) => {
         po.save(filename, err => {

@@ -6,7 +6,6 @@ import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
 import { poDumpToString } from '../handler/pofile.js'
 import { SharedStates } from '../handler/state.js'
-import { urlPatternFlag } from '../handler/url.js'
 import { color, Logger } from '../log.js'
 
 type VisitFileFunc = (filename: string) => Promise<void>
@@ -26,21 +25,15 @@ async function directScanFS(
         dumps.set(loc, poDumpToString(items))
         if (clean) {
             for (const item of items) {
-                // unreference all references that belong to this adapter
-                if (item.flags[urlPatternFlag]) {
-                    item.references = item.references.filter(ref => ref !== handler.key)
-                } else {
-                    // don't touch other adapters' files. related extracted comments handled by handler
-                    item.references = item.references.filter(ref => {
-                        if (handler.fileMatches(ref)) {
-                            return false
-                        }
-                        if (handler.sharedState.ownerKey !== handler.key) {
-                            return true
-                        }
-                        return handler.sharedState.otherFileMatches.some(match => match(ref))
-                    })
-                }
+                item.references = item.references.filter(ref => {
+                    if (handler.fileMatches(ref.file)) {
+                        return false
+                    }
+                    if (handler.sharedState.ownerKey !== handler.key) {
+                        return true
+                    }
+                    return handler.sharedState.otherFileMatches.some(match => match(ref.file))
+                })
             }
         }
         await handler.initUrlPatterns(loc, catalog)

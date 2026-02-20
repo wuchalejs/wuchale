@@ -1,6 +1,5 @@
 import { isAbsolute, join, normalize, resolve } from 'node:path'
 import pm, { type Matcher } from 'picomatch'
-import PO from 'pofile'
 import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, CatalogExpr, HMRData } from '../adapters.js'
 import { Message } from '../adapters.js'
@@ -9,9 +8,18 @@ import { type CompiledElement, compileTranslation } from '../compile.js'
 import { type ConfigPartial, getLanguageName } from '../config.js'
 import { type Logger } from '../log.js'
 import { Files, globConfToArgs, normalizeSep, objKeyLocale } from './files.js'
-import { type Catalog, defaultPluralRule, type ItemType, loadCatalogFromPO, POFile, saveCatalogToPO } from './pofile.js'
+import {
+    type Catalog,
+    defaultPluralRule,
+    type FileRef,
+    type ItemType,
+    loadCatalogFromPO,
+    newItem,
+    POFile,
+    saveCatalogToPO,
+} from './pofile.js'
 import { type SharedState, SharedStates, State } from './state.js'
-import { URLHandler, urlPatternFlag } from './url.js'
+import { URLHandler } from './url.js'
 
 const loaderImportGetRuntime = 'getRuntime'
 const loaderImportGetRuntimeRx = 'getRuntimeRx'
@@ -187,21 +195,23 @@ export class AdapterHandler {
         for (const [itemKey, poItem] of catalog.entries()) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
-            if (!poItem.references.some(f => this.fileMatches(f))) {
+            if (!poItem.references.some(r => this.fileMatches(r.file))) {
                 continue
             }
             let keys = [itemKey]
-            if (poItem.flags[urlPatternFlag]) {
+            if (poItem.urlPattern) {
                 keys = []
-                for (const comment of poItem.extractedComments) {
-                    keys.push(comment.split(' ', 1)[0])
+                for (const reference of poItem.references) {
+                    for (const ref of reference.refs) {
+                        keys.push(ref[0]) // first one is the link
+                    }
                 }
             }
             for (const key of keys) {
                 const index = this.sharedState.indexTracker.get(key)
                 let compiled: CompiledElement
                 const fallback = sharedCompiledSourceItems?.[index] ?? ''
-                if (poItem.msgid_plural) {
+                if (poItem.msgstr.length > 1) {
                     sharedCompiledLoc.hasPlurals = true
                     if (poItem.msgstr.join('').trim()) {
                         compiled = poItem.msgstr
@@ -210,7 +220,7 @@ export class AdapterHandler {
                     }
                 } else {
                     let toCompile = poItem.msgstr[0]
-                    if (poItem.flags[urlPatternFlag]) {
+                    if (poItem.urlPattern) {
                         toCompile = this.url.matchToCompile(key, loc, catalog)
                     }
                     compiled = compileTranslation(toCompile, fallback)
@@ -219,8 +229,8 @@ export class AdapterHandler {
                 if (!this.#adapter.granularLoad) {
                     continue
                 }
-                for (const fname of poItem.references) {
-                    const state = await this.granularState.byFileCreate(fname, this.allLocales)
+                for (const ref of poItem.references) {
+                    const state = await this.granularState.byFileCreate(ref.file, this.allLocales)
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
                     compiledLoc.items[state.indexTracker.get(key)] = compiled
@@ -316,21 +326,14 @@ export class AdapterHandler {
 
     handleMessages = async (loc: string, msgs: Message[], filename: string): Promise<string[]> => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
-        const previousReferences: Map<string, { count: number; indices: number[] }> = new Map()
+        const previousReferences: Map<string, { ref: FileRef; reused: number }> = new Map()
         for (const item of poFile.catalog.values()) {
-            if (!item.references.includes(filename)) {
+            const existingRef = item.references.find(r => r.file === filename)
+            if (!existingRef) {
                 continue
             }
-            const key = new Message([item.msgid, item.msgid_plural], undefined, item.msgctxt).toKey()
-            previousReferences.set(key, { count: 0, indices: [] })
-            for (const [i, ref] of item.references.entries()) {
-                if (ref !== filename) {
-                    continue
-                }
-                const prevRef = previousReferences.get(key)!
-                prevRef.count++
-                prevRef.indices.push(i)
-            }
+            const key = new Message(item.msgid, undefined, item.context).toKey()
+            previousReferences.set(key, { ref: existingRef, reused: 0 })
         }
         let newItems: boolean = false
         const hmrKeys: string[] = []
@@ -345,43 +348,32 @@ export class AdapterHandler {
             }
             let poItem = poFile.catalog.get(key)
             if (!poItem) {
-                // @ts-expect-error
-                poItem = new PO.Item({
-                    nplurals: poFile.pluralRule.nplurals,
+                poItem = newItem({
+                    msgid: msgInfo.msgStr,
+                    urlPattern: msgInfo.type === 'url',
                 })
-                poItem.msgid = msgInfo.msgStr[0]
-                if (msgInfo.plural) {
-                    poItem.msgid_plural = msgInfo.msgStr[1] ?? msgInfo.msgStr[0]
-                }
                 poFile.catalog.set(key, poItem)
             }
-            let newComment = msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`).join('; ')
+            const placeholders: string[] = []
             if (msgInfo.type === 'url') {
-                newComment = `${msgInfo.toKey()} ${newComment}`.trim()
+                placeholders.push(msgInfo.toKey())
             } else if (msgInfo.context) {
-                poItem.msgctxt = msgInfo.context
+                poItem.context = msgInfo.context
             }
-            let iStartComm: number
+            placeholders.push(...msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`))
             const prevRef = previousReferences.get(key)
             if (prevRef == null) {
-                poItem.references.push(filename)
-                poItem.references.sort() // make deterministic
-                iStartComm = poItem.references.lastIndexOf(filename)
+                poItem.references.push({
+                    file: filename,
+                    refs: placeholders.length ? [placeholders] : [],
+                })
                 newRefs = true // now it references it
             } else {
-                iStartComm = prevRef.indices.shift() ?? 0 // cannot be pop for determinism
-                const prevComment = poItem.extractedComments[iStartComm]
-                if (prevComment !== newComment) {
-                    commentsChanged = true
+                if (placeholders.length) {
+                    prevRef.ref.refs[prevRef.reused] = placeholders
                 }
-                if (prevRef.indices.length === 0) {
-                    previousReferences.delete(key)
-                }
+                prevRef.reused++
             }
-            if (newComment) {
-                poItem.extractedComments.splice(iStartComm, 1, newComment)
-            }
-            poItem.obsolete = false
             if (msgInfo.type === 'url') {
                 // already translated or attempted at startup
                 continue
@@ -396,17 +388,8 @@ export class AdapterHandler {
                 untranslated.push(poItem)
             }
         }
-        const removedRefs = previousReferences.entries()
-        for (const [key, info] of removedRefs) {
-            const item = poFile.catalog.get(key)!
-            const commentPerRef = Math.floor(item.extractedComments.length / item.references.length)
-            for (const index of info.indices) {
-                item.references.splice(index, 1)
-                item.extractedComments.splice(index * commentPerRef, commentPerRef)
-            }
-            if (item.references.length === 0 && !item.flags[urlPatternFlag]) {
-                item.obsolete = true
-            }
+        for (const info of previousReferences.values()) {
+            info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
         }
         if (untranslated.length === 0) {
             if (newRefs || previousReferences.size || commentsChanged) {

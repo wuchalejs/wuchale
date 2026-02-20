@@ -2,7 +2,7 @@
 // $$ node %f
 
 import PO from 'pofile'
-import type { ItemType } from '../handler/pofile.js'
+import { type ItemType, itemToPOItem, poitemToItem } from '../handler/pofile.js'
 import { color, type Logger } from '../log.js'
 
 const MAX_RETRIES = 30
@@ -61,9 +61,9 @@ export default class AIQueue {
         let translated: ItemType[]
         try {
             const po = new PO()
-            po.items = batch.messages
+            po.items = batch.messages.map(itemToPOItem)
             const translatedstr = await this.ai.translate(po.toString(), this.instruction)
-            translated = PO.parse(translatedstr).items
+            translated = PO.parse(translatedstr).items.map(poitemToItem)
         } catch (err) {
             this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
@@ -71,7 +71,7 @@ export default class AIQueue {
         const unTranslated: ItemType[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             const destItem = batch.messages[i]
-            if (item.msgid !== destItem?.msgid) {
+            if (item.msgid.join('\n') !== destItem?.msgid?.join('\n')) {
                 unTranslated.push(destItem)
                 continue
             }
