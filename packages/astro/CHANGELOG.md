@@ -1,5 +1,12 @@
 # @wuchale/astro
 
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [[`69408f9`](https://github.com/wuchalejs/wuchale/commit/69408f96564edbfc8e9c6e2182a6fc5323bdfac3)]:
+  - wuchale@0.20.0
+
 ## 0.2.7
 
 ### Patch Changes
