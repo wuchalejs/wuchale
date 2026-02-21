@@ -49,7 +49,7 @@
     "license": "MIT",
     "dependencies": {
         "@astrojs/compiler": "^2.13.1",
-        "@sveltejs/acorn-typescript": "^1.0.8",
+        "@sveltejs/acorn-typescript": "^1.0.9",
         "acorn": "^8.15.0",
         "magic-string": "^0.30.21",
         "wuchale": "^0.19.4"
