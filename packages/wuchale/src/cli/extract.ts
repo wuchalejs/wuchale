@@ -52,7 +52,7 @@ async function directScanFS(
         const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
         if (clean) {
             for (const [key, item] of catalog.entries()) {
-                if (item.references.length === 0) {
+                if (item.references.length === 0 && !item.urlPattern) {
                     catalog.delete(key)
                 }
             }
