@@ -1,5 +1,6 @@
 // $$ cd ../.. && npm run test
 import { relative, resolve } from 'node:path'
+import { inspect } from 'node:util'
 import { AdapterHandler, type Config, getConfig, Logger, type Mode, normalizeSep, SharedStates } from 'wuchale'
 
 const pluginName = 'wuchale'
@@ -23,6 +24,30 @@ type ConfUpdate = {
 }
 
 type ConfigLoader = () => Promise<Config>
+
+export function toViteError(err: unknown, adapterKey: string, filename: string): never {
+    const prefix = `${adapterKey}: transform failed for ${filename}`
+    // Ensure we always throw an Error instance with a non-empty message so build tools (e.g. Vite)
+    // don't end up printing only a generic "error during build:" line.
+    if (err instanceof Error) {
+        const anyErr = err as any
+        const frame: string | undefined = typeof anyErr.frame === 'string' ? anyErr.frame : undefined
+        if (!err.message || !err.message.startsWith(prefix)) {
+            const details = err.message ? `\n${err.message}` : ''
+            const frameText = frame ? `\n\n${frame}` : ''
+            err.message = `${prefix}${details}${frameText}`
+        }
+        // Preserve useful metadata that some tooling expects.
+        if (anyErr.id == null) anyErr.id = filename
+        if (anyErr.loc == null && anyErr.start?.line != null && anyErr.start?.column != null) {
+            anyErr.loc = { file: filename, line: anyErr.start.line, column: anyErr.start.column }
+        }
+        throw err
+    }
+    const rendered =
+        typeof err === 'string' ? err : inspect(err, { depth: 5, breakLength: 120, maxStringLength: 10_000 })
+    throw new Error(`${prefix}\n${rendered}`)
+}
 
 export class Wuchale {
     name = pluginName
@@ -183,7 +208,11 @@ export class Wuchale {
         }
         for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
-                return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
+                try {
+                    return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
+                } catch (err) {
+                    toViteError(err, adapter.key, filename)
+                }
             }
         }
         return {}

@@ -7,7 +7,7 @@ import { type Config, defaultConfig, normalizeSep } from 'wuchale'
 import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
 import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
-import { Wuchale } from './index.js'
+import { toViteError, Wuchale } from './index.js'
 
 const file = resolve(import.meta.dirname, 'foo.js') // needs to match files, relative to root
 
@@ -139,5 +139,19 @@ test('transform with hmr', async (t: TestContext) => {
         }
         _w_load_('main')(0)
     `),
+    )
+})
+
+test('error correctly formatted', async (t: TestContext) => {
+    const e = new Error('boom')
+    ;(e as any).frame = '1: <svelte:window />\n   ^'
+    t.assert.throws(
+        () => toViteError(e, 'bad', 'test.js'),
+        (err: any) => {
+            t.assert.ok(err instanceof Error)
+            t.assert.ok(err.message.startsWith('bad: transform failed for test.js\nboom'))
+            t.assert.ok(err.message.includes('<svelte:window />'))
+            return true
+        },
     )
 })
