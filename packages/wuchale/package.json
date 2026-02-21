@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "tsc --watch",
         "build": "tsc",
-        "test": "node --import ./testing/resolve.ts --test \"src/**/*.test.ts\""
+        "test": "node --import ./testing/resolve.ts --test"
     },
     "keywords": [
         "i18n",
