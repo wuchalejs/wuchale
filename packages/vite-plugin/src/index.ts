@@ -1,4 +1,5 @@
 // $$ cd ../.. && npm run test
+import { writeFile } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
 import { inspect } from 'node:util'
 import { AdapterHandler, type Config, getConfig, Logger, type Mode, normalizeSep, SharedStates } from 'wuchale'
@@ -128,7 +129,9 @@ export class Wuchale {
                     this.#adaptersByCatalogPath.set(fname, [handler])
                 }
             }
-            this.#adaptersByConfUpdate.set(normalizeSep(resolve(adapter.localesDir, confUpdateName)), handler)
+            const confUpdateFile = normalizeSep(resolve(handler.files.generatedDir, confUpdateName))
+            await writeFile(confUpdateFile, '{}') // vite only watched changes so prepare first
+            this.#adaptersByConfUpdate.set(confUpdateFile, handler)
         }
     }
 
