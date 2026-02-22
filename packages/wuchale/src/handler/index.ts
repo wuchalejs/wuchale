@@ -194,8 +194,12 @@ export class AdapterHandler {
             if (poItem.urlAdapters.length > 0) {
                 keys = []
                 for (const reference of poItem.references) {
+                    if (reference.refs.length === 0) {
+                        keys.push(poItem.msgid[0]) // plain url like /home
+                        continue
+                    }
                     for (const ref of reference.refs) {
-                        keys.push(ref[0]) // first one is the link
+                        keys.push(ref[0] ?? poItem.msgid[0]) // first one is the link, rest are placeholders
                     }
                 }
             }
