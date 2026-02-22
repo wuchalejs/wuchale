@@ -118,9 +118,10 @@ export class POFile {
     }
 
     async loadRaw(url: boolean, warn = true): Promise<PO | null> {
+        const filename = url ? this.urlFilename : this.filename
         try {
             return await new Promise((res, rej) => {
-                PO.load(url ? this.urlFilename : this.filename, (err, po) => {
+                PO.load(filename, (err, po) => {
                     if (err) {
                         rej(err)
                     } else {
@@ -133,7 +134,7 @@ export class POFile {
                 throw err
             }
             if (warn) {
-                this.logger.warn(`${color.magenta(this.adapterKey)}: Catalog not found at ${color.cyan(this.filename)}`)
+                this.logger.warn(`${color.magenta(this.adapterKey)}: Catalog not found at ${color.cyan(filename)}`)
             }
             return null
         }

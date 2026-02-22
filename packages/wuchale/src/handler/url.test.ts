@@ -1,4 +1,4 @@
-// $ node --import ../../../../scripts/resolve.ts %f
+// $ node --import ../../testing/resolve.ts %f
 
 import { test } from 'node:test'
 import { patternFromTranslate, patternToTranslate } from './url.js'

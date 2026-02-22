@@ -1,3 +1,4 @@
+import { relative } from 'node:path'
 import { type Config, getLanguageName } from '../config.js'
 import { AdapterHandler } from '../handler/index.js'
 import { POFile } from '../handler/pofile.js'
@@ -37,7 +38,7 @@ export async function status(config: Config, root: string, locales: string[]) {
         if (loaderPath) {
             console.log(`  Loader files:`)
             for (const [side, path] of Object.entries(loaderPath)) {
-                console.log(`    ${color.cyan(side)}: ${color.cyan(path)}`)
+                console.log(`    ${color.cyan(side)}: ${color.cyan(relative(root, path))}`)
             }
         } else {
             console.warn(color.yellow('  No loader file found.'))

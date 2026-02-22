@@ -223,6 +223,9 @@ export class Files {
     }
 
     writeUrlFiles = async (manifest: URLManifest, fallbackLocale: string) => {
+        if (manifest.length === 0) {
+            return
+        }
         const urlManifestData = [
             `/** @type {import('wuchale/url').URLManifest} */`,
             `export default ${JSON.stringify(manifest)}`,

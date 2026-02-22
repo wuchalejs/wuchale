@@ -50,11 +50,14 @@ async function directScanFS(
     }
     for (const loc of handler.allLocales) {
         const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
-        let items = Array.from(catalog.values())
         if (clean) {
-            items = items.filter(item => !itemIsObsolete(item))
+            for (const [key, item] of catalog.entries()) {
+                if (itemIsObsolete(item)) {
+                    catalog.delete(key)
+                }
+            }
         }
-        if (JSON.stringify(items) !== dumps.get(loc)) {
+        if (JSON.stringify(Array.from(catalog.values())) !== dumps.get(loc)) {
             await handler.savePO(loc)
         }
     }
