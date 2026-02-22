@@ -115,13 +115,6 @@ export class POFile {
         this.filename = normalizeSep(resolve(dir, `${this.locale}.po`))
     }
 
-    add(items: Item[]) {
-        for (const item of items) {
-            const msgInfo = new Message(item.msgid, undefined, item.context)
-            this.catalog.set(msgInfo.toKey(), item)
-        }
-    }
-
     async loadRaw(): Promise<PO | null> {
         try {
             return await new Promise((res, rej) => {
@@ -154,6 +147,11 @@ export class POFile {
             this.pluralRule.nplurals = Number(this.pluralRule.nplurals)
         } else {
             this.pluralRule = defaultPluralRule
+        }
+        for (const poItem of po.items) {
+            const item = poitemToItem(poItem)
+            const msgInfo = new Message(item.msgid, undefined, item.context)
+            this.catalog.set(msgInfo.toKey(), item)
         }
     }
 
