@@ -58,19 +58,20 @@ Options:
     ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
 `
 
-async function getConfigNLocales(): Promise<[Config, string[]]> {
+async function configRootLocales(): Promise<[Config, string, string[]]> {
     const config = await getConfig(values.config)
     config.logLevel = values['log-level'] as LogLevel
-    return [config, config.locales]
+    return [config, values.config ?? process.cwd(), config.locales]
 }
 
 if (values.help) {
     console.log('wuchale cli')
     console.log(help.trimEnd())
 } else if (cmd == null) {
-    await extract((await getConfigNLocales())[0], values.clean, values.watch, values.sync)
+    const [config, root] = await configRootLocales()
+    await extract(config, root, values.clean, values.watch, values.sync)
 } else if (cmd === 'status') {
-    await status(...(await getConfigNLocales()))
+    await status(...(await configRootLocales()))
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)

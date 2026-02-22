@@ -1,5 +1,5 @@
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 import { platform } from 'node:process'
 import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
@@ -62,12 +62,12 @@ export class Files {
     constructor(adapter: Adapter, key: string, root: string) {
         this.key = key
         this.#adapter = adapter
-        this.#generatedDir = `${adapter.localesDir}/${generatedDir}`
+        this.#generatedDir = resolve(adapter.localesDir, generatedDir)
         this.#projectRoot = root
     }
 
     getLoaderPaths(): LoaderPath[] {
-        const loaderPathHead = join(this.#adapter.localesDir, `${this.key}.loader`)
+        const loaderPathHead = resolve(this.#adapter.localesDir, `${this.key}.loader`)
         const paths: LoaderPath[] = []
         for (const ext of this.#adapter.loaderExts) {
             const pathClient = loaderPathHead + ext
@@ -118,15 +118,15 @@ export class Files {
 
     async #initPaths() {
         this.loaderPath = await this.getLoaderPath()
-        this.proxyPath = join(this.#generatedDir, this.#proxyFileName())
-        this.proxySyncPath = join(this.#generatedDir, this.#proxyFileName(true))
-        this.#urlManifestFname = join(this.#generatedDir, `${this.key}.urls.js`)
-        this.#urlsFname = join(this.#adapter.localesDir, `${this.key}.url.js`)
+        this.proxyPath = resolve(this.#generatedDir, this.#proxyFileName())
+        this.proxySyncPath = resolve(this.#generatedDir, this.#proxyFileName(true))
+        this.#urlManifestFname = resolve(this.#generatedDir, `${this.key}.urls.js`)
+        this.#urlsFname = resolve(this.#adapter.localesDir, `${this.key}.url.js`)
     }
 
     getCompiledFilePath(loc: string, id: string | null) {
         const ownerKey = this.ownerKey
-        return join(this.#generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
+        return resolve(this.#generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
     }
 
     getImportPath(filename: string, importer?: string) {
@@ -196,7 +196,7 @@ export class Files {
         await mkdir(this.#generatedDir, { recursive: true })
         // data file
         await writeFile(
-            join(this.#adapter.localesDir, dataFileName),
+            resolve(this.#adapter.localesDir, dataFileName),
             [`export const sourceLocale = '${sourceLocale}'`, `export const locales = ['${locales.join("','")}']`].join(
                 '\n',
             ),

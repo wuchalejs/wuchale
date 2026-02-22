@@ -25,12 +25,12 @@ async function statPO(poFile: POFile, urlPart: boolean): Promise<POStats> {
     return stats
 }
 
-export async function status(config: Config, locales: string[]) {
+export async function status(config: Config, root: string, locales: string[]) {
     // console.log because if the user invokes this command, they want full info regardless of config
     console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     const sharedStates = new SharedStates()
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
+        const handler = new AdapterHandler(adapter, key, config, 'cli', root, new Logger(config.logLevel))
         handler.initSharedState(sharedStates)
         const loaderPath = await handler.files.getLoaderPath()
         console.log(`${color.magenta(key)}:`)

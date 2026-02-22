@@ -1,5 +1,5 @@
 // $$ cd ../.. && npm run test
-import { relative, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 import { inspect } from 'node:util'
 import { AdapterHandler, type Config, getConfig, Logger, type Mode, normalizeSep, SharedStates } from 'wuchale'
 
@@ -70,8 +70,9 @@ export class Wuchale {
     #hmrDelayThreshold: number
     #lastSourceTriggeredPOWrite: number = 0
 
-    constructor(loadConfig: () => Promise<Config>, hmrDelayThreshold = 1000) {
+    constructor(loadConfig: () => Promise<Config>, root: string, hmrDelayThreshold = 1000) {
         this.#loadConfig = loadConfig
+        this.#projectRoot = root
         // threshold to consider po file change is manual edit instead of a sideeffect of editing code
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
@@ -131,13 +132,12 @@ export class Wuchale {
         }
     }
 
-    configResolved = async (config: { env: { DEV?: boolean }; root: string }) => {
+    configResolved = async (config: { env: { DEV?: boolean } }) => {
         if (config.env.DEV) {
             this.#mode = 'dev'
         } else {
             this.#mode = 'build'
         }
-        this.#projectRoot = config.root
         await this.#init()
     }
 
@@ -222,5 +222,5 @@ export class Wuchale {
 }
 
 export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
-    return new Wuchale(() => getConfig(configPath), hmrDelayThreshold)
+    return new Wuchale(() => getConfig(configPath), dirname(configPath ?? '.'), hmrDelayThreshold)
 }

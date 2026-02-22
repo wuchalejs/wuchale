@@ -60,13 +60,13 @@ async function directScanFS(
     }
 }
 
-export async function extract(config: Config, clean: boolean, watch: boolean, sync: boolean) {
+export async function extract(config: Config, root: string, clean: boolean, watch: boolean, sync: boolean) {
     const logger = new Logger(config.logLevel)
     !watch && logger.info('Extracting...')
     const handlers: [AdapterHandler, VisitFileFunc, string[]][] = []
     const sharedState = new SharedStates()
     for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), logger)
+        const handler = new AdapterHandler(adapter, key, config, 'cli', root, logger)
         await handler.init(sharedState)
         const adapterName = color.magenta(handler.key)
         const extract = async (filename: string) => {

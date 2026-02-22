@@ -38,13 +38,13 @@ const loadConfig = async (): Promise<Config> => ({
     },
 })
 
-const plugin = new Wuchale(loadConfig, 0)
+const plugin = new Wuchale(loadConfig, import.meta.dirname, 0)
 
 test('configResolved', async () => {
     try {
         await rm(tmpDir, { recursive: true })
     } catch {}
-    await plugin.configResolved({ env: { DEV: true }, root: import.meta.dirname })
+    await plugin.configResolved({ env: { DEV: true } })
 })
 
 test('transform basic', async (t: TestContext) => {
@@ -59,7 +59,7 @@ test('transform basic', async (t: TestContext) => {
 })
 
 test('transform ssr', async (t: TestContext) => {
-    await plugin.configResolved({ env: { DEV: false }, root: import.meta.dirname })
+    await plugin.configResolved({ env: { DEV: false } })
     const output = await plugin.transform.handler(code, file, { ssr: true })
     t.assert.strictEqual(
         trimLines(output.code),
@@ -120,7 +120,7 @@ test('handleHotUpdate', async (t: TestContext) => {
 })
 
 test('transform with hmr', async (t: TestContext) => {
-    await plugin.configResolved({ env: { DEV: true }, root: import.meta.dirname })
+    await plugin.configResolved({ env: { DEV: true } })
     const output = await plugin.transform.handler(code, file)
     t.assert.strictEqual(
         trimLines(output.code),
