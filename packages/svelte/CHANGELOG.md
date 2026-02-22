@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.18.2
+
+### Patch Changes
+
+- Store references for URL items just like any other message, and use it to avoid startup visit ([#250](https://github.com/wuchalejs/wuchale/pull/250))
+
+- Updated dependencies [[`8ff01c4`](https://github.com/wuchalejs/wuchale/commit/8ff01c40e6db35e828ea2a06e80e129177da2c3d), [`843544b`](https://github.com/wuchalejs/wuchale/commit/843544beea34494e9e11481add9d5114338a1454), [`69408f9`](https://github.com/wuchalejs/wuchale/commit/69408f96564edbfc8e9c6e2182a6fc5323bdfac3)]:
+  - wuchale@0.20.0
+
 ## 0.18.1
 
 ### Patch Changes

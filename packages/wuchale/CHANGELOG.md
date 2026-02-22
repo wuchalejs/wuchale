@@ -1,5 +1,33 @@
 # wuchale
 
+## 0.20.0
+
+### Minor Changes
+
+- Add support for locale fallback chains ([`8ff01c4`](https://github.com/wuchalejs/wuchale/commit/8ff01c40e6db35e828ea2a06e80e129177da2c3d))
+
+  This is only for when the message is not yet translated. With no configuration,
+  for locales that have regional variants like `fr-CH`, it falls back to the base one `fr`.
+  And explicit chains can be configured by providing from-to pairs in the `fallback` key:
+
+  ```js
+  // wuchale.config.js
+  export default {
+    // ...
+    fallback: {
+      "fr-CH": "fr-FR",
+      "fr-FR": "fr-ES",
+    },
+    // ...
+  };
+  ```
+
+  And then the chain for would be `fr-CH` -> `fr-FR` -> `fr-ES` -> `fr` -> `en`.
+
+- URL translations in separate catalog `.url.po` files ([`843544b`](https://github.com/wuchalejs/wuchale/commit/843544beea34494e9e11481add9d5114338a1454))
+
+- Store references for URL items just like any other message, and use it to avoid startup visit ([#250](https://github.com/wuchalejs/wuchale/pull/250))
+
 ## 0.19.4
 
 ### Patch Changes
