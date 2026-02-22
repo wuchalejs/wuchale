@@ -176,13 +176,35 @@ export class AdapterHandler {
         }
     }
 
+    getCompiledFallback(index: number, loc: string) {
+        for (let _ = 0; _ < 100; _++) {
+            // just to be sure
+            let fallbackLoc = this.#config.fallback[loc]
+            if (fallbackLoc == null) {
+                if (loc.includes('-')) {
+                    fallbackLoc = new Intl.Locale(loc).language
+                }
+                if (fallbackLoc == null || !this.allLocales.includes(fallbackLoc)) {
+                    fallbackLoc = this.sourceLocale
+                }
+            }
+            const catalog = this.sharedState.compiled.get(fallbackLoc)?.items!
+            const compiled = catalog[index]
+            if (compiled || fallbackLoc === this.sourceLocale) {
+                // last try
+                return compiled || ''
+            }
+            loc = fallbackLoc
+        }
+        return ''
+    }
+
     compile = async (loc: string, hmrVersion = -1) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
             sharedCompiledLoc = { hasPlurals: false, items: [] }
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
-        const sharedCompiledSourceItems = this.sharedState.compiled.get(this.sourceLocale)?.items // ?. for sourceLocale itself
         const catalog = this.sharedState.poFilesByLoc.get(loc)!.catalog
         for (const [itemKey, poItem] of catalog.entries()) {
             // compile only if it came from a file under this adapter
@@ -206,7 +228,7 @@ export class AdapterHandler {
             for (const key of keys) {
                 const index = this.sharedState.indexTracker.get(key)
                 let compiled: CompiledElement
-                const fallback = sharedCompiledSourceItems?.[index] ?? ''
+                const fallback = this.getCompiledFallback(index, loc)
                 if (poItem.msgstr.length > 1) {
                     sharedCompiledLoc.hasPlurals = true
                     if (poItem.msgstr.join('').trim()) {
