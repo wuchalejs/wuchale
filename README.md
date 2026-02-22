@@ -6,7 +6,7 @@
 <br/>
 <p align="center">
   <a href="https://npmjs.com/package/wuchale"><img src="https://img.shields.io/npm/v/wuchale?logo=npm&logoColor=red&color=blue" alt="npm package"></a>
-  <a href="https://github.com/wuchalejs/wuchale/actions/workflows/ci.yml"><img src="https://github.com/K1DV5/wuchale/actions/workflows/ci.yml/badge.svg?branch=main" alt="build status"></a>
+  <a href="https://github.com/wuchalejs/wuchale/actions/workflows/ci.yml"><img src="https://github.com/wuchalejs/wuchale/actions/workflows/ci.yml/badge.svg?branch=main" alt="build status"></a>
   <a href="https://pr.new/wuchalejs/wuchale"><img src="https://developer.stackblitz.com/img/start_pr_dark_small.svg" alt="Start new PR in StackBlitz Codeflow"></a>
   <a href="https://wuchale.dev/chat"><img src="https://img.shields.io/badge/chat-discord-blue?style=flat&logo=discord" alt="discord chat"></a>
 </p>
@@ -155,7 +155,7 @@ package for examples of supported scenarios.
 This project is supported by the community. Become a sponsor and get your name
 or logo listed here!
 
-[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/wuchalejs)
 [![Donate on Open Collective](https://img.shields.io/badge/Donate%20on-Open%20Collective-%230092e6?logo=opencollective&logoColor=white)](https://opencollective.com/wuchale)
 
 Special thanks to our supporters:

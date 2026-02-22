@@ -90,9 +90,6 @@
         "@types/picomatch": "^4.0.1",
         "typescript": "^5.9.3"
     },
-    "funding": {
-        "type": "individual",
-        "url": "https://github.com/sponsors/K1DV5"
-    },
+    "funding": "https://github.com/sponsors/wuchalejs",
     "type": "module"
 }
