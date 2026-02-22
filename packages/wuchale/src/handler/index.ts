@@ -351,7 +351,9 @@ export class AdapterHandler {
             }
             const placeholders: string[] = []
             if (msgInfo.type === 'url') {
-                placeholders.push(msgInfo.toKey())
+                if (msgInfo.placeholders.length > 0) {
+                    placeholders.push(msgInfo.toKey())
+                }
             } else if (msgInfo.context) {
                 poItem.context = msgInfo.context
             }
