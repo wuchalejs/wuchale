@@ -105,6 +105,7 @@ export class POFile {
     pluralRule: PluralRule = defaultPluralRule
     locale: string
     filename: string
+    urlFilename: string
     logger: Logger
     adapterKey: string
 
@@ -113,12 +114,13 @@ export class POFile {
         this.adapterKey = adapterKey
         this.logger = logger
         this.filename = normalizeSep(resolve(dir, `${this.locale}.po`))
+        this.urlFilename = normalizeSep(resolve(dir, `${this.locale}.url.po`))
     }
 
-    async loadRaw(): Promise<PO | null> {
+    async loadRaw(url: boolean, warn = true): Promise<PO | null> {
         try {
             return await new Promise((res, rej) => {
-                PO.load(this.filename, (err, po) => {
+                PO.load(url ? this.urlFilename : this.filename, (err, po) => {
                     if (err) {
                         rej(err)
                     } else {
@@ -130,13 +132,15 @@ export class POFile {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            this.logger.warn(`${color.magenta(this.adapterKey)}: Catalog not found at ${color.cyan(this.filename)}`)
+            if (warn) {
+                this.logger.warn(`${color.magenta(this.adapterKey)}: Catalog not found at ${color.cyan(this.filename)}`)
+            }
             return null
         }
     }
 
-    async load() {
-        const po = await this.loadRaw()
+    async load(separateUrls: boolean) {
+        const po = await this.loadRaw(false)
         if (po == null) {
             return
         }
@@ -148,21 +152,26 @@ export class POFile {
         } else {
             this.pluralRule = defaultPluralRule
         }
-        for (const poItem of po.items) {
-            const item = poitemToItem(poItem)
-            const msgInfo = new Message(item.msgid, undefined, item.context)
-            this.catalog.set(msgInfo.toKey(), item)
+        const itemColl = [po.items]
+        if (separateUrls) {
+            const poUrl = await this.loadRaw(true)
+            poUrl && itemColl.push(poUrl.items)
+        }
+        for (const poItems of itemColl) {
+            for (const poItem of poItems) {
+                const item = poitemToItem(poItem)
+                const msgInfo = new Message(item.msgid, undefined, item.context)
+                this.catalog.set(msgInfo.toKey(), item)
+            }
         }
     }
 
-    async save() {
+    async saveRaw(url: boolean, items: POItem[]) {
         const po = new PO()
         po.headers = this.headers
-        for (const item of this.catalog.values()) {
-            po.items.push(itemToPOItem(item))
-        }
+        po.items = items
         await new Promise<void>((res, rej) => {
-            po.save(this.filename, err => {
+            po.save(url ? this.urlFilename : this.filename, err => {
                 if (err) {
                     rej(err)
                 } else {
@@ -170,6 +179,23 @@ export class POFile {
                 }
             })
         })
+    }
+
+    async save(separateUrls: boolean) {
+        const poItems: POItem[] = []
+        const poItemsUrl: POItem[] = []
+        for (const item of this.catalog.values()) {
+            const poItem = itemToPOItem(item)
+            if (item.urlAdapters.length > 0 && separateUrls) {
+                poItemsUrl.push(poItem)
+            } else {
+                poItems.push(poItem)
+            }
+        }
+        await this.saveRaw(false, poItems)
+        if (poItemsUrl.length > 0) {
+            await this.saveRaw(true, poItemsUrl)
+        }
     }
 
     updateHeaders(locale: string, sourceLocale: string) {

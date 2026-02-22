@@ -113,9 +113,12 @@ export class URLHandler {
             }
             untranslated.push(item)
         }
+        const urlPatternCatKeysSet = new Set(urlPatternCatKeys)
         for (const item of catalog.values()) {
-            if (item.urlAdapters.includes(adapterKey) && !this.patternKeys.has(item.msgid[0])) {
+            const key = new Message(item.msgid, undefined, item.context).toKey()
+            if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(key)) {
                 item.urlAdapters = item.urlAdapters.filter(a => a !== adapterKey) // no longer used in this adapter
+                needWriteCatalog = true
             }
         }
         if (untranslated.length && locale !== sourceLocale && aiQueue) {

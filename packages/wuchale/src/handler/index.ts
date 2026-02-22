@@ -117,6 +117,7 @@ export class AdapterHandler {
             const poFile = this.sharedState.poFilesByLoc.get(loc)!
             // for handleHotUpdate
             this.catalogPathsToLocales.set(poFile.filename, loc)
+            this.catalogPathsToLocales.set(poFile.urlFilename, loc)
             if (await this.initUrlPatterns(loc, poFile.catalog)) {
                 await this.savePoAndCompile(loc)
             }
@@ -141,7 +142,7 @@ export class AdapterHandler {
 
     loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
         if (this.sharedState.ownerKey === this.key) {
-            await this.sharedState.poFilesByLoc.get(loc)!.load()
+            await this.sharedState.poFilesByLoc.get(loc)!.load(this.#adapter.url != null)
         }
         await this.compile(loc, hmrVersion)
     }
@@ -234,7 +235,7 @@ export class AdapterHandler {
     savePO = async (loc: string) => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
         poFile.updateHeaders(loc, this.sourceLocale)
-        await poFile.save()
+        await poFile.save(this.#adapter.url != null)
     }
 
     savePoAndCompile = async (loc: string) => {

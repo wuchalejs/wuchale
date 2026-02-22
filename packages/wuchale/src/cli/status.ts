@@ -10,8 +10,8 @@ type POStats = {
     Obsolete: number
 }
 
-async function statPO(poFile: POFile): Promise<POStats> {
-    const po = await poFile.loadRaw()
+async function statPO(poFile: POFile, urlPart: boolean): Promise<POStats> {
+    const po = await poFile.loadRaw(urlPart, false)
     const stats: POStats = { Total: 0, Untranslated: 0, Obsolete: 0 }
     for (const item of po?.items ?? []) {
         stats.Total++
@@ -45,12 +45,17 @@ export async function status(config: Config, locales: string[]) {
         }
         const statsData: Record<string, POStats> = {}
         for (const locale of locales) {
-            const stats = await statPO(handler.sharedState.poFilesByLoc.get(locale)!)
-            if (stats.Total === 0) {
-                continue
-            }
             const locName = getLanguageName(locale)
-            statsData[locName] = stats
+            for (const [name, url] of [
+                [locName, false],
+                [`${locName} URL`, true],
+            ] as [string, boolean][]) {
+                const stats = await statPO(handler.sharedState.poFilesByLoc.get(locale)!, url)
+                if (stats.Total === 0) {
+                    continue
+                }
+                statsData[name] = stats
+            }
         }
         console.table(statsData)
     }
