@@ -11,7 +11,7 @@ import { compileTranslation, type Mixed } from '../compile.js'
 import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
 import { type Catalog, type ItemType, newItem } from './pofile.js'
 
-export const urlPatternFlag = 'url-pattern'
+export const urlAdapterFlagPrefix = 'url:'
 
 export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
     const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
@@ -72,6 +72,7 @@ export class URLHandler {
     initPatterns = async (
         locale: string,
         sourceLocale: string,
+        adapterKey: string,
         catalog: Catalog,
         aiQueue?: AIQueue,
     ): Promise<boolean> => {
@@ -92,12 +93,13 @@ export class URLHandler {
             const key = urlPatternCatKeys[i]
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
-            if (!item || !item.urlPattern) {
-                item = newItem({
-                    msgid: [locPattern],
-                    urlPattern: true,
-                })
+            if (!item || !item.urlAdapters.size) {
+                item = newItem({ msgid: [locPattern] })
                 catalog.set(key, item)
+                needWriteCatalog = true
+            }
+            if (!item.urlAdapters.has(adapterKey)) {
+                item.urlAdapters.add(adapterKey)
                 needWriteCatalog = true
             }
             if (locale === sourceLocale) {
@@ -112,6 +114,11 @@ export class URLHandler {
                 continue
             }
             untranslated.push(item)
+        }
+        for (const item of catalog.values()) {
+            if (item.urlAdapters.has(adapterKey) && !this.patternKeys.has(item.msgid[0])) {
+                item.urlAdapters.delete(adapterKey) // no longer used in this adapter
+            }
         }
         if (untranslated.length && locale !== sourceLocale && aiQueue) {
             aiQueue.add(untranslated)

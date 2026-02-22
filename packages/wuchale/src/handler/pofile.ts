@@ -13,13 +13,15 @@ export type FileRef = {
     refs: string[][]
 }
 
+const urlAdapterFlagPrefix = 'url:'
+
 export interface ItemType {
     msgid: string[]
     msgstr: string[]
     context?: string
     references: FileRef[]
     comments: string[]
-    urlPattern?: boolean
+    urlAdapters: Set<string>
 }
 
 export const newItem = (init: Partial<ItemType> = {}): ItemType => ({
@@ -28,8 +30,10 @@ export const newItem = (init: Partial<ItemType> = {}): ItemType => ({
     context: init.context,
     references: init.references ?? [],
     comments: init.comments ?? [],
-    urlPattern: init.urlPattern,
+    urlAdapters: init.urlAdapters ?? new Set(),
 })
+
+export const itemIsObsolete = (item: ItemType) => item.urlAdapters.size === 0 && item.references.length === 0
 
 export function itemToPOItem(item: ItemType): POItem {
     const poi = new PO.Item()
@@ -40,17 +44,20 @@ export function itemToPOItem(item: ItemType): POItem {
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
     poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
     poi.extractedComments = item.references.filter(r => r.refs.length).flatMap(r => r.refs.map(ps => ps.join('; ')))
-    poi.obsolete = !item.urlPattern && item.references.length === 0 // url patterns may only be needed for routing
-    if (item.urlPattern) {
-        poi.flags[urlPatternFlag] = true
+    for (const key of item.urlAdapters) {
+        poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
+    poi.obsolete = itemIsObsolete(item)
     return poi
 }
 
 export function poitemToItem(item: POItem): ItemType {
+    const msgid = [item.msgid]
+    if (item.msgid_plural) {
+        msgid.push(item.msgid_plural)
+    }
     const references: FileRef[] = []
     let lastRef: FileRef = { file: '', refs: [] }
-    const urlPattern = item.flags[urlPatternFlag] ?? false
     for (const [i, ref] of item.references.entries()) {
         if (ref !== lastRef.file) {
             lastRef = { file: ref, refs: [] }
@@ -62,9 +69,11 @@ export function poitemToItem(item: POItem): ItemType {
         }
         lastRef.refs.push(comm.split('; '))
     }
-    const msgid = [item.msgid]
-    if (item.msgid_plural) {
-        msgid.push(item.msgid_plural)
+    const urlAdapters = new Set<string>()
+    for (const key in item.flags) {
+        if (key.startsWith(urlAdapterFlagPrefix)) {
+            urlAdapters.add(key.slice(urlAdapterFlagPrefix.length))
+        }
     }
     return {
         msgid,
@@ -72,7 +81,7 @@ export function poitemToItem(item: POItem): ItemType {
         context: item.msgctxt,
         comments: item.comments,
         references,
-        urlPattern,
+        urlAdapters,
     }
 }
 
@@ -85,8 +94,6 @@ export const defaultPluralRule: PluralRule = {
     nplurals: 2,
     plural: 'n == 1 ? 0 : 1',
 }
-
-const urlPatternFlag = 'url-pattern'
 
 export type Catalog = Map<string, ItemType>
 
@@ -167,9 +174,9 @@ export async function loadCatalogFromPO(
     return new POFile(po.items.map(poitemToItem), pluralRule, po.headers as Record<string, string>)
 }
 
-export function poDumpToString(items: ItemType[]) {
+export function poDumpToString(items: POItem[]) {
     const po = new PO()
-    po.items = items.map(itemToPOItem)
+    po.items = items
     return po.toString()
 }
 

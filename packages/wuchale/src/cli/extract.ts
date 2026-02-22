@@ -4,7 +4,7 @@ import { glob } from 'tinyglobby'
 import type { Config } from '../config.js'
 import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
-import { poDumpToString } from '../handler/pofile.js'
+import { itemToPOItem, poDumpToString } from '../handler/pofile.js'
 import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
 
@@ -22,7 +22,7 @@ async function directScanFS(
     for (const loc of handler.allLocales) {
         const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
         const items = Array.from(catalog.values())
-        dumps.set(loc, poDumpToString(items))
+        dumps.set(loc, poDumpToString(items.map(itemToPOItem)))
         if (clean) {
             for (const item of items) {
                 item.references = item.references.filter(ref => {
@@ -50,14 +50,11 @@ async function directScanFS(
     }
     for (const loc of handler.allLocales) {
         const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
+        let poItems = Array.from(catalog.values()).map(itemToPOItem)
         if (clean) {
-            for (const [key, item] of catalog.entries()) {
-                if (item.references.length === 0 && !item.urlPattern) {
-                    catalog.delete(key)
-                }
-            }
+            poItems = poItems.filter(item => !item.obsolete)
         }
-        const newDump = poDumpToString(Array.from(catalog.values()))
+        const newDump = poDumpToString(poItems)
         if (newDump !== dumps.get(loc)) {
             await handler.savePO(loc)
         }

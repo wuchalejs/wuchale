@@ -105,7 +105,7 @@ export class AdapterHandler {
 
     initUrlPatterns = async (loc: string, catalog: Catalog) => {
         const aiQueue = this.#aiQueues.get(loc)
-        return await this.url.initPatterns(loc, this.sourceLocale, catalog, aiQueue)
+        return await this.url.initPatterns(loc, this.sourceLocale, this.key, catalog, aiQueue)
     }
 
     init = async (sharedStates: SharedStates) => {
@@ -199,7 +199,7 @@ export class AdapterHandler {
                 continue
             }
             let keys = [itemKey]
-            if (poItem.urlPattern) {
+            if (poItem.urlAdapters) {
                 keys = []
                 for (const reference of poItem.references) {
                     for (const ref of reference.refs) {
@@ -220,7 +220,7 @@ export class AdapterHandler {
                     }
                 } else {
                     let toCompile = poItem.msgstr[0]
-                    if (poItem.urlPattern) {
+                    if (poItem.urlAdapters) {
                         toCompile = this.url.matchToCompile(key, loc, catalog)
                     }
                     compiled = compileTranslation(toCompile, fallback)
@@ -344,14 +344,17 @@ export class AdapterHandler {
             let key = msgInfo.toKey()
             hmrKeys.push(key)
             if (msgInfo.type === 'url') {
-                key = this.url.patternKeys.get(this.url.match(key)!)! // ! because already checked at extraction
+                const matched = this.url.match(key)
+                if (!matched) {
+                    const err = new Error(`URL ${msgInfo.msgStr[0]} has no matching pattern defined`)
+                    ;(err as any).id = filename
+                    throw err
+                }
+                key = this.url.patternKeys.get(matched)! // ! because already checked at extraction
             }
             let poItem = poFile.catalog.get(key)
             if (!poItem) {
-                poItem = newItem({
-                    msgid: msgInfo.msgStr,
-                    urlPattern: msgInfo.type === 'url',
-                })
+                poItem = newItem({ msgid: msgInfo.msgStr })
                 poFile.catalog.set(key, poItem)
             }
             const placeholders: string[] = []
