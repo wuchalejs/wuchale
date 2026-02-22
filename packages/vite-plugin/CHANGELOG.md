@@ -1,5 +1,20 @@
 # @wuchale/vite-plugin
 
+## 0.17.0
+
+### Minor Changes
+
+- URL translations in separate catalog `.url.po` files ([`843544b`](https://github.com/wuchalejs/wuchale/commit/843544beea34494e9e11481add9d5114338a1454))
+
+- Pre-create config update file in `.wuchale` because Vite doesn't pick up new files with HMR ([`34b8e24`](https://github.com/wuchalejs/wuchale/commit/34b8e249534ae7ed50d004c0e5942f931aa9d7dd))
+
+### Patch Changes
+
+- Store references for URL items just like any other message, and use it to avoid startup visit ([#250](https://github.com/wuchalejs/wuchale/pull/250))
+
+- Updated dependencies [[`8ff01c4`](https://github.com/wuchalejs/wuchale/commit/8ff01c40e6db35e828ea2a06e80e129177da2c3d), [`843544b`](https://github.com/wuchalejs/wuchale/commit/843544beea34494e9e11481add9d5114338a1454), [`69408f9`](https://github.com/wuchalejs/wuchale/commit/69408f96564edbfc8e9c6e2182a6fc5323bdfac3)]:
+  - wuchale@0.20.0
+
 ## 0.16.3
 
 ### Patch Changes
