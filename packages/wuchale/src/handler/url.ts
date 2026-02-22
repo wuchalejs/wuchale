@@ -9,9 +9,7 @@ import { Message, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
 import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
-import { type Catalog, type ItemType, newItem } from './pofile.js'
-
-export const urlAdapterFlagPrefix = 'url:'
+import { type Catalog, type Item, newItem } from './pofile.js'
 
 export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
     const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
@@ -87,19 +85,19 @@ export class URLHandler {
             return new Message(locPattern, undefined, context)
         })
         const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
-        const untranslated: ItemType[] = []
+        const untranslated: Item[] = []
         let needWriteCatalog = false
         for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
             const key = urlPatternCatKeys[i]
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
-            if (!item || !item.urlAdapters.size) {
+            if (!item || !item.urlAdapters.length) {
                 item = newItem({ msgid: [locPattern] })
                 catalog.set(key, item)
                 needWriteCatalog = true
             }
-            if (!item.urlAdapters.has(adapterKey)) {
-                item.urlAdapters.add(adapterKey)
+            if (!item.urlAdapters.includes(adapterKey)) {
+                item.urlAdapters.push(adapterKey)
                 needWriteCatalog = true
             }
             if (locale === sourceLocale) {
@@ -116,8 +114,8 @@ export class URLHandler {
             untranslated.push(item)
         }
         for (const item of catalog.values()) {
-            if (item.urlAdapters.has(adapterKey) && !this.patternKeys.has(item.msgid[0])) {
-                item.urlAdapters.delete(adapterKey) // no longer used in this adapter
+            if (item.urlAdapters.includes(adapterKey) && !this.patternKeys.has(item.msgid[0])) {
+                item.urlAdapters = item.urlAdapters.filter(a => a !== adapterKey) // no longer used in this adapter
             }
         }
         if (untranslated.length && locale !== sourceLocale && aiQueue) {

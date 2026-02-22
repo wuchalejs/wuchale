@@ -2,14 +2,14 @@
 // $$ node %f
 
 import PO from 'pofile'
-import { type ItemType, itemToPOItem, poitemToItem } from '../handler/pofile.js'
+import { type Item, itemToPOItem, poitemToItem } from '../handler/pofile.js'
 import { color, type Logger } from '../log.js'
 
 const MAX_RETRIES = 30
 
 type Batch = {
     id: number
-    messages: ItemType[]
+    messages: Item[]
 }
 
 export type AI = {
@@ -58,7 +58,7 @@ export default class AIQueue {
 
     translate = async (batch: Batch, attempt = 0) => {
         const logStart = this.#requestName(batch.id)
-        let translated: ItemType[]
+        let translated: Item[]
         try {
             const po = new PO()
             po.items = batch.messages.map(itemToPOItem)
@@ -68,7 +68,7 @@ export default class AIQueue {
             this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
         }
-        const unTranslated: ItemType[] = batch.messages.slice(translated.length)
+        const unTranslated: Item[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             const destItem = batch.messages[i]
             if (item.msgid.join('\n') !== destItem?.msgid?.join('\n')) {
@@ -106,7 +106,7 @@ export default class AIQueue {
         this.running = null
     }
 
-    add = (messages: ItemType[]) => {
+    add = (messages: Item[]) => {
         if (!this.ai) {
             return
         }

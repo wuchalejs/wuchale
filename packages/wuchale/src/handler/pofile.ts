@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import PO from 'pofile'
 import { Message } from '../adapters.js'
 import { color, type Logger } from '../log.js'
@@ -15,27 +16,27 @@ export type FileRef = {
 
 const urlAdapterFlagPrefix = 'url:'
 
-export interface ItemType {
+export interface Item {
     msgid: string[]
     msgstr: string[]
     context?: string
     references: FileRef[]
     comments: string[]
-    urlAdapters: Set<string>
+    urlAdapters: string[]
 }
 
-export const newItem = (init: Partial<ItemType> = {}): ItemType => ({
+export const newItem = (init: Partial<Item> = {}): Item => ({
     msgid: init.msgid ?? [],
     msgstr: init.msgstr ?? [],
     context: init.context,
     references: init.references ?? [],
     comments: init.comments ?? [],
-    urlAdapters: init.urlAdapters ?? new Set(),
+    urlAdapters: init.urlAdapters ?? [],
 })
 
-export const itemIsObsolete = (item: ItemType) => item.urlAdapters.size === 0 && item.references.length === 0
+export const itemIsObsolete = (item: Item) => item.urlAdapters.length === 0 && item.references.length === 0
 
-export function itemToPOItem(item: ItemType): POItem {
+export function itemToPOItem(item: Item): POItem {
     const poi = new PO.Item()
     poi.msgid = item.msgid[0]
     poi.msgid_plural = item.msgid[1]
@@ -51,7 +52,7 @@ export function itemToPOItem(item: ItemType): POItem {
     return poi
 }
 
-export function poitemToItem(item: POItem): ItemType {
+export function poitemToItem(item: POItem): Item {
     const msgid = [item.msgid]
     if (item.msgid_plural) {
         msgid.push(item.msgid_plural)
@@ -69,10 +70,10 @@ export function poitemToItem(item: POItem): ItemType {
         }
         lastRef.refs.push(comm.split('; '))
     }
-    const urlAdapters = new Set<string>()
+    const urlAdapters: string[] = []
     for (const key in item.flags) {
         if (key.startsWith(urlAdapterFlagPrefix)) {
-            urlAdapters.add(key.slice(urlAdapterFlagPrefix.length))
+            urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
         }
     }
     return {
@@ -95,20 +96,81 @@ export const defaultPluralRule: PluralRule = {
     plural: 'n == 1 ? 0 : 1',
 }
 
-export type Catalog = Map<string, ItemType>
+export type Catalog = Map<string, Item>
 
 export class POFile {
     catalog: Catalog = new Map()
-    headers: Record<string, string>
-    pluralRule: PluralRule
+    headers: Record<string, string | undefined> = {}
+    pluralRule: PluralRule = defaultPluralRule
+    locale: string
+    filename: string
+    logger: Logger
+    adapterKey: string
 
-    constructor(items: ItemType[], pluralRule: PluralRule, headers: Record<string, string>) {
+    constructor(locale: string, dir: string, adapterKey: string, logger: Logger) {
+        this.locale = locale
+        this.adapterKey = adapterKey
+        this.logger = logger
+        this.filename = resolve(dir, `${this.locale}.po`)
+    }
+
+    add(items: Item[]) {
         for (const item of items) {
             const msgInfo = new Message(item.msgid, undefined, item.context)
             this.catalog.set(msgInfo.toKey(), item)
         }
-        this.headers = headers
-        this.pluralRule = pluralRule
+    }
+
+    async loadRaw(): Promise<PO | null> {
+        try {
+            return await new Promise((res, rej) => {
+                PO.load(this.filename, (err, po) => {
+                    if (err) {
+                        rej(err)
+                    } else {
+                        res(po)
+                    }
+                })
+            })
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+            this.logger.warn(`${color.magenta(this.adapterKey)}: Catalog not found at ${color.cyan(this.filename)}`)
+            return null
+        }
+    }
+
+    async load() {
+        const po = await this.loadRaw()
+        if (po == null) {
+            return
+        }
+        this.headers = po.headers
+        const pluralHeader = po.headers['Plural-Forms']
+        if (pluralHeader) {
+            this.pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
+            this.pluralRule.nplurals = Number(this.pluralRule.nplurals)
+        } else {
+            this.pluralRule = defaultPluralRule
+        }
+    }
+
+    async save() {
+        const po = new PO()
+        po.headers = this.headers
+        for (const item of this.catalog.values()) {
+            po.items.push(itemToPOItem(item))
+        }
+        await new Promise<void>((res, rej) => {
+            po.save(this.filename, err => {
+                if (err) {
+                    rej(err)
+                } else {
+                    res()
+                }
+            })
+        })
     }
 
     updateHeaders(locale: string, sourceLocale: string) {
@@ -134,65 +196,4 @@ export class POFile {
             }
         }
     }
-}
-
-export async function loadPOFile(filename: string): Promise<PO> {
-    return new Promise((res, rej) => {
-        PO.load(filename, (err, po) => {
-            if (err) {
-                rej(err)
-            } else {
-                res(po)
-            }
-        })
-    })
-}
-
-export async function loadCatalogFromPO(
-    filename: string,
-    adapterKey: string,
-    logger: Logger,
-): Promise<POFile | undefined> {
-    let po: PO
-    try {
-        po = await loadPOFile(filename)
-    } catch (err) {
-        if (err.code !== 'ENOENT') {
-            throw err
-        }
-        logger.warn(`${color.magenta(adapterKey)}: Catalog not found at ${color.cyan(filename)}`)
-        return
-    }
-    let pluralRule: PluralRule
-    const pluralHeader = po.headers['Plural-Forms']
-    if (pluralHeader) {
-        pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
-        pluralRule.nplurals = Number(pluralRule.nplurals)
-    } else {
-        pluralRule = defaultPluralRule
-    }
-    return new POFile(po.items.map(poitemToItem), pluralRule, po.headers as Record<string, string>)
-}
-
-export function poDumpToString(items: POItem[]) {
-    const po = new PO()
-    po.items = items
-    return po.toString()
-}
-
-export async function saveCatalogToPO(pofile: POFile, filename: string): Promise<void> {
-    const po = new PO()
-    po.headers = pofile.headers
-    for (const item of pofile.catalog.values()) {
-        po.items.push(itemToPOItem(item))
-    }
-    return new Promise((res, rej) => {
-        po.save(filename, err => {
-            if (err) {
-                rej(err)
-            } else {
-                res()
-            }
-        })
-    })
 }

@@ -1,24 +1,25 @@
 import { type Config, getLanguageName } from '../config.js'
 import { AdapterHandler } from '../handler/index.js'
-import { loadPOFile } from '../handler/pofile.js'
+import { POFile } from '../handler/pofile.js'
+import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
 
 type POStats = {
-    total: number
-    untranslated: number
-    obsolete: number
+    Total: number
+    Untranslated: number
+    Obsolete: number
 }
 
-async function statPO(filename: string): Promise<POStats> {
-    const po = await loadPOFile(filename)
-    const stats: POStats = { total: 0, untranslated: 0, obsolete: 0 }
-    for (const item of po.items) {
-        stats.total++
+async function statPO(poFile: POFile): Promise<POStats> {
+    const po = await poFile.loadRaw()
+    const stats: POStats = { Total: 0, Untranslated: 0, Obsolete: 0 }
+    for (const item of po?.items ?? []) {
+        stats.Total++
         if (!item.msgstr[0]) {
-            stats.untranslated++
+            stats.Untranslated++
         }
         if (item.obsolete) {
-            stats.obsolete++
+            stats.Obsolete++
         }
     }
     return stats
@@ -27,8 +28,10 @@ async function statPO(filename: string): Promise<POStats> {
 export async function status(config: Config, locales: string[]) {
     // console.log because if the user invokes this command, they want full info regardless of config
     console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
+    const sharedStates = new SharedStates()
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', process.cwd(), new Logger(config.logLevel))
+        handler.initSharedState(sharedStates)
         const loaderPath = await handler.files.getLoaderPath()
         console.log(`${color.magenta(key)}:`)
         if (loaderPath) {
@@ -40,25 +43,14 @@ export async function status(config: Config, locales: string[]) {
             console.warn(color.yellow('  No loader file found.'))
             console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
         }
-        const statsData: Record<string, { Total: number; Untranslated: number; Obsolete: number }> = {}
+        const statsData: Record<string, POStats> = {}
         for (const locale of locales) {
-            let stats: POStats
-            try {
-                stats = await statPO(handler.catalogFileName(locale))
-            } catch (err) {
-                if (err.code !== 'ENOENT') {
-                    throw err
-                }
-                console.warn(color.yellow('  No catalog found.'))
+            const stats = await statPO(handler.sharedState.poFilesByLoc.get(locale)!)
+            if (stats.Total === 0) {
                 continue
             }
-            const { total, obsolete, untranslated } = stats
             const locName = getLanguageName(locale)
-            statsData[locName] = {
-                Total: total,
-                Untranslated: untranslated,
-                Obsolete: obsolete,
-            }
+            statsData[locName] = stats
         }
         console.table(statsData)
     }
