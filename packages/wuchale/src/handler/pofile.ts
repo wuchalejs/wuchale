@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import PO from 'pofile'
 import { Message } from '../adapters.js'
 import { color, type Logger } from '../log.js'
+import { normalizeSep } from './files.js'
 
 type POItem = InstanceType<typeof PO.Item>
 
@@ -111,7 +112,7 @@ export class POFile {
         this.locale = locale
         this.adapterKey = adapterKey
         this.logger = logger
-        this.filename = resolve(dir, `${this.locale}.po`)
+        this.filename = normalizeSep(resolve(dir, `${this.locale}.po`))
     }
 
     add(items: Item[]) {
