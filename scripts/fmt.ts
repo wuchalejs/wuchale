@@ -17,7 +17,7 @@ const ecmd = (cmd: string, print = true): Promise<string> =>
 const staged = await ecmd('git diff --staged --diff-filter=ACM --name-only', false)
 
 if (staged) {
-    await ecmd('npm run fmt')
+    await ecmd('npm run fmt -- --staged --no-errors-on-unmatched')
     for (const file of staged.split('\n')) {
         await ecmd(`git add ${file}`)
     }
