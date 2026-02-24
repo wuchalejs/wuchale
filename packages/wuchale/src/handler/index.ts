@@ -116,7 +116,7 @@ export class AdapterHandler {
             const storage = this.sharedState.storage.get(loc)!
             // for handleHotUpdate
             for (const file of storage.files) {
-                this.catalogPathsToLocales.set(file, loc)
+                this.catalogPathsToLocales.set(normalizeSep(file), loc)
             }
             if (await this.initUrlPatterns(loc, storage.catalog)) {
                 await this.saveAndCompile(loc)
