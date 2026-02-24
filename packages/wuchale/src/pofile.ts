@@ -86,7 +86,7 @@ export class POFile {
     pluralRule: PluralRule = defaultPluralRule
     locale: string
     opts: StorageFactoryOpts & POFileOptions
-    files: [string, string]
+    files: [string, string] // main and url
 
     constructor(locale: string, opts: StorageFactoryOpts & POFileOptions) {
         this.locale = locale
@@ -136,7 +136,7 @@ export class POFile {
             this.pluralRule = defaultPluralRule
         }
         const itemColl = [po.items]
-        if (this.opts.separateUrls) {
+        if (this.opts.separateUrls && this.opts.haveUrl) {
             const poUrl = await this.loadRaw(true)
             poUrl && itemColl.push(poUrl.items)
         }
@@ -170,7 +170,7 @@ export class POFile {
         const poItemsUrl: POItem[] = []
         for (const item of this.catalog.values()) {
             const poItem = itemToPOItem(item)
-            if (itemIsUrl(item) && this.opts.separateUrls) {
+            if (itemIsUrl(item) && this.opts.separateUrls && this.opts.haveUrl) {
                 poItemsUrl.push(poItem)
             } else {
                 poItems.push(poItem)
@@ -215,7 +215,7 @@ export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
             storages.set(locale, new POFile(locale, { ...pofOptsFull, ...opts }))
         }
         return {
-            key: pofOptsFull.dir,
+            key: resolve(pofOptsFull.dir),
             get: locale => storages.get(locale)!,
         }
     }

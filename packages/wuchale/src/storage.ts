@@ -54,6 +54,8 @@ export type CatalogStorage = {
 export type StorageFactoryOpts = {
     locales: string[]
     root: string
+    /** whether the url is configured, can use to load separate url files */
+    haveUrl: boolean
     sourceLocale: string
     localesDir: string
     adapterKey: string
