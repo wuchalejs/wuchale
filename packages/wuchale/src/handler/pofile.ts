@@ -23,6 +23,10 @@ export interface Item {
     context?: string
     references: FileRef[]
     comments: string[]
+    /**
+     * Preserve PO item flags (e.g. "fuzzy") in addition to wuchale's own url:* flags.
+     */
+    flags: Record<string, boolean | undefined>
     urlAdapters: string[]
 }
 
@@ -32,6 +36,7 @@ export const newItem = (init: Partial<Item> = {}): Item => ({
     context: init.context,
     references: init.references ?? [],
     comments: init.comments ?? [],
+    flags: init.flags ?? {},
     urlAdapters: init.urlAdapters ?? [],
 })
 
@@ -43,9 +48,20 @@ export function itemToPOItem(item: Item): POItem {
     poi.msgid_plural = item.msgid[1]
     poi.msgstr = item.msgstr
     poi.msgctxt = item.context
+    poi.comments = item.comments
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
     poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
     poi.extractedComments = item.references.filter(r => r.refs.length).flatMap(r => r.refs.map(ps => ps.join('; ')))
+    // Preserve non-wuchale flags (e.g. "fuzzy"), then (re)apply url adapter flags.
+    for (const key in item.flags) {
+        if (key.startsWith(urlAdapterFlagPrefix)) {
+            continue
+        }
+        const val = item.flags[key]
+        if (val !== undefined) {
+            poi.flags[key] = val
+        }
+    }
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
@@ -82,6 +98,7 @@ export function poitemToItem(item: POItem): Item {
         msgstr: item.msgstr,
         context: item.msgctxt,
         comments: item.comments,
+        flags: item.flags ?? {},
         references,
         urlAdapters,
     }

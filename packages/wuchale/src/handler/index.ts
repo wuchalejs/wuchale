@@ -344,20 +344,17 @@ export class AdapterHandler {
 
     handleMessages = async (loc: string, msgs: Message[], filename: string): Promise<string[]> => {
         const poFile = this.sharedState.poFilesByLoc.get(loc)!
-        const previousReferences: Map<string, { ref: FileRef; reused: number }> = new Map()
-        for (const item of poFile.catalog.values()) {
+        const previousReferences: Map<string, { item: Item; ref: FileRef; reused: number }> = new Map()
+        for (const [key, item] of poFile.catalog.entries()) {
             const existingRef = item.references.find(r => r.file === filename)
             if (!existingRef) {
                 continue
             }
-            const key = new Message(item.msgid, undefined, item.context).toKey()
-            previousReferences.set(key, { ref: existingRef, reused: 0 })
+            previousReferences.set(key, { item, ref: existingRef, reused: 0 })
         }
-        let newItems: boolean = false
+        let changed = false
         const hmrKeys: string[] = []
         const untranslated: Item[] = []
-        let newRefs = false
-        let commentsChanged = false
         for (const msgInfo of msgs) {
             let key = msgInfo.toKey()
             hmrKeys.push(key)
@@ -374,6 +371,7 @@ export class AdapterHandler {
             if (!poItem) {
                 poItem = newItem({ msgid: msgInfo.msgStr })
                 poFile.catalog.set(key, poItem)
+                changed = true
             }
             const placeholders: string[] = []
             if (msgInfo.type === 'url') {
@@ -382,7 +380,10 @@ export class AdapterHandler {
                     placeholders.push(refKey)
                 }
             } else if (msgInfo.context) {
-                poItem.context = msgInfo.context
+                if (poItem.context !== msgInfo.context) {
+                    poItem.context = msgInfo.context
+                    changed = true
+                }
             }
             placeholders.push(...msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`))
             const prevRef = previousReferences.get(key)
@@ -391,10 +392,24 @@ export class AdapterHandler {
                     file: filename,
                     refs: placeholders.length ? [placeholders] : [],
                 })
-                newRefs = true // now it references it
+                changed = true // new reference
             } else {
                 if (placeholders.length) {
-                    prevRef.ref.refs[prevRef.reused] = placeholders
+                    const i = prevRef.reused
+                    const prev = prevRef.ref.refs[i]
+                    // Any placeholder change should trigger a save.
+                    if (
+                        prev == null ||
+                        prev.length !== placeholders.length ||
+                        prev.some((p, j) => p !== placeholders[j])
+                    ) {
+                        if (i >= prevRef.ref.refs.length) {
+                            prevRef.ref.refs.push(placeholders)
+                        } else {
+                            prevRef.ref.refs[i] = placeholders
+                        }
+                        changed = true
+                    }
                 }
                 prevRef.reused++
             }
@@ -407,29 +422,46 @@ export class AdapterHandler {
                 if (poItem.msgstr.join('\n') !== msgStr) {
                     poItem.msgstr = msgInfo.msgStr
                     untranslated.push(poItem)
+                    changed = true
                 }
             } else if (!poItem.msgstr[0]) {
                 untranslated.push(poItem)
             }
         }
+        // Remove/trim references for messages that were previously extracted from this file
+        // but are no longer present.
         for (const info of previousReferences.values()) {
+            if (info.reused === 0) {
+                // IMPORTANT:
+                // A FileRef with refs: [] means "this message is present in the file with no placeholders".
+                // For removed messages we must remove the FileRef entirely, otherwise the item will appear
+                // as still-used and will never become obsolete (clean fixes this by wiping file refs).
+                const before = info.item.references.length
+                // Remove *all* refs for this file in case duplicates were introduced by a previous buggy run.
+                info.item.references = info.item.references.filter(r => r.file !== filename)
+                if (info.item.references.length !== before) {
+                    changed = true
+                }
+                continue
+            }
+            const beforeLen = info.ref.refs.length
             info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
-        }
-        if (untranslated.length === 0) {
-            if (newRefs || previousReferences.size || commentsChanged) {
-                await this.savePoAndCompile(loc)
+            if (info.ref.refs.length !== beforeLen) {
+                changed = true
             }
+        }
+
+        // If AI translation is enabled for this locale, let the queue run and persist in onComplete.
+        if (untranslated.length > 0 && loc !== this.sourceLocale && this.#aiQueues.get(loc)?.ai) {
+            const aiQueueLoc = this.#aiQueues.get(loc)!
+            aiQueueLoc.add(untranslated)
+            await aiQueueLoc.running
             return hmrKeys
         }
-        if (loc === this.sourceLocale || !this.#aiQueues.get(loc)?.ai) {
-            if (newItems || newRefs || commentsChanged) {
-                await this.savePoAndCompile(loc)
-            }
-            return hmrKeys
+
+        if (changed) {
+            await this.savePoAndCompile(loc)
         }
-        const aiQueueLoc = this.#aiQueues.get(loc)!
-        aiQueueLoc.add(untranslated)
-        await aiQueueLoc.running
         return hmrKeys
     }
 
