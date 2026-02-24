@@ -98,6 +98,7 @@ export class AdapterHandler {
             sourceLocale: this.sourceLocale,
             localesDir: this.#config.localesDir,
             adapterKey: this.key,
+            haveUrl: this.#adapter.url != null,
             log: this.#log,
         })
         this.sharedState = sharedStates.getAdd(storage, this.key, this.sourceLocale, this.fileMatches)

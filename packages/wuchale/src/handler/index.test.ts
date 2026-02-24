@@ -8,19 +8,27 @@ import { defaultArgs } from '../adapter-vanilla/index.js'
 import { type Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
+import { pofile } from '../pofile.js'
 import { AdapterHandler } from './index.js'
 import { SharedStates } from './state.js'
+
+const localesDir = resolve(import.meta.dirname, '../../testing/tmp')
 
 const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
     files: '*.js', // filename needs to match
-    localesDir: resolve(import.meta.dirname, '../../testing/tmp'),
+    storage: pofile({ dir: localesDir }),
     loaderExts: ['.js'],
     defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
 }
 
-const handler = new AdapterHandler(adapter, 'test', defaultConfig, 'dev', import.meta.dirname, new Logger('error'))
+const conf = {
+    ...defaultConfig,
+    localesDir,
+}
+
+const handler = new AdapterHandler(adapter, 'test', conf, 'dev', import.meta.dirname, new Logger('error'))
 await handler.init(new SharedStates())
 
 test('HMR', async (t: TestContext) => {
