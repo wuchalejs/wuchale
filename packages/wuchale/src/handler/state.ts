@@ -1,7 +1,7 @@
 import { type Matcher } from 'picomatch'
 import { IndexTracker } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
-import { POFile } from './pofile.js'
+import type { StorageCollection } from '../storage.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -15,7 +15,7 @@ export type SharedState = {
     ownerKey: string
     sourceLocale: string
     otherFileMatches: Matcher[]
-    poFilesByLoc: Map<string, POFile>
+    storage: StorageCollection
     compiled: CompiledCatalogs
     indexTracker: IndexTracker
 }
@@ -24,18 +24,18 @@ export class SharedStates {
     // by localesDir
     states: Map<string, SharedState> = new Map()
 
-    getAdd = (localesDir: string, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
-        let sharedState = this.states.get(localesDir)
+    getAdd = (storage: StorageCollection, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
+        let sharedState = this.states.get(storage.key)
         if (sharedState == null) {
             sharedState = {
                 ownerKey: key,
                 sourceLocale: sourceLocale,
                 otherFileMatches: [],
-                poFilesByLoc: new Map(),
+                storage,
                 indexTracker: new IndexTracker(),
                 compiled: new Map(),
             }
-            this.states.set(localesDir, sharedState)
+            this.states.set(storage.key, sharedState)
         } else {
             if (sharedState.sourceLocale !== sourceLocale) {
                 throw new Error('Adapters with different source locales cannot share catalogs.')

@@ -1,5 +1,5 @@
 import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
-import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts } from 'wuchale'
+import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
 import { type JSXLib, JSXTransformer } from './transformer.js'
@@ -62,7 +62,7 @@ const defaultRuntimeSolid: RuntimeConf = {
 
 export const defaultArgs: JSXArgs = {
     files: { include: 'src/**/*.{js,ts,jsx,tsx}', ignore: '**/*.d.ts' },
-    localesDir: './src/locales',
+    storage: pofile(),
     patterns: [pluralPattern],
     heuristic: jsxDefaultHeuristic,
     granularLoad: false,

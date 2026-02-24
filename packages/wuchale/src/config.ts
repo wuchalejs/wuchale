@@ -7,6 +7,7 @@ import type { LogLevel } from './log.js'
 export type ConfigPartial = {
     locales: string[]
     fallback: Record<string, string>
+    localesDir: string
     ai: AI | null
     logLevel: LogLevel
 }
@@ -21,6 +22,7 @@ type ConfigWithOptional = Partial<Config>
 export const defaultConfig: Config = {
     locales: ['en'],
     fallback: {},
+    localesDir: 'src/locales',
     adapters: {},
     hmr: true,
     ai: defaultGemini,

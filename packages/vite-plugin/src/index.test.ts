@@ -3,7 +3,7 @@
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 import { rm } from 'fs/promises'
-import { type Config, defaultConfig, normalizeSep } from 'wuchale'
+import { type Config, defaultConfig, normalizeSep, pofile } from 'wuchale'
 import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
 import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
@@ -23,12 +23,13 @@ const defaultLoader = resolve(import.meta.dirname, '../../wuchale/src/adapter-va
 
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
+    localesDir: tmpDir,
     adapters: {
         main: {
             ...defaultArgs,
+            storage: pofile({ dir: tmpDir }),
             transform: dummyTransform,
             files: '*.js', // filename needs to match
-            localesDir: tmpDir,
             loaderExts: ['.js'],
             defaultLoaderPath: {
                 client: defaultLoader,

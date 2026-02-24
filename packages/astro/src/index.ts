@@ -1,5 +1,5 @@
 import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
-import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts } from 'wuchale'
+import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { AstroTransformer } from './transformer.js'
@@ -49,7 +49,7 @@ const defaultRuntime: RuntimeConf = {
 
 export const defaultArgs: AstroArgs = {
     files: 'src/**/*.astro',
-    localesDir: './src/locales',
+    storage: pofile(),
     patterns: [pluralPattern],
     heuristic: astroDefaultHeuristic,
     granularLoad: false,

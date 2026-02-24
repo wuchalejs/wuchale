@@ -4,9 +4,9 @@ import { glob } from 'tinyglobby'
 import type { Config } from '../config.js'
 import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
-import { itemIsObsolete } from '../handler/pofile.js'
 import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
+import { itemIsObsolete } from '../storage.js'
 
 type VisitFileFunc = (filename: string) => Promise<void>
 
@@ -20,7 +20,7 @@ async function directScanFS(
 ) {
     const dumps: Map<string, string> = new Map()
     for (const loc of handler.allLocales) {
-        const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
+        const catalog = handler.sharedState.storage.get(loc)!.catalog
         const items = Array.from(catalog.values())
         dumps.set(loc, JSON.stringify(items))
         if (clean) {
@@ -49,7 +49,8 @@ async function directScanFS(
         logger.info('Cleaning...')
     }
     for (const loc of handler.allLocales) {
-        const catalog = handler.sharedState.poFilesByLoc.get(loc)!.catalog
+        const storage = handler.sharedState.storage.get(loc)
+        const catalog = storage.catalog
         if (clean) {
             for (const [key, item] of catalog.entries()) {
                 if (itemIsObsolete(item)) {
@@ -58,7 +59,7 @@ async function directScanFS(
             }
         }
         if (JSON.stringify(Array.from(catalog.values())) !== dumps.get(loc)) {
-            await handler.savePO(loc)
+            await storage.save()
         }
     }
 }
@@ -77,7 +78,7 @@ export async function extract(config: Config, root: string, clean: boolean, watc
             const contents = await readFile(filename)
             await handler.transform(contents.toString(), filename)
         }
-        const filePaths = await glob(...globConfToArgs(adapter.files, adapter.localesDir, adapter.outDir))
+        const filePaths = await glob(...globConfToArgs(adapter.files, config.localesDir, adapter.outDir))
         handlers.push([handler, extract, filePaths])
     }
     // separate loop to make sure that all otherFileMatchers are collected
