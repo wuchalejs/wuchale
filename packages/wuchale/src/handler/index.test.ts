@@ -2,10 +2,12 @@
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 // @ts-expect-error
 import { dummyTransform, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
-import { type Adapter } from '../adapters.js'
+import { Message, type Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
 import { AdapterHandler } from './index.js'
@@ -47,4 +49,46 @@ test('HMR', async (t: TestContext) => {
         _w_load_('test')(0)
     `),
     )
+})
+
+test('remove stale file references when messages are removed from a file', async (t: TestContext) => {
+    const locales_dir = await mkdtemp(`${tmpdir()}/wuchale-po-`)
+    const local_adapter: Adapter = {
+        ...adapter,
+        localesDir: locales_dir,
+        transform: ({ content, expr, index }) => {
+            const msg = 'Hello'
+            const msgs = content.includes(msg) ? [new Message(msg)] : []
+            return {
+                msgs,
+                output: header => ({
+                    code: `${header}\n${msgs.length ? `${expr.plain}(${index.get(msg)})` : ''}`,
+                    map: [],
+                }),
+            }
+        },
+    }
+    const local_handler = new AdapterHandler(
+        local_adapter,
+        'test_ref_cleanup',
+        { ...defaultConfig, ai: null },
+        'dev',
+        import.meta.dirname,
+        new Logger('error'),
+    )
+    await local_handler.init(new SharedStates())
+    const filename = 'stale_ref.js'
+    const key = new Message('Hello').toKey()
+    try {
+        await local_handler.transform(`'Hello'`, filename, 1)
+        const po_file = local_handler.sharedState.poFilesByLoc.get('en')!
+        const item_before = po_file.catalog.get(key)!
+        t.assert.strictEqual(item_before.references.some(r => r.file === filename), true)
+
+        await local_handler.transform(`''`, filename, 2)
+        const item_after = po_file.catalog.get(key)!
+        t.assert.strictEqual(item_after.references.some(r => r.file === filename), false)
+    } finally {
+        await rm(locales_dir, { recursive: true, force: true })
+    }
 })
