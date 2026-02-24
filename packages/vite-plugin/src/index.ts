@@ -2,7 +2,16 @@
 import { writeFile } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
 import { inspect } from 'node:util'
-import { AdapterHandler, type Config, getConfig, Logger, type Mode, normalizeSep, SharedStates } from 'wuchale'
+import {
+    AdapterHandler,
+    type Config,
+    generatedDir,
+    getConfig,
+    Logger,
+    type Mode,
+    normalizeSep,
+    SharedStates,
+} from 'wuchale'
 
 const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -90,7 +99,7 @@ export class Wuchale {
         for (const [key, adapter] of adaptersData) {
             const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
             await handler.init(sharedStates)
-            handler.onBeforeWritePO = () => {
+            handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredPOWrite = performance.now()
             }
             this.#adapters.set(key, handler)
@@ -129,7 +138,7 @@ export class Wuchale {
                     this.#adaptersByCatalogPath.set(fname, [handler])
                 }
             }
-            const confUpdateFile = normalizeSep(resolve(handler.files.generatedDir, confUpdateName))
+            const confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
             await writeFile(confUpdateFile, '{}') // vite only watched changes so prepare first
             this.#adaptersByConfUpdate.set(confUpdateFile, handler)
         }

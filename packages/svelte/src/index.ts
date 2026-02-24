@@ -1,5 +1,5 @@
 import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
-import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts } from 'wuchale'
+import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { type RuntimeCtxSv, SvelteTransformer } from './transformer.js'
@@ -51,7 +51,7 @@ export type SvelteArgs = AdapterArgs<LoadersAvailable, RuntimeCtxSv>
 
 export const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
-    localesDir: './src/locales',
+    storage: pofile(),
     patterns: [pluralPattern],
     heuristic: svelteKitDefaultHeuristic,
     granularLoad: false,

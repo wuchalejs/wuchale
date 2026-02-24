@@ -4,6 +4,7 @@ import { loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
 import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
 import { deepMergeObjects } from '../config.js'
+import { pofile } from '../pofile.js'
 import { Transformer } from './transformer.js'
 
 export { Transformer }
@@ -20,7 +21,7 @@ export type VanillaArgs = AdapterArgs<LoadersAvailable>
 
 export const defaultArgs: VanillaArgs = {
     files: { include: 'src/**/*.{js,ts}', ignore: '**/*.d.ts' },
-    localesDir: './src/locales',
+    storage: pofile(),
     patterns: [pluralPattern],
     heuristic: defaultHeuristicFuncOnly,
     granularLoad: false,

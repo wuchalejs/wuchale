@@ -1,4 +1,5 @@
 import type { CompiledElement } from './compile.js'
+import type { StorageFactory } from './storage.js'
 
 type TxtScope = 'script' | 'markup' | 'attribute'
 
@@ -236,7 +237,7 @@ export type URLConf = {
 export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     sourceLocale?: string
     files: GlobConf
-    localesDir: string
+    storage: StorageFactory
     /** if writing transformed code to a directory is desired, specify this */
     outDir?: string
     granularLoad: boolean

@@ -2,8 +2,9 @@
 // $$ node %f
 
 import PO from 'pofile'
-import { type Item, itemToPOItem, poitemToItem } from '../handler/pofile.js'
 import { color, type Logger } from '../log.js'
+import { itemToPOItem, poitemToItem } from '../pofile.js'
+import type { Item } from '../storage.js'
 
 const MAX_RETRIES = 30
 

@@ -1,9 +1,9 @@
 import { relative } from 'node:path'
 import { type Config, getLanguageName } from '../config.js'
 import { AdapterHandler } from '../handler/index.js'
-import { POFile } from '../handler/pofile.js'
 import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
+import { type Catalog, itemIsObsolete, itemIsUrl } from '../storage.js'
 
 type POStats = {
     Total: number
@@ -11,15 +11,17 @@ type POStats = {
     Obsolete: number
 }
 
-async function statPO(poFile: POFile, urlPart: boolean): Promise<POStats> {
-    const po = await poFile.loadRaw(urlPart, false)
+async function statCatalog(catalog: Catalog, urls: boolean): Promise<POStats> {
     const stats: POStats = { Total: 0, Untranslated: 0, Obsolete: 0 }
-    for (const item of po?.items ?? []) {
+    for (const item of catalog.values()) {
+        if (itemIsUrl(item) !== urls) {
+            continue
+        }
         stats.Total++
         if (!item.msgstr[0]) {
             stats.Untranslated++
         }
-        if (item.obsolete) {
+        if (itemIsObsolete(item)) {
             stats.Obsolete++
         }
     }
@@ -51,7 +53,9 @@ export async function status(config: Config, root: string, locales: string[]) {
                 [locName, false],
                 [`${locName} URL`, true],
             ] as [string, boolean][]) {
-                const stats = await statPO(handler.sharedState.poFilesByLoc.get(locale)!, url)
+                const storage = handler.sharedState.storage.get(locale)
+                await storage.load()
+                const stats = await statCatalog(storage.catalog, url)
                 if (stats.Total === 0) {
                     continue
                 }
