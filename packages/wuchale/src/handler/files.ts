@@ -232,10 +232,10 @@ export class Files {
         ].join('\n')
         await writeFile(this.#urlManifestFname, urlManifestData)
         const urlFileContent = [
-            'import {URLMatcher, getLocaleDefault} from "wuchale/url"',
+            'import {URLMatcher, deLocalizeDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
             `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
-            `export const getLocale = (/** @type {URL} */ url) => getLocaleDefault(url, locales) ?? '${fallbackLocale}'`,
+            `export const getLocale = (/** @type {URL} */ url) => deLocalizeDefault(url.pathname, locales)[1] ?? '${fallbackLocale}'`,
             `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
         await writeFile(this.#urlsFname, urlFileContent)

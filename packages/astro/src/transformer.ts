@@ -254,11 +254,7 @@ export class AstroTransformer extends Transformer {
             if (!pass) {
                 return []
             }
-            this.mstr.update(
-                start,
-                start + node.value.length + 2,
-                `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`,
-            )
+            this.mstr.update(start, start + node.value.length + 2, `{${this.literalRepl(msgInfo)}}`)
             return [msgInfo]
         }
         if (node.kind === 'expression') {

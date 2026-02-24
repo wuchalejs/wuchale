@@ -1,5 +1,4 @@
 import type { CompiledElement } from './compile.js'
-import type { URLLocalizer } from './url.js'
 
 type TxtScope = 'script' | 'markup' | 'attribute'
 
@@ -174,7 +173,7 @@ export type GlobConf =
           ignore: string | string[]
       }
 
-export type CatalogExpr = {
+export type RuntimeExpr = {
     plain: string
     reactive: string
 }
@@ -185,7 +184,7 @@ type TransformCtx = {
     content: string
     filename: string
     index: IndexTracker
-    expr: CatalogExpr
+    expr: RuntimeExpr
     matchUrl: UrlMatcher
 }
 
@@ -231,7 +230,7 @@ export type LoaderPath = {
 
 export type URLConf = {
     patterns?: string[]
-    localize?: boolean | URLLocalizer
+    localize?: boolean | string
 }
 
 export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
@@ -254,7 +253,7 @@ export type Adapter<RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
     /** default loaders to copy, `null` means custom */
     defaultLoaderPath: LoaderPath | string | null
     /** names to import from loaders, should avoid collision with code variables */
-    getRuntimeVars?: Partial<CatalogExpr>
+    getRuntimeVars?: Partial<RuntimeExpr>
 }
 
 export type CodePattern = {

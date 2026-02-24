@@ -235,7 +235,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         if (!pass) {
             return []
         }
-        this.mstr.update(value.start, value.end, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(value.start, value.end, `{${this.literalRepl(msgInfo)}}`)
         if (`'"`.includes(this.content[value.start - 1])) {
             this.mstr.remove(value.start - 1, value.start)
             this.mstr.remove(value.end, value.end + 1)

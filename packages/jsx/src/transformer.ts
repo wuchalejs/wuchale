@@ -227,7 +227,7 @@ export class JSXTransformer extends Transformer {
         if (!pass) {
             return []
         }
-        this.mstr.update(value.start, value.end, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(value.start, value.end, `{${this.literalRepl(msgInfo)}}`)
         return [msgInfo]
     }
 

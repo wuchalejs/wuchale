@@ -1,7 +1,7 @@
 import { isAbsolute, normalize, resolve } from 'node:path'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
-import type { Adapter, CatalogExpr, HMRData } from '../adapters.js'
+import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr } from '../adapters.js'
 import { Message } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
@@ -16,6 +16,7 @@ const loaderImportGetRuntime = 'getRuntime'
 const loaderImportGetRuntimeRx = 'getRuntimeRx'
 
 const getFuncPlainDefault = '_w_load_'
+const urlLocalizeUdfName = 'localize'
 const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
@@ -111,7 +112,7 @@ export class AdapterHandler {
         await this.files.init(this.#config.locales, this.sharedState.ownerKey, this.sourceLocale)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
-        const catalogsByLoc = new Map<string, Catalog>()
+        const catalogsArray: Catalog[] = []
         for (const loc of this.allLocales) {
             await this.loadCatalogNCompile(loc)
             const poFile = this.sharedState.poFilesByLoc.get(loc)!
@@ -121,7 +122,7 @@ export class AdapterHandler {
             if (await this.initUrlPatterns(loc, poFile.catalog)) {
                 await this.savePoAndCompile(loc)
             }
-            catalogsByLoc.set(loc, poFile.catalog)
+            catalogsArray.push(poFile.catalog)
             if (loc === this.sourceLocale || !this.#config.ai) {
                 continue
             }
@@ -137,7 +138,7 @@ export class AdapterHandler {
             )
         }
         await writeProxies()
-        await this.files.writeUrlFiles(this.url.buildManifest(catalogsByLoc), this.#config.locales[0])
+        await this.files.writeUrlFiles(this.url.buildManifest(catalogsArray), this.#config.locales[0])
     }
 
     loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
@@ -239,7 +240,7 @@ export class AdapterHandler {
                 } else {
                     let toCompile = poItem.msgstr[0]
                     if (poItem.urlAdapters.length > 0) {
-                        toCompile = this.url.matchToCompile(key, loc, catalog)
+                        toCompile = this.url.matchToCompile(key, catalog)
                     }
                     compiled = compileTranslation(toCompile, fallback)
                 }
@@ -285,13 +286,28 @@ export class AdapterHandler {
         `
     }
 
-    #getRuntimeVars = (): CatalogExpr => ({
+    #getRuntimeVars = (): RuntimeExpr => ({
         plain: this.#adapter.getRuntimeVars?.plain ?? getFuncPlainDefault,
         reactive: this.#adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
     })
 
-    #prepareHeader = (filename: string, loadID: string, hmrData: HMRData | null, forServer: boolean): string => {
+    #prepareHeader = (
+        filename: string,
+        loadID: string,
+        hmrData: HMRData | null,
+        hasUrls: boolean,
+        forServer: boolean,
+    ): string => {
         let head: string[] = []
+        if (hasUrls) {
+            const localize = this.#adapter.url?.localize
+            if (localize === true) {
+                head.push(`import { localizeDefault as ${varNames.urlLocalize} } from "wuchale/url"`)
+            } else if (typeof localize === 'string') {
+                const importFrom = this.files.getImportPath(localize, filename)
+                head.push(`import { ${urlLocalizeUdfName} as ${varNames.urlLocalize} } from "${importFrom}"`)
+            }
+        }
         const getRuntimeVars = this.#getRuntimeVars()
         let getRuntimePlain = getRuntimeVars.plain
         let getRuntimeReactive = getRuntimeVars.reactive
@@ -328,7 +344,7 @@ export class AdapterHandler {
         return [...imports, ...head, `const ${bundleCatalogsVarName} = {${objElms.join(',')}}`].join('\n')
     }
 
-    #prepareRuntimeExpr = (loadID: string): CatalogExpr => {
+    #prepareRuntimeExpr = (loadID: string): RuntimeExpr => {
         const importLoaderVars = this.#getRuntimeVars()
         if (this.#adapter.bundleLoad) {
             return {
@@ -485,7 +501,15 @@ export class AdapterHandler {
         }
         let output: TransformOutputCode = {}
         if (msgs.length) {
-            output = result.output(this.#prepareHeader(filename, loadID, hmrData, forServer))
+            output = result.output(
+                this.#prepareHeader(
+                    filename,
+                    loadID,
+                    hmrData,
+                    msgs.some(m => m.type === 'url'),
+                    forServer,
+                ),
+            )
         }
         await this.files.writeTransformed(filename, output.code ?? content)
         return output

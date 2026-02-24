@@ -8,7 +8,7 @@ import {
 import { Message, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
-import { localizeDefault, type URLLocalizer, type URLManifest } from '../url.js'
+import { type URLManifest } from '../url.js'
 import { type Catalog, type Item, newItem } from './pofile.js'
 
 export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
@@ -38,33 +38,31 @@ export function patternToTranslate(pattern: string) {
 export class URLHandler {
     patternKeys: Map<string, string> = new Map()
 
-    localizeUrl?: URLLocalizer
     patterns?: string[] = []
 
     constructor(urlConf?: URLConf) {
-        if (typeof urlConf?.localize === 'function') {
-            this.localizeUrl = urlConf.localize
-        } else if (urlConf?.localize) {
-            this.localizeUrl = localizeDefault
-        }
         this.patterns = urlConf?.patterns
     }
 
-    buildManifest = (catalogs: Map<string, Catalog>): URLManifest =>
+    buildManifest = (catalogs: Catalog[]): URLManifest =>
+        // order of catalogs should be based on locales
         this.patterns?.map(patt => {
             const catalogPattKey = this.patternKeys.get(patt)!
             const { keys } = pathToRegexp(patt)
             const locPatterns: string[] = []
-            for (const [loc, catalog] of catalogs) {
+            for (const catalog of catalogs) {
                 let pattern = patt
                 const item = catalog.get(catalogPattKey)
                 if (item) {
                     const patternTranslated = item.msgstr[0] || item.msgid[0]
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
-                locPatterns.push(this.localizeUrl?.(pattern, loc) ?? pattern)
+                locPatterns.push(pattern)
             }
-            return [patt, locPatterns]
+            if (locPatterns.some(p => p !== patt)) {
+                return [patt, locPatterns]
+            }
+            return [patt]
         }) ?? []
 
     initPatterns = async (
@@ -137,7 +135,7 @@ export class URLHandler {
         return null
     }
 
-    matchToCompile = (key: string, locale: string, catalog: Catalog) => {
+    matchToCompile = (key: string, catalog: Catalog) => {
         // e.g. key: /items/foo/{0}
         let toCompile = key
         const relevantPattern = this.match(key)
@@ -160,9 +158,6 @@ export class URLHandler {
                 toCompile = compileTranslated(matchedUrl.params)
                 // e.g. toCompile: /elementos/foo/{0}
             }
-        }
-        if (this.localizeUrl) {
-            toCompile = this.localizeUrl(toCompile || key, locale)
         }
         return toCompile
     }

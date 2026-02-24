@@ -12,7 +12,6 @@ import {
     varNames,
 } from '../adapter-utils/index.js'
 import type {
-    CatalogExpr,
     CodePattern,
     HeuristicDetails,
     HeuristicDetailsBase,
@@ -21,6 +20,7 @@ import type {
     IndexTracker,
     MessageType,
     RuntimeConf,
+    RuntimeExpr,
     TransformOutput,
     UrlMatcher,
 } from '../adapters.js'
@@ -99,7 +99,7 @@ export class Transformer<RTCtxT = {}> {
         index: IndexTracker,
         heuristic: HeuristicFunc,
         patterns: CodePattern[],
-        catalogExpr: CatalogExpr,
+        catalogExpr: RuntimeExpr,
         rtConf: RuntimeConf<RTCtxT>,
         matchUrl: UrlMatcher,
         rtBaseVars = [varNames.rt],
@@ -198,6 +198,14 @@ export class Transformer<RTCtxT = {}> {
         return [heuRes, msg]
     }
 
+    literalRepl(msgInfo: Message) {
+        let repl = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`
+        if (msgInfo.type !== 'url') {
+            return repl
+        }
+        return `${varNames.urlLocalize}(${repl}, ${this.vars().rtLocale})`
+    }
+
     visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {
         if (typeof node.value !== 'string') {
             return []
@@ -207,7 +215,7 @@ export class Transformer<RTCtxT = {}> {
         if (!pass) {
             return []
         }
-        this.mstr.update(start, end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`)
+        this.mstr.update(start, end, this.literalRepl(msgInfo))
         return [msgInfo]
     }
 
@@ -323,7 +331,7 @@ export class Transformer<RTCtxT = {}> {
                     this.fullHeuristicDetails({ scope: 'script' }),
                     this.commentDirectives.context,
                 )
-                updates.push([argVal.start, argVal.end, `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`])
+                updates.push([argVal.start, argVal.end, this.literalRepl(msgInfo)])
                 msgs.push(msgInfo)
                 continue
             }
@@ -671,6 +679,10 @@ export class Transformer<RTCtxT = {}> {
         const { start: start0, end: end0 } = node.quasis[0]
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
+        if (msgTyp === 'url') {
+            begin = `${varNames.urlLocalize}(${begin}`
+            end += `, ${this.vars().rtLocale})`
+        }
         if (node.expressions.length) {
             begin += ', ['
             end = ']' + end

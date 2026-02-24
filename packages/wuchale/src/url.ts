@@ -1,34 +1,27 @@
 import { compile, match } from 'path-to-regexp'
 
-export type URLManifestItem = [
-    string, // /foo
-    string[], // /en/foo, /es/foo
-]
-
-export type URLManifest = URLManifestItem[]
-
-type GetLocale = (url: URL, locales: string[]) => string | null
-
 export type URLLocalizer = (url: string, locale: string) => string
 
-export const localizeDefault: URLLocalizer = (url, loc) => {
-    const localized = `/${loc}${url}`
+// public default, used when localized: true
+export const localizeDefault: URLLocalizer = (path, loc) => {
+    const localized = `/${loc}${path}`
     if (!localized.endsWith('/')) {
         return localized
     }
     return localized.slice(0, -1)
 }
 
-export const getLocaleDefault: GetLocale = (url, locales) => {
-    let iSecondSlash = url.pathname.indexOf('/', 2)
+export const deLocalizeDefault = (path: string, locales: string[]): [string, string | null] => {
+    let iSecondSlash = path.indexOf('/', 2)
     if (iSecondSlash === -1) {
-        iSecondSlash = url.pathname.length
+        iSecondSlash = path.length
     }
-    const locale = url.pathname.slice(1, iSecondSlash)
-    if (locales.includes(locale)) {
-        return locale
+    const locale = path.slice(1, iSecondSlash)
+    if (!locales.includes(locale)) {
+        return [path, null]
     }
-    return null
+    let rest = path.slice(1 + locale.length)
+    return [rest || '/', locale]
 }
 
 type MatchParams = Partial<Record<string, string | string[]>>
@@ -46,37 +39,39 @@ export const fillParams = (params: MatchParams, destPattern: string) => {
     return compiled(params)
 }
 
+export type URLManifestItem =
+    | [
+          string, // /path
+          string[], // /path, /ruta
+      ]
+    | [string] // just /path
+
+export type URLManifest = URLManifestItem[]
+
 type MatchResult = {
     path: string | null
-    locale: string | null
     params: MatchParams
     altPatterns: Record<string, string>
 }
 
+const noMatchRes: MatchResult = { path: null, altPatterns: {}, params: {} }
+
 export function URLMatcher(manifest: URLManifest, locales: string[]) {
     const manifestWithLocales = manifest.map(([pattern, localized]) => {
+        localized ??= locales.map(_ => pattern)
         const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, string])
-        return [pattern, locAndLocalizeds, Object.fromEntries(locAndLocalizeds)] as [
-            string,
-            [string, string][],
-            Record<string, string>,
-        ]
+        return [pattern, Object.fromEntries(locAndLocalizeds)] as [string, Record<string, string>]
     })
-    return (url: URL): MatchResult => {
-        for (const [pattern, locAndLocalizeds, altPatterns] of manifestWithLocales) {
-            for (const [locale, locPattern] of locAndLocalizeds) {
-                const params = getParams(url.pathname, locPattern)
-                if (params) {
-                    return { path: fillParams(params, pattern), locale, params, altPatterns }
-                }
-            }
+    return (url: string, locale: string | null): MatchResult => {
+        if (locale === null) {
+            return noMatchRes
         }
-        for (const [pattern, , altPatterns] of manifestWithLocales) {
-            const params = getParams(url.pathname, pattern)
+        for (const [pattern, altPatterns] of manifestWithLocales) {
+            const params = getParams(url, altPatterns[locale])
             if (params) {
-                return { path: fillParams(params, pattern), locale: null, params, altPatterns }
+                return { path: fillParams(params, pattern), params, altPatterns }
             }
         }
-        return { path: null, locale: null, altPatterns: {}, params: {} }
+        return noMatchRes
     }
 }

@@ -4,42 +4,20 @@ import { test } from 'node:test'
 import { URLMatcher } from './url.js'
 
 test('URL matcher', t => {
-    const matcher = URLMatcher(
-        [
-            ['/path', ['/en/path', '/es/ruta']],
-            ['/*rest', ['/en/*rest', '/es/*rest']],
-            ['/', ['/en', '/es']],
-        ],
-        ['en', 'es'],
-    )
-    t.assert.deepEqual(matcher(new URL('http://foo.js/')), {
+    const matcher = URLMatcher([['/'], ['/path', ['/path', '/ruta']], ['/*rest', ['/*rest', '/*rest']]], ['en', 'es'])
+    t.assert.deepEqual(matcher('/', 'en'), {
         path: '/',
-        locale: null,
-        altPatterns: { en: '/en', es: '/es' },
+        altPatterns: { en: '/', es: '/' },
         params: {},
     })
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en/foo')), {
+    t.assert.deepEqual(matcher('/foo', 'es'), {
         path: '/foo',
-        locale: 'en',
-        altPatterns: { en: '/en/*rest', es: '/es/*rest' },
+        altPatterns: { en: '/*rest', es: '/*rest' },
         params: { rest: 'foo' },
     })
-    t.assert.deepEqual(matcher(new URL('http://foo.js/en')), {
-        path: '/',
-        locale: 'en',
-        altPatterns: { en: '/en', es: '/es' },
-        params: {},
-    })
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/')), {
-        path: '/',
-        locale: 'es',
-        altPatterns: { en: '/en', es: '/es' },
-        params: {},
-    })
-    t.assert.deepEqual(matcher(new URL('http://foo.js/es/ruta')), {
+    t.assert.deepEqual(matcher('/ruta', 'es'), {
         path: '/path',
-        locale: 'es',
-        altPatterns: { en: '/en/path', es: '/es/ruta' },
+        altPatterns: { en: '/path', es: '/ruta' },
         params: {},
     })
 })

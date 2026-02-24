@@ -15,6 +15,7 @@ import {
     nonWhitespaceText,
     type RuntimeVars,
     updateCommentDirectives,
+    varNames,
 } from './index.js'
 
 type NestedRanges = [number, number, boolean][]
@@ -251,6 +252,10 @@ export class MixedVisitor<NodeT> {
             if (props.inCompoundText) {
                 begin += `${this.vars().rtTransCtx}(${this.vars().nestCtx}`
             } else {
+                if (msgInfo.type === 'url') {
+                    begin += `${varNames.urlLocalize}(`
+                    end = `), ${this.vars().rtLocale}${end}`
+                }
                 begin += `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
             }
             if (iArg > 0) {

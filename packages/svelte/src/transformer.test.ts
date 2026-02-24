@@ -172,18 +172,18 @@ test('URLs', async t => {
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_())
-            goto(_w_runtime_(0, [44]))
+            goto(_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l))
             const url = $derived({
                 // @wc-url
-                something: [_w_runtime_(1, [45])]
+                something: [_w_localize_(_w_runtime_(1, [45]), _w_runtime_.l)]
             })
         </script>
-        <a href={_w_runtime_(2)}>{_w_runtime_(3)}</a>
-        <a href={_w_runtime_(4)}>{_w_runtime_(3)}</a>
-        <a href={_w_runtime_(5, [44])}>{_w_runtime_(3)}</a>
-        <a href={_w_runtime_(0, [44])}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(2), _w_runtime_.l)}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(3)}</a>
         <a href="/notinpattern">{_w_runtime_(3)}</a>
-        <a href={_w_runtime_(6)}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(3)}</a>
     `,
         [
             { msgStr: ['/translated/{0}'], type: 'url' },

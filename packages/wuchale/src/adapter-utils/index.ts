@@ -7,6 +7,7 @@ import type { HeuristicResultChecked } from '../adapters.js'
 export const varNames = {
     rt: '_w_runtime_',
     hmrUpdate: '_w_hmrUpdate_',
+    urlLocalize: '_w_localize_',
 }
 
 export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.rt) {
