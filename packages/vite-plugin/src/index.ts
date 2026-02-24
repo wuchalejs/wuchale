@@ -215,12 +215,14 @@ export class Wuchale {
         let filename = relative(this.#projectRoot, id)
         const queryIndex = filename.indexOf('?')
         if (queryIndex >= 0) {
-            const query = new URLSearchParams(filename.slice(queryIndex))
-            if (query.size === 1 && query.has('v')) {
-                // trim after this, like ?v=b65b2c3b when it's from node_modules
+            const query = new URLSearchParams(filename.slice(queryIndex + 1))
+            // Only trim cache-busting queries. Keep other virtual-module queries intact
+            // so fileMatches() does not route style/template sub-modules to wuchale.
+            if (query.size === 1 && (query.has('v') || query.has('t'))) {
                 filename = filename.slice(0, queryIndex)
             }
         }
+        filename = normalizeSep(filename)
         for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
                 try {
