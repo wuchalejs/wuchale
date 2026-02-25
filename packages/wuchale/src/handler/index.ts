@@ -191,11 +191,11 @@ export class AdapterHandler {
                 keys = []
                 for (const reference of item.references) {
                     if (reference.refs.length === 0) {
-                        keys.push(item.msgid[0]) // plain url like /home
+                        keys.push(item.id[0]) // plain url like /home
                         continue
                     }
                     for (const ref of reference.refs) {
-                        keys.push(ref[0] ?? item.msgid[0]) // first one is the link, rest are placeholders
+                        keys.push(ref[0] ?? item.id[0]) // first one is the link, rest are placeholders
                     }
                 }
             }
@@ -204,15 +204,15 @@ export class AdapterHandler {
                 let compiled: CompiledElement
                 const fallback = this.getCompiledFallback(index, loc)
                 const transl = item.translations.get(loc)!
-                if (transl.msgstr.length > 1) {
+                if (transl.text.length > 1) {
                     sharedCompiledLoc.hasPlurals = true
-                    if (transl.msgstr.join('').trim()) {
-                        compiled = transl.msgstr
+                    if (transl.text.join('').trim()) {
+                        compiled = transl.text
                     } else {
                         compiled = fallback
                     }
                 } else {
-                    let toCompile = transl.msgstr[0]
+                    let toCompile = transl.text[0]
                     if (item.urlAdapters.length > 0) {
                         toCompile = this.url.matchToCompile(key, catalog, loc)
                     }
@@ -333,7 +333,7 @@ export class AdapterHandler {
             if (!existingRef) {
                 continue
             }
-            const key = new Message(item.msgid, undefined, item.context).toKey()
+            const key = new Message(item.id, undefined, item.context).toKey()
             previousReferences.set(key, { ref: existingRef, reused: 0 })
         }
         let newItems: boolean = false
@@ -355,7 +355,7 @@ export class AdapterHandler {
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ msgid: msgInfo.msgStr }, this.allLocales)
+                item = newItem({ id: msgInfo.msgStr }, this.allLocales)
                 this.sharedState.catalog.set(key, item)
             }
             const placeholders: string[] = []
@@ -387,8 +387,8 @@ export class AdapterHandler {
             }
             const sourceTransl = item.translations.get(this.sourceLocale)!
             const msgStr = msgInfo.msgStr.join('\n')
-            if (sourceTransl.msgstr.join('\n') !== msgStr) {
-                sourceTransl.msgstr = msgInfo.msgStr
+            if (sourceTransl.text.join('\n') !== msgStr) {
+                sourceTransl.text = msgInfo.msgStr
             }
             toTranslate.push(item)
         }

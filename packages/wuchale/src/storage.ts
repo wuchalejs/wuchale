@@ -8,27 +8,35 @@ export type FileRef = {
 }
 
 export type Translation = {
-    msgstr: string[]
+    text: string[]
     comments: string[]
 }
 
 export interface Item {
-    msgid: string[]
+    id: string[]
     context?: string
     translations: Map<string, Translation>
     references: FileRef[]
     urlAdapters: string[]
 }
 
+export function fillTranslations(item: Item, locales: string[]) {
+    for (const loc of locales) {
+        // fill empty translations
+        if (item.translations.has(loc)) {
+            continue
+        }
+        item.translations.set(loc, { text: [], comments: [] })
+    }
+}
+
 export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
     if (!init.translations) {
         init.translations = new Map()
-        for (const locale of locales) {
-            init.translations.set(locale, { msgstr: [], comments: [] })
-        }
+        fillTranslations(init as Item, locales)
     }
     return {
-        msgid: init.msgid ?? [],
+        id: init.id ?? [],
         translations: init.translations,
         context: init.context,
         references: init.references ?? [],

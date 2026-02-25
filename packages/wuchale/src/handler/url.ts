@@ -56,7 +56,7 @@ export class URLHandler {
                 let pattern = patt
                 const transl = item?.translations?.get(loc)
                 if (transl) {
-                    const patternTranslated = transl.msgstr[0] || item!.msgid[0]
+                    const patternTranslated = transl.text[0] || item!.id[0]
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(pattern)
@@ -91,7 +91,7 @@ export class URLHandler {
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
             if (!item || !itemIsUrl(item)) {
-                item = newItem({ msgid: [locPattern] }, this.locales)
+                item = newItem({ id: [locPattern] }, this.locales)
                 catalog.set(key, item)
                 needWriteCatalog = true
             }
@@ -99,11 +99,11 @@ export class URLHandler {
                 item.urlAdapters.push(adapterKey)
                 needWriteCatalog = true
             }
-            item.translations.get(sourceLocale)!.msgstr = [locPattern]
+            item.translations.get(sourceLocale)!.text = [locPattern]
             item.context = urlPatternMsgs[i].context
             if (locPattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
-                    item.translations.get(loc)!.msgstr = item.msgid
+                    item.translations.get(loc)!.text = item.id
                 }
                 continue
             }
@@ -111,7 +111,7 @@ export class URLHandler {
         }
         const urlPatternCatKeysSet = new Set(urlPatternCatKeys)
         for (const item of catalog.values()) {
-            const key = new Message(item.msgid, undefined, item.context).toKey()
+            const key = new Message(item.id, undefined, item.context).toKey()
             if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(key)) {
                 item.urlAdapters = item.urlAdapters.filter(a => a !== adapterKey) // no longer used in this adapter
                 needWriteCatalog = true
@@ -147,7 +147,7 @@ export class URLHandler {
             const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
             // e.g. matchUrl.params: {rest: 'foo/{0}'}
             if (matchedUrl) {
-                const translatedPattern = patternItem.translations.get(locale)!.msgstr[0] || patternItem.msgid[0]
+                const translatedPattern = patternItem.translations.get(locale)!.text[0] || patternItem.id[0]
                 // e.g. translatedPattern: /elementos/{0}
                 const { keys } = pathToRegexp(relevantPattern)
                 const translatedPattUrl = patternFromTranslate(translatedPattern, keys)

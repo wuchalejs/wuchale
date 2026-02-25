@@ -77,13 +77,13 @@ export default class AIQueue {
         const unTranslated: Item[] = batch.messages.slice(translated.length)
         for (const [i, item] of translated.entries()) {
             const destItem = batch.messages[i]
-            if (item.msgid.join('\n') !== destItem?.msgid?.join('\n')) {
+            if (item.id.join('\n') !== destItem?.id?.join('\n')) {
                 unTranslated.push(destItem)
                 continue
             }
-            const msgstr = item.translations.get(batch.targetLocale)?.msgstr
+            const msgstr = item.translations.get(batch.targetLocale)?.text
             if (msgstr?.[0]) {
-                destItem.translations.get(batch.targetLocale)!.msgstr = msgstr
+                destItem.translations.get(batch.targetLocale)!.text = msgstr
             } else {
                 unTranslated.push(destItem)
             }
@@ -121,7 +121,7 @@ export default class AIQueue {
         const itemsByLocales = new Map<string, Item[]>()
         for (const item of messages) {
             for (const [loc, transl] of item.translations.entries()) {
-                if (loc === this.sourceLocale || transl.msgstr[0]) {
+                if (loc === this.sourceLocale || transl.text[0]) {
                     continue
                 }
                 if (!itemsByLocales.has(loc)) {
