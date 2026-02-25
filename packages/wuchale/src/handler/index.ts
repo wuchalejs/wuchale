@@ -5,8 +5,8 @@ import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr } from '../adapters.j
 import { Message } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
-import { type ConfigPartial, getLanguageName } from '../config.js'
-import { type Logger } from '../log.js'
+import type { ConfigPartial } from '../config.js'
+import type { Logger } from '../log.js'
 import { type Catalog, type FileRef, type Item, newItem } from '../storage.js'
 import { Files, globConfToArgs, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, SharedStates, State } from './state.js'
@@ -41,14 +41,12 @@ export class AdapterHandler {
     sharedState: SharedState
     granularState: State
 
-    catalogPathsToLocales: Map<string, string> = new Map()
-
     // sub handlers
     files: Files
     url: URLHandler
 
     #mode: Mode
-    #aiQueues: Map<string, AIQueue> = new Map()
+    #aiQueue: AIQueue
 
     #log: Logger
 
@@ -56,7 +54,6 @@ export class AdapterHandler {
 
     constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
         this.#adapter = adapter
-        this.url = new URLHandler(adapter.url)
         this.key = key
         this.#mode = mode
         this.#projectRoot = projectRoot
@@ -68,6 +65,10 @@ export class AdapterHandler {
         if (!this.allLocales.includes(this.sourceLocale)) {
             this.allLocales.push(this.sourceLocale)
         }
+        if (this.#config.ai) {
+            this.#aiQueue = new AIQueue(this.sourceLocale, this.#config.ai, this.saveAndCompile, this.#log)
+        }
+        this.url = new URLHandler(this.allLocales, adapter.url)
         this.files = new Files(this.#adapter, this.key, this.#config.localesDir, this.#projectRoot)
     }
 
@@ -86,9 +87,8 @@ export class AdapterHandler {
         return [loadIDs, loadIDs]
     }
 
-    initUrlPatterns = async (loc: string, catalog: Catalog) => {
-        const aiQueue = this.#aiQueues.get(loc)
-        return await this.url.initPatterns(loc, this.sourceLocale, this.key, catalog, aiQueue)
+    initUrlPatterns = async (catalog: Catalog) => {
+        return await this.url.initPatterns(this.sourceLocale, this.key, catalog, this.#aiQueue)
     }
 
     initSharedState = (sharedStates: SharedStates) => {
@@ -96,60 +96,34 @@ export class AdapterHandler {
             locales: this.allLocales,
             root: this.#projectRoot,
             sourceLocale: this.sourceLocale,
-            localesDir: this.#config.localesDir,
-            adapterKey: this.key,
             haveUrl: this.#adapter.url != null,
-            log: this.#log,
         })
         this.sharedState = sharedStates.getAdd(storage, this.key, this.sourceLocale, this.fileMatches)
     }
 
     init = async (sharedStates: SharedStates) => {
-        const sourceLocaleName = getLanguageName(this.sourceLocale)
         this.initSharedState(sharedStates)
         await this.files.init(this.#config.locales, this.sharedState.ownerKey, this.sourceLocale)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
-        const catalogsArray: Catalog[] = []
-        for (const loc of this.allLocales) {
-            await this.loadCatalogNCompile(loc)
-            const storage = this.sharedState.storage.get(loc)!
-            // for handleHotUpdate
-            for (const file of storage.files) {
-                this.catalogPathsToLocales.set(normalizeSep(file), loc)
-            }
-            if (await this.initUrlPatterns(loc, storage.catalog)) {
-                await this.saveAndCompile(loc)
-            }
-            catalogsArray.push(storage.catalog)
-            if (loc === this.sourceLocale || !this.#config.ai) {
-                continue
-            }
-            this.#aiQueues.set(
-                loc,
-                new AIQueue(
-                    sourceLocaleName,
-                    getLanguageName(loc),
-                    this.#config.ai,
-                    async () => await this.saveAndCompile(loc),
-                    this.#log,
-                ),
-            )
+        await this.loadCatalogNCompile()
+        if (await this.initUrlPatterns(this.sharedState.catalog)) {
+            await this.saveAndCompile()
         }
         await writeProxies()
-        await this.files.writeUrlFiles(this.url.buildManifest(catalogsArray), this.#config.locales[0])
+        await this.files.writeUrlFiles(this.url.buildManifest(this.sharedState.catalog), this.#config.locales[0])
     }
 
-    loadCatalogNCompile = async (loc: string, hmrVersion = -1) => {
+    loadCatalogNCompile = async (hmrVersion = -1) => {
         if (this.sharedState.ownerKey === this.key) {
-            await this.sharedState.storage.get(loc).load()
+            await this.sharedState.storage.load()
         }
-        await this.compile(loc, hmrVersion)
+        await Promise.all(this.allLocales.map(loc => this.compile(loc, hmrVersion)))
     }
 
     writeCompiled = async (loc: string, hmrVersion = -1) => {
         let compiledData = this.sharedState.compiled.get(loc)!
-        const pluralRule = this.sharedState.storage.get(loc).pluralRule.plural
+        const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
         const hmrVersionMode = this.#mode === 'dev' ? hmrVersion : null
         await this.files.writeCatalogModule(
             compiledData.items,
@@ -205,23 +179,23 @@ export class AdapterHandler {
             sharedCompiledLoc = { hasPlurals: false, items: [] }
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
-        const catalog = this.sharedState.storage.get(loc).catalog
-        for (const [itemKey, poItem] of catalog.entries()) {
+        const catalog = this.sharedState.catalog
+        for (const [itemKey, item] of catalog.entries()) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
-            if (!poItem.references.some(r => this.fileMatches(r.file))) {
+            if (!item.references.some(r => this.fileMatches(r.file))) {
                 continue
             }
             let keys = [itemKey]
-            if (poItem.urlAdapters.length > 0) {
+            if (item.urlAdapters.length > 0) {
                 keys = []
-                for (const reference of poItem.references) {
+                for (const reference of item.references) {
                     if (reference.refs.length === 0) {
-                        keys.push(poItem.msgid[0]) // plain url like /home
+                        keys.push(item.msgid[0]) // plain url like /home
                         continue
                     }
                     for (const ref of reference.refs) {
-                        keys.push(ref[0] ?? poItem.msgid[0]) // first one is the link, rest are placeholders
+                        keys.push(ref[0] ?? item.msgid[0]) // first one is the link, rest are placeholders
                     }
                 }
             }
@@ -229,17 +203,18 @@ export class AdapterHandler {
                 const index = this.sharedState.indexTracker.get(key)
                 let compiled: CompiledElement
                 const fallback = this.getCompiledFallback(index, loc)
-                if (poItem.msgstr.length > 1) {
+                const transl = item.translations.get(loc)!
+                if (transl.msgstr.length > 1) {
                     sharedCompiledLoc.hasPlurals = true
-                    if (poItem.msgstr.join('').trim()) {
-                        compiled = poItem.msgstr
+                    if (transl.msgstr.join('').trim()) {
+                        compiled = transl.msgstr
                     } else {
                         compiled = fallback
                     }
                 } else {
-                    let toCompile = poItem.msgstr[0]
-                    if (poItem.urlAdapters.length > 0) {
-                        toCompile = this.url.matchToCompile(key, catalog)
+                    let toCompile = transl.msgstr[0]
+                    if (item.urlAdapters.length > 0) {
+                        toCompile = this.url.matchToCompile(key, catalog, loc)
                     }
                     compiled = compileTranslation(toCompile, fallback)
                 }
@@ -247,7 +222,7 @@ export class AdapterHandler {
                 if (!this.#adapter.granularLoad) {
                     continue
                 }
-                for (const ref of poItem.references) {
+                for (const ref of item.references) {
                     const state = await this.granularState.byFileCreate(ref.file, this.allLocales)
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
@@ -258,14 +233,14 @@ export class AdapterHandler {
         await this.writeCompiled(loc, hmrVersion)
     }
 
-    saveAndCompile = async (loc: string) => {
+    saveAndCompile = async () => {
         this.onBeforeSave?.()
         if (this.#mode === 'cli') {
             // save for the end
             return
         }
-        await this.sharedState.storage.get(loc).save()
-        await this.compile(loc)
+        await this.sharedState.save()
+        await Promise.all(this.allLocales.map(loc => this.compile(loc)))
     }
 
     #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
@@ -351,10 +326,9 @@ export class AdapterHandler {
         }
     }
 
-    handleMessages = async (loc: string, msgs: Message[], filename: string): Promise<string[]> => {
-        const poFile = this.sharedState.storage.get(loc)
+    handleMessages = async (msgs: Message[], filename: string): Promise<string[]> => {
         const previousReferences: Map<string, { ref: FileRef; reused: number }> = new Map()
-        for (const item of poFile.catalog.values()) {
+        for (const item of this.sharedState.catalog.values()) {
             const existingRef = item.references.find(r => r.file === filename)
             if (!existingRef) {
                 continue
@@ -364,7 +338,7 @@ export class AdapterHandler {
         }
         let newItems: boolean = false
         const hmrKeys: string[] = []
-        const untranslated: Item[] = []
+        const toTranslate: Item[] = []
         let newRefs = false
         let commentsChanged = false
         for (const msgInfo of msgs) {
@@ -379,10 +353,10 @@ export class AdapterHandler {
                 }
                 key = this.url.patternKeys.get(matched)! // ! because already checked at extraction
             }
-            let poItem = poFile.catalog.get(key)
-            if (!poItem) {
-                poItem = newItem({ msgid: msgInfo.msgStr })
-                poFile.catalog.set(key, poItem)
+            let item = this.sharedState.catalog.get(key)
+            if (!item) {
+                item = newItem({ msgid: msgInfo.msgStr }, this.allLocales)
+                this.sharedState.catalog.set(key, item)
             }
             const placeholders: string[] = []
             if (msgInfo.type === 'url') {
@@ -391,12 +365,12 @@ export class AdapterHandler {
                     placeholders.push(refKey)
                 }
             } else if (msgInfo.context) {
-                poItem.context = msgInfo.context
+                item.context = msgInfo.context
             }
             placeholders.push(...msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`))
             const prevRef = previousReferences.get(key)
             if (prevRef == null) {
-                poItem.references.push({
+                item.references.push({
                     file: filename,
                     refs: placeholders.length ? [placeholders] : [],
                 })
@@ -411,34 +385,30 @@ export class AdapterHandler {
                 // already translated or attempted at startup
                 continue
             }
-            if (loc === this.sourceLocale) {
-                const msgStr = msgInfo.msgStr.join('\n')
-                if (poItem.msgstr.join('\n') !== msgStr) {
-                    poItem.msgstr = msgInfo.msgStr
-                    untranslated.push(poItem)
-                }
-            } else if (!poItem.msgstr[0]) {
-                untranslated.push(poItem)
+            const sourceTransl = item.translations.get(this.sourceLocale)!
+            const msgStr = msgInfo.msgStr.join('\n')
+            if (sourceTransl.msgstr.join('\n') !== msgStr) {
+                sourceTransl.msgstr = msgInfo.msgStr
             }
+            toTranslate.push(item)
         }
         for (const info of previousReferences.values()) {
             info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
         }
-        if (untranslated.length === 0) {
+        if (toTranslate.length === 0) {
             if (newRefs || previousReferences.size || commentsChanged) {
-                await this.saveAndCompile(loc)
+                await this.saveAndCompile()
             }
             return hmrKeys
         }
-        if (loc === this.sourceLocale || !this.#aiQueues.get(loc)?.ai) {
+        if (!this.#aiQueue?.ai) {
             if (newItems || newRefs || commentsChanged) {
-                await this.saveAndCompile(loc)
+                await this.saveAndCompile()
             }
             return hmrKeys
         }
-        const aiQueueLoc = this.#aiQueues.get(loc)!
-        aiQueueLoc.add(untranslated)
-        await aiQueueLoc.running
+        this.#aiQueue.add(toTranslate)
+        await this.#aiQueue.running
         return hmrKeys
     }
 
@@ -477,15 +447,12 @@ export class AdapterHandler {
                     this.#log.verbose(`${this.key}: No messages from ${filename}.`)
                 }
             }
-            const hmrKeys: Map<string, string[]> = new Map()
-            for (const loc of this.allLocales) {
-                hmrKeys.set(loc, await this.handleMessages(loc, msgs, filename))
-            }
+            const hmrKeys: string[] = await this.handleMessages(msgs, filename)
             if (msgs.length && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#config.locales) {
                     hmrData.data[loc] =
-                        hmrKeys.get(loc)?.map(key => {
+                        hmrKeys.map(key => {
                             const index = indexTracker.get(key)
                             return [index, compiled.get(loc)!.items[index]]
                         }) ?? []

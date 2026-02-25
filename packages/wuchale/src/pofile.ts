@@ -1,17 +1,14 @@
 import { isAbsolute, resolve } from 'node:path'
 import PO from 'pofile'
-import { Message } from './adapters.js'
 import { deepMergeObjects } from './config.js'
-import { color } from './log.js'
 import {
-    type Catalog,
-    type CatalogStorage,
-    defaultPluralRule,
     type FileRef,
     type Item,
     itemIsObsolete,
     itemIsUrl,
+    type PersistedData,
     type PluralRule,
+    type PluralRules,
     type StorageFactory,
     type StorageFactoryOpts,
 } from './storage.js'
@@ -20,11 +17,11 @@ type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
 
-export function itemToPOItem(item: Item): POItem {
+export function itemToPOItem(item: Item, locale: string): POItem {
     const poi = new PO.Item()
     poi.msgid = item.msgid[0]
     poi.msgid_plural = item.msgid[1]
-    poi.msgstr = item.msgstr
+    poi.msgstr = item.translations.get(locale)?.msgstr!
     poi.msgctxt = item.context
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
     poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
@@ -36,7 +33,7 @@ export function itemToPOItem(item: Item): POItem {
     return poi
 }
 
-export function poitemToItem(item: POItem): Item {
+export function poitemToItem(item: POItem, locale: string): Item {
     const msgid = [item.msgid]
     if (item.msgid_plural) {
         msgid.push(item.msgid_plural)
@@ -60,11 +57,15 @@ export function poitemToItem(item: POItem): Item {
             urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
         }
     }
+    const translations = new Map()
+    translations.set(locale, {
+        msgstr: item.msgstr,
+        comments: item.comments,
+    })
     return {
         msgid,
-        msgstr: item.msgstr,
+        translations,
         context: item.msgctxt,
-        comments: item.comments,
         references,
         urlAdapters,
     }
@@ -80,25 +81,31 @@ export const defaultOpts: POFileOptions = {
     separateUrls: true,
 }
 
-export class POFile {
-    catalog: Catalog = new Map()
-    headers: Record<string, string | undefined> = {}
-    pluralRule: PluralRule = defaultPluralRule
-    locale: string
-    opts: StorageFactoryOpts & POFileOptions
-    files: [string, string] // main and url
+type POHeaders = Record<string, string | undefined>
 
-    constructor(locale: string, opts: StorageFactoryOpts & POFileOptions) {
-        this.locale = locale
+export class POFile {
+    key: string
+    opts: StorageFactoryOpts & POFileOptions
+    filesByLoc: Map<string, [string, string]> = new Map() // main and url
+    files: string[] = []
+
+    constructor(opts: StorageFactoryOpts & POFileOptions) {
         this.opts = opts
         if (!isAbsolute(opts.dir)) {
             opts.dir = resolve(opts.root, opts.dir)
         }
-        this.files = [resolve(opts.dir, `${locale}.po`), resolve(opts.dir, `${locale}.url.po`)]
+        for (const locale of opts.locales) {
+            const locFiles = [resolve(opts.dir, `${locale}.po`), resolve(opts.dir, `${locale}.url.po`)] as [
+                string,
+                string,
+            ]
+            this.filesByLoc.set(locale, locFiles)
+            this.files.push(...locFiles)
+        }
     }
 
-    async loadRaw(url: boolean, warn = true): Promise<PO | null> {
-        const filename = this.files[Number(url)]
+    async loadRaw(locale: string, url: boolean): Promise<PO | null> {
+        const filename = this.filesByLoc.get(locale)![Number(url)]
         try {
             return await new Promise((res, rej) => {
                 PO.load(filename, (err, po) => {
@@ -113,48 +120,49 @@ export class POFile {
             if (err.code !== 'ENOENT') {
                 throw err
             }
-            if (warn) {
-                this.opts.log.warn(
-                    `${color.magenta(this.opts.adapterKey)}: Catalog not found at ${color.cyan(filename)}`,
-                )
-            }
             return null
         }
     }
 
-    async load() {
-        const po = await this.loadRaw(false)
-        if (po == null) {
-            return
-        }
-        this.headers = po.headers
-        const pluralHeader = po.headers['Plural-Forms']
-        if (pluralHeader) {
-            this.pluralRule = <PluralRule>(<unknown>PO.parsePluralForms(pluralHeader))
-            this.pluralRule.nplurals = Number(this.pluralRule.nplurals)
-        } else {
-            this.pluralRule = defaultPluralRule
-        }
-        const itemColl = [po.items]
-        if (this.opts.separateUrls && this.opts.haveUrl) {
-            const poUrl = await this.loadRaw(true)
-            poUrl && itemColl.push(poUrl.items)
-        }
-        for (const poItems of itemColl) {
-            for (const poItem of poItems) {
-                const item = poitemToItem(poItem)
-                const msgInfo = new Message(item.msgid, undefined, item.context)
-                this.catalog.set(msgInfo.toKey(), item)
+    async load(): Promise<PersistedData> {
+        const pluralRules: PluralRules = new Map()
+        const items: Item[] = []
+        for (const locale of this.opts.locales) {
+            const po = await this.loadRaw(locale, false)
+            if (po == null) {
+                return { items, pluralRules }
+            }
+            const pluralHeader = po.headers['Plural-Forms']
+            if (pluralHeader) {
+                const pluralRule = PO.parsePluralForms(pluralHeader) as unknown as PluralRule
+                pluralRule.nplurals = Number(pluralRule.nplurals)
+                pluralRules.set(locale, pluralRule)
+            }
+            if (this.opts.separateUrls && this.opts.haveUrl) {
+                const poUrl = await this.loadRaw(locale, true)
+                poUrl && po.items.push(...poUrl.items)
+            }
+            for (const [i, poItem] of po.items.entries()) {
+                let item = items[i]
+                if (!item) {
+                    items[i] = poitemToItem(poItem, locale)
+                } else {
+                    item.translations.set(locale, {
+                        msgstr: poItem.msgstr,
+                        comments: poItem.comments,
+                    })
+                }
             }
         }
+        return { items, pluralRules }
     }
 
-    async saveRaw(url: boolean, items: POItem[]) {
+    async saveRaw(items: POItem[], headers: POHeaders, locale: string, url: boolean) {
         const po = new PO()
-        po.headers = this.headers
+        po.headers = headers
         po.items = items
         await new Promise<void>((res, rej) => {
-            po.save(this.files[Number(url)], err => {
+            po.save(this.filesByLoc.get(locale)![Number(url)], err => {
                 if (err) {
                     rej(err)
                 } else {
@@ -164,35 +172,38 @@ export class POFile {
         })
     }
 
-    async save() {
-        this.updateHeaders()
-        const poItems: POItem[] = []
-        const poItemsUrl: POItem[] = []
-        for (const item of this.catalog.values()) {
-            const poItem = itemToPOItem(item)
-            if (itemIsUrl(item) && this.opts.separateUrls && this.opts.haveUrl) {
-                poItemsUrl.push(poItem)
-            } else {
-                poItems.push(poItem)
+    async save(data: PersistedData) {
+        for (const locale of this.opts.locales) {
+            const poItems: POItem[] = []
+            const poItemsUrl: POItem[] = []
+            for (const item of data.items) {
+                const poItem = itemToPOItem(item, locale)
+                if (itemIsUrl(item) && this.opts.separateUrls && this.opts.haveUrl) {
+                    poItemsUrl.push(poItem)
+                } else {
+                    poItems.push(poItem)
+                }
             }
-        }
-        await this.saveRaw(false, poItems)
-        if (poItemsUrl.length > 0) {
-            await this.saveRaw(true, poItemsUrl)
+            const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
+            await this.saveRaw(poItems, headers, locale, false)
+            if (poItemsUrl.length > 0) {
+                await this.saveRaw(poItemsUrl, headers, locale, true)
+            }
         }
     }
 
-    updateHeaders() {
+    getHeaders(locale: string, pluralRule: PluralRule) {
         const updateHeaders = [
-            ['Plural-Forms', [`nplurals=${this.pluralRule.nplurals}`, `plural=${this.pluralRule.plural};`].join('; ')],
+            ['Plural-Forms', [`nplurals=${pluralRule.nplurals}`, `plural=${pluralRule.plural};`].join('; ')],
             ['Source-Language', this.opts.sourceLocale],
-            ['Language', this.locale],
+            ['Language', locale],
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
             ['Content-Transfer-Encoding', '8bit'],
         ]
+        const headers: POHeaders = {}
         for (const [key, val] of updateHeaders) {
-            this.headers[key] = val
+            headers[key] = val
         }
         const now = new Date().toISOString()
         const defaultHeaders = [
@@ -200,23 +211,15 @@ export class POFile {
             ['PO-Revision-Date', now],
         ]
         for (const [key, val] of defaultHeaders) {
-            if (!this.headers[key]) {
-                this.headers[key] = val
+            if (!headers[key]) {
+                headers[key] = val
             }
         }
+        return headers
     }
 }
 
 export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
     const pofOptsFull = deepMergeObjects(pofOpts, defaultOpts)
-    return opts => {
-        const storages = new Map<string, CatalogStorage>()
-        for (const locale of opts.locales) {
-            storages.set(locale, new POFile(locale, { ...pofOptsFull, ...opts }))
-        }
-        return {
-            key: resolve(pofOptsFull.dir),
-            get: locale => storages.get(locale)!,
-        }
-    }
+    return opts => new POFile({ ...pofOptsFull, ...opts })
 }
