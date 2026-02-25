@@ -10,7 +10,7 @@ import { Transformer } from './transformer.js'
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 const filename = 'test.ts'
-const urlHandler = new URLHandler(defaultArgs.url)
+const urlHandler = new URLHandler([])
 
 const getOutput = (content: string, patterns = defaultArgs.patterns) =>
     new Transformer(

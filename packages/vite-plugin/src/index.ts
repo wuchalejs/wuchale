@@ -130,6 +130,14 @@ export class Wuchale {
                 }
                 adaptersByLoaderPath.set(loaderPath, handler)
             }
+            for (const fname of handler.sharedState.storage.files) {
+                const handlers = this.#adaptersByCatalogPath.get(fname)
+                if (handlers) {
+                    handlers.push(handler)
+                } else {
+                    this.#adaptersByCatalogPath.set(fname, [handler])
+                }
+            }
             const confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
             await writeFile(confUpdateFile, '{}') // vite only watched changes so prepare first
             this.#adaptersByConfUpdate.set(confUpdateFile, handler)

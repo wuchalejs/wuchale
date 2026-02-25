@@ -51,8 +51,9 @@ export type {
     CatalogStorage,
     FileRef,
     Item,
-    PersistedData,
+    LoadData,
     PluralRule,
+    SaveData,
     StorageFactory,
     StorageFactoryOpts,
 } from './storage.js'

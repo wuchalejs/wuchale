@@ -1,7 +1,7 @@
 import { type Matcher } from 'picomatch'
 import { IndexTracker, Message } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
-import { type Catalog, type CatalogStorage, type PluralRules } from '../storage.js'
+import { type Catalog, type CatalogStorage, defaultPluralRule, type PluralRules } from '../storage.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -19,21 +19,32 @@ export class SharedState {
     indexTracker = new IndexTracker()
 
     // storage
-    catalog: Catalog
-    pluralRules: PluralRules
     storage: CatalogStorage
+    catalog: Catalog = new Map()
+    pluralRules: PluralRules = new Map()
 
     constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string) {
         this.ownerKey = ownerKey
         this.sourceLocale = sourceLocale
         this.storage = storage
-        this.catalog = new Map()
     }
 
-    async load() {
+    async load(locales: string[]) {
         const loaded = await this.storage.load()
-        this.pluralRules = loaded.pluralRules
+        this.pluralRules = loaded.pluralRules ?? new Map()
+        for (const loc of locales) {
+            if (!this.pluralRules.has(loc)) {
+                this.pluralRules.set(loc, defaultPluralRule)
+            }
+        }
         for (const item of loaded.items) {
+            for (const loc of locales) {
+                // fill empty translations
+                if (item.translations.has(loc)) {
+                    continue
+                }
+                item.translations.set(loc, { msgstr: [], comments: [] })
+            }
             const msgInfo = new Message(item.msgid, undefined, item.context)
             this.catalog.set(msgInfo.toKey(), item)
         }
@@ -42,7 +53,8 @@ export class SharedState {
     async save() {
         await this.storage.save({
             pluralRules: this.pluralRules,
-            items: this.catalog.values(),
+            // Array important, cannot loop over map values multiple times!
+            items: Array.from(this.catalog.values()),
         })
     }
 }
