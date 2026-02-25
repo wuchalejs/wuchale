@@ -4,6 +4,7 @@ import PO from 'pofile'
 import { deepMergeObjects } from './config.js'
 import {
     type FileRef,
+    type FileRefEntry,
     type Item,
     itemIsObsolete,
     itemIsUrl,
@@ -26,8 +27,21 @@ export function itemToPOItem(item: Item, locale: string): POItem {
     poi.msgstr = item.translations.get(locale)?.text!
     poi.msgctxt = item.context
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
-    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
-    poi.extractedComments = item.references.filter(r => r.refs.length).flatMap(r => r.refs.map(ps => ps.join('; ')))
+    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [{ placeholders: {} }]).map(_ => r.file))
+    poi.extractedComments = item.references
+        .filter(r => r.refs.length)
+        .flatMap(r =>
+            r.refs.map(frEntry => {
+                let comm: string[] = []
+                if (frEntry.link) {
+                    comm.push(frEntry.link)
+                }
+                for (const [i, ph] of Object.entries(frEntry.placeholders)) {
+                    comm.push(`${i}: ${ph}`)
+                }
+                return comm.join('; ')
+            }),
+        )
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
@@ -42,6 +56,12 @@ export function poitemToItem(item: POItem, locale: string): Item {
     }
     const references: FileRef[] = []
     let lastRef: FileRef = { file: '', refs: [] }
+    const urlAdapters: string[] = []
+    for (const key in item.flags) {
+        if (key.startsWith(urlAdapterFlagPrefix)) {
+            urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
+        }
+    }
     for (const [i, ref] of item.references.entries()) {
         if (ref !== lastRef.file) {
             lastRef = { file: ref, refs: [] }
@@ -51,13 +71,19 @@ export function poitemToItem(item: POItem, locale: string): Item {
         if (!comm) {
             continue
         }
-        lastRef.refs.push(comm.split('; '))
-    }
-    const urlAdapters: string[] = []
-    for (const key in item.flags) {
-        if (key.startsWith(urlAdapterFlagPrefix)) {
-            urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
+        const refEnt: FileRefEntry = { placeholders: {} }
+        const commSp = comm.split('; ')
+        let phStart = 0
+        if (urlAdapters.length) {
+            // url
+            refEnt.link = commSp[0]
+            phStart++
         }
+        for (const c of commSp.slice(phStart)) {
+            const [i, ph] = c.split(': ', 2)
+            refEnt.placeholders[i] = ph
+        }
+        lastRef.refs.push(refEnt)
     }
     const translations: Map<string, Translation> = new Map()
     translations.set(locale, {

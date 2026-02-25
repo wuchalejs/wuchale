@@ -140,7 +140,7 @@ export class Wuchale {
                 }
             }
             const confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
-            await writeFile(confUpdateFile, '{}') // vite only watched changes so prepare first
+            await writeFile(confUpdateFile, '{}') // vite only watches changes so prepare first
             this.#adaptersByConfUpdate.set(confUpdateFile, handler)
         }
     }
