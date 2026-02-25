@@ -116,7 +116,7 @@ export class AdapterHandler {
 
     loadCatalogNCompile = async (hmrVersion = -1) => {
         if (this.sharedState.ownerKey === this.key) {
-            await this.sharedState.storage.load()
+            await this.sharedState.load(this.allLocales)
         }
         await Promise.all(this.allLocales.map(loc => this.compile(loc, hmrVersion)))
     }

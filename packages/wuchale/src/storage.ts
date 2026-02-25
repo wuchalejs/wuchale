@@ -14,20 +14,22 @@ export type Translation = {
 
 export interface Item {
     msgid: string[]
-    translations: Map<string, Translation>
     context?: string
+    translations: Map<string, Translation>
     references: FileRef[]
     urlAdapters: string[]
 }
 
 export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
-    const translations = new Map()
-    for (const locale of locales) {
-        translations.set(locale, { msgstr: [], comments: [] })
+    if (!init.translations) {
+        init.translations = new Map()
+        for (const locale of locales) {
+            init.translations.set(locale, { msgstr: [], comments: [] })
+        }
     }
     return {
         msgid: init.msgid ?? [],
-        translations: new Map(),
+        translations: init.translations,
         context: init.context,
         references: init.references ?? [],
         urlAdapters: init.urlAdapters ?? [],
@@ -49,8 +51,13 @@ export const defaultPluralRule: PluralRule = {
     plural: 'n == 1 ? 0 : 1',
 }
 
-export type PersistedData = {
+export type SaveData = {
     pluralRules: PluralRules
+    items: Item[]
+}
+
+export type LoadData = {
+    pluralRules?: PluralRules
     items: Iterable<Item>
 }
 
@@ -61,8 +68,8 @@ export type CatalogStorage = {
      * two storages with same keys means they are the same/shared
      */
     key: string
-    load(): Promise<PersistedData>
-    save(items: PersistedData): Promise<void>
+    load(): Promise<LoadData>
+    save(items: SaveData): Promise<void>
     /** the files controlled by this storage, for e.g. for Vite to watch */
     files: string[]
 }

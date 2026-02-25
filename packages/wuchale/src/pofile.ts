@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import PO from 'pofile'
 import { deepMergeObjects } from './config.js'
@@ -6,9 +7,9 @@ import {
     type Item,
     itemIsObsolete,
     itemIsUrl,
-    type PersistedData,
     type PluralRule,
     type PluralRules,
+    type SaveData,
     type StorageFactory,
     type StorageFactoryOpts,
 } from './storage.js'
@@ -124,13 +125,13 @@ export class POFile {
         }
     }
 
-    async load(): Promise<PersistedData> {
+    async load(): Promise<SaveData> {
         const pluralRules: PluralRules = new Map()
         const items: Item[] = []
         for (const locale of this.opts.locales) {
             const po = await this.loadRaw(locale, false)
             if (po == null) {
-                return { items, pluralRules }
+                continue
             }
             const pluralHeader = po.headers['Plural-Forms']
             if (pluralHeader) {
@@ -161,8 +162,10 @@ export class POFile {
         const po = new PO()
         po.headers = headers
         po.items = items
+        const filename = this.filesByLoc.get(locale)![Number(url)]
+        await mkdir(this.opts.dir, { recursive: true })
         await new Promise<void>((res, rej) => {
-            po.save(this.filesByLoc.get(locale)![Number(url)], err => {
+            po.save(filename, err => {
                 if (err) {
                     rej(err)
                 } else {
@@ -172,7 +175,7 @@ export class POFile {
         })
     }
 
-    async save(data: PersistedData) {
+    async save(data: SaveData) {
         for (const locale of this.opts.locales) {
             const poItems: POItem[] = []
             const poItemsUrl: POItem[] = []

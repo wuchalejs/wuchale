@@ -7,10 +7,11 @@ import { ts as svelte, transformTest, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './index.js'
 import { SvelteTransformer } from './transformer.js'
 
-const urlHandler = new URLHandler({
+const urlHandler = new URLHandler(['en'], {
     patterns: ['/translated/*rest', '/'],
     localize: true,
 })
+
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, filename = 'test.svelte') =>

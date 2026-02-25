@@ -124,7 +124,7 @@ export default class AIQueue {
                 if (loc === this.sourceLocale || transl.msgstr[0]) {
                     continue
                 }
-                if (itemsByLocales.has(loc)) {
+                if (!itemsByLocales.has(loc)) {
                     itemsByLocales.set(loc, [])
                 }
                 itemsByLocales.get(loc)?.push(item)

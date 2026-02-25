@@ -54,7 +54,7 @@ export async function status(config: Config, root: string, locales: string[]) {
                 [locName, false],
                 [`${locName} URL`, true],
             ] as [string, boolean][]) {
-                await state.load()
+                await state.load(locales)
                 const stats = await statCatalog(locale, state.catalog, url)
                 if (stats.Total === 0) {
                     continue
