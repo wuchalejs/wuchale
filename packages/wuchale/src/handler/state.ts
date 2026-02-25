@@ -1,7 +1,7 @@
 import { type Matcher } from 'picomatch'
 import { IndexTracker, Message } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
-import { type Catalog, type CatalogStorage, defaultPluralRule, type PluralRules } from '../storage.js'
+import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -38,14 +38,8 @@ export class SharedState {
             }
         }
         for (const item of loaded.items) {
-            for (const loc of locales) {
-                // fill empty translations
-                if (item.translations.has(loc)) {
-                    continue
-                }
-                item.translations.set(loc, { msgstr: [], comments: [] })
-            }
-            const msgInfo = new Message(item.msgid, undefined, item.context)
+            fillTranslations(item, locales)
+            const msgInfo = new Message(item.id, undefined, item.context)
             this.catalog.set(msgInfo.toKey(), item)
         }
     }

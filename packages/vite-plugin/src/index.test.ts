@@ -9,7 +9,7 @@ import { defaultArgs } from 'wuchale/adapter-vanilla'
 import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { toViteError, Wuchale } from './index.js'
 
-const file = resolve(import.meta.dirname, 'foo.js') // needs to match files, relative to root
+const file = normalizeSep(resolve(import.meta.dirname, 'foo.js')) // needs to match files, relative to root
 
 const code = ts`
     function foo() {

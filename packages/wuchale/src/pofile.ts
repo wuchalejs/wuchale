@@ -12,6 +12,7 @@ import {
     type SaveData,
     type StorageFactory,
     type StorageFactoryOpts,
+    type Translation,
 } from './storage.js'
 
 type POItem = InstanceType<typeof PO.Item>
@@ -20,9 +21,9 @@ const urlAdapterFlagPrefix = 'url:'
 
 export function itemToPOItem(item: Item, locale: string): POItem {
     const poi = new PO.Item()
-    poi.msgid = item.msgid[0]
-    poi.msgid_plural = item.msgid[1]
-    poi.msgstr = item.translations.get(locale)?.msgstr!
+    poi.msgid = item.id[0]
+    poi.msgid_plural = item.id[1]
+    poi.msgstr = item.translations.get(locale)?.text!
     poi.msgctxt = item.context
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
     poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [[]]).map(_ => r.file))
@@ -58,13 +59,13 @@ export function poitemToItem(item: POItem, locale: string): Item {
             urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
         }
     }
-    const translations = new Map()
+    const translations: Map<string, Translation> = new Map()
     translations.set(locale, {
-        msgstr: item.msgstr,
+        text: item.msgstr,
         comments: item.comments,
     })
     return {
-        msgid,
+        id: msgid,
         translations,
         context: item.msgctxt,
         references,
@@ -149,7 +150,7 @@ export class POFile {
                     items[i] = poitemToItem(poItem, locale)
                 } else {
                     item.translations.set(locale, {
-                        msgstr: poItem.msgstr,
+                        text: poItem.msgstr,
                         comments: poItem.comments,
                     })
                 }

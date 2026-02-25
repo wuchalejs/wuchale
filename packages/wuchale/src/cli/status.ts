@@ -18,7 +18,7 @@ async function statCatalog(locale: string, catalog: Catalog, urls: boolean): Pro
             continue
         }
         stats.Total++
-        if (!item.translations.get(locale)!.msgstr[0]) {
+        if (!item.translations.get(locale)!.text[0]) {
             stats.Untranslated++
         }
         if (itemIsObsolete(item)) {
