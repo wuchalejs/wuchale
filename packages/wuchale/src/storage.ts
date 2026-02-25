@@ -1,10 +1,11 @@
+export type FileRefEntry = {
+    link?: string
+    placeholders: Record<string, string>
+}
+
 export type FileRef = {
     file: string
-    /**
-     * multiple refs per file with multiple placeholders
-     * and in the case of urls, **the first ones will be links**
-     */
-    refs: string[][]
+    refs: FileRefEntry[]
 }
 
 export type Translation = {

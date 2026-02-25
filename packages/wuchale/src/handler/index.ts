@@ -7,7 +7,7 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
-import { type Catalog, type FileRef, type Item, newItem } from '../storage.js'
+import { type Catalog, type FileRef, type FileRefEntry, type Item, newItem } from '../storage.js'
 import { Files, globConfToArgs, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, SharedStates, State } from './state.js'
 import { URLHandler } from './url.js'
@@ -358,26 +358,30 @@ export class AdapterHandler {
                 item = newItem({ id: msgInfo.msgStr }, this.allLocales)
                 this.sharedState.catalog.set(key, item)
             }
-            const placeholders: string[] = []
+            const refEntry: FileRefEntry = {
+                placeholders: Object.fromEntries(
+                    msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
+                ),
+            }
             if (msgInfo.type === 'url') {
                 const refKey = msgInfo.toKey()
                 if (refKey !== key) {
-                    placeholders.push(refKey)
+                    refEntry.link = msgInfo.msgStr[0]
                 }
             } else if (msgInfo.context) {
                 item.context = msgInfo.context
             }
-            placeholders.push(...msgInfo.placeholders.map(([i, p]) => `${i}: ${p.replace(/\s+/g, ' ').trim()}`))
+            const refNotEmpty = refEntry.link != null || msgInfo.placeholders.length > 0
             const prevRef = previousReferences.get(key)
             if (prevRef == null) {
                 item.references.push({
                     file: filename,
-                    refs: placeholders.length ? [placeholders] : [],
+                    refs: refNotEmpty ? [refEntry] : [],
                 })
                 newRefs = true // now it references it
             } else {
-                if (placeholders.length) {
-                    prevRef.ref.refs[prevRef.reused] = placeholders
+                if (refNotEmpty) {
+                    prevRef.ref.refs[prevRef.reused] = refEntry
                 }
                 prevRef.reused++
             }
