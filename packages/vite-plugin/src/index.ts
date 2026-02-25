@@ -130,14 +130,6 @@ export class Wuchale {
                 }
                 adaptersByLoaderPath.set(loaderPath, handler)
             }
-            for (const fname of handler.catalogPathsToLocales.keys()) {
-                const handlers = this.#adaptersByCatalogPath.get(fname)
-                if (handlers) {
-                    handlers.push(handler)
-                } else {
-                    this.#adaptersByCatalogPath.set(fname, [handler])
-                }
-            }
             const confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
             await writeFile(confUpdateFile, '{}') // vite only watched changes so prepare first
             this.#adaptersByConfUpdate.set(confUpdateFile, handler)
@@ -188,14 +180,15 @@ export class Wuchale {
         const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < this.#hmrDelayThreshold
         const invalidatedModules = new Set()
         for (const adapter of adapters) {
-            const loc = adapter.catalogPathsToLocales.get(ctx.file)!
-            if (!sourceTriggered) {
-                await adapter.loadCatalogNCompile(loc, this.#hmrVersion)
-            }
-            for (const loadID of adapter.getLoadIDs()[0]) {
-                const fileID = normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID)))
-                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
-                    ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
+            for (const loc of adapter.allLocales) {
+                if (!sourceTriggered) {
+                    await adapter.loadCatalogNCompile(this.#hmrVersion)
+                }
+                for (const loadID of adapter.getLoadIDs()[0]) {
+                    const fileID = normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID)))
+                    for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
+                        ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
+                    }
                 }
             }
         }

@@ -46,3 +46,14 @@ export { SharedStates } from './handler/state.js'
 export { URLHandler } from './handler/url.js'
 export { Logger } from './log.js'
 export { pofile } from './pofile.js'
+export type {
+    Catalog,
+    CatalogStorage,
+    FileRef,
+    Item,
+    PersistedData,
+    PluralRule,
+    StorageFactory,
+    StorageFactoryOpts,
+} from './storage.js'
+export { defaultPluralRule } from './storage.js'

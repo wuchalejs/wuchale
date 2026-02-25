@@ -1,5 +1,3 @@
-import type { Logger } from './log.js'
-
 export type FileRef = {
     file: string
     /**
@@ -9,47 +7,67 @@ export type FileRef = {
     refs: string[][]
 }
 
+export type Translation = {
+    msgstr: string[]
+    comments: string[]
+}
+
 export interface Item {
     msgid: string[]
-    msgstr: string[]
+    translations: Map<string, Translation>
     context?: string
     references: FileRef[]
-    comments: string[]
     urlAdapters: string[]
 }
 
-export const newItem = (init: Partial<Item> = {}): Item => ({
-    msgid: init.msgid ?? [],
-    msgstr: init.msgstr ?? [],
-    context: init.context,
-    references: init.references ?? [],
-    comments: init.comments ?? [],
-    urlAdapters: init.urlAdapters ?? [],
-})
+export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
+    const translations = new Map()
+    for (const locale of locales) {
+        translations.set(locale, { msgstr: [], comments: [] })
+    }
+    return {
+        msgid: init.msgid ?? [],
+        translations: new Map(),
+        context: init.context,
+        references: init.references ?? [],
+        urlAdapters: init.urlAdapters ?? [],
+    }
+}
 
 export const itemIsUrl = (item: Item) => item.urlAdapters.length > 0
 export const itemIsObsolete = (item: Item) => item.urlAdapters.length === 0 && item.references.length === 0
-
-export type Catalog = Map<string, Item>
 
 export type PluralRule = {
     nplurals: number
     plural: string
 }
 
+export type PluralRules = Map<string, PluralRule>
+
 export const defaultPluralRule: PluralRule = {
     nplurals: 2,
     plural: 'n == 1 ? 0 : 1',
 }
 
+export type PersistedData = {
+    pluralRules: PluralRules
+    items: Iterable<Item>
+}
+
 export type CatalogStorage = {
-    pluralRule: PluralRule
-    catalog: Catalog
-    load(): Promise<void>
-    save(): Promise<void>
+    /**
+     * the key to check if two storages share the same location
+     * e.g. this can be the dir for the pofile storage
+     * two storages with same keys means they are the same/shared
+     */
+    key: string
+    load(): Promise<PersistedData>
+    save(items: PersistedData): Promise<void>
     /** the files controlled by this storage, for e.g. for Vite to watch */
     files: string[]
 }
+
+export type Catalog = Map<string, Item> // by item key
 
 export type StorageFactoryOpts = {
     locales: string[]
@@ -57,19 +75,6 @@ export type StorageFactoryOpts = {
     /** whether the url is configured, can use to load separate url files */
     haveUrl: boolean
     sourceLocale: string
-    localesDir: string
-    adapterKey: string
-    log: Logger
 }
 
-export type StorageCollection = {
-    /**
-     * the key to check if two storages share the same location
-     * e.g. this can be the dir for the pofile storage
-     * two storages with same keys means they are the same/shared
-     */
-    key: string
-    get: (locale: string) => CatalogStorage
-}
-
-export type StorageFactory = (opts: StorageFactoryOpts) => StorageCollection
+export type StorageFactory = (opts: StorageFactoryOpts) => CatalogStorage

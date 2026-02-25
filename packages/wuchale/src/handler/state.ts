@@ -1,7 +1,7 @@
 import { type Matcher } from 'picomatch'
-import { IndexTracker } from '../adapters.js'
+import { IndexTracker, Message } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
-import type { StorageCollection } from '../storage.js'
+import { type Catalog, type CatalogStorage, type PluralRules } from '../storage.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -11,30 +11,50 @@ export type Compiled = {
 export type CompiledCatalogs = Map<string, Compiled>
 
 /** shared states among multiple adapters handlers */
-export type SharedState = {
+export class SharedState {
     ownerKey: string
     sourceLocale: string
-    otherFileMatches: Matcher[]
-    storage: StorageCollection
-    compiled: CompiledCatalogs
-    indexTracker: IndexTracker
+    otherFileMatches: Matcher[] = []
+    compiled: CompiledCatalogs = new Map()
+    indexTracker = new IndexTracker()
+
+    // storage
+    catalog: Catalog
+    pluralRules: PluralRules
+    storage: CatalogStorage
+
+    constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string) {
+        this.ownerKey = ownerKey
+        this.sourceLocale = sourceLocale
+        this.storage = storage
+        this.catalog = new Map()
+    }
+
+    async load() {
+        const loaded = await this.storage.load()
+        this.pluralRules = loaded.pluralRules
+        for (const item of loaded.items) {
+            const msgInfo = new Message(item.msgid, undefined, item.context)
+            this.catalog.set(msgInfo.toKey(), item)
+        }
+    }
+
+    async save() {
+        await this.storage.save({
+            pluralRules: this.pluralRules,
+            items: this.catalog.values(),
+        })
+    }
 }
 
 export class SharedStates {
     // by localesDir
     states: Map<string, SharedState> = new Map()
 
-    getAdd = (storage: StorageCollection, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
+    getAdd = (storage: CatalogStorage, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
         let sharedState = this.states.get(storage.key)
         if (sharedState == null) {
-            sharedState = {
-                ownerKey: key,
-                sourceLocale: sourceLocale,
-                otherFileMatches: [],
-                storage,
-                indexTracker: new IndexTracker(),
-                compiled: new Map(),
-            }
+            sharedState = new SharedState(storage, key, sourceLocale)
             this.states.set(storage.key, sharedState)
         } else {
             if (sharedState.sourceLocale !== sourceLocale) {

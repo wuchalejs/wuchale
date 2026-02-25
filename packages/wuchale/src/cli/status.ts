@@ -11,14 +11,14 @@ type POStats = {
     Obsolete: number
 }
 
-async function statCatalog(catalog: Catalog, urls: boolean): Promise<POStats> {
+async function statCatalog(locale: string, catalog: Catalog, urls: boolean): Promise<POStats> {
     const stats: POStats = { Total: 0, Untranslated: 0, Obsolete: 0 }
     for (const item of catalog.values()) {
         if (itemIsUrl(item) !== urls) {
             continue
         }
         stats.Total++
-        if (!item.msgstr[0]) {
+        if (!item.translations.get(locale)!.msgstr[0]) {
             stats.Untranslated++
         }
         if (itemIsObsolete(item)) {
@@ -35,8 +35,9 @@ export async function status(config: Config, root: string, locales: string[]) {
     for (const [key, adapter] of Object.entries(config.adapters)) {
         const handler = new AdapterHandler(adapter, key, config, 'cli', root, new Logger(config.logLevel))
         handler.initSharedState(sharedStates)
+        const state = handler.sharedState
         const loaderPath = await handler.files.getLoaderPath()
-        console.log(`${color.magenta(key)}:`)
+        console.log(`${color.magenta(key)}: ${color.cyan(state.catalog.size)} messages`)
         if (loaderPath) {
             console.log(`  Loader files:`)
             for (const [side, path] of Object.entries(loaderPath)) {
@@ -53,9 +54,8 @@ export async function status(config: Config, root: string, locales: string[]) {
                 [locName, false],
                 [`${locName} URL`, true],
             ] as [string, boolean][]) {
-                const storage = handler.sharedState.storage.get(locale)
-                await storage.load()
-                const stats = await statCatalog(storage.catalog, url)
+                await state.load()
+                const stats = await statCatalog(locale, state.catalog, url)
                 if (stats.Total === 0) {
                     continue
                 }

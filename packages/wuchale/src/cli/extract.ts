@@ -6,9 +6,12 @@ import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
 import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
-import { itemIsObsolete } from '../storage.js'
+import { type Catalog, itemIsObsolete } from '../storage.js'
 
 type VisitFileFunc = (filename: string) => Promise<void>
+
+const dump = (catalog: Catalog) =>
+    JSON.stringify(Array.from(catalog.values()), (_, v) => (v instanceof Map ? Object.fromEntries(v) : v))
 
 async function directScanFS(
     handler: AdapterHandler,
@@ -18,26 +21,23 @@ async function directScanFS(
     sync: boolean,
     logger: Logger,
 ) {
-    const dumps: Map<string, string> = new Map()
-    for (const loc of handler.allLocales) {
-        const catalog = handler.sharedState.storage.get(loc)!.catalog
-        const items = Array.from(catalog.values())
-        dumps.set(loc, JSON.stringify(items))
-        if (clean) {
-            for (const item of items) {
-                item.references = item.references.filter(ref => {
-                    if (handler.fileMatches(ref.file)) {
-                        return false
-                    }
-                    if (handler.sharedState.ownerKey !== handler.key) {
-                        return true
-                    }
-                    return handler.sharedState.otherFileMatches.some(match => match(ref.file))
-                })
-            }
+    const state = handler.sharedState
+    const catalog = state.catalog
+    const initDump = dump(catalog)
+    if (clean) {
+        for (const item of catalog.values()) {
+            item.references = item.references.filter(ref => {
+                if (handler.fileMatches(ref.file)) {
+                    return false
+                }
+                if (handler.sharedState.ownerKey !== handler.key) {
+                    return true
+                }
+                return handler.sharedState.otherFileMatches.some(match => match(ref.file))
+            })
         }
-        await handler.initUrlPatterns(loc, catalog)
     }
+    await handler.initUrlPatterns(catalog)
     if (sync) {
         for (const fPath of filePaths) {
             await extract(fPath)
@@ -47,20 +47,14 @@ async function directScanFS(
     }
     if (clean) {
         logger.info('Cleaning...')
-    }
-    for (const loc of handler.allLocales) {
-        const storage = handler.sharedState.storage.get(loc)
-        const catalog = storage.catalog
-        if (clean) {
-            for (const [key, item] of catalog.entries()) {
-                if (itemIsObsolete(item)) {
-                    catalog.delete(key)
-                }
+        for (const [key, item] of catalog.entries()) {
+            if (itemIsObsolete(item)) {
+                catalog.delete(key)
             }
         }
-        if (JSON.stringify(Array.from(catalog.values())) !== dumps.get(loc)) {
-            await storage.save()
-        }
+    }
+    if (dump(catalog) !== initDump) {
+        await state.save()
     }
 }
 
