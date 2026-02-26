@@ -376,6 +376,7 @@ export class AdapterHandler {
                     file: filename,
                     refs: refNotEmpty ? [refEntry] : [],
                 })
+                item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // make deterministic
                 newRefs = true // now it references it
             } else {
                 if (refNotEmpty) {

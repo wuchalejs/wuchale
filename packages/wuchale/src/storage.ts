@@ -1,5 +1,5 @@
 export type FileRefEntry = {
-    link?: string
+    link?: string // for URLs
     placeholders: [number, string][]
 }
 
@@ -18,7 +18,7 @@ export interface Item {
     context?: string
     translations: Map<string, Translation>
     references: FileRef[]
-    urlAdapters: string[]
+    urlAdapters: string[] // for URLs
 }
 
 export function fillTranslations(item: Item, locales: string[]) {

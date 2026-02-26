@@ -8,7 +8,7 @@ import {
 import { Message, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
-import { type Catalog, type Item, itemIsUrl, newItem } from '../storage.js'
+import { type Catalog, type Item, newItem } from '../storage.js'
 import { type URLManifest } from '../url.js'
 
 export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
@@ -90,7 +90,7 @@ export class URLHandler {
             const key = urlPatternCatKeys[i]
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
-            if (!item || !itemIsUrl(item)) {
+            if (!item) {
                 item = newItem({ id: [locPattern] }, this.locales)
                 catalog.set(key, item)
                 needWriteCatalog = true

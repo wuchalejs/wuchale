@@ -26,7 +26,6 @@ export function itemToPOItem(item: Item, locale: string): POItem {
     poi.msgid_plural = item.id[1]
     poi.msgstr = item.translations.get(locale)?.text!
     poi.msgctxt = item.context
-    item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
     poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [{ placeholders: [] }]).map(_ => r.file))
     poi.extractedComments = item.references
         .filter(r => r.refs.length)

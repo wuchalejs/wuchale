@@ -57,7 +57,7 @@ export default class AIQueue {
     }
 
     #requestName = (id: number, targetLocale: string) =>
-        `${color.cyan(this.ai.name)}: ${getLanguageName(targetLocale)} [${id}]`
+        `${color.cyan(this.ai.name)}: ${this.sourceLocale}..${targetLocale} [${id}]`
 
     translate = async (batch: Batch, attempt = 0) => {
         const logStart = this.#requestName(batch.id, batch.targetLocale)
@@ -148,9 +148,9 @@ export default class AIQueue {
             if (items.length === 0) {
                 continue
             }
-            const batch = { id: this.nextBatchId, targetLocale: loc, messages }
+            const batch = { id: this.nextBatchId, targetLocale: loc, messages: items }
             this.batches.push(batch)
-            opInfo.push([color.yellow('(new)'), batch, messages.length])
+            opInfo.push([color.yellow('(new)'), batch, items.length])
             this.nextBatchId++
         }
         for (const [opType, batch, msgsLen] of opInfo) {
