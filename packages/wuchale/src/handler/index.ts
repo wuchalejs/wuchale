@@ -336,11 +336,9 @@ export class AdapterHandler {
             const key = new Message(item.id, undefined, item.context).toKey()
             previousReferences.set(key, { ref: existingRef, reused: 0 })
         }
-        let newItems: boolean = false
+        let needsWrite = false
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
-        let newRefs = false
-        let commentsChanged = false
         for (const msgInfo of msgs) {
             let key = msgInfo.toKey()
             hmrKeys.push(key)
@@ -357,32 +355,46 @@ export class AdapterHandler {
             if (!item) {
                 item = newItem({ id: msgInfo.msgStr }, this.allLocales)
                 this.sharedState.catalog.set(key, item)
+                needsWrite = true
             }
-            const refEntry: FileRefEntry = {
+            const newRef: FileRefEntry = {
                 placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
             }
             if (msgInfo.type === 'url') {
                 const refKey = msgInfo.toKey()
                 if (refKey !== key) {
-                    refEntry.link = msgInfo.msgStr[0]
+                    newRef.link = msgInfo.msgStr[0]
                 }
             } else if (msgInfo.context) {
                 item.context = msgInfo.context
             }
-            const refNotEmpty = refEntry.link != null || msgInfo.placeholders.length > 0
+            const newRefNotEmpty = newRef.link != null || msgInfo.placeholders.length > 0
             const prevRef = previousReferences.get(key)
             if (prevRef == null) {
                 item.references.push({
                     file: filename,
-                    refs: refNotEmpty ? [refEntry] : [],
+                    refs: newRefNotEmpty ? [newRef] : [],
                 })
                 item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // make deterministic
-                newRefs = true // now it references it
+                needsWrite = true // now it references it
             } else {
-                if (refNotEmpty) {
-                    prevRef.ref.refs[prevRef.reused] = refEntry
+                const prevR = prevRef.ref.refs[prevRef.reused]
+                if (
+                    prevR != null &&
+                    newRefNotEmpty &&
+                    (prevR.link !== newRef.link ||
+                        prevR.placeholders.length !== newRef.placeholders.length ||
+                        prevR.placeholders.some(([oldN, oldP], i) => {
+                            const [newN, newP] = newRef.placeholders[i] ?? []
+                            return newN !== oldN || newP !== oldP
+                        }))
+                ) {
+                    needsWrite = true
+                    if (newRefNotEmpty) {
+                        prevRef.ref.refs[prevRef.reused] = newRef
+                        prevRef.reused++
+                    }
                 }
-                prevRef.reused++
             }
             if (msgInfo.type === 'url') {
                 // already translated or attempted at startup
@@ -396,22 +408,18 @@ export class AdapterHandler {
             toTranslate.push(item)
         }
         for (const info of previousReferences.values()) {
-            info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
-        }
-        if (toTranslate.length === 0) {
-            if (newRefs || previousReferences.size || commentsChanged) {
-                await this.saveAndCompile()
+            if (info.reused < info.ref.refs.length) {
+                info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
+                needsWrite = true
             }
-            return hmrKeys
         }
-        if (!this.#aiQueue?.ai) {
-            if (newItems || newRefs || commentsChanged) {
-                await this.saveAndCompile()
-            }
-            return hmrKeys
+        if (this.#aiQueue?.ai) {
+            this.#aiQueue.add(toTranslate)
+            await this.#aiQueue.running
         }
-        this.#aiQueue.add(toTranslate)
-        await this.#aiQueue.running
+        if (needsWrite) {
+            await this.saveAndCompile()
+        }
         return hmrKeys
     }
 
