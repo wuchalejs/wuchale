@@ -141,22 +141,23 @@ export class URLHandler {
             return toCompile
         }
         // e.g. relevantPattern: /items/:rest
-        const patternItem = catalog.get(this.patternKeys.get(relevantPattern) ?? '')
-        if (patternItem) {
-            // e.g. patternItem.msgid: /items/{0}
-            const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
-            // e.g. matchUrl.params: {rest: 'foo/{0}'}
-            if (matchedUrl) {
-                const translatedPattern = patternItem.translations.get(locale)!.text[0] || patternItem.id[0]
-                // e.g. translatedPattern: /elementos/{0}
-                const { keys } = pathToRegexp(relevantPattern)
-                const translatedPattUrl = patternFromTranslate(translatedPattern, keys)
-                // e.g. translatedPattUrl: /elementos/:rest
-                const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
-                toCompile = compileTranslated(matchedUrl.params)
-                // e.g. toCompile: /elementos/foo/{0}
-            }
+        const patternItem = catalog.get(this.patternKeys.get(relevantPattern)!)
+        if (!patternItem) {
+            return toCompile
         }
-        return toCompile
+        // e.g. patternItem.id: /items/{0}
+        const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
+        // e.g. matchUrl.params: {rest: 'foo/{0}'}
+        if (!matchedUrl) {
+            return toCompile
+        }
+        const translatedPattern = patternItem.translations.get(locale)!.text[0] || patternItem.id[0]
+        // e.g. translatedPattern: /elementos/{0}
+        const { keys } = pathToRegexp(relevantPattern)
+        const translatedPattUrl = patternFromTranslate(translatedPattern, keys)
+        // e.g. translatedPattUrl: /elementos/:rest
+        const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
+        return compileTranslated(matchedUrl.params)
+        // e.g. return /elementos/foo/{0}
     }
 }

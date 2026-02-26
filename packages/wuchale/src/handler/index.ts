@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr } from '../adapters.js'
@@ -7,7 +8,7 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
-import { type Catalog, type FileRef, type FileRefEntry, type Item, newItem } from '../storage.js'
+import { type FileRef, type FileRefEntry, type Item, newItem } from '../storage.js'
 import { Files, globConfToArgs, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, SharedStates, State } from './state.js'
 import { URLHandler } from './url.js'
@@ -23,6 +24,14 @@ const bundleCatalogsVarName = '_w_catalogs_'
 export type Mode = 'dev' | 'build' | 'cli'
 
 type TransformOutputCode = { code?: string; map?: any }
+
+type TrackedRefs = Map<
+    string,
+    {
+        ref: FileRef
+        used: number
+    }
+>
 
 export class AdapterHandler {
     key: string
@@ -66,7 +75,7 @@ export class AdapterHandler {
             this.allLocales.push(this.sourceLocale)
         }
         if (this.#config.ai) {
-            this.#aiQueue = new AIQueue(this.sourceLocale, this.#config.ai, this.saveAndCompile, this.#log)
+            this.#aiQueue = new AIQueue(this.sourceLocale, this.#config.ai, this.saveStorageCompile, this.#log)
         }
         this.url = new URLHandler(this.allLocales, adapter.url)
         this.files = new Files(this.#adapter, this.key, this.#config.localesDir, this.#projectRoot)
@@ -87,10 +96,6 @@ export class AdapterHandler {
         return [loadIDs, loadIDs]
     }
 
-    initUrlPatterns = async (catalog: Catalog) => {
-        return await this.url.initPatterns(this.sourceLocale, this.key, catalog, this.#aiQueue)
-    }
-
     initSharedState = (sharedStates: SharedStates) => {
         const storage = this.#adapter.storage({
             locales: this.allLocales,
@@ -106,19 +111,37 @@ export class AdapterHandler {
         await this.files.init(this.#config.locales, this.sharedState.ownerKey, this.sourceLocale)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
-        await this.loadCatalogNCompile()
-        if (await this.initUrlPatterns(this.sharedState.catalog)) {
-            await this.saveAndCompile()
+        await this.loadStorage()
+        if (await this.url.initPatterns(this.sourceLocale, this.key, this.sharedState.catalog, this.#aiQueue)) {
+            await this.saveStorage()
         }
+        await this.compile()
         await writeProxies()
         await this.files.writeUrlFiles(this.url.buildManifest(this.sharedState.catalog), this.#config.locales[0])
     }
 
-    loadCatalogNCompile = async (hmrVersion = -1) => {
+    loadStorage = async () => {
         if (this.sharedState.ownerKey === this.key) {
             await this.sharedState.load(this.allLocales)
         }
-        await Promise.all(this.allLocales.map(loc => this.compile(loc, hmrVersion)))
+    }
+
+    saveStorage = async () => {
+        this.onBeforeSave?.()
+        if (this.#mode === 'cli') {
+            // save for the end
+            return
+        }
+        await this.sharedState.save()
+    }
+
+    compile = async (hmrVersion = -1) => {
+        await Promise.all(this.allLocales.map(loc => this.#compileForLocale(loc, hmrVersion)))
+    }
+
+    saveStorageCompile = async () => {
+        await this.saveStorage()
+        await this.compile()
     }
 
     writeCompiled = async (loc: string, hmrVersion = -1) => {
@@ -173,14 +196,13 @@ export class AdapterHandler {
         return ''
     }
 
-    compile = async (loc: string, hmrVersion = -1) => {
+    #compileForLocale = async (loc: string, hmrVersion = -1) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
             sharedCompiledLoc = { hasPlurals: false, items: [] }
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
-        const catalog = this.sharedState.catalog
-        for (const [itemKey, item] of catalog.entries()) {
+        for (const [itemKey, item] of this.sharedState.catalog) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
             if (!item.references.some(r => this.fileMatches(r.file))) {
@@ -214,7 +236,7 @@ export class AdapterHandler {
                 } else {
                     let toCompile = transl.text[0]
                     if (item.urlAdapters.length > 0) {
-                        toCompile = this.url.matchToCompile(key, catalog, loc)
+                        toCompile = this.url.matchToCompile(key, this.sharedState.catalog, loc)
                     }
                     compiled = compileTranslation(toCompile, fallback)
                 }
@@ -231,16 +253,6 @@ export class AdapterHandler {
             }
         }
         await this.writeCompiled(loc, hmrVersion)
-    }
-
-    saveAndCompile = async () => {
-        this.onBeforeSave?.()
-        if (this.#mode === 'cli') {
-            // save for the end
-            return
-        }
-        await this.sharedState.save()
-        await Promise.all(this.allLocales.map(loc => this.compile(loc)))
     }
 
     #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
@@ -326,16 +338,67 @@ export class AdapterHandler {
         }
     }
 
-    handleMessages = async (msgs: Message[], filename: string): Promise<string[]> => {
-        const previousReferences: Map<string, { ref: FileRef; reused: number }> = new Map()
+    popTrackedRefs = (filename: string) => {
+        const previousReferences: TrackedRefs = new Map()
         for (const item of this.sharedState.catalog.values()) {
             const existingRef = item.references.find(r => r.file === filename)
             if (!existingRef) {
                 continue
             }
             const key = new Message(item.id, undefined, item.context).toKey()
-            previousReferences.set(key, { ref: existingRef, reused: 0 })
+            previousReferences.set(key, { ref: existingRef, used: 0 })
         }
+        return previousReferences
+    }
+
+    updateRef = (item: Item, key: string, filename: string, msgInfo: Message, trackedRefrences: TrackedRefs) => {
+        let needsWrite = false
+        const newRef: FileRefEntry = {
+            placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
+        }
+        if (msgInfo.type === 'url' && msgInfo.toKey() !== key) {
+            newRef.link = msgInfo.msgStr[0]
+        }
+        const newRefNotEmpty = newRef.link != null || msgInfo.placeholders.length > 0
+        const prevRef = trackedRefrences.get(key)
+        if (prevRef == null) {
+            const newFileRef: FileRef = {
+                file: filename,
+                refs: newRefNotEmpty ? [newRef] : [],
+            }
+            trackedRefrences.set(key, { ref: newFileRef, used: 1 })
+            item.references.push(newFileRef)
+            item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // make deterministic
+            needsWrite = true // now it references it
+        } else {
+            const pr = prevRef.ref.refs[prevRef.used]
+            if (!newRef.link && pr) {
+                delete pr.link
+            }
+            if (!isDeepStrictEqual(pr, newRefNotEmpty ? newRef : undefined)) {
+                needsWrite = true
+            }
+            if (newRefNotEmpty) {
+                prevRef.ref.refs[prevRef.used] = newRef
+                prevRef.used++
+            }
+        }
+        return needsWrite
+    }
+
+    cleanTrackedRefs = (trackedRefs: TrackedRefs) => {
+        let cleaned = false
+        for (const info of trackedRefs.values()) {
+            if (info.used < info.ref.refs.length) {
+                info.ref.refs = info.ref.refs.slice(0, info.used) // trim unused
+                cleaned = true
+            }
+        }
+        return cleaned
+    }
+
+    handleMessages = async (msgs: Message[], filename: string): Promise<string[]> => {
+        const previousReferences = this.popTrackedRefs(filename)
         let needsWrite = false
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
@@ -357,49 +420,18 @@ export class AdapterHandler {
                 this.sharedState.catalog.set(key, item)
                 needsWrite = true
             }
-            const newRef: FileRefEntry = {
-                placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
-            }
-            if (msgInfo.type === 'url') {
-                const refKey = msgInfo.toKey()
-                if (refKey !== key) {
-                    newRef.link = msgInfo.msgStr[0]
-                }
-            } else if (msgInfo.context) {
-                item.context = msgInfo.context
-            }
-            const newRefNotEmpty = newRef.link != null || msgInfo.placeholders.length > 0
-            const prevRef = previousReferences.get(key)
-            if (prevRef == null) {
-                item.references.push({
-                    file: filename,
-                    refs: newRefNotEmpty ? [newRef] : [],
-                })
-                item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // make deterministic
-                needsWrite = true // now it references it
-            } else {
-                const prevR = prevRef.ref.refs[prevRef.reused]
-                if (
-                    prevR != null &&
-                    newRefNotEmpty &&
-                    (prevR.link !== newRef.link ||
-                        prevR.placeholders.length !== newRef.placeholders.length ||
-                        prevR.placeholders.some(([oldN, oldP], i) => {
-                            const [newN, newP] = newRef.placeholders[i] ?? []
-                            return newN !== oldN || newP !== oldP
-                        }))
-                ) {
-                    needsWrite = true
-                    if (newRefNotEmpty) {
-                        prevRef.ref.refs[prevRef.reused] = newRef
-                        prevRef.reused++
-                    }
-                }
+            if (this.updateRef(item, key, filename, msgInfo, previousReferences)) {
+                needsWrite = true
             }
             if (msgInfo.type === 'url') {
                 // already translated or attempted at startup
+                // and context not to be updated
                 continue
             }
+            if (msgInfo.context !== item.context) {
+                needsWrite = true
+            }
+            item.context = msgInfo.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
             const msgStr = msgInfo.msgStr.join('\n')
             if (sourceTransl.text.join('\n') !== msgStr) {
@@ -407,18 +439,15 @@ export class AdapterHandler {
             }
             toTranslate.push(item)
         }
-        for (const info of previousReferences.values()) {
-            if (info.reused < info.ref.refs.length) {
-                info.ref.refs = info.ref.refs.slice(0, info.reused) // trim unused
-                needsWrite = true
-            }
-        }
         if (this.#aiQueue?.ai) {
             this.#aiQueue.add(toTranslate)
             await this.#aiQueue.running
         }
-        if (needsWrite) {
-            await this.saveAndCompile()
+        if (this.cleanTrackedRefs(previousReferences)) {
+            needsWrite = true
+        }
+        if (needsWrite && this.#mode != 'cli') {
+            await this.saveStorageCompile()
         }
         return hmrKeys
     }

@@ -37,7 +37,6 @@ async function directScanFS(
             })
         }
     }
-    await handler.initUrlPatterns(catalog)
     if (sync) {
         for (const fPath of filePaths) {
             await extract(fPath)

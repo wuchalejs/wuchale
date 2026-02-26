@@ -191,7 +191,8 @@ export class Wuchale {
         for (const adapter of adapters) {
             for (const loc of adapter.allLocales) {
                 if (!sourceTriggered) {
-                    await adapter.loadCatalogNCompile(this.#hmrVersion)
+                    await adapter.loadStorage()
+                    await adapter.compile(this.#hmrVersion)
                 }
                 for (const loadID of adapter.getLoadIDs()[0]) {
                     const fileID = normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID)))
