@@ -1,6 +1,6 @@
 export type FileRefEntry = {
     link?: string
-    placeholders: Record<string, string>
+    placeholders: [number, string][]
 }
 
 export type FileRef = {

@@ -27,7 +27,7 @@ export function itemToPOItem(item: Item, locale: string): POItem {
     poi.msgstr = item.translations.get(locale)?.text!
     poi.msgctxt = item.context
     item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // deterministic
-    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [{ placeholders: {} }]).map(_ => r.file))
+    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [{ placeholders: [] }]).map(_ => r.file))
     poi.extractedComments = item.references
         .filter(r => r.refs.length)
         .flatMap(r =>
@@ -36,7 +36,7 @@ export function itemToPOItem(item: Item, locale: string): POItem {
                 if (frEntry.link) {
                     comm.push(frEntry.link)
                 }
-                for (const [i, ph] of Object.entries(frEntry.placeholders)) {
+                for (const [i, ph] of frEntry.placeholders) {
                     comm.push(`${i}: ${ph}`)
                 }
                 return comm.join('; ')
@@ -71,7 +71,7 @@ export function poitemToItem(item: POItem, locale: string): Item {
         if (!comm) {
             continue
         }
-        const refEnt: FileRefEntry = { placeholders: {} }
+        const refEnt: FileRefEntry = { placeholders: [] }
         const commSp = comm.split('; ')
         let phStart = 0
         if (urlAdapters.length) {
@@ -81,7 +81,7 @@ export function poitemToItem(item: POItem, locale: string): Item {
         }
         for (const c of commSp.slice(phStart)) {
             const [i, ph] = c.split(': ', 2)
-            refEnt.placeholders[i] = ph
+            refEnt.placeholders.push([Number(i), ph])
         }
         lastRef.refs.push(refEnt)
     }

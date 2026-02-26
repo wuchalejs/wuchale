@@ -359,9 +359,7 @@ export class AdapterHandler {
                 this.sharedState.catalog.set(key, item)
             }
             const refEntry: FileRefEntry = {
-                placeholders: Object.fromEntries(
-                    msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
-                ),
+                placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
             }
             if (msgInfo.type === 'url') {
                 const refKey = msgInfo.toKey()
