@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
-import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr } from '../adapters.js'
+import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr, TransformOutputCode } from '../adapters.js'
 import { Message } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
@@ -22,8 +22,6 @@ const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
 export type Mode = 'dev' | 'build' | 'cli'
-
-type TransformOutputCode = { code?: string; map?: any }
 
 type TrackedRefs = Map<
     string,
@@ -212,12 +210,8 @@ export class AdapterHandler {
             if (item.urlAdapters.length > 0) {
                 keys = []
                 for (const reference of item.references) {
-                    if (reference.refs.length === 0) {
-                        keys.push(item.id[0]) // plain url like /home
-                        continue
-                    }
                     for (const ref of reference.refs) {
-                        keys.push(ref[0] ?? item.id[0]) // first one is the link, rest are placeholders
+                        keys.push(ref?.link ?? item.id[0])
                     }
                 }
             }
@@ -352,54 +346,59 @@ export class AdapterHandler {
     }
 
     updateRef = (item: Item, key: string, filename: string, msgInfo: Message, trackedRefrences: TrackedRefs) => {
-        let needsWrite = false
+        let updated = false
         const newRef: FileRefEntry = {
             placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
         if (msgInfo.type === 'url' && msgInfo.toKey() !== key) {
             newRef.link = msgInfo.msgStr[0]
         }
-        const newRefNotEmpty = newRef.link != null || msgInfo.placeholders.length > 0
+        const newRefEntry = newRef.link || msgInfo.placeholders.length ? newRef : null
         const prevRef = trackedRefrences.get(key)
         if (prevRef == null) {
             const newFileRef: FileRef = {
                 file: filename,
-                refs: newRefNotEmpty ? [newRef] : [],
+                refs: [newRefEntry],
             }
+            // for same file multiple refs, not to create a new FileRef
             trackedRefrences.set(key, { ref: newFileRef, used: 1 })
             item.references.push(newFileRef)
             item.references.sort((r1, r2) => (r1.file < r2.file ? -1 : 1)) // make deterministic
-            needsWrite = true // now it references it
+            updated = true // now it references it
         } else {
             const pr = prevRef.ref.refs[prevRef.used]
             if (!newRef.link && pr) {
                 delete pr.link
             }
-            if (!isDeepStrictEqual(pr, newRefNotEmpty ? newRef : undefined)) {
-                needsWrite = true
+            if (!isDeepStrictEqual(pr, newRefEntry)) {
+                updated = true
             }
-            if (newRefNotEmpty) {
-                prevRef.ref.refs[prevRef.used] = newRef
-                prevRef.used++
-            }
+            prevRef.ref.refs[prevRef.used] = newRefEntry
+            prevRef.used++
         }
-        return needsWrite
+        return updated
     }
 
     cleanTrackedRefs = (trackedRefs: TrackedRefs) => {
         let cleaned = false
-        for (const info of trackedRefs.values()) {
+        for (const [key, info] of trackedRefs) {
             if (info.used < info.ref.refs.length) {
                 info.ref.refs = info.ref.refs.slice(0, info.used) // trim unused
                 cleaned = true
             }
+            if (info.ref.refs.length > 0) {
+                continue
+            }
+            const item = this.sharedState.catalog.get(key)!
+            item.references = item.references.filter(ref => ref.refs.length > 0)
+            // after this, it can be marked obsolete and cleaned by cli
         }
         return cleaned
     }
 
-    handleMessages = async (msgs: Message[], filename: string): Promise<string[]> => {
+    handleMessages = async (msgs: Message[], filename: string): Promise<[string[], boolean]> => {
         const previousReferences = this.popTrackedRefs(filename)
-        let needsWrite = false
+        let updated = false
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
         for (const msgInfo of msgs) {
@@ -418,10 +417,10 @@ export class AdapterHandler {
             if (!item) {
                 item = newItem({ id: msgInfo.msgStr }, this.allLocales)
                 this.sharedState.catalog.set(key, item)
-                needsWrite = true
+                updated = true
             }
             if (this.updateRef(item, key, filename, msgInfo, previousReferences)) {
-                needsWrite = true
+                updated = true
             }
             if (msgInfo.type === 'url') {
                 // already translated or attempted at startup
@@ -429,7 +428,7 @@ export class AdapterHandler {
                 continue
             }
             if (msgInfo.context !== item.context) {
-                needsWrite = true
+                updated = true
             }
             item.context = msgInfo.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
@@ -444,12 +443,12 @@ export class AdapterHandler {
             await this.#aiQueue.running
         }
         if (this.cleanTrackedRefs(previousReferences)) {
-            needsWrite = true
+            updated = true
         }
-        if (needsWrite && this.#mode != 'cli') {
+        if (updated && this.#mode != 'cli') {
             await this.saveStorageCompile()
         }
-        return hmrKeys
+        return [hmrKeys, updated]
     }
 
     transform = async (
@@ -457,7 +456,7 @@ export class AdapterHandler {
         filename: string,
         hmrVersion = -1,
         forServer = false,
-    ): Promise<TransformOutputCode> => {
+    ): Promise<[TransformOutputCode, boolean]> => {
         filename = normalizeSep(filename)
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
@@ -476,6 +475,7 @@ export class AdapterHandler {
             matchUrl: this.url.match,
         })
         let hmrData: HMRData | null = null
+        let updated = false
         if (this.#mode !== 'build') {
             if (this.#log.checkLevel('verbose')) {
                 if (msgs.length) {
@@ -487,7 +487,8 @@ export class AdapterHandler {
                     this.#log.verbose(`${this.key}: No messages from ${filename}.`)
                 }
             }
-            const hmrKeys: string[] = await this.handleMessages(msgs, filename)
+            const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename)
+            updated = updatedItems
             if (msgs.length && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#config.locales) {
@@ -512,6 +513,6 @@ export class AdapterHandler {
             )
         }
         await this.files.writeTransformed(filename, output.code ?? content)
-        return output
+        return [output, updated]
     }
 }

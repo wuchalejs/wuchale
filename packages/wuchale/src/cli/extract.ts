@@ -6,12 +6,9 @@ import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
 import { SharedStates } from '../handler/state.js'
 import { color, Logger } from '../log.js'
-import { type Catalog, itemIsObsolete } from '../storage.js'
+import { itemIsObsolete } from '../storage.js'
 
-type VisitFileFunc = (filename: string) => Promise<void>
-
-const dump = (catalog: Catalog) =>
-    JSON.stringify(Array.from(catalog.values()), (_, v) => (v instanceof Map ? Object.fromEntries(v) : v))
+type VisitFileFunc = (filename: string) => Promise<boolean>
 
 async function directScanFS(
     handler: AdapterHandler,
@@ -23,36 +20,41 @@ async function directScanFS(
 ) {
     const state = handler.sharedState
     const catalog = state.catalog
-    const initDump = dump(catalog)
-    if (clean) {
-        for (const item of catalog.values()) {
-            item.references = item.references.filter(ref => {
-                if (handler.fileMatches(ref.file)) {
-                    return false
-                }
-                if (handler.sharedState.ownerKey !== handler.key) {
-                    return true
-                }
-                return handler.sharedState.otherFileMatches.some(match => match(ref.file))
-            })
-        }
-    }
+    let updated = false
     if (sync) {
         for (const fPath of filePaths) {
-            await extract(fPath)
+            updated ||= await extract(fPath)
         }
     } else {
-        await Promise.all(filePaths.map(extract))
+        updated ||= (await Promise.all(filePaths.map(extract))).some(r => r)
     }
-    if (clean) {
-        logger.info('Cleaning...')
-        for (const [key, item] of catalog.entries()) {
+    // only owner adapter should clean
+    if (clean && handler.sharedState.ownerKey === handler.key) {
+        const adapterNameLog = color.magenta(handler.key)
+        logger.info(`${adapterNameLog}: Cleaning...`)
+        let cleaned = 0
+        for (const [key, item] of catalog) {
+            const initRefsN = item.references.length
+            item.references = item.references.filter(
+                ref =>
+                    handler.fileMatches(ref.file) ||
+                    handler.sharedState.otherFileMatches.some(match => match(ref.file)),
+            )
+            if (item.references.length < initRefsN) {
+                updated = true
+                cleaned++
+            }
             if (itemIsObsolete(item)) {
                 catalog.delete(key)
+                updated = true
+                cleaned++
             }
         }
+        if (cleaned) {
+            logger.info(`${adapterNameLog}: Cleaned ${cleaned} items`)
+        }
     }
-    if (dump(catalog) !== initDump) {
+    if (updated) {
         await state.save()
     }
 }
@@ -69,11 +71,14 @@ export async function extract(config: Config, root: string, clean: boolean, watc
         const extract = async (filename: string) => {
             logger.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
             const contents = await readFile(filename)
-            await handler.transform(contents.toString(), filename)
+            const [, updated] = await handler.transform(contents.toString(), filename)
+            return updated
         }
         const filePaths = await glob(...globConfToArgs(adapter.files, config.localesDir, adapter.outDir))
         handlers.push([handler, extract, filePaths])
     }
+    // owner adapter handlers should run last for cleanup
+    handlers.sort(([handler]) => (handler.sharedState.ownerKey === handler.key ? 1 : -1))
     // separate loop to make sure that all otherFileMatchers are collected
     for (const [handler, extract, files] of handlers) {
         await directScanFS(handler, extract, files, clean, sync, logger)

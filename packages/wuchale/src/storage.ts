@@ -5,7 +5,11 @@ export type FileRefEntry = {
 
 export type FileRef = {
     file: string
-    refs: FileRefEntry[]
+    /**
+     * multiple references in the same file
+     * null when there is no link or placeholders just that it's referenced
+     */
+    refs: (FileRefEntry | null)[]
 }
 
 export type Translation = {

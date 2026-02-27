@@ -26,11 +26,13 @@ export function itemToPOItem(item: Item, locale: string): POItem {
     poi.msgid_plural = item.id[1]
     poi.msgstr = item.translations.get(locale)?.text!
     poi.msgctxt = item.context
-    poi.references = item.references.flatMap(r => (r.refs.length ? r.refs : [{ placeholders: [] }]).map(_ => r.file))
+    poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
     poi.extractedComments = item.references
-        .filter(r => r.refs.length)
         .flatMap(r =>
             r.refs.map(frEntry => {
+                if (frEntry === null) {
+                    return null
+                }
                 let comm: string[] = []
                 if (frEntry.link) {
                     comm.push(frEntry.link)
@@ -41,6 +43,7 @@ export function itemToPOItem(item: Item, locale: string): POItem {
                 return comm.join('; ')
             }),
         )
+        .filter(c => c !== null)
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
@@ -68,6 +71,7 @@ export function poitemToItem(item: POItem, locale: string): Item {
         }
         const comm = item.extractedComments[i]?.trim()
         if (!comm) {
+            lastRef.refs.push(null)
             continue
         }
         const refEnt: FileRefEntry = { placeholders: [] }

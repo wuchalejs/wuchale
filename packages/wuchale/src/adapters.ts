@@ -194,10 +194,12 @@ export type HMRData = {
     data: Record<string, [number, CompiledElement][]>
 }
 
-export type TransformOutputFunc = (header: string) => {
+export type TransformOutputCode = {
     code?: string
     map?: any
 }
+
+export type TransformOutputFunc = (header: string) => TransformOutputCode
 
 export type TransformOutput = {
     output: TransformOutputFunc

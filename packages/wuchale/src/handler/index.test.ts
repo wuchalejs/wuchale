@@ -34,7 +34,7 @@ await handler.init(new SharedStates())
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`
     t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 1)).code),
+        trimLines((await handler.transform(content, 'test.js', 1))[0].code),
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../../testing/tmp/test.loader.js"
 

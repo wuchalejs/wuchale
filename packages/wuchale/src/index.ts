@@ -14,6 +14,7 @@ export type {
     RuntimeConf,
     RuntimeExpr as CatalogExpr,
     TransformOutput,
+    TransformOutputCode,
     URLConf,
     UrlMatcher,
 } from './adapters.js'

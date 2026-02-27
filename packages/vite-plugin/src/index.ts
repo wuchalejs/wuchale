@@ -224,7 +224,8 @@ export class Wuchale {
         for (const adapter of this.#adapters.values()) {
             if (adapter.fileMatches(filename)) {
                 try {
-                    return await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
+                    const [output] = await adapter.transform(code, filename, this.#hmrVersion, options?.ssr)
+                    return output
                 } catch (err) {
                     toViteError(err, adapter.key, filename)
                 }
