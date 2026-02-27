@@ -1,0 +1,59 @@
+{
+    "name": "@wuchale/go",
+    "version": "0.1.0",
+    "description": "Protobuf-like i18n from plain code: Golang adapter",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "go build src/main.go && ./main tests/test.go"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "golang",
+        "go",
+        "vite",
+        "po",
+        "go-i18n",
+        "golang-i18n",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight"
+    ],
+    "files": [
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./runtime.svelte": "./src/runtime.svelte"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "dependencies": {
+        "svelte": "^5.37.0",
+        "wuchale": "^0.17.1"
+    },
+    "devDependencies": {
+        "acorn": "^8.15.0",
+        "typescript": "^5.9.3"
+    },
+    "type": "module"
+}
