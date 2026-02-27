@@ -1,4 +1,4 @@
-import type { AI } from './index.js'
+import type { AI, AIPassThruOpts } from './index.js'
 
 const url = 'https://generativelanguage.googleapis.com/v1beta/models/'
 const headers = { 'Content-Type': 'application/json' }
@@ -31,17 +31,18 @@ function prepareData(content: string, instruction: string, think: boolean) {
     }
 }
 
-type GeminiOpts = {
-    apiKey?: string
-    model?: string
-    batchSize?: number
-    think?: boolean
-    parallel?: number
-}
+type GeminiOpts = Partial<
+    AIPassThruOpts & {
+        apiKey: string
+        model: string
+        think: boolean
+    }
+>
 
 export function gemini({
     apiKey = 'env',
     model = 'gemini-2.5-flash',
+    group = {},
     batchSize = 50,
     think = false,
     parallel = 4,
@@ -55,6 +56,7 @@ export function gemini({
     return {
         name: 'Gemini',
         batchSize,
+        group,
         parallel,
         translate: async (content: string, instruction: string) => {
             const data = prepareData(content, instruction, think)
