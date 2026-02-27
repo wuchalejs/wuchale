@@ -124,3 +124,37 @@ export function compileTranslation(msgStr: string, fallback: CompiledElement): C
         return fallback
     }
 }
+
+export function isEquivalent(source: CompiledElement, translation: CompiledElement) {
+    const sourceStr = typeof source === 'string'
+    const translStr = typeof translation === 'string'
+    if (sourceStr || translStr) {
+        return sourceStr === translStr
+    }
+    if (source.length !== translation.length) {
+        return false
+    }
+    let strings = 0
+    for (const elm of source) {
+        if (typeof elm === 'string') {
+            strings++
+            continue
+        }
+        if (typeof elm === 'number') {
+            if (!translation.includes(elm)) {
+                return false
+            }
+            continue
+        }
+        const transl = translation.find(t => Array.isArray(t) && t[0] === elm[0]) as Composite | null
+        if (transl == null || !isEquivalent(elm.slice(1), transl.slice(1))) {
+            return false
+        }
+    }
+    for (const transl of translation) {
+        if (typeof transl === 'string') {
+            strings--
+        }
+    }
+    return strings === 0
+}

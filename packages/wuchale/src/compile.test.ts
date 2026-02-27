@@ -1,7 +1,7 @@
-// $ node --import ../../testing/resolve.ts %f
+// $ node --import ../testing/resolve.ts %f
 
-import { test } from 'node:test'
-import { type CompiledElement, compileTranslation } from './compile.js'
+import { type TestContext, test } from 'node:test'
+import { type CompiledElement, compileTranslation, isEquivalent } from './compile.js'
 
 test('Compile messages', t => {
     const testCompile = (msg: string, expect: CompiledElement) =>
@@ -18,4 +18,15 @@ test('Compile messages', t => {
         [1],
         ' bar',
     ])
+})
+
+test('Compare compiled equivalent', (t: TestContext) => {
+    t.assert.ok(isEquivalent('orig', 'transl'))
+    t.assert.ok(isEquivalent(['orig ', 0], ['transl ', 0]))
+    t.assert.ok(
+        isEquivalent(
+            ['foo ', [0, 'some orig ', [0], ' ', 0, ' ', [1, 'nest orig ', 0]], ' ', [1], ' orig'],
+            [[1], [0, 'translated ', [0], [1, 'nest other ord ', 0], ' ', 0, ' '], ' ', 'other order ', ' transl'],
+        ),
+    )
 })

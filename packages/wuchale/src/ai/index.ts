@@ -1,6 +1,7 @@
 // $$ cd .. && npm run test
 // $$ node %f
 
+import { compileTranslation, isEquivalent } from '../compile.js'
 import { getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
 import type { Item } from '../storage.js'
@@ -115,14 +116,20 @@ export default class AIQueue {
         const unTranslated: Item[] = batch.messages.slice(translated.length)
         for (const [i, outItem] of translated.entries()) {
             const item = batch.messages[i]
+            const sourceComp = item.id.map(i => compileTranslation(i, ''))
             for (const loc of batch.targetLocales) {
-                const msgstr = outItem[loc]
-                if (msgstr?.[0]) {
-                    item.translations.get(loc)!.text = msgstr
-                } else {
+                const translation = outItem[loc]
+                if (translation.length !== item.id.length) {
                     unTranslated.push(item)
                     break
                 }
+                for (const [i, sou] of sourceComp.entries()) {
+                    if (!isEquivalent(sou, compileTranslation(translation[i], ''))) {
+                        unTranslated.push(item)
+                        break
+                    }
+                }
+                item.translations.get(loc)!.text = translation
             }
         }
         if (unTranslated.length === 0) {
