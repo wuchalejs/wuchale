@@ -150,6 +150,41 @@ test('Ignore file', async t => {
     )
 })
 
+test('Keep as single unit', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+        <!-- @wc-unit -->
+        <div>
+            <p>Parag 1</p>
+            <p>Parag 2</p>
+            <p>Parag 3</p>
+        </div>
+    `),
+        svelte`
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_())
+        </script>
+        <!-- @wc-unit -->
+        <div>
+            {#snippet _w_snippet_0(_w_ctx_)}
+            <p>{_w_runtime_.x(_w_ctx_)}</p>
+            {/snippet}
+            {#snippet _w_snippet_1(_w_ctx_)}
+            <p>{_w_runtime_.x(_w_ctx_)}</p>
+            {/snippet}
+            {#snippet _w_snippet_2(_w_ctx_)}
+            <p>{_w_runtime_.x(_w_ctx_)}</p>
+            {/snippet}
+            <W_tx_ t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} x={_w_runtime_.c(0)} />
+        </div>
+    `,
+        ['<0>Parag 1</0> <1>Parag 2</1> <2>Parag 3</2>'],
+    )
+})
+
 test('URLs', async t => {
     transformTest(
         t,

@@ -45,25 +45,30 @@ const commentDirectives = {
     ignore: `${commentPrefix}ignore`,
     ignoreFile: `${commentPrefix}ignore-file`,
     include: `${commentPrefix}include`,
+    unit: `${commentPrefix}unit`,
     url: `${commentPrefix}url`,
     context: `${commentPrefix}context:`,
 }
 
 export type CommentDirectives = {
     ignoreFile?: boolean
+    unit?: boolean
     forceType?: HeuristicResultChecked
     context?: string
 }
 
 export function updateCommentDirectives(data: string, directives: CommentDirectives) {
-    if (data === commentDirectives.ignore) {
-        directives.forceType = false
-    }
     if (data === commentDirectives.include) {
         directives.forceType = 'message'
     }
     if (data === commentDirectives.url) {
         directives.forceType = 'url'
+    }
+    if (data === commentDirectives.unit) {
+        directives.unit = true
+    }
+    if (data === commentDirectives.ignore) {
+        directives.forceType = false
     }
     if (data === commentDirectives.ignoreFile) {
         directives.ignoreFile = true

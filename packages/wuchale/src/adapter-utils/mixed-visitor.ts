@@ -97,10 +97,10 @@ export class MixedVisitor<NodeT> {
             }),
         })
         const heurMsgType = this.checkHeuristic(msg)
-        if (heurMsgType) {
+        if (heurMsgType || props.commentDirectives.unit) {
             const hasCompoundText = hasTextChild && hasNonTextChild
-            if (props.inCompoundText || (hasCompoundText && !hasCommentDirectives)) {
-                return [false, hasTextChild, hasCompoundText, heurMsgType, []]
+            if (props.inCompoundText || props.commentDirectives.unit || (hasCompoundText && !hasCommentDirectives)) {
+                return [false, hasTextChild, hasCompoundText, heurMsgType || 'message', []]
             }
         }
         // can't be extracted as one; visit each separately if markup
