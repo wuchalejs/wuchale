@@ -10,6 +10,7 @@ export type {
     HeuristicFunc,
     HeuristicResult,
     LoaderChoice,
+    Message,
     MessageType,
     RuntimeConf,
     RuntimeExpr as CatalogExpr,
@@ -23,8 +24,8 @@ export {
     defaultGenerateLoadID,
     defaultHeuristic,
     defaultHeuristicOpts,
+    getKey,
     IndexTracker,
-    Message,
 } from './adapters.js'
 export { gemini } from './ai/gemini.js'
 export type {

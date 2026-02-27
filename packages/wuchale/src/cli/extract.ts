@@ -18,8 +18,7 @@ async function directScanFS(
     sync: boolean,
     logger: Logger,
 ) {
-    const state = handler.sharedState
-    const catalog = state.catalog
+    const catalog = handler.sharedState.catalog
     let updated = false
     if (sync) {
         for (const fPath of filePaths) {
@@ -55,7 +54,7 @@ async function directScanFS(
         }
     }
     if (updated) {
-        await state.save()
+        await handler.sharedState.save()
     }
 }
 

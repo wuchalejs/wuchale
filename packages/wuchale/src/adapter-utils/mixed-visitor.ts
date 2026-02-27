@@ -2,12 +2,14 @@
 
 import type MagicString from 'magic-string'
 import {
+    getKey,
     type HeuristicDetails,
     type HeuristicDetailsBase,
     type HeuristicFunc,
     type IndexTracker,
-    Message,
+    type Message,
     type MessageType,
+    newMessage,
 } from '../adapters.js'
 import {
     type CommentDirectives,
@@ -86,14 +88,14 @@ export class MixedVisitor<NodeT> {
             }
         }
         heurStr = heurStr.trimEnd()
-        const msg = new Message(
-            heurStr,
-            this.fullHeuristicDetails({
+        const msg = newMessage({
+            msgStr: [heurStr],
+            details: this.fullHeuristicDetails({
                 scope: props.scope,
                 element: props.element,
                 attribute: props.attribute,
             }),
-        )
+        })
         const heurMsgType = this.checkHeuristic(msg)
         if (heurMsgType) {
             const hasCompoundText = hasTextChild && hasNonTextChild
@@ -160,11 +162,11 @@ export class MixedVisitor<NodeT> {
             const chRange = this.getRange(child)
             if (this.isText(child)) {
                 const [startWh, trimmed, endWh] = nonWhitespaceText(this.getTextContent(child))
-                const msgInfo = new Message(
-                    trimmed,
-                    this.fullHeuristicDetails({ scope: props.scope }),
-                    props.commentDirectives.context,
-                )
+                const msgInfo = newMessage({
+                    msgStr: [trimmed],
+                    details: this.fullHeuristicDetails({ scope: props.scope }),
+                    context: props.commentDirectives.context,
+                })
                 if (startWh && !msgStr.endsWith(' ')) {
                     msgStr += ' '
                 }
@@ -231,11 +233,11 @@ export class MixedVisitor<NodeT> {
         if (!msgStr) {
             return msgs
         }
-        const msgInfo = new Message(
-            msgStr,
-            this.fullHeuristicDetails({ scope: props.scope }),
-            props.commentDirectives.context,
-        )
+        const msgInfo = newMessage({
+            msgStr: [msgStr],
+            details: this.fullHeuristicDetails({ scope: props.scope }),
+            context: props.commentDirectives.context,
+        })
         msgInfo.type = heurMsgType
         msgInfo.placeholders = placeholders
         if (hasTextChild || hasTextDescendants) {
@@ -256,7 +258,7 @@ export class MixedVisitor<NodeT> {
                     begin += `${varNames.urlLocalize}(`
                     end = `), ${this.vars().rtLocale}${end}`
                 }
-                begin += `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())}`
+                begin += `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))}`
             }
             if (iArg > 0) {
                 begin += ', ['

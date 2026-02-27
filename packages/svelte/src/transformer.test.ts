@@ -100,7 +100,7 @@ test('Simple element with new lines', async t => {
             {_w_runtime_(1)}
         </p>
     `,
-        ['Hello', 'Hello\nThere'],
+        ['Hello', 'Hello There'],
     )
 })
 

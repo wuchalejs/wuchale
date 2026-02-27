@@ -1,7 +1,7 @@
 import { type TestContext } from 'node:test'
 import { statfs } from 'fs/promises'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
-import { Message, type TransformFunc, type TransformOutput } from '../src/adapters.js'
+import { type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 
 const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an example header
 
@@ -75,7 +75,7 @@ export const dummyTransform: TransformFunc = ctx => {
     const msg = 'Hello'
     const out = `${ctx.expr.plain}(${ctx.index.get(msg)})`
     return {
-        msgs: [new Message(msg)],
+        msgs: [newMessage({ msgStr: [msg] })],
         output: header => ({
             code: `${header}\n${out}`,
             map: [],

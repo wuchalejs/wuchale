@@ -27,6 +27,7 @@ import type {
     TransformOutput,
     UrlMatcher,
 } from 'wuchale'
+import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -149,7 +150,7 @@ export class AstroTransformer extends Transformer {
                 if (this.inCompoundText) {
                     begin += `${this.vars().nestCtx},\nn: true`
                 } else {
-                    const index = this.index.get(msgInfo.toKey())
+                    const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
                     begin += `${this.vars().rtCtx}(${index})`
                 }
                 if (nestedRanges.length > 0) {
@@ -280,7 +281,7 @@ export class AstroTransformer extends Transformer {
             return []
         }
         const { start, end } = this.getRange(node)
-        this.mstr.update(start + startWh, end - endWh, `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`)
+        this.mstr.update(start + startWh, end - endWh, `{${this.literalRepl(msgInfo)}}`)
         return [msgInfo]
     }
 

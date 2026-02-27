@@ -12,6 +12,7 @@ import type {
     TransformOutput,
     UrlMatcher,
 } from 'wuchale'
+import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -137,7 +138,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
                 if (this.inCompoundText) {
                     begin += `{${this.vars().nestCtx}} n`
                 } else {
-                    const index = this.index.get(msgInfo.toKey())
+                    const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
                     begin += `{${this.vars().rtCtx}(${index})}`
                 }
                 let end = ' />\n'
@@ -186,7 +187,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         this.mstr.update(
             node.start + startWh,
             node.end - endWh,
-            `{${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})}`,
+            `{${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})}`,
         )
         return [msgInfo]
     }

@@ -2,8 +2,8 @@ import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
-import type { Adapter, HMRData, RuntimeExpr as RuntimeExpr, TransformOutputCode } from '../adapters.js'
-import { Message } from '../adapters.js'
+import type { Adapter, HMRData, Message, RuntimeExpr as RuntimeExpr, TransformOutputCode } from '../adapters.js'
+import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
@@ -73,7 +73,12 @@ export class AdapterHandler {
             this.allLocales.push(this.sourceLocale)
         }
         if (this.#config.ai) {
-            this.#aiQueue = new AIQueue(this.sourceLocale, this.#config.ai, this.saveStorageCompile, this.#log)
+            this.#aiQueue = new AIQueue(
+                this.sourceLocale,
+                this.#config.ai,
+                mode === 'cli' ? this.saveStorage : this.saveStorageCompile,
+                this.#log,
+            )
         }
         this.url = new URLHandler(this.allLocales, adapter.url)
         this.files = new Files(this.#adapter, this.key, this.#config.localesDir, this.#projectRoot)
@@ -126,10 +131,6 @@ export class AdapterHandler {
 
     saveStorage = async () => {
         this.onBeforeSave?.()
-        if (this.#mode === 'cli') {
-            // save for the end
-            return
-        }
         await this.sharedState.save()
     }
 
@@ -339,8 +340,7 @@ export class AdapterHandler {
             if (!existingRef) {
                 continue
             }
-            const key = new Message(item.id, undefined, item.context).toKey()
-            previousReferences.set(key, { ref: existingRef, used: 0 })
+            previousReferences.set(getKey(item.id, item.context), { ref: existingRef, used: 0 })
         }
         return previousReferences
     }
@@ -350,7 +350,7 @@ export class AdapterHandler {
         const newRef: FileRefEntry = {
             placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
-        if (msgInfo.type === 'url' && msgInfo.toKey() !== key) {
+        if (msgInfo.type === 'url' && getKey(msgInfo.msgStr, msgInfo.context) !== key) {
             newRef.link = msgInfo.msgStr[0]
         }
         const newRefEntry = newRef.link || msgInfo.placeholders.length ? newRef : null
@@ -402,7 +402,7 @@ export class AdapterHandler {
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
         for (const msgInfo of msgs) {
-            let key = msgInfo.toKey()
+            let key = getKey(msgInfo.msgStr, msgInfo.context)
             hmrKeys.push(key)
             if (msgInfo.type === 'url') {
                 const matched = this.url.match(key)
@@ -446,6 +446,7 @@ export class AdapterHandler {
             updated = true
         }
         if (updated && this.#mode != 'cli') {
+            // cli saved at the end
             await this.saveStorageCompile()
         }
         return [hmrKeys, updated]

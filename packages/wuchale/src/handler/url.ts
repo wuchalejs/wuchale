@@ -5,7 +5,7 @@ import {
     stringify,
     type Token,
 } from 'path-to-regexp'
-import { Message, type URLConf } from '../adapters.js'
+import { getKey, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
 import { type Catalog, type Item, newItem } from '../storage.js'
@@ -75,23 +75,20 @@ export class URLHandler {
     ): Promise<boolean> => {
         const urlPatterns = this.patterns ?? []
         const urlPatternsForTranslate = urlPatterns.map(patternToTranslate)
-        const urlPatternMsgs = urlPatterns.map((patt, i) => {
-            const locPattern = urlPatternsForTranslate[i]
-            let context: string | undefined
-            if (locPattern !== patt) {
-                context = `original: ${patt}`
-            }
-            return new Message(locPattern, undefined, context)
-        })
-        const urlPatternCatKeys = urlPatternMsgs.map(msg => msg.toKey())
+        const urlPatternCatKeys: string[] = []
         const toTranslate: Item[] = []
         let needWriteCatalog = false
         for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
-            const key = urlPatternCatKeys[i]
+            let context: string | undefined
+            if (locPattern !== urlPatterns[i]) {
+                context = `original: ${urlPatterns[i]}`
+            }
+            const key = getKey([locPattern], context)
+            urlPatternCatKeys[i] = key
             this.patternKeys.set(urlPatterns[i], key) // save for href translate
             let item = catalog.get(key)
             if (!item) {
-                item = newItem({ id: [locPattern] }, this.locales)
+                item = newItem({ id: [locPattern], context }, this.locales)
                 catalog.set(key, item)
                 needWriteCatalog = true
             }
@@ -100,7 +97,6 @@ export class URLHandler {
                 needWriteCatalog = true
             }
             item.translations.get(sourceLocale)!.text = [locPattern]
-            item.context = urlPatternMsgs[i].context
             if (locPattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
                     item.translations.get(loc)!.text = item.id
@@ -111,8 +107,7 @@ export class URLHandler {
         }
         const urlPatternCatKeysSet = new Set(urlPatternCatKeys)
         for (const item of catalog.values()) {
-            const key = new Message(item.id, undefined, item.context).toKey()
-            if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(key)) {
+            if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(getKey(item.id, item.context))) {
                 item.urlAdapters = item.urlAdapters.filter(a => a !== adapterKey) // no longer used in this adapter
                 needWriteCatalog = true
             }

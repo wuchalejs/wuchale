@@ -24,7 +24,7 @@ import type {
     TransformOutput,
     UrlMatcher,
 } from '../adapters.js'
-import { defaultHeuristicFuncOnly, Message } from '../adapters.js'
+import { defaultHeuristicFuncOnly, getKey, type Message, newMessage } from '../adapters.js'
 
 export const scriptParseOptions: Estree.Options = {
     sourceType: 'module',
@@ -189,7 +189,11 @@ export class Transformer<RTCtxT = {}> {
             // nothing to ask
             return [false, null]
         }
-        const msg = new Message(msgStr, this.fullHeuristicDetails(detailsBase), this.commentDirectives.context)
+        const msg = newMessage({
+            msgStr: [msgStr],
+            details: this.fullHeuristicDetails(detailsBase),
+            context: this.commentDirectives.context,
+        })
         const heuRes = this.getHeuristicMessageType(msg)
         if (!heuRes) {
             return [false, null]
@@ -199,7 +203,7 @@ export class Transformer<RTCtxT = {}> {
     }
 
     literalRepl(msgInfo: Message) {
-        let repl = `${this.vars().rtTrans}(${this.index.get(msgInfo.toKey())})`
+        let repl = `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})`
         if (msgInfo.type !== 'url') {
             return repl
         }
@@ -326,11 +330,11 @@ export class Transformer<RTCtxT = {}> {
                 if (typeof argVal.value !== 'string') {
                     return this.defaultVisitCallExpression(node)
                 }
-                const msgInfo = new Message(
-                    argVal.value,
-                    this.fullHeuristicDetails({ scope: 'script' }),
-                    this.commentDirectives.context,
-                )
+                const msgInfo = newMessage({
+                    msgStr: [argVal.value],
+                    details: this.fullHeuristicDetails({ scope: 'script' }),
+                    context: this.commentDirectives.context,
+                })
                 updates.push([argVal.start, argVal.end, this.literalRepl(msgInfo)])
                 msgs.push(msgInfo)
                 continue
@@ -350,13 +354,13 @@ export class Transformer<RTCtxT = {}> {
                 candidates.push(elm.value)
             }
             // plural(num, ['Form one', 'Form two'])
-            const msgInfo = new Message(
-                candidates,
-                this.fullHeuristicDetails({ scope: 'script' }),
-                this.commentDirectives.context,
-            )
+            const msgInfo = newMessage({
+                msgStr: candidates,
+                details: this.fullHeuristicDetails({ scope: 'script' }),
+                context: this.commentDirectives.context,
+            })
             msgInfo.plural = true
-            const index = this.index.get(msgInfo.toKey())
+            const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
             msgs.push(msgInfo)
             updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
         }
@@ -648,14 +652,14 @@ export class Transformer<RTCtxT = {}> {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const msgInfo = new Message(
-            msgStr,
-            this.fullHeuristicDetails({ scope: 'script' }),
-            this.commentDirectives.context,
-        )
+        const msgInfo = newMessage({
+            msgStr: [msgStr],
+            details: this.fullHeuristicDetails({ scope: 'script' }),
+            context: this.commentDirectives.context,
+        })
         msgInfo.type = msgTyp
         msgInfo.placeholders = placeholders
-        const index = this.index.get(msgInfo.toKey())
+        const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
         msgs.push(msgInfo)
         return [index, msgs]
     }

@@ -1,5 +1,5 @@
 import { type Matcher } from 'picomatch'
-import { IndexTracker, Message } from '../adapters.js'
+import { getKey, IndexTracker } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
 import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
 
@@ -39,8 +39,7 @@ export class SharedState {
         }
         for (const item of loaded.items) {
             fillTranslations(item, locales)
-            const msgInfo = new Message(item.id, undefined, item.context)
-            this.catalog.set(msgInfo.toKey(), item)
+            this.catalog.set(getKey(item.id, item.context), item)
         }
     }
 

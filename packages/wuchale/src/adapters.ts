@@ -29,38 +29,35 @@ export type HeuristicDetails = HeuristicDetailsBase & {
 
 export type MessageType = 'message' | 'url'
 
-const someHeuDet: HeuristicDetails = { file: '', scope: 'markup', insideProgram: true }
-
-export class Message {
+export type Message = {
     msgStr: string[] // array for plurals
-    plural: boolean = false
+    plural: boolean
     context?: string
-    placeholders: [number, string][] = []
+    placeholders: [number, string][]
     details: HeuristicDetails
-    type: MessageType = 'message'
-
-    constructor(
-        msgStr: string | (string | null | undefined)[],
-        heuristicDetails: HeuristicDetails = someHeuDet,
-        context?: string,
-    ) {
-        if (typeof msgStr === 'string') {
-            this.msgStr = [msgStr]
-        } else {
-            this.msgStr = msgStr.filter(str => str != null)
-        }
-        this.msgStr = this.msgStr.map(msg =>
-            msg
-                .split('\n')
-                .map(line => line.trim())
-                .join('\n'),
-        )
-        this.details = heuristicDetails
-        this.context = context
-    }
-
-    toKey = () => `${this.msgStr.slice(0, 2).join('\n')}\n${this.context ?? ''}`.trim()
+    type: MessageType
 }
+
+export function newMessage(init: Partial<Message>): Message {
+    init.msgStr = init.msgStr?.filter(str => str != null) ?? []
+    if (init.details?.scope === 'markup') {
+        init.msgStr = init.msgStr.map(msg => msg.replace(/\s+/g, ' ').trim())
+    }
+    return {
+        msgStr: init.msgStr,
+        plural: init.plural ?? false,
+        placeholders: init.placeholders ?? [],
+        type: init.type ?? 'message',
+        context: init.context,
+        details: init.details ?? {
+            file: '',
+            scope: 'markup',
+            insideProgram: true,
+        },
+    }
+}
+
+export const getKey = (text: string[], context?: string) => `${text.join('\n')}\n${context ?? ''}`.trim()
 
 export type HeuristicResultChecked = MessageType | false // after checking all heuristic functions
 export type HeuristicResult = HeuristicResultChecked | null | undefined
