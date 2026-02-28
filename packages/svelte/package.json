@@ -56,7 +56,7 @@
         "wuchale": "^0.20.0"
     },
     "devDependencies": {
-        "acorn": "^8.15.0",
+        "acorn": "^8.16.0",
         "typescript": "^5.9.3"
     },
     "type": "module"
