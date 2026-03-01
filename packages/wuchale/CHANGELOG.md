@@ -1,5 +1,96 @@
 # wuchale
 
+## 0.21.0
+
+### Minor Changes
+
+- Add support for grouping locales for AI translation ([`1dcd46c`](https://github.com/wuchalejs/wuchale/commit/1dcd46c46653779c9ebda59e67b64da97e0c41a9))
+
+  You can now group target locales in the same prompt:
+
+  ```js
+  export default {
+    // ...
+    ai: {
+      // ...
+      group: {
+        // en is the source
+        en: [
+          ["fr", "fr-FR", "fr-CH"],
+          ["de", "fr-DE"],
+        ],
+      },
+    },
+  };
+  ```
+
+- Add support for keeping whole markups as single units ([`9bb41c5`](https://github.com/wuchalejs/wuchale/commit/9bb41c56a7afc4826c31729224eaa47bf74bed23))
+
+  You can now use the new comment directive:
+
+  ```svelte
+  <!-- @wc-unit -->
+  <div>
+      <p>Parag 1</p>
+      <p>Parag 2</p>
+      <p>Parag 3</p>
+  </div>
+  ```
+
+  And it the whole will be extracted as a single message
+
+- Add support for pluggable storage handlers ([#271](https://github.com/wuchalejs/wuchale/pull/271))
+
+  While the PO for format is a solid choice for most cases, there may be some cases where another format is desired. Therefore, support for storing messages in PO files will continue to be provided out of the box but there will be an interface where another format can be plugged instead. The basic usage will be as a config option to the adapter like:
+
+  ```js
+  export default {
+    // ...
+    adapters: {
+      main: svelte({
+        // ...
+        storage: pofile({ dir: "..." }),
+      }),
+    },
+  };
+  ```
+
+  And the storage key can accept any implementation that supports the expected shape for a storage collection.
+
+- Validate AI translation response for correct placeholders and structure ([`e7d8d85`](https://github.com/wuchalejs/wuchale/commit/e7d8d85c811182418aae4618f4f69b87ae8663a0))
+
+- Add support for importing a URL localize function from any module at runtime ([`347ca5e`](https://github.com/wuchalejs/wuchale/commit/347ca5e602b5596ed14344bf75f96e47d86effe5))
+
+  This adds support for cases where complete flexibility is needed for URLs, for example
+  when the site targets different domain names for different locales, and when one locale
+  can be used in different domains. Now a custom localize function that does the localization
+  can be implemented, and wuchale only handles the translation. This can be used by providing
+  the module path:
+
+  ```js
+  export default {
+      // ...
+      adapters: {
+          svelte({
+              url: {
+                  localize: 'src/lib/url-util.js',
+                  patterns: [
+                      // ...
+                  ]
+              }
+          })
+      }
+  }
+  ```
+
+  The module has to export a `localize` function that is of type:
+
+  ```ts
+  type URLLocalizer = (url: string, locale: string) => string;
+  ```
+
+  To just use the default of prefixing the locale to the path, set `localize: true`.
+
 ## 0.20.0
 
 ### Minor Changes
