@@ -1,5 +1,46 @@
 # @wuchale/jsx
 
+## 0.11.0
+
+### Minor Changes
+
+- Add support for importing a URL localize function from any module at runtime ([`347ca5e`](https://github.com/wuchalejs/wuchale/commit/347ca5e602b5596ed14344bf75f96e47d86effe5))
+
+  This adds support for cases where complete flexibility is needed for URLs, for example
+  when the site targets different domain names for different locales, and when one locale
+  can be used in different domains. Now a custom localize function that does the localization
+  can be implemented, and wuchale only handles the translation. This can be used by providing
+  the module path:
+
+  ```js
+  export default {
+      // ...
+      adapters: {
+          svelte({
+              url: {
+                  localize: 'src/lib/url-util.js',
+                  patterns: [
+                      // ...
+                  ]
+              }
+          })
+      }
+  }
+  ```
+
+  The module has to export a `localize` function that is of type:
+
+  ```ts
+  type URLLocalizer = (url: string, locale: string) => string;
+  ```
+
+  To just use the default of prefixing the locale to the path, set `localize: true`.
+
+### Patch Changes
+
+- Updated dependencies [[`1dcd46c`](https://github.com/wuchalejs/wuchale/commit/1dcd46c46653779c9ebda59e67b64da97e0c41a9), [`9bb41c5`](https://github.com/wuchalejs/wuchale/commit/9bb41c56a7afc4826c31729224eaa47bf74bed23), [`6e7f373`](https://github.com/wuchalejs/wuchale/commit/6e7f373e0960dbeddd18c525b652618393c4b342), [`e7d8d85`](https://github.com/wuchalejs/wuchale/commit/e7d8d85c811182418aae4618f4f69b87ae8663a0), [`347ca5e`](https://github.com/wuchalejs/wuchale/commit/347ca5e602b5596ed14344bf75f96e47d86effe5)]:
+  - wuchale@0.21.0
+
 ## 0.10.2
 
 ### Patch Changes

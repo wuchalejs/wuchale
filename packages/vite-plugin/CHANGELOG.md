@@ -1,5 +1,12 @@
 # @wuchale/vite-plugin
 
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [[`1dcd46c`](https://github.com/wuchalejs/wuchale/commit/1dcd46c46653779c9ebda59e67b64da97e0c41a9), [`9bb41c5`](https://github.com/wuchalejs/wuchale/commit/9bb41c56a7afc4826c31729224eaa47bf74bed23), [`6e7f373`](https://github.com/wuchalejs/wuchale/commit/6e7f373e0960dbeddd18c525b652618393c4b342), [`e7d8d85`](https://github.com/wuchalejs/wuchale/commit/e7d8d85c811182418aae4618f4f69b87ae8663a0), [`347ca5e`](https://github.com/wuchalejs/wuchale/commit/347ca5e602b5596ed14344bf75f96e47d86effe5)]:
+  - wuchale@0.21.0
+
 ## 0.17.0
 
 ### Minor Changes
