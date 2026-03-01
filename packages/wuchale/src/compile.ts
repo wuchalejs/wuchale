@@ -131,13 +131,10 @@ export function isEquivalent(source: CompiledElement, translation: CompiledEleme
     if (sourceStr || translStr) {
         return sourceStr === translStr
     }
-    if (source.length !== translation.length) {
-        return false
-    }
-    let strings = 0
+    let stringsS = 0
     for (const elm of source) {
         if (typeof elm === 'string') {
-            strings++
+            stringsS++
             continue
         }
         if (typeof elm === 'number') {
@@ -151,10 +148,11 @@ export function isEquivalent(source: CompiledElement, translation: CompiledEleme
             return false
         }
     }
+    let stringsT = 0
     for (const transl of translation) {
         if (typeof transl === 'string') {
-            strings--
+            stringsT++
         }
     }
-    return strings === 0
+    return (stringsS === 0) === (stringsT === 0) && source.length - stringsS === translation.length - stringsT
 }
