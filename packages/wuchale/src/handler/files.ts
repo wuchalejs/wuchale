@@ -199,7 +199,7 @@ export class Files {
             resolve(this.#localesDir, dataFileName),
             [
                 `export const sourceLocale = '${sourceLocale}'`,
-                `/** @type {('${locales.join("','")}')[]} */`,
+                `/** @type {('${locales.join("'|'")}')[]} */`,
                 `export const locales = ['${locales.join("','")}']`,
             ].join('\n'),
         )
