@@ -111,7 +111,7 @@ export class AdapterHandler {
 
     init = async (sharedStates: SharedStates) => {
         this.initSharedState(sharedStates)
-        await this.files.init(this.#config.locales, this.sharedState.ownerKey, this.sourceLocale)
+        await this.files.init(this.#config.locales, this.sharedState.ownerKey)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
         await this.loadStorage()

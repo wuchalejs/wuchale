@@ -190,18 +190,16 @@ export class Files {
         await writeFile(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
     }
 
-    init = async (locales: string[], ownerKey: string, sourceLocale: string) => {
+    init = async (locales: string[], ownerKey: string) => {
         this.ownerKey = ownerKey
         await this.#initPaths()
         await mkdir(resolve(this.#localesDir, generatedDir), { recursive: true })
         // data file
         await writeFile(
             resolve(this.#localesDir, dataFileName),
-            [
-                `export const sourceLocale = '${sourceLocale}'`,
-                `/** @type {('${locales.join("'|'")}')[]} */`,
-                `export const locales = ['${locales.join("','")}']`,
-            ].join('\n'),
+            [`/** @type {('${locales.join("'|'")}')[]} */`, `export const locales = ['${locales.join("','")}']`].join(
+                '\n',
+            ),
         )
         if (this.#adapter.defaultLoaderPath == null) {
             // using custom loaders
