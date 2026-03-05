@@ -56,7 +56,7 @@ export class URLHandler {
                 let pattern = patt
                 const transl = item?.translations?.get(loc)
                 if (transl) {
-                    const patternTranslated = transl.text[0] || item!.id[0]
+                    const patternTranslated = transl[0] || item!.id[0]
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(pattern)
@@ -96,10 +96,12 @@ export class URLHandler {
                 item.urlAdapters.push(adapterKey)
                 needWriteCatalog = true
             }
-            item.translations.get(sourceLocale)!.text = [locPattern]
+            item.translations.set(sourceLocale, [locPattern])
             if (locPattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
-                    item.translations.get(loc)!.text = item.id
+                    if (loc !== sourceLocale) {
+                        item.translations.set(loc, item.id)
+                    }
                 }
                 continue
             }
@@ -146,7 +148,7 @@ export class URLHandler {
         if (!matchedUrl) {
             return toCompile
         }
-        const translatedPattern = patternItem.translations.get(locale)!.text[0] || patternItem.id[0]
+        const translatedPattern = patternItem.translations.get(locale)![0] || patternItem.id[0]
         // e.g. translatedPattern: /elementos/{0}
         const { keys } = pathToRegexp(relevantPattern)
         const translatedPattUrl = patternFromTranslate(translatedPattern, keys)

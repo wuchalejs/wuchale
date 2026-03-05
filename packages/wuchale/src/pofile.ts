@@ -13,18 +13,17 @@ import {
     type SaveData,
     type StorageFactory,
     type StorageFactoryOpts,
-    type Translation,
 } from './storage.js'
 
 type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
 
-export function itemToPOItem(item: Item, locale: string): POItem {
+function itemToPOItem(item: Item, locale: string): POItem {
     const poi = new PO.Item()
     poi.msgid = item.id[0]
     poi.msgid_plural = item.id[1]
-    poi.msgstr = item.translations.get(locale)?.text!
+    poi.msgstr = item.translations.get(locale)!
     poi.msgctxt = item.context
     poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
     poi.extractedComments = item.references
@@ -51,7 +50,7 @@ export function itemToPOItem(item: Item, locale: string): POItem {
     return poi
 }
 
-export function poitemToItem(item: POItem, locale: string): Item {
+function poitemToItem(item: POItem, locale: string): Item {
     const msgid = [item.msgid]
     if (item.msgid_plural) {
         msgid.push(item.msgid_plural)
@@ -88,11 +87,8 @@ export function poitemToItem(item: POItem, locale: string): Item {
         }
         lastRef.refs.push(refEnt)
     }
-    const translations: Map<string, Translation> = new Map()
-    translations.set(locale, {
-        text: item.msgstr,
-        comments: item.comments,
-    })
+    const translations: Map<string, string[]> = new Map()
+    translations.set(locale, item.msgstr)
     return {
         id: msgid,
         translations,
@@ -178,10 +174,7 @@ export class POFile {
                 if (!item) {
                     items[i] = poitemToItem(poItem, locale)
                 } else {
-                    item.translations.set(locale, {
-                        text: poItem.msgstr,
-                        comments: poItem.comments,
-                    })
+                    item.translations.set(locale, poItem.msgstr)
                 }
             }
         }

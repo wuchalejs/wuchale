@@ -129,7 +129,7 @@ export default class AIQueue {
                         break
                     }
                 }
-                item.translations.get(loc)!.text = translation
+                item.translations.set(loc, translation)
             }
         }
         if (unTranslated.length === 0) {
@@ -165,7 +165,7 @@ export default class AIQueue {
         const itemsByLocales = new Map<string | string[], Item[]>()
         for (const item of messages) {
             for (const [loc, transl] of item.translations.entries()) {
-                if (loc === this.sourceLocale || transl.text[0]) {
+                if (loc === this.sourceLocale || transl[0]) {
                     continue
                 }
                 const group = this.ai.group[this.sourceLocale]?.find(g => g.includes(loc))

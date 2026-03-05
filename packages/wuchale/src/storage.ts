@@ -12,17 +12,14 @@ export type FileRef = {
     refs: (FileRefEntry | null)[]
 }
 
-export type Translation = {
-    text: string[]
-    comments: string[]
-}
-
 export interface Item {
     id: string[]
     context?: string
-    translations: Map<string, Translation>
+    translations: Map<string, string[]>
     references: FileRef[]
     urlAdapters: string[] // for URLs
+    // for things that should survive the round trip with the storage
+    [key: string]: unknown
 }
 
 export function fillTranslations(item: Item, locales: string[]) {
@@ -31,7 +28,7 @@ export function fillTranslations(item: Item, locales: string[]) {
         if (item.translations.has(loc)) {
             continue
         }
-        item.translations.set(loc, { text: [], comments: [] })
+        item.translations.set(loc, [])
     }
 }
 

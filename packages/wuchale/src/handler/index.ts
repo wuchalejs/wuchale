@@ -221,15 +221,15 @@ export class AdapterHandler {
                 let compiled: CompiledElement
                 const fallback = this.getCompiledFallback(index, loc)
                 const transl = item.translations.get(loc)!
-                if (transl.text.length > 1) {
+                if (transl.length > 1) {
                     sharedCompiledLoc.hasPlurals = true
-                    if (transl.text.join('').trim()) {
-                        compiled = transl.text
+                    if (transl.join('').trim()) {
+                        compiled = transl
                     } else {
                         compiled = fallback
                     }
                 } else {
-                    let toCompile = transl.text[0]
+                    let toCompile = transl[0]
                     if (item.urlAdapters.length > 0) {
                         toCompile = this.url.matchToCompile(key, this.sharedState.catalog, loc)
                     }
@@ -433,8 +433,8 @@ export class AdapterHandler {
             item.context = msgInfo.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
             const msgStr = msgInfo.msgStr.join('\n')
-            if (sourceTransl.text.join('\n') !== msgStr) {
-                sourceTransl.text = msgInfo.msgStr
+            if (sourceTransl.join('\n') !== msgStr) {
+                item.translations.set(this.sourceLocale, msgInfo.msgStr)
             }
             toTranslate.push(item)
         }
