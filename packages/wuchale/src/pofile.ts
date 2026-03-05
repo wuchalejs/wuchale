@@ -131,6 +131,7 @@ export class POFile {
     files: string[] = []
 
     constructor(opts: StorageFactoryOpts & POFileOptions) {
+        this.key = opts.dir
         this.opts = opts
         if (!isAbsolute(opts.dir)) {
             opts.dir = resolve(opts.root, opts.dir)
@@ -167,9 +168,9 @@ export class POFile {
 
     async load(): Promise<SaveData> {
         const pluralRules: PluralRules = new Map()
-        const items: Item[] = []
         // by key, then by locale
         const poItems: Map<string, Map<string, POItem>> = new Map()
+        // first, group by key
         for (const locale of this.opts.locales) {
             const po = await this.loadRaw(locale, false)
             if (po == null) {
@@ -185,7 +186,6 @@ export class POFile {
                 const poUrl = await this.loadRaw(locale, true)
                 poUrl && po.items.push(...poUrl.items)
             }
-            // group first by key
             for (const poItem of po.items) {
                 const key = getKey(getItemId(poItem), poItem.msgctxt)
                 if (!poItems.has(key)) {
@@ -194,6 +194,8 @@ export class POFile {
                 poItems.get(key)?.set(locale, poItem)
             }
         }
+        // then merge them
+        const items: Item[] = []
         for (const poIs of poItems.values()) {
             const item = poitemToItemCommons(poIs.get(this.opts.sourceLocale)!)
             const additionals: AdditionalsByLoc = new Map()
@@ -212,6 +214,7 @@ export class POFile {
                 additionals.set(loc, add)
             }
             item.additionals = additionals
+            items.push(item)
         }
         return { items, pluralRules }
     }
@@ -255,7 +258,7 @@ export class POFile {
 
     getHeaders(locale: string, pluralRule: PluralRule) {
         const updateHeaders = [
-            ['Plural-Forms', [`nplurals=${pluralRule.nplurals}`, `plural=${pluralRule.plural};`].join('; ')],
+            ['Plural-Forms', `nplurals=${pluralRule.nplurals}; plural=${pluralRule.plural};`],
             ['Source-Language', this.opts.sourceLocale],
             ['Language', locale],
             ['MIME-Version', '1.0'],
@@ -265,16 +268,6 @@ export class POFile {
         const headers: POHeaders = {}
         for (const [key, val] of updateHeaders) {
             headers[key] = val
-        }
-        const now = new Date().toISOString()
-        const defaultHeaders = [
-            ['POT-Creation-Date', now],
-            ['PO-Revision-Date', now],
-        ]
-        for (const [key, val] of defaultHeaders) {
-            if (!headers[key]) {
-                headers[key] = val
-            }
         }
         return headers
     }
