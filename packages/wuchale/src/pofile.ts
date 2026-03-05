@@ -51,13 +51,13 @@ function itemToPOItem(item: Item, locale: string): POItem {
             }),
         )
         .filter(c => c !== null)
+    const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
+    poi.comments = additionals.get(locale)?.comments ?? []
+    poi.flags = additionals.get(locale)?.flags ?? {}
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
     poi.obsolete = itemIsObsolete(item)
-    const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
-    poi.comments = additionals.get(locale)?.comments ?? []
-    poi.flags = additionals.get(locale)?.flags ?? {}
     return poi
 }
 
