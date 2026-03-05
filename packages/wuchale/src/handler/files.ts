@@ -197,9 +197,11 @@ export class Files {
         // data file
         await writeFile(
             resolve(this.#localesDir, dataFileName),
-            [`/** @type {('${locales.join("'|'")}')[]} */`, `export const locales = ['${locales.join("','")}']`].join(
-                '\n',
-            ),
+            [
+                `/** @typedef {('${locales.join("'|'")}')} Locale */`,
+                `/** @type {Locale[]} */`,
+                `export const locales = ['${locales.join("','")}']`,
+            ].join('\n'),
         )
         if (this.#adapter.defaultLoaderPath == null) {
             // using custom loaders

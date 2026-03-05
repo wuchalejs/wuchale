@@ -11,12 +11,12 @@ export const localizeDefault: URLLocalizer = (path, loc) => {
     return localized.slice(0, -1)
 }
 
-export const deLocalizeDefault = (path: string, locales: string[]): [string, string | null] => {
+export const deLocalizeDefault = <L extends string>(path: string, locales: L[]): [string, L | null] => {
     let iSecondSlash = path.indexOf('/', 2)
     if (iSecondSlash === -1) {
         iSecondSlash = path.length
     }
-    const locale = path.slice(1, iSecondSlash)
+    const locale = path.slice(1, iSecondSlash) as L
     if (!locales.includes(locale)) {
         return [path, null]
     }
@@ -48,21 +48,21 @@ export type URLManifestItem =
 
 export type URLManifest = URLManifestItem[]
 
-type MatchResult = {
+type MatchResult<L extends string> = {
     path: string | null
     params: MatchParams
-    altPatterns: Record<string, string>
+    altPatterns: Record<L, string>
 }
 
-const noMatchRes: MatchResult = { path: null, altPatterns: {}, params: {} }
+const noMatchRes: MatchResult<string> = { path: null, altPatterns: {}, params: {} }
 
-export function URLMatcher(manifest: URLManifest, locales: string[]) {
+export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]) {
     const manifestWithLocales = manifest.map(([pattern, localized]) => {
         localized ??= locales.map(_ => pattern)
         const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, string])
         return [pattern, Object.fromEntries(locAndLocalizeds)] as [string, Record<string, string>]
     })
-    return (url: string, locale: string | null): MatchResult => {
+    return (url: string, locale: L | null): MatchResult<L> => {
         if (locale === null) {
             return noMatchRes
         }
