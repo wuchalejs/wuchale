@@ -52,7 +52,7 @@
     "license": "MIT",
     "dependencies": {
         "magic-string": "^0.30.21",
-        "svelte": "^5.53.1",
+        "svelte": "^5",
         "wuchale": "^0.20.0"
     },
     "devDependencies": {
