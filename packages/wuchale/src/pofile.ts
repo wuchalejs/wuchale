@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import PO from 'pofile'
+import { getKey } from './adapters.js'
 import { deepMergeObjects } from './config.js'
 import {
     type FileRef,
@@ -18,6 +19,13 @@ import {
 type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
+
+type Additionals = {
+    comments: string[]
+    flags: Record<string, boolean | undefined>
+}
+
+type AdditionalsByLoc = Map<string, Additionals>
 
 function itemToPOItem(item: Item, locale: string): POItem {
     const poi = new PO.Item()
@@ -47,28 +55,36 @@ function itemToPOItem(item: Item, locale: string): POItem {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
     poi.obsolete = itemIsObsolete(item)
+    const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
+    poi.comments = additionals.get(locale)?.comments ?? []
+    poi.flags = additionals.get(locale)?.flags ?? {}
     return poi
 }
 
-function poitemToItem(item: POItem, locale: string): Item {
-    const msgid = [item.msgid]
-    if (item.msgid_plural) {
-        msgid.push(item.msgid_plural)
+function getItemId(poi: POItem) {
+    const msgid = [poi.msgid]
+    if (poi.msgid_plural) {
+        msgid.push(poi.msgid_plural)
     }
+    return msgid
+}
+
+function poitemToItemCommons(poi: POItem): Item {
+    const msgid = getItemId(poi)
     const references: FileRef[] = []
     let lastRef: FileRef = { file: '', refs: [] }
     const urlAdapters: string[] = []
-    for (const key in item.flags) {
+    for (const key in poi.flags) {
         if (key.startsWith(urlAdapterFlagPrefix)) {
             urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
         }
     }
-    for (const [i, ref] of item.references.entries()) {
+    for (const [i, ref] of poi.references.entries()) {
         if (ref !== lastRef.file) {
             lastRef = { file: ref, refs: [] }
             references.push(lastRef)
         }
-        const comm = item.extractedComments[i]?.trim()
+        const comm = poi.extractedComments[i]?.trim()
         if (!comm) {
             lastRef.refs.push(null)
             continue
@@ -87,12 +103,10 @@ function poitemToItem(item: POItem, locale: string): Item {
         }
         lastRef.refs.push(refEnt)
     }
-    const translations: Map<string, string[]> = new Map()
-    translations.set(locale, item.msgstr)
     return {
         id: msgid,
-        translations,
-        context: item.msgctxt,
+        translations: new Map(),
+        context: poi.msgctxt,
         references,
         urlAdapters,
     }
@@ -154,6 +168,8 @@ export class POFile {
     async load(): Promise<SaveData> {
         const pluralRules: PluralRules = new Map()
         const items: Item[] = []
+        // by key, then by locale
+        const poItems: Map<string, Map<string, POItem>> = new Map()
         for (const locale of this.opts.locales) {
             const po = await this.loadRaw(locale, false)
             if (po == null) {
@@ -169,14 +185,33 @@ export class POFile {
                 const poUrl = await this.loadRaw(locale, true)
                 poUrl && po.items.push(...poUrl.items)
             }
-            for (const [i, poItem] of po.items.entries()) {
-                let item = items[i]
-                if (!item) {
-                    items[i] = poitemToItem(poItem, locale)
-                } else {
-                    item.translations.set(locale, poItem.msgstr)
+            // group first by key
+            for (const poItem of po.items) {
+                const key = getKey(getItemId(poItem), poItem.msgctxt)
+                if (!poItems.has(key)) {
+                    poItems.set(key, new Map())
                 }
+                poItems.get(key)?.set(locale, poItem)
             }
+        }
+        for (const poIs of poItems.values()) {
+            const item = poitemToItemCommons(poIs.get(this.opts.sourceLocale)!)
+            const additionals: AdditionalsByLoc = new Map()
+            for (const loc of this.opts.locales) {
+                const poi = poIs.get(loc)!
+                item.translations.set(loc, poi.msgstr)
+                const add: Additionals = {
+                    comments: poi.comments,
+                    flags: {},
+                }
+                for (const [k, v] of Object.entries(poi.flags)) {
+                    if (!k.startsWith(urlAdapterFlagPrefix)) {
+                        add.flags[k] = v
+                    }
+                }
+                additionals.set(loc, add)
+            }
+            item.additionals = additionals
         }
         return { items, pluralRules }
     }
