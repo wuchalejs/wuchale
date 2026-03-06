@@ -1,10 +1,10 @@
 // $ node --import ../../wuchale/testing/resolve.ts %f
 
 import { test } from 'node:test'
-import { IndexTracker, type RuntimeConf, URLHandler } from 'wuchale'
+import { IndexTracker, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { ts as astro, transformTest } from '../../wuchale/testing/utils.ts'
-import { defaultArgs } from './index.js'
+import { defaultArgs, defaultRuntime } from './index.js'
 import { AstroTransformer } from './transformer.js'
 
 const urlHandler = new URLHandler([])
@@ -18,7 +18,7 @@ const getOutput = (content: string, filename = 'test.astro') =>
         defaultArgs.heuristic,
         defaultArgs.patterns,
         catalogExpr,
-        defaultArgs.runtime as RuntimeConf,
+        defaultRuntime,
         urlHandler.match,
     ).transformAs()
 

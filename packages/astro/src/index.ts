@@ -30,9 +30,13 @@ export const astroDefaultHeuristic = createAstroHeuristic(defaultHeuristicOpts)
 
 type LoadersAvailable = 'default'
 
-export type AstroArgs = AdapterArgs<LoadersAvailable>
+// astro is an SSR framework, omit irrelevant
+export type AstroArgs = Omit<
+    AdapterArgs<LoadersAvailable>,
+    'bundleLoad' | 'granularLoad' | 'generateLoadID' | 'runtime'
+>
 
-const defaultRuntime: RuntimeConf = {
+export const defaultRuntime: RuntimeConf = {
     // Astro is SSR-only, so we use non-reactive runtime by default
     initReactive: ({ funcName }) => (funcName == null ? false : null), // Only init in top-level functions
     // Astro is SSR - always use non-reactive
@@ -52,25 +56,17 @@ export const defaultArgs: AstroArgs = {
     storage: pofile(),
     patterns: [pluralPattern],
     heuristic: astroDefaultHeuristic,
-    granularLoad: false,
-    bundleLoad: false,
     loader: 'default',
-    generateLoadID: defaultGenerateLoadID,
-    runtime: defaultRuntime,
 }
 
 const resolveLoaderPath = loaderPathResolver(import.meta.url, '../src/loaders', 'js')
 
-export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bundle: boolean): string | null {
+export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>): string | null {
     if (loader === 'custom') {
         return null
     }
     // just 'default', so
-    let loaderName = 'astro'
-    if (bundle) {
-        loaderName += '.bundle'
-    }
-    return resolveLoaderPath(loaderName)
+    return resolveLoaderPath('astro')
 }
 
 /**
@@ -89,7 +85,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
  * ```
  */
 export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
-    const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, patterns, loader, ...rest } = deepMergeObjects(args, defaultArgs)
 
     return {
         transform: async ({ content, filename, index, expr, matchUrl }) => {
@@ -100,13 +96,16 @@ export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
                 heuristic,
                 patterns,
                 expr,
-                runtime as RuntimeConf,
+                defaultRuntime,
                 matchUrl,
             ).transformAs()
         },
         loaderExts: ['.js', '.ts'],
-        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
-        runtime,
+        defaultLoaderPath: getDefaultLoaderPath(loader),
+        granularLoad: false,
+        bundleLoad: false,
+        generateLoadID: defaultGenerateLoadID,
+        runtime: defaultRuntime,
         ...rest,
     }
 }
