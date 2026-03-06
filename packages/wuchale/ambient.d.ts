@@ -11,7 +11,6 @@ declare module '${PROXY_SYNC}' {
 }
 
 declare module '${DATA}' {
-    export const sourceLocale: string
-    export const otherLocales: string[]
-    export const locales: string[]
+    export type Locale = 'en' | 'es' // just examples for type checking
+    export const locales: Locale[]
 }

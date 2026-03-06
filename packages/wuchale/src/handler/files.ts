@@ -216,10 +216,10 @@ export class Files {
             }
             const loaderContent = (await readFile(loaderTemplate))
                 .toString()
-                .replace('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
-                .replace('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
-                .replace('${DATA}', `./${dataFileName}`)
-                .replace('${KEY}', this.key)
+                .replaceAll('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
+                .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
+                .replaceAll('${DATA}', `./${dataFileName}`)
+                .replaceAll('${KEY}', this.key)
             await writeFile(this.loaderPath[side], loaderContent)
         }
     }

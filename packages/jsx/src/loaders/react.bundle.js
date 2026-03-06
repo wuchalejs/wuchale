@@ -5,13 +5,13 @@ import { locales } from '${DATA}'
 let locale = locales[0]
 
 const callbacks = new Set([
-    (/** @type {string} */ loc) => {
+    (/** @type {import('${DATA}').Locale} */ loc) => {
         locale = loc
     },
 ])
 
 /**
- * @param {string} locale
+ * @param {import('${DATA}').Locale} locale
  */
 export function setLocale(locale) {
     for (const callback of callbacks) {

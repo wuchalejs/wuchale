@@ -4,7 +4,7 @@ import { locales } from '${DATA}'
 let locale = $state(locales[0])
 
 /**
- * @param {string} newLocale
+ * @param {import('${DATA}').Locale} newLocale
  */
 export function setLocale(newLocale) {
     locale = newLocale
