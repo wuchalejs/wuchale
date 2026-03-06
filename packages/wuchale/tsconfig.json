@@ -4,5 +4,6 @@
         "outDir": "dist",
         "composite": true
     },
-    "include": ["src", "testing", "ambient.d.ts"]
+    "include": ["src", "testing", "ambient.d.ts"],
+    "exclude": ["testing/tmp"]
 }
