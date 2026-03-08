@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.21.1
+
+### Patch Changes
+
+- Make AI translate more robust against malformed LLM output ([`67f0a99`](https://github.com/wuchalejs/wuchale/commit/67f0a9922be49e06fcb331a2d9bf8c7fba331f89))
+
 ## 0.21.0
 
 ### Minor Changes
