@@ -62,13 +62,13 @@ export const defaultPluralRule: PluralRule = {
 }
 
 export type SaveData = {
-    pluralRules: PluralRules
+    pluralRules: PluralRules // will always be provided
     items: Item[]
 }
 
 export type LoadData = {
-    pluralRules?: PluralRules
-    items: Iterable<Item>
+    pluralRules?: PluralRules // optional if it's the first time etc, will be filled by the default one
+    items: Iterable<Item> // not just constrained to being array
 }
 
 export type CatalogStorage = {

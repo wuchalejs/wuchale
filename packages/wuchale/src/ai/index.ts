@@ -96,7 +96,7 @@ export default class AIQueue {
 
     translate = async (batch: Batch, attempt = 0) => {
         const logStart = this.#requestName(batch.id, batch.targetLocales)
-        let translated: OutputItem[]
+        let translated: OutputItem[] = []
         try {
             const translatedstr = await this.ai.translate(
                 JSON.stringify(
@@ -109,6 +109,11 @@ export default class AIQueue {
                 instruct(this.sourceLocale, batch.targetLocales),
             )
             translated = JSON.parse(translatedstr)
+            if (Array.isArray(translated)) {
+                translated = translated.slice(0, batch.messages.length) // may return more
+            } else {
+                translated = []
+            }
         } catch (err) {
             this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
             return
@@ -119,7 +124,7 @@ export default class AIQueue {
             const sourceComp = item.id.map(i => compileTranslation(i, ''))
             for (const loc of batch.targetLocales) {
                 const translation = outItem[loc]
-                if (translation.length !== item.id.length) {
+                if (translation?.length !== item.id.length) {
                     unTranslated.push(item)
                     break
                 }
