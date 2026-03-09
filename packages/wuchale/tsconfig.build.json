@@ -3,6 +3,6 @@
     "compilerOptions": {
         "rootDir": "src"
     },
-    "include": ["src"],
+    "include": ["src", "augment.d.ts"],
     "exclude": ["./src/adapter-vanilla/loaders/", "**/*.test.ts"]
 }

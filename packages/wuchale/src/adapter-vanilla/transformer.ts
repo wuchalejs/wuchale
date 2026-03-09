@@ -464,12 +464,16 @@ export class Transformer<RTCtxT = {}> {
             return []
         }
         if (atTopLevelDefn) {
-            if (node.init.type === 'ArrowFunctionExpression' || node.init.type === 'FunctionExpression') {
+            let init = node.init as Estree.Expression | Estree.TSAsExpression | Estree.TSTypeAssertion
+            if (init.type === 'TSAsExpression' || init.type === 'TSTypeAssertion') {
+                init = init.expression
+            }
+            if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression') {
                 this.heuristciDetails.declaring = 'function'
             } else {
                 this.heuristciDetails.declaring = 'variable'
-                if (node.init.type === 'CallExpression') {
-                    this.heuristciDetails.topLevelCall = this.getCalleeName(node.init.callee)
+                if (init.type === 'CallExpression') {
+                    this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
                 }
             }
         }
@@ -734,9 +738,9 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    visitTSAsExpression = (node: { expression: Estree.AnyNode }): Message[] => this.visit(node.expression)
+    visitTSAsExpression = (node: Estree.TSAsExpression): Message[] => this.visit(node.expression)
 
-    visitTSTypeAssertion = (node: { expression: Estree.AnyNode }): Message[] => this.visit(node.expression)
+    visitTSTypeAssertion = (node: Estree.TSTypeAssertion): Message[] => this.visit(node.expression)
 
     visitProgram = (node: Estree.Program): Message[] => {
         this.heuristciDetails.insideProgram = true
