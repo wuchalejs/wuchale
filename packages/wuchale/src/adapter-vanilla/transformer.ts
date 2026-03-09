@@ -160,13 +160,10 @@ export class Transformer<RTCtxT = {}> {
         }
     }
 
-    fullHeuristicDetails = (detailsBase: HeuristicDetailsBase): HeuristicDetails => {
-        const details = { ...this.heuristciDetails, ...detailsBase }
-        if (details.declaring == null && details.insideProgram) {
-            details.declaring = 'expression'
-        }
-        return details
-    }
+    fullHeuristicDetails = (detailsBase: HeuristicDetailsBase): HeuristicDetails => ({
+        ...this.heuristciDetails,
+        ...detailsBase,
+    })
 
     getHeuristicMessageType = (msg: Message): HeuristicResultChecked => {
         const msgStr = msg.msgStr.join('\n')
@@ -400,8 +397,6 @@ export class Transformer<RTCtxT = {}> {
         ...this.visit(node.right),
     ]
 
-    visitExpressionStatement = (node: Estree.ExpressionStatement): Message[] => this.visit(node.expression)
-
     visitForOfStatement = (node: Estree.ForOfStatement): Message[] => [
         ...this.visit(node.left),
         ...this.visit(node.right),
@@ -458,32 +453,56 @@ export class Transformer<RTCtxT = {}> {
         return `[${callee.type}]`
     }
 
-    defaultVisitVariableDeclarator = (node: Estree.VariableDeclarator): Message[] => {
+    getActualExpression(expr?: Estree.Expression | Estree.TSAsExpression | Estree.TSTypeAssertion) {
+        if (!expr) {
+            return null
+        }
+        if (expr.type === 'TSAsExpression' || expr.type === 'TSTypeAssertion') {
+            return expr.expression
+        }
+        return expr
+    }
+
+    withUpdateTLDetails(visit: (atTopLevel: boolean) => Message[]) {
         const atTopLevelDefn = this.heuristciDetails.insideProgram && !this.heuristciDetails.declaring
-        if (!node.init) {
-            return []
-        }
-        if (atTopLevelDefn) {
-            let init = node.init as Estree.Expression | Estree.TSAsExpression | Estree.TSTypeAssertion
-            if (init.type === 'TSAsExpression' || init.type === 'TSTypeAssertion') {
-                init = init.expression
-            }
-            if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression') {
-                this.heuristciDetails.declaring = 'function'
-            } else {
-                this.heuristciDetails.declaring = 'variable'
-                if (init.type === 'CallExpression') {
-                    this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
-                }
-            }
-        }
-        const msgs = [...this.visit(node.id), ...this.visit(node.init)]
+        const msgs = visit(atTopLevelDefn)
         if (atTopLevelDefn) {
             this.heuristciDetails.topLevelCall = undefined // reset
             this.heuristciDetails.declaring = undefined
         }
         return msgs
     }
+
+    defaultVisitVariableDeclarator = (node: Estree.VariableDeclarator): Message[] =>
+        this.withUpdateTLDetails(topLevel => {
+            if (!node.init) {
+                return []
+            }
+            if (topLevel) {
+                const init = this.getActualExpression(node.init)
+                if (init?.type === 'ArrowFunctionExpression' || init?.type === 'FunctionExpression') {
+                    this.heuristciDetails.declaring = 'function'
+                } else {
+                    this.heuristciDetails.declaring = 'variable'
+                    if (init?.type === 'CallExpression') {
+                        this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
+                    }
+                }
+            }
+            return [...this.visit(node.id), ...this.visit(node.init)]
+        })
+
+    visitExpressionStatement = (node: Estree.ExpressionStatement): Message[] =>
+        this.withUpdateTLDetails(topLevel => {
+            const expr = this.getActualExpression(node.expression)!
+            if (topLevel) {
+                this.heuristciDetails.declaring = 'expression'
+                if (expr.type === 'CallExpression') {
+                    this.heuristciDetails.topLevelCall = this.getCalleeName(expr.callee)
+                }
+            }
+            return this.visit(expr)
+        })
 
     // for e.g. svelte to surrounded with $derived
     visitVariableDeclarator = this.defaultVisitVariableDeclarator
