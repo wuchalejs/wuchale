@@ -55,7 +55,7 @@ test('Ignore file', t => {
     )
 })
 
-test('Inside function definitions', t => {
+test('Inside function bodies', t => {
     transformTest(
         t,
         getOutput(ts`
@@ -64,6 +64,9 @@ test('Inside function definitions', t => {
             const varName = 'Hello'
             return varName
         }
+        topLevelCallExpr(() => {
+            alert("Hello")
+        })
         const insideObj = {
             method: () => 'Inside func property',
         }
@@ -85,6 +88,10 @@ test('Inside function definitions', t => {
             const varName = _w_runtime_(0)
             return varName
         }
+        topLevelCallExpr(() => {
+            const _w_runtime_ = _w_load_()
+            alert(_w_runtime_(0))
+        })
         const insideObj = {
             method: () => {
                 const _w_runtime_ = _w_load_()
@@ -101,7 +108,7 @@ test('Inside function definitions', t => {
             return _w_runtime_(3, [a])
         }
     `,
-        ['Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}'],
+        ['Hello', 'Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}'],
     )
 })
 

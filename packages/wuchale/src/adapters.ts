@@ -121,7 +121,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (msg.details.scope === 'attribute') {
             return 'message'
         }
-        if (msg.details.declaring === 'expression' && !msg.details.funcName) {
+        if (msg.details.declaring === 'expression' && msg.details.funcName == null) {
             return false
         }
         if (
