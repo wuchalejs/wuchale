@@ -1,5 +1,13 @@
 # wuchale
 
+## 0.21.2
+
+### Patch Changes
+
+- Fix expressions inside TS `as` and `<assert>` expressions not checked when setting heuristic `topLevelCall` which led to Svelte `$derived(...) as Type` being wrapped in another `$derived` ([`333c64a`](https://github.com/wuchalejs/wuchale/commit/333c64acdcdb5b447a6383a8b16e05349a26aad8))
+
+- Fix strings inside arrow function arguments to top level calls (e.g. `$effect(() => {...})`) not being extracted ([`d8a45ef`](https://github.com/wuchalejs/wuchale/commit/d8a45ef195f45f5ef12d41f34d8648312720c4c1))
+
 ## 0.21.1
 
 ### Patch Changes

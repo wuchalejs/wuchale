@@ -1,5 +1,14 @@
 # @wuchale/svelte
 
+## 0.19.1
+
+### Patch Changes
+
+- Fix `$state.*` etc. being wrapped in `$derived` causing errors ([`e1ff6f6`](https://github.com/wuchalejs/wuchale/commit/e1ff6f64392b6921d79383da7a2c2bad4c62d7fe))
+
+- Updated dependencies [[`333c64a`](https://github.com/wuchalejs/wuchale/commit/333c64acdcdb5b447a6383a8b16e05349a26aad8), [`d8a45ef`](https://github.com/wuchalejs/wuchale/commit/d8a45ef195f45f5ef12d41f34d8648312720c4c1)]:
+  - wuchale@0.21.2
+
 ## 0.19.0
 
 ### Minor Changes
