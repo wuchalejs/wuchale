@@ -17,6 +17,7 @@ import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 const nodesWithChildren = ['RegularElement', 'Component']
+const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
 const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
@@ -74,10 +75,8 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             return msgs
         }
         const needsWrapping = msgs.some(msg => {
-            if (
-                msg.details.topLevelCall &&
-                ['$props', '$state', '$derived', '$derived.by'].includes(msg.details.topLevelCall)
-            ) {
+            const topCall = msg.details.topLevelCall ?? ''
+            if (noWrapTopCalls.includes(topCall) || noWrapTopCalls.some(c => topCall.startsWith(`${c}.`))) {
                 return false
             }
             if (msg.details.declaring !== 'variable') {
