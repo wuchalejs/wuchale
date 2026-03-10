@@ -243,6 +243,16 @@ export class Files {
         await writeFile(this.#urlsFname, urlFileContent)
     }
 
+    getManifestFilePath(id: string | null): string {
+        const ownerKey = this.ownerKey
+        return resolve(this.#localesDir, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
+    }
+
+    writeManifest = async (keys: string[], id: string | null) => {
+        const content = `/** @type {string[]} */\nexport const keys = ${JSON.stringify(keys)}`
+        await writeFile(this.getManifestFilePath(id), content)
+    }
+
     writeCatalogModule = async (
         compiledData: CompiledElement[],
         pluralRule: string | null,

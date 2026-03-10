@@ -1,5 +1,6 @@
 // $ node --import ../../testing/resolve.ts %f
 
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
@@ -9,6 +10,7 @@ import { type Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
 import { pofile } from '../pofile.js'
+import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
 import { SharedStates } from './state.js'
 
@@ -55,4 +57,10 @@ test('HMR', async (t: TestContext) => {
         _w_load_('test')(0)
     `),
     )
+})
+
+test('Manifest', async (t: TestContext) => {
+    const manifestPath = resolve(localesDir, generatedDir, 'test.test.manifest.js')
+    const content = await readFile(manifestPath, 'utf-8')
+    t.assert.strictEqual(trimLines(content), trimLines(`/** @type {string[]} */\nexport const keys = ["Hello"]`))
 })
