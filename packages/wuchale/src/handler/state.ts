@@ -10,6 +10,26 @@ export type Compiled = {
 
 export type CompiledCatalogs = Map<string, Compiled>
 
+/**
+ * plural rule expressions should be
+ * - made of ternary and binary expressions
+ * - involve the variable n
+ * - always return a number >= 0
+ */
+function validatePluralRule(body: string) {
+    // strip valid tokens, if anything remains it's suspicious
+    const stripped = body
+        .replace(/[0-9]+/g, '')
+        .replace(/\bn\b/g, '')
+        .replace(/[%!=<>?:()&|+\-\s]/g, '')
+    if (stripped.length > 0) {
+        return false
+    }
+    // check if it returns a number, just an example
+    const num = eval(`(n => ${body})(42)`)
+    return !isNaN(num) && num >= 0
+}
+
 /** shared states among multiple adapters handlers */
 export class SharedState {
     ownerKey: string
@@ -35,6 +55,11 @@ export class SharedState {
         for (const loc of locales) {
             if (!this.pluralRules.has(loc)) {
                 this.pluralRules.set(loc, defaultPluralRule)
+                continue
+            }
+            const plural = this.pluralRules.get(loc)!.plural
+            if (!validatePluralRule(plural)) {
+                throw new Error(`[${this.ownerKey}]: invalid plural rule for ${loc}: ${plural}`)
             }
         }
         for (const item of loaded.items) {
