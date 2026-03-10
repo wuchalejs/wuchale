@@ -248,8 +248,8 @@ export class Files {
         return resolve(this.#localesDir, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
     }
 
-    writeManifest = async (keys: string[], id: string | null) => {
-        const content = `/** @type {string[]} */\nexport const keys = ${JSON.stringify(keys)}`
+    writeManifest = async (keys: ({ text: string[]; context?: string } | null)[], id: string | null) => {
+        const content = `/** @type {({text: string[], context?: string} | null)[]} */\nexport const keys = ${JSON.stringify(keys)}`
         await writeFile(this.getManifestFilePath(id), content)
     }
 
