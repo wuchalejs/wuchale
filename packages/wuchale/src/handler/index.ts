@@ -136,6 +136,25 @@ export class AdapterHandler {
 
     compile = async (hmrVersion = -1) => {
         await Promise.all(this.allLocales.map(loc => this.#compileForLocale(loc, hmrVersion)))
+        await this.#writeManifests()
+    }
+
+    #buildManifest = (indexTracker: { indices: Map<string, number>; nextIndex: number }): string[] => {
+        const manifest = new Array<string>(indexTracker.nextIndex).fill('')
+        for (const [key, index] of indexTracker.indices) {
+            manifest[index] = key
+        }
+        return manifest
+    }
+
+    #writeManifests = async () => {
+        await this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker), null)
+        if (!this.#adapter.granularLoad) {
+            return
+        }
+        for (const state of this.granularState.byID.values()) {
+            await this.files.writeManifest(this.#buildManifest(state.indexTracker), state.id)
+        }
     }
 
     saveStorageCompile = async () => {
