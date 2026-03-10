@@ -62,5 +62,10 @@ test('HMR', async (t: TestContext) => {
 test('Manifest', async (t: TestContext) => {
     const manifestPath = resolve(localesDir, generatedDir, 'test.test.manifest.js')
     const content = await readFile(manifestPath, 'utf-8')
-    t.assert.strictEqual(trimLines(content), trimLines(`/** @type {string[]} */\nexport const keys = ["Hello"]`))
+    t.assert.strictEqual(
+        trimLines(content),
+        trimLines(
+            `/** @type {({text: string[], context?: string} | null)[]} */\nexport const keys = [{"text":["Hello"]}]`,
+        ),
+    )
 })

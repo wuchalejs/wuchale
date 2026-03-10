@@ -139,10 +139,22 @@ export class AdapterHandler {
         await this.#writeManifests()
     }
 
-    #buildManifest = (indexTracker: { indices: Map<string, number>; nextIndex: number }): string[] => {
-        const manifest = new Array<string>(indexTracker.nextIndex).fill('')
+    #buildManifest = (indexTracker: {
+        indices: Map<string, number>
+        nextIndex: number
+    }): ({ text: string[]; context?: string } | null)[] => {
+        const manifest = new Array<{ text: string[]; context?: string } | null>(indexTracker.nextIndex).fill(null)
         for (const [key, index] of indexTracker.indices) {
-            manifest[index] = key
+            const item = this.sharedState.catalog.get(key)
+            // URL items use different keys (link paths) that don't match catalog keys; leave them as null
+            if (item === undefined) {
+                continue
+            }
+            const entry: { text: string[]; context?: string } = { text: item.id }
+            if (item.context !== undefined) {
+                entry.context = item.context
+            }
+            manifest[index] = entry
         }
         return manifest
     }
