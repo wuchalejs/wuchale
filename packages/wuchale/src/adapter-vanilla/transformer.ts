@@ -478,18 +478,19 @@ export class Transformer<RTCtxT = {}> {
             if (!node.init) {
                 return []
             }
+            const init = this.getActualExpression(node.init)!
             if (topLevel) {
-                const init = this.getActualExpression(node.init)
-                if (init?.type === 'ArrowFunctionExpression' || init?.type === 'FunctionExpression') {
+                if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression') {
                     this.heuristciDetails.declaring = 'function'
                 } else {
                     this.heuristciDetails.declaring = 'variable'
-                    if (init?.type === 'CallExpression') {
-                        this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
-                    }
                 }
             }
-            return [...this.visit(node.id), ...this.visit(node.init)]
+            const msgs = this.visit(node.id)
+            if (topLevel && this.heuristciDetails.declaring === 'variable' && init.type === 'CallExpression') {
+                this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
+            }
+            return [...msgs, ...this.visit(node.init)]
         })
 
     visitExpressionStatement = (node: Estree.ExpressionStatement): Message[] =>
