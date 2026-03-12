@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
 import type { Config } from '../config.js'
 import { globConfToArgs } from '../handler/files.js'
 import { AdapterHandler } from '../handler/index.js'
-import { SharedStates } from '../handler/state.js'
+import { Hub } from '../hub.js'
 import { color, Logger } from '../log.js'
 import { itemIsObsolete } from '../storage.js'
 
@@ -62,18 +63,19 @@ export async function extract(config: Config, root: string, clean: boolean, watc
     const logger = new Logger(config.logLevel)
     !watch && logger.info('Extracting...')
     const handlers: [AdapterHandler, VisitFileFunc, string[]][] = []
-    const sharedState = new SharedStates()
-    for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'cli', root, logger)
-        await handler.init(sharedState)
+    const hub = new Hub(() => config, root)
+    await hub.init('cli')
+    for (const handler of hub.handlers.values()) {
         const adapterName = color.magenta(handler.key)
         const extract = async (filename: string) => {
             logger.info(`${adapterName}: Extract from ${color.cyan(filename)}`)
-            const contents = await readFile(filename)
-            const [, updated] = await handler.transform(contents.toString(), filename)
+            const contents = await readFile(filename, 'utf8')
+            const [, updated] = await handler.transform(contents, filename)
             return updated
         }
-        const filePaths = await glob(...globConfToArgs(adapter.files, config.localesDir, adapter.outDir))
+        const filePaths = await glob(
+            ...globConfToArgs(handler.adapter.files, config.localesDir, handler.adapter.outDir),
+        )
         handlers.push([handler, extract, filePaths])
     }
     // owner adapter handlers should run last for cleanup
@@ -92,10 +94,9 @@ export async function extract(config: Config, root: string, clean: boolean, watc
         if (!['add', 'change'].includes(event)) {
             return
         }
-        for (const [handler, extract] of handlers) {
-            if (handler.fileMatches(filename)) {
-                await extract(filename)
-            }
-        }
+        const id = resolve(root, filename)
+        const read = () => readFile(id, 'utf8')
+        await hub.onFileChange(id, read)
+        await hub.transform(await read(), id)
     })
 }

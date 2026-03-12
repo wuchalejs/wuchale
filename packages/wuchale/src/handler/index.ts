@@ -8,9 +8,9 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
-import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
+import { type FileRef, type FileRefEntry, type Item, newItem, itemIsUrl } from '../storage.js'
 import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
-import { type SharedState, SharedStates, State } from './state.js'
+import { type SharedState, State } from './state.js'
 import { URLHandler } from './url.js'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -35,13 +35,13 @@ export class AdapterHandler {
     key: string
 
     /** config.locales and adapter's sourceLocale */
-    allLocales: string[]
-    sourceLocale: string
+    readonly allLocales: string[]
+    readonly sourceLocale: string
+    readonly adapter: Adapter
 
     #projectRoot: string
 
     #config: ConfigPartial
-    #adapter: Adapter
     fileMatches: Matcher
 
     /* Shared state with other adapter handlers */
@@ -60,15 +60,15 @@ export class AdapterHandler {
     onBeforeSave: () => void
 
     constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
-        this.#adapter = adapter
+        this.adapter = adapter
         this.key = key
         this.#mode = mode
         this.#projectRoot = projectRoot
         this.#config = config
         this.#log = log
-        this.fileMatches = pm(...globConfToArgs(this.#adapter.files, this.#config.localesDir, this.#adapter.outDir))
+        this.fileMatches = pm(...globConfToArgs(this.adapter.files, this.#config.localesDir, this.adapter.outDir))
         this.allLocales = [...this.#config.locales]
-        this.sourceLocale = this.#adapter.sourceLocale ?? this.#config.locales[0]
+        this.sourceLocale = this.adapter.sourceLocale ?? this.#config.locales[0]
         if (!this.allLocales.includes(this.sourceLocale)) {
             this.allLocales.push(this.sourceLocale)
         }
@@ -81,13 +81,13 @@ export class AdapterHandler {
             )
         }
         this.url = new URLHandler(this.allLocales, adapter.url)
-        this.files = new Files(this.#adapter, this.key, this.#config.localesDir, this.#projectRoot)
+        this.files = new Files(this.adapter, this.key, this.#config.localesDir, this.#projectRoot)
     }
 
     /** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */
     getLoadIDs(): [string[], string[]] {
         const loadIDs: string[] = []
-        if (!this.#adapter.granularLoad) {
+        if (!this.adapter.granularLoad) {
             return [[this.key], [this.sharedState.ownerKey]]
         }
         for (const state of this.granularState.byID.values()) {
@@ -99,21 +99,11 @@ export class AdapterHandler {
         return [loadIDs, loadIDs]
     }
 
-    initSharedState = (sharedStates: SharedStates) => {
-        const storage = this.#adapter.storage({
-            locales: this.allLocales,
-            root: this.#projectRoot,
-            sourceLocale: this.sourceLocale,
-            haveUrl: this.#adapter.url != null,
-        })
-        this.sharedState = sharedStates.getAdd(storage, this.key, this.sourceLocale, this.fileMatches)
-    }
-
-    init = async (sharedStates: SharedStates) => {
-        this.initSharedState(sharedStates)
+    init = async (sharedState: SharedState) => {
+        this.sharedState = sharedState
         await this.files.init(this.#config.locales, this.sharedState.ownerKey)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
-        this.granularState = new State(writeProxies, this.#adapter.generateLoadID)
+        this.granularState = new State(writeProxies, this.adapter.generateLoadID)
         await this.loadStorage()
         if (await this.url.initPatterns(this.sourceLocale, this.key, this.sharedState.catalog, this.#aiQueue)) {
             await this.saveStorage()
@@ -166,7 +156,7 @@ export class AdapterHandler {
 
     #writeManifests = async () => {
         await this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)
-        if (!this.#adapter.granularLoad) {
+        if (!this.adapter.granularLoad) {
             return
         }
         for (const state of this.granularState.byID.values()) {
@@ -190,7 +180,7 @@ export class AdapterHandler {
             hmrVersionMode,
             null,
         )
-        if (!this.#adapter.granularLoad) {
+        if (!this.adapter.granularLoad) {
             return
         }
         for (const state of this.granularState.byID.values()) {
@@ -272,7 +262,7 @@ export class AdapterHandler {
                     compiled = compileTranslation(toCompile, fallback)
                 }
                 sharedCompiledLoc.items[index] = compiled
-                if (!this.#adapter.granularLoad) {
+                if (!this.adapter.granularLoad) {
                     continue
                 }
                 for (const ref of item.references) {
@@ -298,8 +288,8 @@ export class AdapterHandler {
     }
 
     #getRuntimeVars = (): RuntimeExpr => ({
-        plain: this.#adapter.getRuntimeVars?.plain ?? getFuncPlainDefault,
-        reactive: this.#adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
+        plain: this.adapter.getRuntimeVars?.plain ?? getFuncPlainDefault,
+        reactive: this.adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
     })
 
     #prepareHeader = (
@@ -311,7 +301,7 @@ export class AdapterHandler {
     ): string => {
         let head: string[] = []
         if (hasUrls) {
-            const localize = this.#adapter.url?.localize
+            const localize = this.adapter.url?.localize
             if (localize === true) {
                 head.push(`import { localizeDefault as ${varNames.urlLocalize} } from "wuchale/url"`)
             } else if (typeof localize === 'string') {
@@ -332,8 +322,8 @@ export class AdapterHandler {
             )
         }
         let loaderRelTo = filename
-        if (this.#adapter.outDir) {
-            loaderRelTo = resolve(this.#adapter.outDir + '/' + filename)
+        if (this.adapter.outDir) {
+            loaderRelTo = resolve(this.adapter.outDir + '/' + filename)
         }
         const loaderPath = this.files.getImportLoaderPath(forServer, loaderRelTo)
         const importsFuncs = [
@@ -341,7 +331,7 @@ export class AdapterHandler {
             `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
         ]
         head = [`import {${importsFuncs.join(', ')}} from "${loaderPath}"`, ...head]
-        if (!this.#adapter.bundleLoad) {
+        if (!this.adapter.bundleLoad) {
             return head.join('\n')
         }
         const imports: string[] = []
@@ -357,7 +347,7 @@ export class AdapterHandler {
 
     #prepareRuntimeExpr = (loadID: string): RuntimeExpr => {
         const importLoaderVars = this.#getRuntimeVars()
-        if (this.#adapter.bundleLoad) {
+        if (this.adapter.bundleLoad) {
             return {
                 plain: `${importLoaderVars.plain}(${bundleCatalogsVarName})`,
                 reactive: `${importLoaderVars.reactive}(${bundleCatalogsVarName})`,
@@ -498,13 +488,13 @@ export class AdapterHandler {
         let indexTracker = this.sharedState.indexTracker
         let loadID = this.key
         let compiled = this.sharedState.compiled
-        if (this.#adapter.granularLoad) {
+        if (this.adapter.granularLoad) {
             const state = await this.granularState.byFileCreate(filename, this.allLocales)
             indexTracker = state.indexTracker
             loadID = state.id
             compiled = state.compiled
         }
-        const { msgs, ...result } = await this.#adapter.transform({
+        const { msgs, ...result } = await this.adapter.transform({
             content,
             filename,
             index: indexTracker,

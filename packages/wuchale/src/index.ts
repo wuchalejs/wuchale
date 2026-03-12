@@ -44,8 +44,8 @@ export {
 export { generatedDir, normalizeSep } from './handler/files.js'
 export type { Mode } from './handler/index.js'
 export { AdapterHandler } from './handler/index.js'
-export { SharedStates } from './handler/state.js'
 export { URLHandler } from './handler/url.js'
+export { Hub } from './hub.js'
 export { Logger } from './log.js'
 export { pofile } from './pofile.js'
 export type {

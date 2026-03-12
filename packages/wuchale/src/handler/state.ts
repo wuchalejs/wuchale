@@ -77,25 +77,6 @@ export class SharedState {
     }
 }
 
-export class SharedStates {
-    // by localesDir
-    states: Map<string, SharedState> = new Map()
-
-    getAdd = (storage: CatalogStorage, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
-        let sharedState = this.states.get(storage.key)
-        if (sharedState == null) {
-            sharedState = new SharedState(storage, key, sourceLocale)
-            this.states.set(storage.key, sharedState)
-        } else {
-            if (sharedState.sourceLocale !== sourceLocale) {
-                throw new Error('Adapters with different source locales cannot share catalogs.')
-            }
-            sharedState.otherFileMatches.push(fileMatches)
-        }
-        return sharedState
-    }
-}
-
 type GranularState = {
     id: string
     compiled: CompiledCatalogs
