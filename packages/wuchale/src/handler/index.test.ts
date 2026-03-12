@@ -12,7 +12,7 @@ import { Logger } from '../log.js'
 import { pofile } from '../pofile.js'
 import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
-import { SharedStates } from './state.js'
+import { SharedState } from './state.js'
 
 const localesDir = resolve(import.meta.dirname, '../../testing/tmp')
 
@@ -31,7 +31,13 @@ const conf = {
 }
 
 const handler = new AdapterHandler(adapter, 'test', conf, 'dev', import.meta.dirname, new Logger('error'))
-await handler.init(new SharedStates())
+const storage = adapter.storage({
+    locales: ['en'],
+    root: import.meta.dirname,
+    sourceLocale: 'en',
+    haveUrl: false,
+})
+await handler.init(new SharedState(storage, handler.key, 'en'))
 
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`

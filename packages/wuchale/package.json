@@ -66,6 +66,10 @@
         "./compiler": {
             "types": "./dist/compile.d.ts",
             "default": "./dist/compile.js"
+        },
+        "./vite": {
+            "types": "./dist/bundlers/vite.d.ts",
+            "default": "./dist/bundlers/vite.js"
         }
     },
     "bin": {
