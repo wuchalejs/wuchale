@@ -1,8 +1,7 @@
 import { relative } from 'node:path'
 import { type Config, getLanguageName } from '../config.js'
-import { AdapterHandler } from '../handler/index.js'
-import { SharedStates } from '../handler/state.js'
-import { color, Logger } from '../log.js'
+import { Hub } from '../hub.js'
+import { color } from '../log.js'
 import { type Catalog, itemIsObsolete, itemIsUrl } from '../storage.js'
 
 type POStats = {
@@ -31,10 +30,9 @@ async function statCatalog(locale: string, catalog: Catalog, urls: boolean): Pro
 export async function status(config: Config, root: string, locales: string[]) {
     // console.log because if the user invokes this command, they want full info regardless of config
     console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
-    const sharedStates = new SharedStates()
-    for (const [key, adapter] of Object.entries(config.adapters)) {
-        const handler = new AdapterHandler(adapter, key, config, 'cli', root, new Logger(config.logLevel))
-        handler.initSharedState(sharedStates)
+    const hub = new Hub(() => config, root)
+    await hub.init('cli', true)
+    for (const [key, handler] of hub.handlers) {
         const state = handler.sharedState
         const loaderPath = await handler.files.getLoaderPath()
         console.log(`${color.magenta(key)}: ${color.cyan(state.catalog.size)} messages`)
