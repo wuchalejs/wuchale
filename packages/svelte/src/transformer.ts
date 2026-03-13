@@ -183,11 +183,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         if (!pass) {
             return []
         }
-        this.mstr.update(
-            node.start + startWh,
-            node.end - endWh,
-            `{${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})}`,
-        )
+        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.literalRepl(msgInfo)}}`)
         return [msgInfo]
     }
 

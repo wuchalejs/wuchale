@@ -327,3 +327,33 @@ test('Context', async t => {
         ['String', 'String', 'Close', 'Close'],
     )
 })
+
+test('Nested and mixed', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+            <p>Hello and <b>welcome</b> to <i>the app</i>!</p>
+            <p>{num} messages</p>
+        `),
+        svelte`
+            <script>
+                import { _w_load_, _w_load_rx_ } from "./loader.js"
+                import W_tx_ from "@wuchale/svelte/runtime.svelte"
+                const _w_runtime_ = $derived(_w_load_rx_())
+            </script>
+            <p>
+                {#snippet _w_snippet_0(_w_ctx_)}
+                    <b>{_w_runtime_.x(_w_ctx_)}</b>
+                {/snippet}
+                {#snippet _w_snippet_1(_w_ctx_)}
+                    <i>{_w_runtime_.x(_w_ctx_)}</i>
+                {/snippet}
+                <W_tx_ t={[_w_snippet_0, _w_snippet_1]} x={_w_runtime_.c(0)} />
+            </p>
+            <p>
+                <W_tx_ x={_w_runtime_.c(1)} a={[num]} />
+            </p>
+    `,
+        ['Hello and <0>welcome</0> to <1>the app</1>!', '{0} messages'],
+    )
+})
