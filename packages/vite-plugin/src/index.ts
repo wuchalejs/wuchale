@@ -187,13 +187,19 @@ export class Wuchale {
         }
         // catalog changed
         const sourceTriggered = performance.now() - this.#lastSourceTriggeredPOWrite < this.#hmrDelayThreshold
+        // When a source edit rewrites a catalog, the transformed source module already
+        // embeds the HMR payload and applies it directly to the runtime. Letting the
+        // catalog-side watcher continue through Vite's default HMR path can escalate
+        // into unrelated invalidations or full reloads, so swallow these follow-up
+        // PO changes entirely.
+        if (sourceTriggered) {
+            return []
+        }
         const invalidatedModules = new Set()
         for (const adapter of adapters) {
             for (const loc of adapter.allLocales) {
-                if (!sourceTriggered) {
-                    await adapter.loadStorage()
-                    await adapter.compile(this.#hmrVersion)
-                }
+                await adapter.loadStorage()
+                await adapter.compile(this.#hmrVersion)
                 for (const loadID of adapter.getLoadIDs()[0]) {
                     const fileID = normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID)))
                     for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
@@ -202,10 +208,8 @@ export class Wuchale {
                 }
             }
         }
-        if (!sourceTriggered) {
-            ctx.server.ws.send({ type: 'full-reload' })
-            return []
-        }
+        ctx.server.ws.send({ type: 'full-reload' })
+        return []
     }
 
     #transformHandler = async (code: string, id: string, options?: { ssr?: boolean | undefined }) => {
