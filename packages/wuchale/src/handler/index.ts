@@ -9,7 +9,7 @@ import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, newItem } from '../storage.js'
-import { Files, globConfToArgs, normalizeSep, objKeyLocale } from './files.js'
+import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, SharedStates, State } from './state.js'
 import { URLHandler } from './url.js'
 
@@ -22,6 +22,11 @@ const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
 export type Mode = 'dev' | 'build' | 'cli'
+
+type ManifestIndexTracker = {
+    indices: Map<string, number>
+    nextIndex: number
+}
 
 type TrackedRefs = Map<
     string,
@@ -139,22 +144,27 @@ export class AdapterHandler {
         await this.#writeManifests()
     }
 
-    #buildManifest = (indexTracker: {
-        indices: Map<string, number>
-        nextIndex: number
-    }): ({ text: string[]; context?: string } | null)[] => {
-        const manifest = new Array<{ text: string[]; context?: string } | null>(indexTracker.nextIndex).fill(null)
+    #buildManifest = (indexTracker: ManifestIndexTracker): ManifestEntry[] => {
+        const manifest = new Array<ManifestEntry>(indexTracker.nextIndex).fill(null)
         for (const [key, index] of indexTracker.indices) {
             const item = this.sharedState.catalog.get(key)
-            // URL items use different keys (link paths) that don't match catalog keys; leave them as null
             if (item === undefined) {
+                manifest[index] = { text: key, isUrl: true }
                 continue
             }
-            const entry: { text: string[]; context?: string } = { text: item.id }
-            if (item.context !== undefined) {
-                entry.context = item.context
+
+            const isUrl = item.urlAdapters.length > 0
+            const text = item.id.length === 1 ? item.id[0] : item.id
+            if (!isUrl && item.context === undefined) {
+                manifest[index] = text
+                continue
             }
-            manifest[index] = entry
+
+            manifest[index] = {
+                text,
+                context: item.context,
+                isUrl: isUrl || undefined,
+            }
         }
         return manifest
     }
