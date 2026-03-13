@@ -65,7 +65,7 @@ test('Manifest', async (t: TestContext) => {
     t.assert.strictEqual(
         trimLines(content),
         trimLines(
-            `/** @type {({text: string[], context?: string} | null)[]} */\nexport const keys = [{"text":["Hello"]}]`,
+            `/** @type {(string | {text: string | string[], context?: string, isUrl?: boolean} | null)[]} */\nexport const keys = ["Hello"]`,
         ),
     )
 })

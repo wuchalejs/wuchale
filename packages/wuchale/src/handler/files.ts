@@ -9,6 +9,14 @@ import { type URLManifest } from '../url.js'
 const dataFileName = 'data.js'
 export const generatedDir = '.wuchale'
 
+export type ManifestEntryObj = {
+    text: string | string[]
+    context?: string
+    isUrl?: boolean
+}
+
+export type ManifestEntry = string | string[] | ManifestEntryObj | null
+
 export const objKeyLocale = (locale: string) => (locale.includes('-') ? `'${locale}'` : locale)
 
 export function normalizeSep(path: string) {
@@ -248,8 +256,10 @@ export class Files {
         return resolve(this.#localesDir, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
     }
 
-    writeManifest = async (keys: ({ text: string[]; context?: string } | null)[], id: string | null) => {
-        const content = `/** @type {({text: string[], context?: string} | null)[]} */\nexport const keys = ${JSON.stringify(keys)}`
+    writeManifest = async (keys: ManifestEntry[], id: string | null) => {
+        const content =
+            `/** @type {(string | {text: string | string[], context?: string, isUrl?: boolean} | null)[]} */\n` +
+            `export const keys = ${JSON.stringify(keys)}`
         await writeFile(this.getManifestFilePath(id), content)
     }
 
