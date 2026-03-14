@@ -188,24 +188,26 @@ test('Nested and mixed', async t => {
     transformTest(
         t,
         await getOutput(astro`
-            <p>Hello and <b>welcome</b> to <i>the app</i>!</p>
-            <p>{num} messages</p>
+            <p>Hello and <b>welcome to <i>the app {appName}</i></b>!</p>
         `),
         astro`
-            ---
-            import { _w_load_, _w_load_rx_ } from "./loader.js"
-            import _w_Tx_ from "@wuchale/astro/runtime.js"
-            const _w_runtime_ = _w_load_()
-            ---
-            <p>{_w_Tx_({
-                x: _w_runtime_.c(0),
-                t: [_w_ctx_ => <b>{_w_runtime_.x(_w_ctx_)}</b>, _w_ctx_ => <i>{_w_runtime_.x(_w_ctx_)}</i>]
-            })}</p>
-            <p>{_w_Tx_({
-                x: _w_runtime_.c(1),
-                a: [num]
-            })}</p>
+        ---
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import _w_Tx_ from "@wuchale/astro/runtime.js"
+        const _w_runtime_ = _w_load_()
+        ---
+        <p>{_w_Tx_({
+            x: _w_runtime_.c(0),
+            t: [_w_ctx_ => <b>{_w_Tx_({
+                x: _w_ctx_,
+                n: true,
+                t: [_w_ctx_ => <i>{_w_Tx_({
+                    x: _w_ctx_,
+                    n: true,
+                    a: [appName]
+            })}</i></b>]]
+        })}</p>
     `,
-        ['Hello and <0>welcome</0> to <1>the app</1>!', '{0} messages'],
+        ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })

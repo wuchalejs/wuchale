@@ -332,28 +332,28 @@ test('Nested and mixed', async t => {
     transformTest(
         t,
         await getOutput(svelte`
-            <p>Hello and <b>welcome</b> to <i>the app</i>!</p>
-            <p>{num} messages</p>
+            <p>Hello and <b>welcome to <i>the app {appName}</i></b>!</p>
         `),
         svelte`
-            <script>
-                import { _w_load_, _w_load_rx_ } from "./loader.js"
-                import W_tx_ from "@wuchale/svelte/runtime.svelte"
-                const _w_runtime_ = $derived(_w_load_rx_())
-            </script>
-            <p>
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_())
+        </script>
+        <p>
+            {#snippet _w_snippet_1(_w_ctx_)}
+                <b>
                 {#snippet _w_snippet_0(_w_ctx_)}
-                    <b>{_w_runtime_.x(_w_ctx_)}</b>
+                    <i>
+                        <W_tx_ x={_w_ctx_} n a={[appName]} />
+                    </i>
                 {/snippet}
-                {#snippet _w_snippet_1(_w_ctx_)}
-                    <i>{_w_runtime_.x(_w_ctx_)}</i>
-                {/snippet}
-                <W_tx_ t={[_w_snippet_0, _w_snippet_1]} x={_w_runtime_.c(0)} />
-            </p>
-            <p>
-                <W_tx_ x={_w_runtime_.c(1)} a={[num]} />
-            </p>
+                <W_tx_ t={[_w_snippet_0]} x={_w_ctx_} n />
+            </b>
+            {/snippet}
+            <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(0)} />
+        </p>
     `,
-        ['Hello and <0>welcome</0> to <1>the app</1>!', '{0} messages'],
+        ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
