@@ -1,5 +1,15 @@
 # wuchale
 
+## 0.21.3
+
+### Patch Changes
+
+- Validate plural rules and check for anything suspecious ([`89fec64`](https://github.com/wuchalejs/wuchale/commit/89fec64579b2c1fe83b0867c5605056f036ce003))
+
+  Plural rules that come from the catalogs set by translators are now validated to be ternary expressions in the expected format for correctness, as well as security reasons (although the risk is low)
+
+- Fix wrong `topLevelCall` in heuristic details on destructuring assignments ([`b7f362c`](https://github.com/wuchalejs/wuchale/commit/b7f362c43796fae570c0792ed3b443ea4e181313))
+
 ## 0.21.2
 
 ### Patch Changes
