@@ -1,0 +1,226 @@
+/**
+ * This is the common coordination logic for use in the CLI as well as the bundler plugins
+ */
+
+import { writeFile } from 'node:fs/promises'
+import { relative, resolve } from 'node:path'
+import { type Matcher } from 'picomatch'
+import type { Adapter, TransformOutputCode } from './adapters.js'
+import type { Config } from './config.js'
+import { generatedDir, normalizeSep } from './handler/files.js'
+import { AdapterHandler, type Mode } from './handler/index.js'
+import { SharedState } from './handler/state.js'
+import { color, Logger } from './log.js'
+
+export const pluginName = 'wuchale'
+const confUpdateName = 'confUpdate.json'
+const logPrefix = `[${color.magenta(pluginName)}]:`
+
+type ConfUpdate = {
+    hmr: boolean
+}
+
+type ConfigLoader = () => Config | Promise<Config>
+
+type FileChangeInfo = {
+    sourceTriggered: boolean
+    invalidate: Set<string>
+}
+
+const ignoreChange: FileChangeInfo = {
+    sourceTriggered: false,
+    invalidate: new Set(),
+}
+
+export class Hub {
+    #config: Config
+    #projectRoot: string = ''
+
+    readonly handlers: Map<string, AdapterHandler> = new Map()
+
+    #confUpdateFile: string
+    #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
+    #granularLoadHandlers: AdapterHandler[] = []
+    #singleCompiledCatalogs: Set<string> = new Set()
+
+    #sharedStates: Map<string, SharedState> = new Map()
+
+    #log: Logger
+    #mode: Mode
+
+    #loadConfig: ConfigLoader
+
+    #hmrVersion = -1
+    #hmrDelayThreshold: number
+    #lastSourceTriggeredCatalogWrite: number = 0
+
+    constructor(loadConfig: ConfigLoader, root: string, hmrDelayThreshold = 1000) {
+        this.#loadConfig = loadConfig
+        this.#projectRoot = root
+        this.#sharedStates = new Map()
+        // threshold to consider po file change is manual edit instead of a sideeffect of editing code
+        this.#hmrDelayThreshold = hmrDelayThreshold
+    }
+
+    init = async (mode: Mode, soft = false) => {
+        this.#mode = mode
+        this.#config = await this.#loadConfig()
+        this.#log = new Logger(this.#config.logLevel)
+        const adaptersData = Object.entries(this.#config.adapters)
+        if (adaptersData.length === 0) {
+            throw Error(`${logPrefix} at least one adapter is needed.`)
+        }
+        const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
+        for (const [key, adapter] of adaptersData) {
+            const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
+            await handler.init(
+                this.#getSharedState(adapter, key, handler.sourceLocale, handler.allLocales, handler.fileMatches),
+            )
+            if (soft) {
+                continue
+            }
+            handler.onBeforeSave = () => {
+                this.#lastSourceTriggeredCatalogWrite = performance.now()
+            }
+            this.handlers.set(key, handler)
+            if (adapter.granularLoad) {
+                this.#granularLoadHandlers.push(handler)
+            } else {
+                for (const locale of this.#config.locales) {
+                    this.#singleCompiledCatalogs.add(
+                        normalizeSep(resolve(handler.files.getCompiledFilePath(locale, null))),
+                    )
+                }
+            }
+            for (const path of Object.values(handler.files.loaderPath)) {
+                const loaderPath = normalizeSep(resolve(path))
+                if (handlersByLoaderPath.has(loaderPath)) {
+                    const otherKey = handlersByLoaderPath.get(loaderPath)?.key
+                    if (otherKey === key) {
+                        // same loader for both ssr and client, no problem
+                        continue
+                    }
+                    throw new Error(
+                        [
+                            logPrefix,
+                            'While catalogs can be shared, the same loader cannot be used by multiple adapters',
+                            `Conflicting: ${key} and ${otherKey}`,
+                            'Specify a different loaderPath for one of them.',
+                        ].join('\n'),
+                    )
+                }
+                handlersByLoaderPath.set(loaderPath, handler)
+            }
+            for (const fname of handler.sharedState.storage.files) {
+                const normalized = normalizeSep(fname)
+                const handlers = this.#handlersByCatalogPath.get(normalized)
+                if (handlers) {
+                    handlers.push(handler)
+                } else {
+                    this.#handlersByCatalogPath.set(normalized, [handler])
+                }
+            }
+        }
+        this.#confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
+        await writeFile(this.#confUpdateFile, '{}') // only watch changes so prepare first
+    }
+
+    #getSharedState = (
+        adapter: Adapter,
+        key: string,
+        sourceLocale: string,
+        allLocales: string[],
+        fileMatches: Matcher,
+    ): SharedState => {
+        const storage = adapter.storage({
+            locales: allLocales,
+            root: this.#projectRoot,
+            sourceLocale: sourceLocale,
+            haveUrl: adapter.url != null,
+        })
+        let sharedState = this.#sharedStates.get(storage.key)
+        if (sharedState == null) {
+            sharedState = new SharedState(storage, key, sourceLocale)
+            this.#sharedStates.set(storage.key, sharedState)
+        } else {
+            if (sharedState.sourceLocale !== sourceLocale) {
+                throw new Error(
+                    `${logPrefix} Adapters with different source locales (${sharedState.ownerKey} and ${key}) cannot share catalogs.`,
+                )
+            }
+            sharedState.otherFileMatches.push(fileMatches)
+        }
+        return sharedState
+    }
+
+    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
+        if (this.#confUpdateFile === file) {
+            const update: ConfUpdate = JSON.parse(await read())
+            this.#log.info(`${logPrefix} config update received: ${update}`)
+            this.#config.hmr = update.hmr
+            return ignoreChange
+        }
+        if (!this.#config.hmr) {
+            return
+        }
+        // This is mainly to make sure that catalog file changes result in a page reload with new catalogs
+        const adapters = this.#handlersByCatalogPath.get(file)
+        if (adapters == null) {
+            // prevent reloading whole app because of a change in compiled catalog
+            // triggered by extraction from single file, hmr handled by embedding patch
+            if (this.#singleCompiledCatalogs.has(file)) {
+                return ignoreChange
+            }
+            // for granular as well
+            for (const adapter of this.#granularLoadHandlers) {
+                for (const loc of this.#config.locales) {
+                    for (const id of adapter.granularState.byID.keys()) {
+                        if (normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, id))) === file) {
+                            return ignoreChange
+                        }
+                    }
+                }
+            }
+            this.#hmrVersion++
+            return
+        }
+        // catalog changed
+        const changeInfo: FileChangeInfo = {
+            sourceTriggered: performance.now() - this.#lastSourceTriggeredCatalogWrite < this.#hmrDelayThreshold,
+            invalidate: new Set(),
+        }
+        for (const adapter of adapters) {
+            for (const loc of adapter.allLocales) {
+                if (!changeInfo.sourceTriggered) {
+                    await adapter.loadStorage()
+                    await adapter.compile(this.#hmrVersion)
+                }
+                for (const loadID of adapter.getLoadIDs()[0]) {
+                    changeInfo.invalidate.add(normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, loadID))))
+                }
+            }
+        }
+        return changeInfo
+    }
+
+    transform = async (code: string, filePath: string, forServer = false): ReturnType<AdapterHandler['transform']> => {
+        if (this.#mode === 'dev' && !this.#config.hmr) {
+            return [{}, false]
+        }
+        const filename = relative(this.#projectRoot, filePath)
+        let output: [TransformOutputCode, boolean] | null = null
+        let lastAdapterKey: string | null = null
+        for (const adapter of this.handlers.values()) {
+            if (adapter.fileMatches(filename)) {
+                if (lastAdapterKey != null) {
+                    throw new Error(
+                        `${logPrefix} ${filename} matches both adapters ${lastAdapterKey} and ${adapter.key}`,
+                    )
+                }
+                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                lastAdapterKey = adapter.key
+            }
+        }
+        return output ?? [{}, false]
+    }
+}
