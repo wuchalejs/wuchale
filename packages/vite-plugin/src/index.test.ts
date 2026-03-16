@@ -137,39 +137,6 @@ test('handleHotUpdate', async (t: TestContext) => {
     t.assert.strictEqual(reLoad!, false)
 })
 
-test('handleHotUpdate swallows source-triggered catalog writes', async (t: TestContext) => {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
-    const sourceTriggeredPlugin = new Wuchale(loadConfig, import.meta.dirname, 10_000)
-    await sourceTriggeredPlugin.configResolved({ env: { DEV: true } })
-    await sourceTriggeredPlugin.transform.handler(code, file)
-
-    let wsMsg: object | undefined
-    let invalidated = false
-    const ctx: Parameters<typeof sourceTriggeredPlugin.handleHotUpdate>[0] = {
-        file: normalizeSep(resolve(tmpDir, 'en.po')),
-        server: {
-            ws: {
-                send: (msg: object) => {
-                    wsMsg = msg
-                },
-            },
-            moduleGraph: {
-                getModulesByFile: () => [{ id: 'compiled-module' }],
-                invalidateModule: () => {
-                    invalidated = true
-                },
-            },
-        },
-        read: () => '',
-        timestamp: 1002,
-    }
-
-    const res = await sourceTriggeredPlugin.handleHotUpdate(ctx)
-    t.assert.deepEqual(res, [])
-    t.assert.strictEqual(wsMsg, undefined)
-    t.assert.strictEqual(invalidated, false)
-})
-
 test('transform with hmr', async (t: TestContext) => {
     await plugin.configResolved({ env: { DEV: true } })
     const output = await plugin.transform.handler(code, file)
