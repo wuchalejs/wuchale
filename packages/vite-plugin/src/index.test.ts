@@ -59,6 +59,23 @@ test('transform basic', async (t: TestContext) => {
     )
 })
 
+test('transform with cache-busting query', async (t: TestContext) => {
+    await plugin.configResolved({ env: { DEV: true } })
+    const output = await plugin.transform.handler(code, `${file}?t=123`)
+    const plainOutput = await plugin.transform.handler(code, file)
+    t.assert.strictEqual(
+        trimLines(output.code),
+        trimLines(plainOutput.code),
+    )
+})
+
+test('transform ignores virtual style submodule queries', async (t: TestContext) => {
+    await plugin.configResolved({ env: { DEV: true } })
+    const css_module_id = `${file}?svelte&type=style&lang.css`
+    const output = await plugin.transform.handler('.foo { color: red; }', css_module_id)
+    t.assert.deepEqual(output, {})
+})
+
 test('transform ssr', async (t: TestContext) => {
     await plugin.configResolved({ env: { DEV: false } })
     const output = await plugin.transform.handler(code, file, { ssr: true })
@@ -118,6 +135,39 @@ test('handleHotUpdate', async (t: TestContext) => {
     t.assert.deepEqual(invalidatedModules!, new Set())
     t.assert.strictEqual(timeStamp!, 1001)
     t.assert.strictEqual(reLoad!, false)
+})
+
+test('handleHotUpdate swallows source-triggered catalog writes', async (t: TestContext) => {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
+    const sourceTriggeredPlugin = new Wuchale(loadConfig, import.meta.dirname, 10_000)
+    await sourceTriggeredPlugin.configResolved({ env: { DEV: true } })
+    await sourceTriggeredPlugin.transform.handler(code, file)
+
+    let wsMsg: object | undefined
+    let invalidated = false
+    const ctx: Parameters<typeof sourceTriggeredPlugin.handleHotUpdate>[0] = {
+        file: normalizeSep(resolve(tmpDir, 'en.po')),
+        server: {
+            ws: {
+                send: (msg: object) => {
+                    wsMsg = msg
+                },
+            },
+            moduleGraph: {
+                getModulesByFile: () => [{ id: 'compiled-module' }],
+                invalidateModule: () => {
+                    invalidated = true
+                },
+            },
+        },
+        read: () => '',
+        timestamp: 1002,
+    }
+
+    const res = await sourceTriggeredPlugin.handleHotUpdate(ctx)
+    t.assert.deepEqual(res, [])
+    t.assert.strictEqual(wsMsg, undefined)
+    t.assert.strictEqual(invalidated, false)
 })
 
 test('transform with hmr', async (t: TestContext) => {
