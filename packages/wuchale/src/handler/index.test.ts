@@ -1,6 +1,6 @@
 // $ node --import ../../testing/resolve.ts %f
 
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
@@ -37,6 +37,9 @@ const storage = adapter.storage({
     sourceLocale: 'en',
     haveUrl: false,
 })
+
+// needed to make sure generatedDir exists, normally done at hub init
+await mkdir(resolve(localesDir, generatedDir), { recursive: true })
 await handler.init(new SharedState(storage, handler.key, 'en'))
 
 test('HMR', async (t: TestContext) => {
