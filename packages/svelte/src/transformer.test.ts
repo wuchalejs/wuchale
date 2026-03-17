@@ -34,7 +34,7 @@ test('Simple text', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
         </script>
         {_w_runtime_(0)}
     `,
@@ -61,7 +61,7 @@ test('JS module files', async t => {
         ),
         ts`
         import { _w_load_, _w_load_rx_ } from "./loader.js"
-        const _w_runtime_ = $derived(_w_load_rx_())
+        const _w_runtime_ = $derived(_w_load_rx_());
 
         const varName = $derived(_w_runtime_(0))
         'No translation!' // simple expression
@@ -70,7 +70,7 @@ test('JS module files', async t => {
         const msg = $derived(_w_runtime_(2))
 
         function foo() {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             return _w_runtime_(3)
         }
     `,
@@ -93,7 +93,7 @@ test('Simple element with new lines', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
             // Intentionally empty
         </script>
         <p title={loggedIn && _w_runtime_(0)}>
@@ -121,7 +121,7 @@ test('Ignore and include', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
         </script>
         <div>
             <svg><path d="M100 200" /></svg>
@@ -165,7 +165,7 @@ test('Keep as single unit', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
         </script>
         <!-- @wc-unit -->
         <div>
@@ -207,7 +207,7 @@ test('URLs', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
             goto(_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l))
             const url = $derived({
                 // @wc-url
@@ -278,10 +278,10 @@ test('Exported snippet', async t => {
         <script module>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_mod_ = $derived(_w_load_rx_())
+            const _w_runtime_mod_ = $derived(_w_load_rx_());
             export const bar = {
                 feel: () => {
-					const _w_runtime_mod_ = _w_load_()
+					const _w_runtime_mod_ = _w_load_();
 					const msg = _w_runtime_mod_(0)
                     return foo
                 }
@@ -289,7 +289,7 @@ test('Exported snippet', async t => {
         </script>
 
         <script>
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
         </script>
 
         {#snippet foo()}
@@ -315,7 +315,7 @@ test('Context', async t => {
             <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
-                const _w_runtime_ = $derived(_w_load_rx_())
+                const _w_runtime_ = $derived(_w_load_rx_());
             </script>
             <p>{/* @wc-context: music */ _w_runtime_(0)}</p>
             <p>{/* @wc-context: programming */ _w_runtime_(1)}</p>
@@ -338,7 +338,7 @@ test('Nested and mixed', async t => {
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_())
+            const _w_runtime_ = $derived(_w_load_rx_());
         </script>
         <p>
             {#snippet _w_snippet_1(_w_ctx_)}

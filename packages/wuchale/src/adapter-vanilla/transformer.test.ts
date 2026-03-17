@@ -84,22 +84,22 @@ test('Inside function bodies', t => {
         import { _w_load_, _w_load_rx_ } from "./loader.js"
 
         function foo(): string {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             const varName = _w_runtime_(0)
             return varName
         }
         topLevelCallExpr(() => {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             alert(_w_runtime_(0))
         })
         const insideObj = {
             method: () => {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return _w_runtime_(1)
             },
         }
         const bar: (a: string) => string = (a) => {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             const foo = {
                 [_w_runtime_(2)]: 42,
                 tagged: _w_runtime_.t(tag, 0),
@@ -131,12 +131,12 @@ test('Inside class declarations', t => {
 
         class foo {
             constructor() {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return _w_runtime_(0)
             }
 
             foo() {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return _w_runtime_(0)
             }
         }
@@ -164,7 +164,7 @@ test('Runtime init place', t => {
         function foo() {
             'foo'
             some.call()
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             if (3 == 3) {
                 return 42
             }
@@ -203,7 +203,7 @@ test('Plural and patterns', t => {
         ts`
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             const f = () => {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return plural(items, _w_runtime_.p(0), _w_runtime_._.p)
             }
             function foo() {

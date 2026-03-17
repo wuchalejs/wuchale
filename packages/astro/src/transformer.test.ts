@@ -33,7 +33,7 @@ test('Basic markup with unicode', async t => {
         ---
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import _w_Tx_ from "@wuchale/astro/runtime.js"
-        const _w_runtime_ = _w_load_()
+        const _w_runtime_ = _w_load_();
         ---
         <p>{_w_runtime_(0)}</p>
         <p data-novalue>{_w_runtime_(1)}</p>
@@ -56,7 +56,7 @@ test('Comment before frontmatter', async t => {
         ---
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import _w_Tx_ from "@wuchale/astro/runtime.js"
-        const _w_runtime_ = _w_load_()
+        const _w_runtime_ = _w_load_();
         ---
         <p>{_w_runtime_(0)}</p>
     `,
@@ -81,7 +81,7 @@ test('Ignore and include', async t => {
         ---
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import _w_Tx_ from "@wuchale/astro/runtime.js"
-        const _w_runtime_ = _w_load_()
+        const _w_runtime_ = _w_load_();
         ---
         <div>
             <svg><path d="M100 200" /></svg>
@@ -104,7 +104,7 @@ test('Object attributes', async t => {
         ---
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import _w_Tx_ from "@wuchale/astro/runtime.js"
-        const _w_runtime_ = _w_load_()
+        const _w_runtime_ = _w_load_();
         ---
         <Comp objProps={{foo: _w_runtime_(0), bar: 67}} {...foo[_w_runtime_(0)]} />
     `,
@@ -153,7 +153,7 @@ test('Context', async t => {
             ---
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import _w_Tx_ from "@wuchale/astro/runtime.js"
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             ---
             <p>{/* @wc-context: music */ _w_runtime_(0)}</p>
             <p>{/* @wc-context: programming */ _w_runtime_(1)}</p>
@@ -176,7 +176,7 @@ test('Plural', async t => {
             ---
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import _w_Tx_ from "@wuchale/astro/runtime.js"
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             ---
             <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
     `,
@@ -194,7 +194,7 @@ test('Nested and mixed', async t => {
         ---
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import _w_Tx_ from "@wuchale/astro/runtime.js"
-        const _w_runtime_ = _w_load_()
+        const _w_runtime_ = _w_load_();
         ---
         <p>{_w_Tx_({
             x: _w_runtime_.c(0),

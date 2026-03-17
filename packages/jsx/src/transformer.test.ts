@@ -42,12 +42,12 @@ test('React basic', async t => {
 
         function Foo() {
             'use client'
-            const _w_runtime_ = _w_load_rx_()
+            const _w_runtime_ = _w_load_rx_();
             return <p>{_w_runtime_(0)}</p>
         }
 
         function m() {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             return <p data-novalue>{_w_runtime_(0)}</p>
         }
     `,
@@ -71,7 +71,7 @@ test('SolidJS basic', async t => {
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
         function Foo(): Component {
-            const _w_runtime_ = _w_load_rx_()
+            const _w_runtime_ = _w_load_rx_();
             return <p>{_w_runtime_(0)}</p>
         }
     `,
@@ -99,7 +99,7 @@ test('Ignore and include', async t => {
         import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
         function foo() {
-            const _w_runtime_ = _w_load_()
+            const _w_runtime_ = _w_load_();
             return <div>
                 <svg><path d="M100 200" /></svg>
                 <p>{'hello there'}</p>
@@ -150,7 +150,7 @@ test('Context', async t => {
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             const m = () => {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return <>
                     <p>{/* @wc-context: music */ _w_runtime_(0)}</p>
                     <p>{/* @wc-context: programming */ _w_runtime_(1)}</p>
@@ -176,7 +176,7 @@ test('Plural', async t => {
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
             function m() {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
             }
     `,
@@ -197,7 +197,7 @@ test('Nested and mixed', async t => {
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"
             function m() {
-                const _w_runtime_ = _w_load_()
+                const _w_runtime_ = _w_load_();
                 return <>
                     <p><W_tx_ t={[_w_ctx_ => <b key="_1"><W_tx_ t={[_w_ctx_ => <i key="_0"><W_tx_ x={_w_ctx_} n a={[appName]} /></i>]} x={_w_ctx_} n /></b>]} x={_w_runtime_.c(0)} /></p>
                 </>
