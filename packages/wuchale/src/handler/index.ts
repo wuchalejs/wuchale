@@ -8,7 +8,7 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
-import { type FileRef, type FileRefEntry, type Item, newItem, itemIsUrl } from '../storage.js'
+import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, State } from './state.js'
 import { URLHandler } from './url.js'
@@ -35,7 +35,6 @@ export class AdapterHandler {
     key: string
 
     /** config.locales and adapter's sourceLocale */
-    readonly allLocales: string[]
     readonly sourceLocale: string
     readonly adapter: Adapter
 
@@ -67,11 +66,7 @@ export class AdapterHandler {
         this.#config = config
         this.#log = log
         this.fileMatches = pm(...globConfToArgs(this.adapter.files, this.#config.localesDir, this.adapter.outDir))
-        this.allLocales = [...this.#config.locales]
         this.sourceLocale = this.adapter.sourceLocale ?? this.#config.locales[0]
-        if (!this.allLocales.includes(this.sourceLocale)) {
-            this.allLocales.push(this.sourceLocale)
-        }
         if (this.#config.ai) {
             this.#aiQueue = new AIQueue(
                 this.sourceLocale,
@@ -80,7 +75,7 @@ export class AdapterHandler {
                 this.#log,
             )
         }
-        this.url = new URLHandler(this.allLocales, adapter.url)
+        this.url = new URLHandler(this.#config.locales, adapter.url)
         this.files = new Files(this.adapter, this.key, this.#config.localesDir, this.#projectRoot)
     }
 
@@ -101,7 +96,7 @@ export class AdapterHandler {
 
     init = async (sharedState: SharedState) => {
         this.sharedState = sharedState
-        await this.files.init(this.#config.locales, this.sharedState.ownerKey)
+        await this.files.init(this.sharedState.ownerKey)
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.adapter.generateLoadID)
         await this.loadStorage()
@@ -115,7 +110,7 @@ export class AdapterHandler {
 
     loadStorage = async () => {
         if (this.sharedState.ownerKey === this.key) {
-            await this.sharedState.load(this.allLocales)
+            await this.sharedState.load(this.#config.locales)
         }
     }
 
@@ -125,7 +120,7 @@ export class AdapterHandler {
     }
 
     compile = async (hmrVersion = -1) => {
-        await Promise.all(this.allLocales.map(loc => this.#compileForLocale(loc, hmrVersion)))
+        await Promise.all(this.#config.locales.map(loc => this.#compileForLocale(loc, hmrVersion)))
         await this.#writeManifests()
     }
 
@@ -206,7 +201,7 @@ export class AdapterHandler {
                 if (loc.includes('-')) {
                     fallbackLoc = new Intl.Locale(loc).language
                 }
-                if (fallbackLoc == null || !this.allLocales.includes(fallbackLoc)) {
+                if (fallbackLoc == null || !this.#config.locales.includes(fallbackLoc)) {
                     fallbackLoc = this.sourceLocale
                 }
             }
@@ -266,7 +261,7 @@ export class AdapterHandler {
                     continue
                 }
                 for (const ref of item.references) {
-                    const state = await this.granularState.byFileCreate(ref.file, this.allLocales)
+                    const state = await this.granularState.byFileCreate(ref.file, this.#config.locales)
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
                     compiledLoc.items[state.indexTracker.get(key)] = compiled
@@ -441,7 +436,7 @@ export class AdapterHandler {
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ id: msgInfo.msgStr }, this.allLocales)
+                item = newItem({ id: msgInfo.msgStr }, this.#config.locales)
                 this.sharedState.catalog.set(key, item)
                 updated = true
             }
@@ -489,7 +484,7 @@ export class AdapterHandler {
         let loadID = this.key
         let compiled = this.sharedState.compiled
         if (this.adapter.granularLoad) {
-            const state = await this.granularState.byFileCreate(filename, this.allLocales)
+            const state = await this.granularState.byFileCreate(filename, this.#config.locales)
             indexTracker = state.indexTracker
             loadID = state.id
             compiled = state.compiled
