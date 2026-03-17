@@ -8,7 +8,7 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
-import { type FileRef, type FileRefEntry, type Item, newItem } from '../storage.js'
+import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
 import { type SharedState, SharedStates, State } from './state.js'
 import { URLHandler } from './url.js'
@@ -22,11 +22,6 @@ const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
 const bundleCatalogsVarName = '_w_catalogs_'
 
 export type Mode = 'dev' | 'build' | 'cli'
-
-type ManifestIndexTracker = {
-    indices: Map<string, number>
-    nextIndex: number
-}
 
 type TrackedRefs = Map<
     string,
@@ -144,16 +139,16 @@ export class AdapterHandler {
         await this.#writeManifests()
     }
 
-    #buildManifest = (indexTracker: ManifestIndexTracker): ManifestEntry[] => {
-        const manifest = new Array<ManifestEntry>(indexTracker.nextIndex).fill(null)
-        for (const [key, index] of indexTracker.indices) {
+    #buildManifest = (indices: Map<string, number>): ManifestEntry[] => {
+        const manifest: ManifestEntry[] = []
+        for (const [key, index] of indices) {
             const item = this.sharedState.catalog.get(key)
             if (item === undefined) {
                 manifest[index] = { text: key, isUrl: true }
                 continue
             }
 
-            const isUrl = item.urlAdapters.length > 0
+            const isUrl = itemIsUrl(item)
             const text = item.id.length === 1 ? item.id[0] : item.id
             if (!isUrl && item.context === undefined) {
                 manifest[index] = text
@@ -170,12 +165,12 @@ export class AdapterHandler {
     }
 
     #writeManifests = async () => {
-        await this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker), null)
+        await this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)
         if (!this.#adapter.granularLoad) {
             return
         }
         for (const state of this.granularState.byID.values()) {
-            await this.files.writeManifest(this.#buildManifest(state.indexTracker), state.id)
+            await this.files.writeManifest(this.#buildManifest(state.indexTracker.indices), state.id)
         }
     }
 
@@ -249,7 +244,7 @@ export class AdapterHandler {
                 continue
             }
             let keys = [itemKey]
-            if (item.urlAdapters.length > 0) {
+            if (itemIsUrl(item)) {
                 keys = []
                 for (const reference of item.references) {
                     for (const ref of reference.refs) {
@@ -271,7 +266,7 @@ export class AdapterHandler {
                     }
                 } else {
                     let toCompile = transl[0]
-                    if (item.urlAdapters.length > 0) {
+                    if (itemIsUrl(item)) {
                         toCompile = this.url.matchToCompile(key, this.sharedState.catalog, loc)
                     }
                     compiled = compileTranslation(toCompile, fallback)
