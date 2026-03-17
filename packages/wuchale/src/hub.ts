@@ -2,19 +2,23 @@
  * This is the common coordination logic for use in the CLI as well as the bundler plugins
  */
 
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
+import { watch as watchFS } from 'chokidar'
 import { type Matcher } from 'picomatch'
+import { glob } from 'tinyglobby'
 import type { Adapter, TransformOutputCode } from './adapters.js'
 import type { Config } from './config.js'
-import { generatedDir, normalizeSep } from './handler/files.js'
+import { generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
+import { itemIsObsolete } from './storage.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
 const logPrefix = `[${color.magenta(pluginName)}]:`
+const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = {
     hmr: boolean
@@ -37,13 +41,12 @@ export class Hub {
     #projectRoot: string = ''
 
     readonly handlers: Map<string, AdapterHandler> = new Map()
+    readonly sharedStates: Map<string, SharedState> = new Map()
 
     #confUpdateFile: string
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
     #granularLoadHandlers: AdapterHandler[] = []
     #singleCompiledCatalogs: Set<string> = new Set()
-
-    #sharedStates: Map<string, SharedState> = new Map()
 
     #log: Logger
     #mode: Mode
@@ -57,7 +60,6 @@ export class Hub {
     constructor(loadConfig: ConfigLoader, root: string, hmrDelayThreshold = 1000) {
         this.#loadConfig = loadConfig
         this.#projectRoot = root
-        this.#sharedStates = new Map()
         // threshold to consider po file change is manual edit instead of a sideeffect of editing code
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
@@ -138,10 +140,10 @@ export class Hub {
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
         })
-        let sharedState = this.#sharedStates.get(storage.key)
+        let sharedState = this.sharedStates.get(storage.key)
         if (sharedState == null) {
             sharedState = new SharedState(storage, key, sourceLocale)
-            this.#sharedStates.set(storage.key, sharedState)
+            this.sharedStates.set(storage.key, sharedState)
         } else {
             if (sharedState.sourceLocale !== sourceLocale) {
                 throw new Error(
@@ -222,5 +224,85 @@ export class Hub {
             }
         }
         return output ?? [{}, false]
+    }
+
+    #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
+        this.#log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
+        const contents = await readFile(filename, 'utf8')
+        const [, updated] = await handler.transform(contents, filename)
+        return updated
+    }
+
+    async #directVisitHandler(handler: AdapterHandler, filePaths: string[], clean: boolean, sync: boolean) {
+        const catalog = handler.sharedState.catalog
+        let updated = false
+        if (sync) {
+            for (const fPath of filePaths) {
+                updated ||= await this.#visitFileHandl(fPath, handler)
+            }
+        } else {
+            updated ||= (await Promise.all(filePaths.map(f => this.#visitFileHandl(f, handler)))).some(r => r)
+        }
+        // only owner adapter should clean
+        if (clean && handler.sharedState.ownerKey === handler.key) {
+            const logPrefix = logPrefixHandler(handler.key)
+            this.#log.info(`${logPrefix} Cleaning...`)
+            let cleaned = 0
+            for (const [key, item] of catalog) {
+                const initRefsN = item.references.length
+                item.references = item.references.filter(
+                    ref =>
+                        handler.fileMatches(ref.file) ||
+                        handler.sharedState.otherFileMatches.some(match => match(ref.file)),
+                )
+                if (item.references.length < initRefsN) {
+                    updated = true
+                    cleaned++
+                }
+                if (itemIsObsolete(item)) {
+                    catalog.delete(key)
+                    updated = true
+                    cleaned++
+                }
+            }
+            if (cleaned) {
+                this.#log.info(`${logPrefix} Cleaned ${cleaned} items`)
+            }
+        }
+        if (updated) {
+            await handler.sharedState.save()
+        }
+    }
+
+    async directVisit(clean: boolean, watch: boolean, sync: boolean) {
+        !watch && this.#log.info('Extracting...')
+        const handlers: [AdapterHandler, string[]][] = []
+        for (const handler of this.handlers.values()) {
+            const filePaths = await glob(
+                ...globConfToArgs(handler.adapter.files, this.#config.localesDir, handler.adapter.outDir),
+            )
+            handlers.push([handler, filePaths])
+        }
+        // owner adapter handlers should run last for cleanup
+        handlers.sort(([handler]) => (handler.sharedState.ownerKey === handler.key ? 1 : -1))
+        // separate loop to make sure that all otherFileMatchers are collected
+        for (const [handler, files] of handlers) {
+            await this.#directVisitHandler(handler, files, clean, sync)
+        }
+        if (!watch) {
+            this.#log.info('Extraction finished.')
+            return
+        }
+        // watch
+        this.#log.info('Watching for changes')
+        watchFS('.', { ignoreInitial: true }).on('all', async (event, filename) => {
+            if (!['add', 'change'].includes(event)) {
+                return
+            }
+            const id = resolve(this.#projectRoot, filename)
+            const read = () => readFile(id, 'utf8')
+            await this.onFileChange(id, read)
+            await this.transform(await read(), id)
+        })
     }
 }
