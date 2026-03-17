@@ -2,14 +2,14 @@
  * This is the common coordination logic for use in the CLI as well as the bundler plugins
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
 import type { Adapter, TransformOutputCode } from './adapters.js'
 import type { Config } from './config.js'
-import { generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
+import { dataFileName, generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
@@ -64,6 +64,19 @@ export class Hub {
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
 
+    async initGenDirWithData() {
+        await mkdir(resolve(this.#config.localesDir, generatedDir), { recursive: true })
+        // data file
+        await writeFile(
+            resolve(this.#config.localesDir, dataFileName),
+            [
+                `/** @typedef {('${this.#config.locales.join("'|'")}')} Locale */`,
+                `/** @type {Locale[]} */`,
+                `export const locales = ['${this.#config.locales.join("','")}']`,
+            ].join('\n'),
+        )
+    }
+
     init = async (mode: Mode, soft = false) => {
         this.#mode = mode
         this.#config = await this.#loadConfig()
@@ -72,12 +85,13 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
+        if (!soft) {
+            await this.initGenDirWithData()
+        }
         const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
             const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
-            await handler.init(
-                this.#getSharedState(adapter, key, handler.sourceLocale, handler.allLocales, handler.fileMatches),
-            )
+            await handler.init(this.#getSharedState(adapter, key, handler.sourceLocale, handler.fileMatches))
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
@@ -127,15 +141,9 @@ export class Hub {
         await writeFile(this.#confUpdateFile, '{}') // only watch changes so prepare first
     }
 
-    #getSharedState = (
-        adapter: Adapter,
-        key: string,
-        sourceLocale: string,
-        allLocales: string[],
-        fileMatches: Matcher,
-    ): SharedState => {
+    #getSharedState = (adapter: Adapter, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
         const storage = adapter.storage({
-            locales: allLocales,
+            locales: this.#config.locales,
             root: this.#projectRoot,
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
@@ -192,7 +200,7 @@ export class Hub {
             invalidate: new Set(),
         }
         for (const adapter of adapters) {
-            for (const loc of adapter.allLocales) {
+            for (const loc of this.#config.locales) {
                 if (!changeInfo.sourceTriggered) {
                     await adapter.loadStorage()
                     await adapter.compile(this.#hmrVersion)

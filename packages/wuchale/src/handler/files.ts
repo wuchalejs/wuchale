@@ -6,7 +6,7 @@ import type { CompiledElement } from '../compile.js'
 import { catalogVarName } from '../runtime.js'
 import { type URLManifest } from '../url.js'
 
-const dataFileName = 'data.js'
+export const dataFileName = 'data.js'
 export const generatedDir = '.wuchale'
 
 export type ManifestEntryObj = {
@@ -198,19 +198,9 @@ export class Files {
         await writeFile(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
     }
 
-    init = async (locales: string[], ownerKey: string) => {
+    init = async (ownerKey: string) => {
         this.ownerKey = ownerKey
         await this.#initPaths()
-        await mkdir(resolve(this.#localesDir, generatedDir), { recursive: true })
-        // data file
-        await writeFile(
-            resolve(this.#localesDir, dataFileName),
-            [
-                `/** @typedef {('${locales.join("'|'")}')} Locale */`,
-                `/** @type {Locale[]} */`,
-                `export const locales = ['${locales.join("','")}']`,
-            ].join('\n'),
-        )
         if (this.#adapter.defaultLoaderPath == null) {
             // using custom loaders
             return
