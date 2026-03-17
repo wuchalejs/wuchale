@@ -156,7 +156,7 @@ export class Transformer<RTCtxT = {}> {
             }
             const wrapInit = initReactive ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
             const expr = initReactive ? catalogExpr.reactive : catalogExpr.plain
-            return `\nconst ${this.currentRtVar} = ${wrapInit(expr)}\n`
+            return `\nconst ${this.currentRtVar} = ${wrapInit(expr)};\n`
         }
     }
 
