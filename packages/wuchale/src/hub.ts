@@ -78,13 +78,13 @@ export class Hub {
             await handler.init(
                 this.#getSharedState(adapter, key, handler.sourceLocale, handler.allLocales, handler.fileMatches),
             )
-            if (soft) {
-                continue
-            }
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
             this.handlers.set(key, handler)
+            if (soft) {
+                continue
+            }
             if (adapter.granularLoad) {
                 this.#granularLoadHandlers.push(handler)
             } else {
