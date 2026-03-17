@@ -5,18 +5,16 @@ import { color } from '../log.js'
 import { type Catalog, itemIsObsolete, itemIsUrl } from '../storage.js'
 
 type POStats = {
-    Total: number
     Untranslated: number
     Obsolete: number
 }
 
 async function statCatalog(locale: string, catalog: Catalog, urls: boolean): Promise<POStats> {
-    const stats: POStats = { Total: 0, Untranslated: 0, Obsolete: 0 }
+    const stats: POStats = { Untranslated: 0, Obsolete: 0 }
     for (const item of catalog.values()) {
         if (itemIsUrl(item) !== urls) {
             continue
         }
-        stats.Total++
         if (!item.translations.get(locale)![0]) {
             stats.Untranslated++
         }
@@ -33,9 +31,8 @@ export async function status(config: Config, root: string, locales: string[]) {
     const hub = new Hub(() => config, root)
     await hub.init('cli', true)
     for (const [key, handler] of hub.handlers) {
-        const state = handler.sharedState
         const loaderPath = await handler.files.getLoaderPath()
-        console.log(`${color.magenta(key)}: ${color.cyan(state.catalog.size)} messages`)
+        console.log(`${color.magenta(key)}:`)
         if (loaderPath) {
             console.log(`  Loader files:`)
             for (const [side, path] of Object.entries(loaderPath)) {
@@ -45,6 +42,13 @@ export async function status(config: Config, root: string, locales: string[]) {
             console.warn(color.yellow('  No loader file found.'))
             console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
         }
+        const state = handler.sharedState
+        if (state.ownerKey !== key) {
+            console.log(`  Storage shared with ${color.magenta(state.ownerKey)}`)
+            continue
+        }
+        const nUrlItems = Array.from(state.catalog.values()).filter(i => itemIsUrl(i)).length
+        console.log(`  Messages: ${color.cyan(state.catalog.size)} (${color.cyan(nUrlItems)} URL)`)
         const statsData: Record<string, POStats> = {}
         for (const locale of locales) {
             const locName = getLanguageName(locale)
@@ -54,9 +58,6 @@ export async function status(config: Config, root: string, locales: string[]) {
             ] as [string, boolean][]) {
                 await state.load(locales)
                 const stats = await statCatalog(locale, state.catalog, url)
-                if (stats.Total === 0) {
-                    continue
-                }
                 statsData[name] = stats
             }
         }
