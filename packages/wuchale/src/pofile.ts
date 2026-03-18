@@ -169,6 +169,8 @@ export class POFile {
         const pluralRules: PluralRules = new Map()
         // by key, then by locale
         const poItems: Map<string, Map<string, POItem>> = new Map()
+        const sourceOrder: string[] = []
+        const sourceOrderSet: Set<string> = new Set()
         // first, group by key
         for (const locale of this.opts.locales) {
             const po = await this.loadRaw(locale, false)
@@ -191,12 +193,33 @@ export class POFile {
                     poItems.set(key, new Map())
                 }
                 poItems.get(key)?.set(locale, poItem)
+                if (locale === this.opts.sourceLocale && !sourceOrderSet.has(key)) {
+                    sourceOrder.push(key)
+                    sourceOrderSet.add(key)
+                }
+            }
+        }
+        const keys = [...sourceOrder]
+        for (const key of Array.from(poItems.keys()).sort()) {
+            if (!sourceOrderSet.has(key)) {
+                keys.push(key)
             }
         }
         // then merge them
         const items: Item[] = []
-        for (const poIs of poItems.values()) {
-            const item = poitemToItemCommons(poIs.get(this.opts.sourceLocale)!)
+        for (const key of keys) {
+            const poIs = poItems.get(key)
+            if (!poIs) {
+                continue
+            }
+            let poiSource = poIs.get(this.opts.sourceLocale)
+            if (!poiSource) {
+                poiSource = this.opts.locales.map(loc => poIs.get(loc)).find(poi => poi != null)
+                if (!poiSource) {
+                    continue
+                }
+            }
+            const item = poitemToItemCommons(poiSource)
             const additionals: AdditionalsByLoc = new Map()
             for (const loc of this.opts.locales) {
                 const poi = poIs.get(loc)
@@ -205,7 +228,8 @@ export class POFile {
                     comments: poi?.comments ?? [],
                     flags: {},
                 }
-                for (const [k, v] of Object.entries(poi?.flags ?? {})) {
+                const flags = (poi?.flags ?? {}) as Record<string, boolean | undefined>
+                for (const [k, v] of Object.entries(flags)) {
                     if (!k.startsWith(urlAdapterFlagPrefix)) {
                         add.flags[k] = v
                     }
