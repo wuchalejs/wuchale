@@ -200,13 +200,13 @@ export class POFile {
             const item = poitemToItemCommons(poIs.get(this.opts.sourceLocale)!)
             const additionals: AdditionalsByLoc = new Map()
             for (const loc of this.opts.locales) {
-                const poi = poIs.get(loc)!
-                item.translations.set(loc, poi.msgstr)
+                const poi = poIs.get(loc)
+                item.translations.set(loc, poi?.msgstr ?? [])
                 const add: Additionals = {
-                    comments: poi.comments,
+                    comments: poi?.comments ?? [],
                     flags: {},
                 }
-                for (const [k, v] of Object.entries(poi.flags)) {
+                for (const [k, v] of Object.entries(poi?.flags ?? {})) {
                     if (!k.startsWith(urlAdapterFlagPrefix)) {
                         add.flags[k] = v
                     }
