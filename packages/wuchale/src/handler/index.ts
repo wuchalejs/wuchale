@@ -75,7 +75,7 @@ export class AdapterHandler {
                 this.#log,
             )
         }
-        this.url = new URLHandler(this.#config.locales, adapter.url)
+        this.url = new URLHandler(this.#config.locales, this.sourceLocale, adapter.url)
         this.files = new Files(this.adapter, this.key, this.#config.localesDir, this.#projectRoot)
     }
 
@@ -100,7 +100,7 @@ export class AdapterHandler {
         const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
         this.granularState = new State(writeProxies, this.adapter.generateLoadID)
         await this.loadStorage()
-        if (await this.url.initPatterns(this.sourceLocale, this.key, this.sharedState.catalog, this.#aiQueue)) {
+        if (await this.url.initPatterns(this.key, this.sharedState.catalog, this.#aiQueue)) {
             await this.saveStorage()
         }
         await this.compile()
@@ -134,7 +134,8 @@ export class AdapterHandler {
             }
 
             const isUrl = itemIsUrl(item)
-            const text = item.id.length === 1 ? item.id[0] : item.id
+            const id = item.translations.get(this.sourceLocale)!
+            const text = id.length === 1 ? id[0] : id
             if (!isUrl && item.context === undefined) {
                 manifest[index] = text
                 continue
@@ -231,9 +232,10 @@ export class AdapterHandler {
             let keys = [itemKey]
             if (itemIsUrl(item)) {
                 keys = []
+                const id = item.translations.get(this.sourceLocale)!
                 for (const reference of item.references) {
                     for (const ref of reference.refs) {
-                        keys.push(ref?.link ?? item.id[0])
+                        keys.push(ref?.link ?? id[0])
                     }
                 }
             }
@@ -361,7 +363,8 @@ export class AdapterHandler {
             if (!existingRef) {
                 continue
             }
-            previousReferences.set(getKey(item.id, item.context), { ref: existingRef, used: 0 })
+            const id = item.translations.get(this.sourceLocale)!
+            previousReferences.set(getKey(id, item.context), { ref: existingRef, used: 0 })
         }
         return previousReferences
     }

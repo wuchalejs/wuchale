@@ -7,7 +7,7 @@ import { ts as astro, transformTest } from '../../wuchale/testing/utils.ts'
 import { defaultArgs, defaultRuntime } from './index.js'
 import { AstroTransformer } from './transformer.js'
 
-const urlHandler = new URLHandler([])
+const urlHandler = new URLHandler([], 'en')
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, filename = 'test.astro') =>

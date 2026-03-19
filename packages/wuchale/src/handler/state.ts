@@ -64,7 +64,8 @@ export class SharedState {
         }
         for (const item of loaded.items) {
             fillTranslations(item, locales)
-            this.catalog.set(getKey(item.id, item.context), item)
+            const id = item.translations.get(this.sourceLocale)!
+            this.catalog.set(getKey(id, item.context), item)
         }
     }
 

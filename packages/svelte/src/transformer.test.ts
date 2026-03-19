@@ -7,7 +7,7 @@ import { ts as svelte, transformTest, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './index.js'
 import { SvelteTransformer } from './transformer.js'
 
-const urlHandler = new URLHandler(['en'], {
+const urlHandler = new URLHandler(['en'], 'en', {
     patterns: ['/translated/*rest', '/'],
     localize: true,
 })

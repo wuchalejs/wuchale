@@ -38,10 +38,12 @@ export function patternToTranslate(pattern: string) {
 export class URLHandler {
     patternKeys: Map<string, string> = new Map()
     locales: string[]
+    sourceLocale: string
     patterns?: string[] = []
 
-    constructor(locales: string[], urlConf?: URLConf) {
+    constructor(locales: string[], sourceLocale: string, urlConf?: URLConf) {
         this.locales = locales
+        this.sourceLocale = sourceLocale
         this.patterns = urlConf?.patterns
     }
 
@@ -56,7 +58,7 @@ export class URLHandler {
                 let pattern = patt
                 const transl = item?.translations?.get(loc)
                 if (transl) {
-                    const patternTranslated = transl[0] || item!.id[0]
+                    const patternTranslated = transl[0] || item!.translations.get(this.sourceLocale)![0]
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(pattern)
@@ -67,12 +69,7 @@ export class URLHandler {
             return [patt]
         }) ?? []
 
-    initPatterns = async (
-        sourceLocale: string,
-        adapterKey: string,
-        catalog: Catalog,
-        aiQueue?: AIQueue,
-    ): Promise<boolean> => {
+    initPatterns = async (adapterKey: string, catalog: Catalog, aiQueue?: AIQueue): Promise<boolean> => {
         const urlPatterns = this.patterns ?? []
         const urlPatternsForTranslate = urlPatterns.map(patternToTranslate)
         const urlPatternCatKeys: string[] = []
@@ -96,11 +93,11 @@ export class URLHandler {
                 item.urlAdapters.push(adapterKey)
                 needWriteCatalog = true
             }
-            item.translations.set(sourceLocale, [locPattern])
+            item.translations.set(this.sourceLocale, [locPattern])
             if (locPattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
-                    if (loc !== sourceLocale) {
-                        item.translations.set(loc, item.id)
+                    if (loc !== this.sourceLocale) {
+                        item.translations.set(loc, [locPattern])
                     }
                 }
                 continue
@@ -109,7 +106,8 @@ export class URLHandler {
         }
         const urlPatternCatKeysSet = new Set(urlPatternCatKeys)
         for (const item of catalog.values()) {
-            if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(getKey(item.id, item.context))) {
+            const id = item.translations.get(this.sourceLocale)!
+            if (item.urlAdapters.includes(adapterKey) && !urlPatternCatKeysSet.has(getKey(id, item.context))) {
                 item.urlAdapters = item.urlAdapters.filter(a => a !== adapterKey) // no longer used in this adapter
                 needWriteCatalog = true
             }
@@ -148,7 +146,8 @@ export class URLHandler {
         if (!matchedUrl) {
             return toCompile
         }
-        const translatedPattern = patternItem.translations.get(locale)![0] || patternItem.id[0]
+        const translatedPattern =
+            patternItem.translations.get(locale)![0] || patternItem.translations.get(this.sourceLocale)![0]
         // e.g. translatedPattern: /elementos/{0}
         const { keys } = pathToRegexp(relevantPattern)
         const translatedPattUrl = patternFromTranslate(translatedPattern, keys)

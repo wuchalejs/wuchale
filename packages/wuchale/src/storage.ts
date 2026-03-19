@@ -13,7 +13,6 @@ export type FileRef = {
 }
 
 export interface Item {
-    id: string[]
     context?: string
     translations: Map<string, string[]>
     references: FileRef[]

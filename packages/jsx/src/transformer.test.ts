@@ -7,7 +7,7 @@ import { transformTest, ts as tsx } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './index.js'
 import { JSXTransformer } from './transformer.js'
 
-const urlHandler = new URLHandler([])
+const urlHandler = new URLHandler([], 'en')
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs') =>

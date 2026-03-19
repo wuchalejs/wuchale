@@ -27,10 +27,11 @@ type Additionals = {
 
 type AdditionalsByLoc = Map<string, Additionals>
 
-function itemToPOItem(item: Item, locale: string): POItem {
+function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
     const poi = new PO.Item()
-    poi.msgid = item.id[0]
-    poi.msgid_plural = item.id[1]
+    const id = item.translations.get(sourceLocale)!
+    poi.msgid = id[0]
+    poi.msgid_plural = id[1]
     poi.msgstr = item.translations.get(locale)!
     poi.msgctxt = item.context
     poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
@@ -241,7 +242,7 @@ export class POFile {
             const poItems: POItem[] = []
             const poItemsUrl: POItem[] = []
             for (const item of data.items) {
-                const poItem = itemToPOItem(item, locale)
+                const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
                 if (itemIsUrl(item) && this.opts.separateUrls && this.opts.haveUrl) {
                     poItemsUrl.push(poItem)
                 } else {

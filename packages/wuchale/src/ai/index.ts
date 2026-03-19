@@ -121,10 +121,11 @@ export default class AIQueue {
         const unTranslated: Item[] = batch.messages.slice(translated.length)
         for (const [i, outItem] of translated.entries()) {
             const item = batch.messages[i]
-            const sourceComp = item.id.map(i => compileTranslation(i, ''))
+            const id = item.translations.get(this.sourceLocale)!
+            const sourceComp = id.map(i => compileTranslation(i, ''))
             for (const loc of batch.targetLocales) {
                 const translation = outItem[loc]
-                if (translation?.length !== item.id.length) {
+                if (translation?.length !== id.length) {
                     unTranslated.push(item)
                     break
                 }
