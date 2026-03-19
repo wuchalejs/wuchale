@@ -21,6 +21,10 @@ const { positionals, values } = parseArgs({
             short: 'w',
             default: false,
         },
+        json: {
+            type: 'boolean',
+            default: false,
+        },
         sync: {
             type: 'boolean',
             default: false,
@@ -51,6 +55,7 @@ Commands:
 
 Options:
     ${color.cyan('--config')}         use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
+    ${color.cyan('--json')}           (for status) output info as structured JSON instead of table and text
     ${color.cyan('--clean')}, ${color.cyan('-c')}      (only when no commands) remove unused messages from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}      (only when no commands) continuously watch for file changes
     ${color.cyan('--sync')}           (only when no commands) extract sequentially instead of in parallel
@@ -71,7 +76,8 @@ if (values.help) {
     const [config, root] = await configRootLocales()
     await extract(config, root, values.clean, values.watch, values.sync)
 } else if (cmd === 'status') {
-    await status(...(await configRootLocales()))
+    const [config, root] = await configRootLocales()
+    await status(config, root, values.json)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)

@@ -2,63 +2,36 @@ import { relative } from 'node:path'
 import { type Config, getLanguageName } from '../config.js'
 import { Hub } from '../hub.js'
 import { color } from '../log.js'
-import { type Catalog, itemIsObsolete, itemIsUrl } from '../storage.js'
 
-type POStats = {
-    Untranslated: number
-    Obsolete: number
-}
-
-async function statCatalog(locale: string, catalog: Catalog, urls: boolean): Promise<POStats> {
-    const stats: POStats = { Untranslated: 0, Obsolete: 0 }
-    for (const item of catalog.values()) {
-        if (itemIsUrl(item) !== urls) {
-            continue
-        }
-        if (!item.translations.get(locale)![0]) {
-            stats.Untranslated++
-        }
-        if (itemIsObsolete(item)) {
-            stats.Obsolete++
-        }
-    }
-    return stats
-}
-
-export async function status(config: Config, root: string, locales: string[]) {
+export async function status(config: Config, root: string, json: boolean) {
     // console.log because if the user invokes this command, they want full info regardless of config
-    console.log(`Locales: ${locales.map(l => color.cyan(`${l} (${getLanguageName(l)})`)).join(', ')}`)
     const hub = new Hub(() => config, root)
     await hub.init('cli', true)
-    for (const [key, handler] of hub.handlers) {
-        const loaderPath = await handler.files.getLoaderPath()
-        console.log(`${color.magenta(key)}:`)
-        if (loaderPath) {
+    if (json) {
+        console.log(JSON.stringify(await hub.status(), null, process.stdout.isTTY ? '  ' : undefined))
+        return
+    }
+    for (const stat of await hub.status()) {
+        console.log(`${color.magenta(stat.key)}:`)
+        if (stat.loaders) {
             console.log(`  Loader files:`)
-            for (const [side, path] of Object.entries(loaderPath)) {
+            for (const [side, path] of Object.entries(stat.loaders)) {
                 console.log(`    ${color.cyan(side)}: ${color.cyan(relative(root, path))}`)
             }
         } else {
             console.warn(color.yellow('  No loader file found.'))
-            console.log(`  Run ${color.cyan('npx wuchale init')} to initialize.`)
+            console.log(`  Run ${color.cyan('npx wuchale')} to initialize.`)
         }
-        const state = handler.sharedState
-        if (state.ownerKey !== key) {
-            console.log(`  Storage shared with ${color.magenta(state.ownerKey)}`)
+        if (!stat.storage.own) {
+            console.log(`  Storage shared with ${color.magenta(stat.storage.ownerKey)}`)
             continue
         }
-        const nUrlItems = Array.from(state.catalog.values()).filter(i => itemIsUrl(i)).length
-        console.log(`  Messages: ${color.cyan(state.catalog.size)} (${color.cyan(nUrlItems)} URL)`)
-        const statsData: Record<string, POStats> = {}
-        for (const locale of locales) {
-            const locName = getLanguageName(locale)
-            for (const [name, url] of [
-                [locName, false],
-                [`${locName} URL`, true],
-            ] as [string, boolean][]) {
-                await state.load(locales)
-                const stats = await statCatalog(locale, state.catalog, url)
-                statsData[name] = stats
+        console.log(`  Messages: ${color.cyan(stat.storage.total)} (${color.cyan(stat.storage.url)} URL)`)
+        const statsData: Record<string, { Obsolete: number; Untranslated: number }> = {}
+        for (const det of stat.storage.details) {
+            statsData[getLanguageName(det.locale)] = {
+                Obsolete: det.obsolete,
+                Untranslated: det.untranslated,
             }
         }
         console.table(statsData)

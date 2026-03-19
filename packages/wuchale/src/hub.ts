@@ -7,13 +7,13 @@ import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
-import type { Adapter, TransformOutputCode } from './adapters.js'
+import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import type { Config } from './config.js'
 import { dataFileName, generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
-import { itemIsObsolete } from './storage.js'
+import { itemIsObsolete, itemIsUrl } from './storage.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -36,12 +36,36 @@ const ignoreChange: FileChangeInfo = {
     invalidate: new Set(),
 }
 
+type LocaleStatDetails = {
+    locale: string
+    untranslated: number
+    obsolete: number
+}
+
+type TranslStats = {
+    own: true
+    total: number
+    url: number
+    details: LocaleStatDetails[]
+}
+
+type AdapterStatus = {
+    key: string
+    loaders?: LoaderPath
+    storage:
+        | {
+              own: false
+              ownerKey: string
+          }
+        | TranslStats
+}
+
 export class Hub {
     #config: Config
     #projectRoot: string = ''
 
-    readonly handlers: Map<string, AdapterHandler> = new Map()
-    readonly sharedStates: Map<string, SharedState> = new Map()
+    #handlers: Map<string, AdapterHandler> = new Map()
+    #sharedStates: Map<string, SharedState> = new Map()
 
     #confUpdateFile: string
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
@@ -64,7 +88,7 @@ export class Hub {
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
 
-    async initGenDirWithData() {
+    async #initGenDirWithData() {
         await mkdir(resolve(this.#config.localesDir, generatedDir), { recursive: true })
         // data file
         await writeFile(
@@ -77,7 +101,7 @@ export class Hub {
         )
     }
 
-    init = async (mode: Mode, soft = false) => {
+    init = async (mode: Mode, noWrite = false) => {
         this.#mode = mode
         this.#config = await this.#loadConfig()
         this.#log = new Logger(this.#config.logLevel)
@@ -85,8 +109,8 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
-        if (!soft) {
-            await this.initGenDirWithData()
+        if (!noWrite) {
+            await this.#initGenDirWithData()
         }
         const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
@@ -95,8 +119,8 @@ export class Hub {
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
-            this.handlers.set(key, handler)
-            if (soft) {
+            this.#handlers.set(key, handler)
+            if (noWrite) {
                 continue
             }
             if (adapter.granularLoad) {
@@ -148,10 +172,10 @@ export class Hub {
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
         })
-        let sharedState = this.sharedStates.get(storage.key)
+        let sharedState = this.#sharedStates.get(storage.key)
         if (sharedState == null) {
             sharedState = new SharedState(storage, key, sourceLocale)
-            this.sharedStates.set(storage.key, sharedState)
+            this.#sharedStates.set(storage.key, sharedState)
         } else {
             if (sharedState.sourceLocale !== sourceLocale) {
                 throw new Error(
@@ -220,7 +244,7 @@ export class Hub {
         const filename = relative(this.#projectRoot, filePath)
         let output: [TransformOutputCode, boolean] | null = null
         let lastAdapterKey: string | null = null
-        for (const adapter of this.handlers.values()) {
+        for (const adapter of this.#handlers.values()) {
             if (adapter.fileMatches(filename)) {
                 if (lastAdapterKey != null) {
                     throw new Error(
@@ -285,7 +309,7 @@ export class Hub {
     async directVisit(clean: boolean, watch: boolean, sync: boolean) {
         !watch && this.#log.info('Extracting...')
         const handlers: [AdapterHandler, string[]][] = []
-        for (const handler of this.handlers.values()) {
+        for (const handler of this.#handlers.values()) {
             const filePaths = await glob(
                 ...globConfToArgs(handler.adapter.files, this.#config.localesDir, handler.adapter.outDir),
             )
@@ -312,5 +336,37 @@ export class Hub {
             await this.onFileChange(id, read)
             await this.transform(await read(), id)
         })
+    }
+
+    async status(): Promise<AdapterStatus[]> {
+        const statuses: AdapterStatus[] = []
+        for (const [key, handler] of this.#handlers) {
+            const state = handler.sharedState
+            const adapStats: TranslStats = { own: true, total: 0, url: 0, details: [] }
+            statuses.push({
+                key,
+                loaders: await handler.files.getLoaderPath(),
+                storage: state.ownerKey === key ? adapStats : { own: false, ownerKey: state.ownerKey },
+            })
+            if (state.ownerKey !== key) {
+                continue
+            }
+            await state.load(this.#config.locales)
+            adapStats.total = state.catalog.size
+            adapStats.url = Array.from(state.catalog.values()).filter(i => itemIsUrl(i)).length
+            for (const locale of this.#config.locales) {
+                const stats: LocaleStatDetails = { locale, untranslated: 0, obsolete: 0 }
+                for (const item of state.catalog.values()) {
+                    if (!item.translations.get(locale)![0]) {
+                        stats.untranslated++
+                    }
+                    if (itemIsObsolete(item)) {
+                        stats.obsolete++
+                    }
+                }
+                adapStats.details.push(stats)
+            }
+        }
+        return statuses
     }
 }
