@@ -1,8 +1,8 @@
-import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
 import { platform } from 'node:process'
 import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
+import type { FS } from '../fs.js'
 import { catalogVarName } from '../runtime.js'
 import { type URLManifest } from '../url.js'
 
@@ -56,6 +56,7 @@ export class Files {
     key: string
     ownerKey: string
     #adapter: Adapter
+    #fs: FS
 
     // paths
     loaderPath: LoaderPath
@@ -67,10 +68,11 @@ export class Files {
 
     #projectRoot: string
 
-    constructor(adapter: Adapter, key: string, localesDir: string, root: string) {
+    constructor(adapter: Adapter, key: string, localesDir: string, fs: FS, root: string) {
         this.key = key
         this.#adapter = adapter
         this.#localesDir = localesDir
+        this.#fs = fs
         this.#projectRoot = root
     }
 
@@ -98,12 +100,7 @@ export class Files {
         for (const path of paths) {
             let bothExist = true
             for (const side in path) {
-                try {
-                    await statfs(path[side])
-                } catch (err: any) {
-                    if (err.code !== 'ENOENT') {
-                        throw err
-                    }
+                if (!(await this.#fs.exists(path[side]))) {
                     bothExist = false
                     break
                 }
@@ -194,8 +191,8 @@ export class Files {
     }
 
     writeProxies = async (locales: string[], loadIDs: string[], loadIDsImport: string[]) => {
-        await writeFile(this.proxyPath, this.genProxy(locales, loadIDs, loadIDsImport))
-        await writeFile(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
+        await this.#fs.write(this.proxyPath, this.genProxy(locales, loadIDs, loadIDsImport))
+        await this.#fs.write(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
     }
 
     init = async (ownerKey: string) => {
@@ -212,13 +209,13 @@ export class Files {
             } else {
                 loaderTemplate = this.#adapter.defaultLoaderPath[side]
             }
-            const loaderContent = (await readFile(loaderTemplate))
+            const loaderContent = (await this.#fs.read(loaderTemplate))
                 .toString()
                 .replaceAll('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
                 .replaceAll('${DATA}', `./${dataFileName}`)
                 .replaceAll('${KEY}', this.key)
-            await writeFile(this.loaderPath[side], loaderContent)
+            await this.#fs.write(this.loaderPath[side], loaderContent)
         }
     }
 
@@ -230,7 +227,7 @@ export class Files {
             `/** @type {import('wuchale/url').URLManifest} */`,
             `export default ${JSON.stringify(manifest)}`,
         ].join('\n')
-        await writeFile(this.#urlManifestFname, urlManifestData)
+        await this.#fs.write(this.#urlManifestFname, urlManifestData)
         const urlFileContent = [
             'import {URLMatcher, deLocalizeDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
@@ -238,7 +235,7 @@ export class Files {
             `export const getLocale = (/** @type {URL} */ url) => deLocalizeDefault(url.pathname, locales)[1] ?? '${fallbackLocale}'`,
             `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
-        await writeFile(this.#urlsFname, urlFileContent)
+        await this.#fs.write(this.#urlsFname, urlFileContent)
     }
 
     getManifestFilePath(id: string | null): string {
@@ -250,7 +247,7 @@ export class Files {
         const content =
             `/** @type {(string | {text: string | string[], context?: string, isUrl?: boolean} | null)[]} */\n` +
             `export const keys = ${JSON.stringify(keys)}`
-        await writeFile(this.getManifestFilePath(id), content)
+        await this.#fs.write(this.getManifestFilePath(id), content)
     }
 
     writeCatalogModule = async (
@@ -282,7 +279,7 @@ export class Files {
                 }
             `
         }
-        await writeFile(this.getCompiledFilePath(locale, loadID), module)
+        await this.#fs.write(this.getCompiledFilePath(locale, loadID), module)
     }
 
     writeTransformed = async (filename: string, content: string) => {
@@ -290,8 +287,8 @@ export class Files {
             return
         }
         const fname = resolve(this.#adapter.outDir + '/' + filename)
-        await mkdir(dirname(fname), { recursive: true })
-        await writeFile(fname, content)
+        await this.#fs.mkdir(dirname(fname))
+        await this.#fs.write(fname, content)
     }
 
     getImportLoaderPath(forServer: boolean, relativeTo: string) {

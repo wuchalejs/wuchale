@@ -1,15 +1,13 @@
 // $ node --import ../../testing/resolve.ts %f
 
-import { mkdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
-import { dummyTransform, trimLines, ts } from '../../testing/utils.ts'
+import { dummyTransform, inMemFS, inMemStorage, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
 import { type Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
-import { pofile } from '../pofile.js'
 import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
 import { SharedState } from './state.js'
@@ -20,7 +18,7 @@ const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
     files: '*.js', // filename needs to match
-    storage: pofile({ dir: localesDir }),
+    storage: inMemStorage,
     loaderExts: ['.js'],
     defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
 }
@@ -30,7 +28,7 @@ const conf = {
     localesDir,
 }
 
-const handler = new AdapterHandler(adapter, 'test', conf, 'dev', import.meta.dirname, new Logger('error'))
+const handler = new AdapterHandler(adapter, 'test', conf, 'dev', inMemFS, import.meta.dirname, new Logger('error'))
 const storage = adapter.storage({
     locales: ['en'],
     root: import.meta.dirname,
@@ -39,7 +37,6 @@ const storage = adapter.storage({
 })
 
 // needed to make sure generatedDir exists, normally done at hub init
-await mkdir(resolve(localesDir, generatedDir), { recursive: true })
 await handler.init(new SharedState(storage, handler.key, 'en'))
 
 test('HMR', async (t: TestContext) => {
@@ -70,7 +67,7 @@ test('HMR', async (t: TestContext) => {
 
 test('Manifest', async (t: TestContext) => {
     const manifestPath = resolve(localesDir, generatedDir, 'test.test.manifest.js')
-    const content = await readFile(manifestPath, 'utf-8')
+    const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
         trimLines(content),
         trimLines(

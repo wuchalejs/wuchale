@@ -2,13 +2,13 @@
  * This is the common coordination logic for use in the CLI as well as the bundler plugins
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import type { Config } from './config.js'
+import { defaultFS, type FS } from './fs.js'
 import { dataFileName, generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode } from './handler/index.js'
 import { SharedState } from './handler/state.js'
@@ -62,6 +62,7 @@ type AdapterStatus = {
 
 export class Hub {
     #config: Config
+    #fs: FS
     #projectRoot: string = ''
 
     #handlers: Map<string, AdapterHandler> = new Map()
@@ -81,17 +82,18 @@ export class Hub {
     #hmrDelayThreshold: number
     #lastSourceTriggeredCatalogWrite: number = 0
 
-    constructor(loadConfig: ConfigLoader, root: string, hmrDelayThreshold = 1000) {
+    constructor(loadConfig: ConfigLoader, root: string, hmrDelayThreshold = 1000, fs = defaultFS) {
         this.#loadConfig = loadConfig
+        this.#fs = fs
         this.#projectRoot = root
         // threshold to consider po file change is manual edit instead of a sideeffect of editing code
         this.#hmrDelayThreshold = hmrDelayThreshold
     }
 
     async #initGenDirWithData() {
-        await mkdir(resolve(this.#config.localesDir, generatedDir), { recursive: true })
+        await this.#fs.mkdir(resolve(this.#config.localesDir, generatedDir))
         // data file
-        await writeFile(
+        await this.#fs.write(
             resolve(this.#config.localesDir, dataFileName),
             [
                 `/** @typedef {('${this.#config.locales.join("'|'")}')} Locale */`,
@@ -114,7 +116,15 @@ export class Hub {
         }
         const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
-            const handler = new AdapterHandler(adapter, key, this.#config, this.#mode, this.#projectRoot, this.#log)
+            const handler = new AdapterHandler(
+                adapter,
+                key,
+                this.#config,
+                this.#mode,
+                this.#fs,
+                this.#projectRoot,
+                this.#log,
+            )
             await handler.init(this.#getSharedState(adapter, key, handler.sourceLocale, handler.fileMatches))
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
@@ -162,7 +172,7 @@ export class Hub {
             }
         }
         this.#confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
-        await writeFile(this.#confUpdateFile, '{}') // only watch changes so prepare first
+        await this.#fs.write(this.#confUpdateFile, '{}') // only watch changes so prepare first
     }
 
     #getSharedState = (adapter: Adapter, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
@@ -260,7 +270,7 @@ export class Hub {
 
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
         this.#log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
-        const contents = await readFile(filename, 'utf8')
+        const contents = await this.#fs.read(filename)
         const [, updated] = await handler.transform(contents, filename)
         return updated
     }
@@ -332,7 +342,7 @@ export class Hub {
                 return
             }
             const id = resolve(this.#projectRoot, filename)
-            const read = () => readFile(id, 'utf8')
+            const read = () => this.#fs.read(id)
             await this.onFileChange(id, read)
             await this.transform(await read(), id)
         })

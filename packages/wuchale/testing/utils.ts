@@ -2,6 +2,8 @@ import { type TestContext } from 'node:test'
 import { statfs } from 'fs/promises'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
 import { type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
+import type { FS } from '../src/fs.js'
+import type { SaveData, StorageFactory } from '../src/storage.js'
 
 const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an example header
 
@@ -80,5 +82,28 @@ export const dummyTransform: TransformFunc = ctx => {
             code: `${header}\n${out}`,
             map: [],
         }),
+    }
+}
+
+const inMemFiles = new Map<string, string>()
+
+export const inMemFS: FS = {
+    write: (file, data) => {
+        inMemFiles.set(file, data)
+    },
+    read: file => inMemFiles.get(file) ?? '',
+    mkdir: () => {},
+    exists: () => true,
+}
+
+export const inMemStorage: StorageFactory = () => {
+    let stored: SaveData = { items: [], pluralRules: new Map() }
+    return {
+        key: 'inMem',
+        load: async () => stored,
+        save: async data => {
+            stored = data
+        },
+        files: [],
     }
 }

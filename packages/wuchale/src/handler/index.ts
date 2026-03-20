@@ -7,6 +7,7 @@ import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
+import type { FS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
@@ -58,7 +59,15 @@ export class AdapterHandler {
 
     onBeforeSave: () => void
 
-    constructor(adapter: Adapter, key: string, config: ConfigPartial, mode: Mode, projectRoot: string, log: Logger) {
+    constructor(
+        adapter: Adapter,
+        key: string,
+        config: ConfigPartial,
+        mode: Mode,
+        fs: FS,
+        projectRoot: string,
+        log: Logger,
+    ) {
         this.adapter = adapter
         this.key = key
         this.#mode = mode
@@ -76,7 +85,7 @@ export class AdapterHandler {
             )
         }
         this.url = new URLHandler(this.#config.locales, this.sourceLocale, adapter.url)
-        this.files = new Files(this.adapter, this.key, this.#config.localesDir, this.#projectRoot)
+        this.files = new Files(this.adapter, this.key, this.#config.localesDir, fs, this.#projectRoot)
     }
 
     /** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */

@@ -2,11 +2,10 @@
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
-import { rm } from 'fs/promises'
 import { type Config, defaultConfig, normalizeSep, pofile } from 'wuchale'
 import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
-import { dummyTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
+import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { Hub } from './hub.js'
 
 const file = normalizeSep(resolve(import.meta.dirname, 'foo.js')) // needs to match files, relative to root
@@ -39,12 +38,9 @@ const loadConfig = async (): Promise<Config> => ({
     },
 })
 
-const hub = new Hub(loadConfig, import.meta.dirname, 0)
+const hub = new Hub(loadConfig, import.meta.dirname, 0, inMemFS)
 
 test('hub init', async () => {
-    try {
-        await rm(tmpDir, { recursive: true })
-    } catch {}
     await hub.init('dev')
 })
 
