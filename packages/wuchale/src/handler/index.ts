@@ -74,7 +74,9 @@ export class AdapterHandler {
         this.#projectRoot = projectRoot
         this.#config = config
         this.#log = log
-        this.fileMatches = pm(...globConfToArgs(this.adapter.files, this.#config.localesDir, this.adapter.outDir))
+        this.fileMatches = pm(
+            ...globConfToArgs(this.adapter.files, projectRoot, this.#config.localesDir, this.adapter.outDir),
+        )
         this.sourceLocale = this.adapter.sourceLocale ?? this.#config.locales[0]
         if (this.#config.ai) {
             this.#aiQueue = new AIQueue(

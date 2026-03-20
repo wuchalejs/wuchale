@@ -285,14 +285,19 @@ export class Hub {
 
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
         this.#log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
-        const contents = await this.#fs.read(filename)
+        const contents = await this.#fs.read(resolve(this.#projectRoot, filename))
         const [, updated] = await handler.transform(contents, filename)
         return updated
     }
 
     async #directVisitHandler(handler: AdapterHandler, clean: boolean, sync: boolean): Promise<boolean> {
         const filePaths = await glob(
-            ...globConfToArgs(handler.adapter.files, this.#config.localesDir, handler.adapter.outDir),
+            ...globConfToArgs(
+                handler.adapter.files,
+                this.#projectRoot,
+                this.#config.localesDir,
+                handler.adapter.outDir,
+            ),
         )
         const catalog = handler.sharedState.catalog
         let updated = false

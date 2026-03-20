@@ -26,10 +26,15 @@ export function normalizeSep(path: string) {
     return path.replaceAll('\\', '/')
 }
 
-export function globConfToArgs(conf: GlobConf, localesDir: string, outDir?: string): [string[], { ignore: string[] }] {
+export function globConfToArgs(
+    conf: GlobConf,
+    cwd: string,
+    localesDir: string,
+    outDir?: string,
+): [string[], { ignore: string[] }] {
     let patterns: string[] = []
     // ignore generated files
-    const options = { ignore: [localesDir] }
+    const options = { ignore: [localesDir], cwd }
     if (outDir) {
         options.ignore.push(outDir)
     }
