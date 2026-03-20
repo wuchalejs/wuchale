@@ -8,7 +8,7 @@ import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import type { Config } from './config.js'
-import { defaultFS, type FS } from './fs.js'
+import { defaultFS, type FS, readOnlyFS } from './fs.js'
 import { dataFileName, generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode } from './handler/index.js'
 import { SharedState } from './handler/state.js'
@@ -103,7 +103,7 @@ export class Hub {
         )
     }
 
-    init = async (mode: Mode, noWrite = false) => {
+    init = async (mode: Mode) => {
         this.#mode = mode
         this.#config = await this.#loadConfig()
         this.#log = new Logger(this.#config.logLevel)
@@ -111,9 +111,7 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
-        if (!noWrite) {
-            await this.#initGenDirWithData()
-        }
+        await this.#initGenDirWithData()
         const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, adapter] of adaptersData) {
             const handler = new AdapterHandler(
@@ -130,9 +128,6 @@ export class Hub {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
             this.#handlers.set(key, handler)
-            if (noWrite) {
-                continue
-            }
             if (adapter.granularLoad) {
                 this.#granularLoadHandlers.push(handler)
             } else {
@@ -182,6 +177,9 @@ export class Hub {
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
         })
+        if (this.#fs === readOnlyFS) {
+            storage.save = async () => {} // disable writes
+        }
         let sharedState = this.#sharedStates.get(storage.key)
         if (sharedState == null) {
             sharedState = new SharedState(storage, key, sourceLocale)

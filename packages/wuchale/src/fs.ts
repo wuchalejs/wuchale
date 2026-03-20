@@ -32,3 +32,9 @@ export const defaultFS: FS = {
         }
     },
 }
+
+export const readOnlyFS: FS = {
+    ...defaultFS,
+    write: () => {},
+    mkdir: () => {},
+}

@@ -1,12 +1,13 @@
 import { relative } from 'node:path'
 import { type Config, getLanguageName } from '../config.js'
+import { readOnlyFS } from '../fs.js'
 import { Hub } from '../hub.js'
 import { color } from '../log.js'
 
 export async function status(config: Config, root: string, json: boolean) {
     // console.log because if the user invokes this command, they want full info regardless of config
-    const hub = new Hub(() => config, root)
-    await hub.init('cli', true)
+    const hub = new Hub(() => config, root, 0, readOnlyFS)
+    await hub.init('cli')
     if (json) {
         console.log(JSON.stringify(await hub.status(), null, process.stdout.isTTY ? '  ' : undefined))
         return
