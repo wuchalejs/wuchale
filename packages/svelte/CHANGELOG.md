@@ -1,5 +1,12 @@
 # @wuchale/svelte
 
+## 0.19.2
+
+### Patch Changes
+
+- Updated dependencies [[`89fec64`](https://github.com/wuchalejs/wuchale/commit/89fec64579b2c1fe83b0867c5605056f036ce003), [`d53178a`](https://github.com/wuchalejs/wuchale/commit/d53178a7a32a1685bcfdedce8eed0b921b991c89), [`2f195f3`](https://github.com/wuchalejs/wuchale/commit/2f195f39de0902c318efcbf6711beae03070fa3b), [`346f49f`](https://github.com/wuchalejs/wuchale/commit/346f49fd2f2d9ceb244649b77777225ff51de943), [`654b5e9`](https://github.com/wuchalejs/wuchale/commit/654b5e9388b47305c55f90a70002bf79d3af03af), [`85c7473`](https://github.com/wuchalejs/wuchale/commit/85c7473003b25b4fb5656f3680da35b63d174bd9), [`eb49dc8`](https://github.com/wuchalejs/wuchale/commit/eb49dc8f58ba3eed6913048de2c9739b092d524f), [`3371f37`](https://github.com/wuchalejs/wuchale/commit/3371f37e997b160333939b21923bd95b0e6f239f), [`8c9d854`](https://github.com/wuchalejs/wuchale/commit/8c9d8543192a320222c024a5b421d2c63bcd53be), [`b7f362c`](https://github.com/wuchalejs/wuchale/commit/b7f362c43796fae570c0792ed3b443ea4e181313), [`8771568`](https://github.com/wuchalejs/wuchale/commit/87715685e5e758141d4ffc82433217159a65d6f6)]:
+  - wuchale@0.22.0
+
 ## 0.19.1
 
 ### Patch Changes

@@ -1,5 +1,48 @@
 # wuchale
 
+## 0.22.0
+
+### Minor Changes
+
+- Add `npx wuchale check` command to check translation structures for missing placeholders etc. #274 ([`d53178a`](https://github.com/wuchalejs/wuchale/commit/d53178a7a32a1685bcfdedce8eed0b921b991c89))
+
+- Remove `.id` field of items (relevant only if you use a custom storage) ([`2f195f3`](https://github.com/wuchalejs/wuchale/commit/2f195f39de0902c318efcbf6711beae03070fa3b))
+
+- Add `wuchale check --full` command to check if there are any unchecked changes, visits all files to see if there are unextracted messages #274 ([`346f49f`](https://github.com/wuchalejs/wuchale/commit/346f49fd2f2d9ceb244649b77777225ff51de943))
+
+- Add support for JSON output on `status` command ([`85c7473`](https://github.com/wuchalejs/wuchale/commit/85c7473003b25b4fb5656f3680da35b63d174bd9))
+
+  The command `npx wuchale status` now accepts the `--json` flag and can print
+  the info in a structured JSON format. This can be used to use for e.g. to check
+  the number of untranslated items using `jq` in CI etc.
+
+- Write catalog manifest files to know which index in compiled catalog comes from which key in catalog ([#288](https://github.com/wuchalejs/wuchale/pull/288))
+
+- BREAKING: Merge vite plugin logic into core to share with cli ([#289](https://github.com/wuchalejs/wuchale/pull/289))
+
+  The vite plugin will no longer be a separate package. It is now included in the `wuchale` package.
+  You should update your vite plugin:
+
+  ```diff
+  // vite.config.js
+  - import {wuchale} from '@wuchale/vite-plugin'
+  + import {wuchale} from 'wuchale/vite'
+  ```
+
+### Patch Changes
+
+- Validate plural rules and check for anything suspecious ([`89fec64`](https://github.com/wuchalejs/wuchale/commit/89fec64579b2c1fe83b0867c5605056f036ce003))
+
+  Plural rules that come from the catalogs set by translators are now validated to be ternary expressions in the expected format for correctness, as well as security reasons (although the risk is low)
+
+- Fix error by adding `;` when there is iife right after runtime init ([#293](https://github.com/wuchalejs/wuchale/pull/293))
+
+- Fix error when adding a new locale to an existing project #294 ([`eb49dc8`](https://github.com/wuchalejs/wuchale/commit/eb49dc8f58ba3eed6913048de2c9739b092d524f))
+
+- Fix wrong `topLevelCall` in heuristic details on destructuring assignments ([`b7f362c`](https://github.com/wuchalejs/wuchale/commit/b7f362c43796fae570c0792ed3b443ea4e181313))
+
+- Trim `?t=...` in addition to `?v=...` before matching files in vite plugin (thanks @mustafa0x) ([#290](https://github.com/wuchalejs/wuchale/pull/290))
+
 ## 0.21.2
 
 ### Patch Changes
