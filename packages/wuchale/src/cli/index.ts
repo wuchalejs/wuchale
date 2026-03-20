@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
+import { dirname } from 'node:path'
 import { parseArgs } from 'node:util'
 import { type Config, defaultConfigNames, getConfig } from '../config.js'
+import { Hub } from '../hub.js'
 import { color, type LogLevel, logLevels } from '../log.js'
 import { check, checkHelp } from './check.js'
-import { extract } from './extract.js'
 import { status, statusHelp } from './status.js'
 
 const { positionals, values } = parseArgs({
@@ -73,7 +74,8 @@ You can specify ${color.cyan('--help')} after a sub-command for more.
 async function configRootLocales(): Promise<[Config, string, string[]]> {
     const config = await getConfig(values.config)
     config.logLevel = values['log-level'] as LogLevel
-    return [config, values.config ?? process.cwd(), config.locales]
+    const root = values.config ? dirname(values.config) : process.cwd()
+    return [config, root, config.locales]
 }
 
 if (cmd === 'status') {
@@ -95,7 +97,9 @@ if (cmd === 'status') {
     console.log(help.trimEnd())
 } else if (cmd == null) {
     const [config, root] = await configRootLocales()
-    await extract(config, root, values.clean, values.watch, values.sync)
+    const hub = new Hub(() => config, root)
+    await hub.init('cli')
+    await hub.directVisit(values.clean, values.watch, values.sync)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)
