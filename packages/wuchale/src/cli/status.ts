@@ -4,6 +4,15 @@ import { readOnlyFS } from '../fs.js'
 import { Hub } from '../hub.js'
 import { color } from '../log.js'
 
+export const statusHelp = `
+Usage:
+    ${color.cyan('wuchale status {options}')}
+
+Options:
+    ${color.cyan('--json')}           output info as structured JSON instead of table and text
+    ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
+`
+
 export async function status(config: Config, root: string, json: boolean) {
     // console.log because if the user invokes this command, they want full info regardless of config
     const hub = new Hub(() => config, root, 0, readOnlyFS)

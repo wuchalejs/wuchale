@@ -3,6 +3,15 @@ import { readOnlyFS } from '../fs.js'
 import { type CheckErrorType, Hub } from '../hub.js'
 import { color } from '../log.js'
 
+export const checkHelp = `
+Usage:
+    ${color.cyan('wuchale check {options}')}
+
+Options:
+    ${color.cyan('--full')}           check if there are unextracted and newly obsolete messages in source code as well
+    ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
+`
+
 const checkErrMsgs: { [key in CheckErrorType]: string } = {
     notEquivalent: 'Not equivalent',
     unequalLength: 'Unequal length',

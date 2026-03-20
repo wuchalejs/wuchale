@@ -3,9 +3,9 @@
 import { parseArgs } from 'node:util'
 import { type Config, defaultConfigNames, getConfig } from '../config.js'
 import { color, type LogLevel, logLevels } from '../log.js'
-import { check } from './check.js'
+import { check, checkHelp } from './check.js'
 import { extract } from './extract.js'
-import { status } from './status.js'
+import { status, statusHelp } from './status.js'
 
 const { positionals, values } = parseArgs({
     options: {
@@ -61,13 +61,13 @@ Commands:
 
 Options:
     ${color.cyan('--config')}         use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
-    ${color.cyan('--json')}           (for status) output info as structured JSON instead of table and text
-    ${color.cyan('--clean')}, ${color.cyan('-c')}      (only when no commands) remove unused messages from catalogs
-    ${color.cyan('--watch')}, ${color.cyan('-w')}      (only when no commands) continuously watch for file changes
-    ${color.cyan('--sync')}           (only when no commands) extract sequentially instead of in parallel
-    ${color.cyan('--full')}           (only on check) check if there are unextracted and newly obsolete messages in source code as well
+    ${color.cyan('--clean')}, ${color.cyan('-c')}      remove unused messages from catalogs
+    ${color.cyan('--watch')}, ${color.cyan('-w')}      continuously watch for file changes
+    ${color.cyan('--sync')}           extract sequentially instead of in parallel
     ${color.cyan('--log-level')}, ${color.cyan('-l')}  {${Object.keys(logLevels).map(color.cyan)}} (only when no commands) set log level
     ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
+
+You can specify ${color.cyan('--help')} after a sub-command for more.
 `
 
 async function configRootLocales(): Promise<[Config, string, string[]]> {
@@ -76,18 +76,26 @@ async function configRootLocales(): Promise<[Config, string, string[]]> {
     return [config, values.config ?? process.cwd(), config.locales]
 }
 
-if (values.help) {
+if (cmd === 'status') {
+    if (values.help) {
+        console.log(statusHelp)
+    } else {
+        const [config, root] = await configRootLocales()
+        await status(config, root, values.json)
+    }
+} else if (cmd === 'check') {
+    if (values.help) {
+        console.log(checkHelp)
+    } else {
+        const [config, root] = await configRootLocales()
+        await check(config, root, values.full)
+    }
+} else if (values.help) {
     console.log('wuchale cli')
     console.log(help.trimEnd())
 } else if (cmd == null) {
     const [config, root] = await configRootLocales()
     await extract(config, root, values.clean, values.watch, values.sync)
-} else if (cmd === 'status') {
-    const [config, root] = await configRootLocales()
-    await status(config, root, values.json)
-} else if (cmd === 'check') {
-    const [config, root] = await configRootLocales()
-    await check(config, root, values.full)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)
