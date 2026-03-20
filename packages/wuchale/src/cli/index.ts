@@ -3,6 +3,7 @@
 import { parseArgs } from 'node:util'
 import { type Config, defaultConfigNames, getConfig } from '../config.js'
 import { color, type LogLevel, logLevels } from '../log.js'
+import { check } from './check.js'
 import { extract } from './extract.js'
 import { status } from './status.js'
 
@@ -52,6 +53,7 @@ Commands:
     ${color.grey('[none]')}  Extract/compile messages from the codebase into catalogs
             deleting unused messages if ${color.cyan('--clean')} is specified
     ${color.cyan('status')}  Show current status
+    ${color.cyan('check')}   Check for errors
 
 Options:
     ${color.cyan('--config')}         use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
@@ -78,6 +80,9 @@ if (values.help) {
 } else if (cmd === 'status') {
     const [config, root] = await configRootLocales()
     await status(config, root, values.json)
+} else if (cmd === 'check') {
+    const [config, root] = await configRootLocales()
+    await check(config, root)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)

@@ -7,6 +7,7 @@ import { watch as watchFS } from 'chokidar'
 import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
+import { compileTranslation, isEquivalent } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS, readOnlyFS } from './fs.js'
 import { dataFileName, generatedDir, globConfToArgs, normalizeSep } from './handler/files.js'
@@ -58,6 +59,14 @@ type AdapterStatus = {
               ownerKey: string
           }
         | TranslStats
+}
+
+type CheckError = {
+    adapter: string
+    source: string[]
+    locale: string
+    translation: string[]
+    type: 'notEquivalent' | 'unequalLength'
 }
 
 export class Hub {
@@ -376,5 +385,48 @@ export class Hub {
             }
         }
         return statuses
+    }
+
+    check(): { checked: number; errors: CheckError[] } {
+        const errors: CheckError[] = []
+        let checkedItems = 0
+        for (const handler of this.#handlers.values()) {
+            const state = handler.sharedState
+            if (state.ownerKey !== handler.key) {
+                continue
+            }
+            const otherLocales = this.#config.locales
+            for (const item of state.catalog.values()) {
+                checkedItems++
+                const source = item.translations.get(handler.sourceLocale)!
+                const sourceCompEntries = source.map(i => compileTranslation(i, ''))
+                for (const locale of otherLocales) {
+                    const translation = item.translations.get(locale)
+                    if (!translation) {
+                        // untranslated, can be checked from status
+                        continue
+                    }
+                    const err: CheckError = {
+                        adapter: handler.key,
+                        source,
+                        translation,
+                        locale,
+                        type: 'unequalLength',
+                    }
+                    if (translation.length !== source.length) {
+                        errors.push(err)
+                        continue
+                    }
+                    for (const [i, sou] of sourceCompEntries.entries()) {
+                        if (!isEquivalent(sou, compileTranslation(translation[i], ''))) {
+                            err.type = 'notEquivalent'
+                            errors.push(err)
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        return { checked: checkedItems, errors }
     }
 }
