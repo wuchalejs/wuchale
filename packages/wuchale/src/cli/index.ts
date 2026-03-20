@@ -26,6 +26,10 @@ const { positionals, values } = parseArgs({
             type: 'boolean',
             default: false,
         },
+        full: {
+            type: 'boolean',
+            default: false,
+        },
         sync: {
             type: 'boolean',
             default: false,
@@ -61,6 +65,7 @@ Options:
     ${color.cyan('--clean')}, ${color.cyan('-c')}      (only when no commands) remove unused messages from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}      (only when no commands) continuously watch for file changes
     ${color.cyan('--sync')}           (only when no commands) extract sequentially instead of in parallel
+    ${color.cyan('--full')}           (only on check) check if there are unextracted and newly obsolete messages in source code as well
     ${color.cyan('--log-level')}, ${color.cyan('-l')}  {${Object.keys(logLevels).map(color.cyan)}} (only when no commands) set log level
     ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
 `
@@ -82,7 +87,7 @@ if (values.help) {
     await status(config, root, values.json)
 } else if (cmd === 'check') {
     const [config, root] = await configRootLocales()
-    await check(config, root)
+    await check(config, root, values.full)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)
     console.log(help)

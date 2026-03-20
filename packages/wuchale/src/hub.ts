@@ -61,12 +61,20 @@ type AdapterStatus = {
         | TranslStats
 }
 
-type CheckError = {
+export type CheckErrorType = 'notEquivalent' | 'unequalLength'
+
+type CheckErrorItem = {
     adapter: string
     source: string[]
     locale: string
     translation: string[]
-    type: 'notEquivalent' | 'unequalLength'
+    type: CheckErrorType
+}
+
+type CheckResult = {
+    checked: number
+    errors: CheckErrorItem[]
+    syncs: string[]
 }
 
 export class Hub {
@@ -282,7 +290,10 @@ export class Hub {
         return updated
     }
 
-    async #directVisitHandler(handler: AdapterHandler, filePaths: string[], clean: boolean, sync: boolean) {
+    async #directVisitHandler(handler: AdapterHandler, clean: boolean, sync: boolean): Promise<boolean> {
+        const filePaths = await glob(
+            ...globConfToArgs(handler.adapter.files, this.#config.localesDir, handler.adapter.outDir),
+        )
         const catalog = handler.sharedState.catalog
         let updated = false
         if (sync) {
@@ -321,22 +332,17 @@ export class Hub {
         if (updated) {
             await handler.sharedState.save()
         }
+        return updated
     }
 
     async directVisit(clean: boolean, watch: boolean, sync: boolean) {
         !watch && this.#log.info('Extracting...')
-        const handlers: [AdapterHandler, string[]][] = []
-        for (const handler of this.#handlers.values()) {
-            const filePaths = await glob(
-                ...globConfToArgs(handler.adapter.files, this.#config.localesDir, handler.adapter.outDir),
-            )
-            handlers.push([handler, filePaths])
-        }
+        const handlers = Array.from(this.#handlers.values())
         // owner adapter handlers should run last for cleanup
-        handlers.sort(([handler]) => (handler.sharedState.ownerKey === handler.key ? 1 : -1))
+        handlers.sort(h => (h.sharedState.ownerKey === h.key ? 1 : -1))
         // separate loop to make sure that all otherFileMatchers are collected
-        for (const [handler, files] of handlers) {
-            await this.#directVisitHandler(handler, files, clean, sync)
+        for (const handler of handlers) {
+            await this.#directVisitHandler(handler, clean, sync)
         }
         if (!watch) {
             this.#log.info('Extraction finished.')
@@ -387,11 +393,15 @@ export class Hub {
         return statuses
     }
 
-    check(): { checked: number; errors: CheckError[] } {
-        const errors: CheckError[] = []
+    async check(full = false): Promise<CheckResult> {
+        const errors: CheckErrorItem[] = []
+        const syncs: string[] = []
         let checkedItems = 0
         for (const handler of this.#handlers.values()) {
             const state = handler.sharedState
+            if (full && (await this.#directVisitHandler(handler, true, false))) {
+                syncs.push(handler.key)
+            }
             if (state.ownerKey !== handler.key) {
                 continue
             }
@@ -401,19 +411,18 @@ export class Hub {
                 const source = item.translations.get(handler.sourceLocale)!
                 const sourceCompEntries = source.map(i => compileTranslation(i, ''))
                 for (const locale of otherLocales) {
-                    const translation = item.translations.get(locale)
-                    if (!translation) {
-                        // untranslated, can be checked from status
-                        continue
-                    }
-                    const err: CheckError = {
+                    const translation = item.translations.get(locale)!
+                    const err: CheckErrorItem = {
                         adapter: handler.key,
                         source,
-                        translation,
+                        translation: translation ?? [],
                         locale,
                         type: 'unequalLength',
                     }
-                    if (translation.length !== source.length) {
+                    if (translation.length === 0) {
+                        continue
+                    }
+                    if (translation.length > 0 && translation.length !== source.length) {
                         errors.push(err)
                         continue
                     }
@@ -427,6 +436,6 @@ export class Hub {
                 }
             }
         }
-        return { checked: checkedItems, errors }
+        return { checked: checkedItems, errors, syncs }
     }
 }

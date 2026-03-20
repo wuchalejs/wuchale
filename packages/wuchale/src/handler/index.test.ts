@@ -5,7 +5,7 @@ import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { dummyTransform, inMemFS, inMemStorage, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
-import { type Adapter } from '../adapters.js'
+import { type Adapter, newMessage } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
 import { generatedDir } from './files.js'
@@ -29,7 +29,8 @@ const conf = {
 }
 
 const handler = new AdapterHandler(adapter, 'test', conf, 'dev', inMemFS, import.meta.dirname, new Logger('error'))
-const storage = adapter.storage({
+
+const storage = inMemStorage({
     locales: ['en'],
     root: import.meta.dirname,
     sourceLocale: 'en',
@@ -74,4 +75,17 @@ test('Manifest', async (t: TestContext) => {
             `/** @type {(string | {text: string | string[], context?: string, isUrl?: boolean} | null)[]} */\nexport const keys = ["Hello"]`,
         ),
     )
+})
+
+test('Handle messages', async (t: TestContext) => {
+    const msgs = [newMessage({ msgStr: ['Hello'] })]
+    const [hmrKeys, updated] = await handler.handleMessages(msgs, 'foo.ts')
+    t.assert.strictEqual(updated, true)
+    t.assert.deepStrictEqual(hmrKeys, ['Hello'])
+    // @ts-expect-error
+    const msgs1 = [newMessage({ msgStr: ['Hello'], context: null })]
+    const [, updated1] = await handler.handleMessages(msgs1, 'foo.ts')
+    t.assert.strictEqual(updated1, false)
+    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts')
+    t.assert.strictEqual(updated2, true)
 })

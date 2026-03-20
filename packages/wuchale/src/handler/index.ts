@@ -460,7 +460,8 @@ export class AdapterHandler {
                 // and context not to be updated
                 continue
             }
-            if (msgInfo.context !== item.context) {
+            if (msgInfo.context != item.context) {
+                // NOT !== because they may be null (from pofile!)
                 updated = true
             }
             item.context = msgInfo.context
