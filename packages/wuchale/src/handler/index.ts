@@ -131,7 +131,9 @@ export class AdapterHandler {
     }
 
     compile = async (hmrVersion = -1) => {
-        await Promise.all(this.#config.locales.map(loc => this.#compileForLocale(loc, hmrVersion)))
+        // for proper fallback
+        const localesOrdered = [this.sourceLocale, ...this.#config.locales.filter(l => l !== this.sourceLocale)]
+        await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
         await this.#writeManifests()
     }
 
