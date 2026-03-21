@@ -73,7 +73,7 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
     rt.x = mixedToString
 
     /** for tagged template strings */
-    rt.t = (tag: CallableFunction, id: number, args?: any[]) => {
+    rt.t = (tag: (strs: TemplateStringsArray, ...args: any[]) => any, id: number, args?: any[]) => {
         const ctx = getCompositeContext(id) as Mixed
         const strings: string[] = []
         const exprs: number[] = []
@@ -89,7 +89,7 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
             prevIsNumber = true
         }
         prevIsNumber && strings.push('')
-        return tag(strings, ...exprs)
+        return tag(Object.assign(strings, { raw: strings }) as TemplateStringsArray, ...exprs)
     }
 
     /** get translation for plural */
