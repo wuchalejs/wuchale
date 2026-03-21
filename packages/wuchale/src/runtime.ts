@@ -75,20 +75,16 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
     /** for tagged template strings */
     rt.t = (tag: (strs: TemplateStringsArray, ...args: any[]) => any, id: number, args?: any[]) => {
         const ctx = getCompositeContext(id) as Mixed
-        const strings: string[] = []
+        const strings = ['']
         const exprs: number[] = []
-        let prevIsNumber = true
         for (const x of ctx) {
             if (typeof x === 'string') {
-                strings.push(x)
-                prevIsNumber = false
+                strings[strings.length - 1] += x
                 continue
             }
-            prevIsNumber && strings.push('')
             exprs.push(args?.[x])
-            prevIsNumber = true
+            strings.push('')
         }
-        prevIsNumber && strings.push('')
         return tag(Object.assign(strings, { raw: strings }) as TemplateStringsArray, ...exprs)
     }
 
