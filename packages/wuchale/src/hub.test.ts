@@ -8,7 +8,7 @@ import { defaultArgs } from 'wuchale/adapter-vanilla'
 import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { Hub } from './hub.js'
 
-const file = normalizeSep(resolve(import.meta.dirname, 'foo.js')) // needs to match files, relative to root
+const file = resolve(import.meta.dirname, 'foo.js') // needs to match files, relative to root
 
 const code = ts`
     function foo() {

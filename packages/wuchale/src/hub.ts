@@ -215,6 +215,7 @@ export class Hub {
     }
 
     onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
+        file = normalizeSep(file) // just to be sure
         if (this.#confUpdateFile === file) {
             const update: ConfUpdate = JSON.parse(await read())
             this.#log.info(`${logPrefix} config update received: ${update}`)
