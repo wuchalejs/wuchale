@@ -77,6 +77,8 @@ type CheckResult = {
     syncs: string[]
 }
 
+type TransformErrFormatter = (e: Error, adapterKey: string, filename: string) => Error
+
 export class Hub {
     #config: Config
     #fs: FS
@@ -94,17 +96,25 @@ export class Hub {
     #mode: Mode
 
     #loadConfig: ConfigLoader
+    #formatTransformErr: TransformErrFormatter = e => e
 
     #hmrVersion = -1
     #hmrDelayThreshold: number
     #lastSourceTriggeredCatalogWrite: number = 0
 
-    constructor(loadConfig: ConfigLoader, root: string, hmrDelayThreshold = 1000, fs = defaultFS) {
+    constructor(
+        loadConfig: ConfigLoader,
+        root: string,
+        hmrDelayThreshold = 1000,
+        fs = defaultFS,
+        formatTransformErr?: TransformErrFormatter,
+    ) {
         this.#loadConfig = loadConfig
         this.#fs = fs
         this.#projectRoot = root
         // threshold to consider po file change is manual edit instead of a sideeffect of editing code
         this.#hmrDelayThreshold = hmrDelayThreshold
+        this.#formatTransformErr = formatTransformErr ?? this.#formatTransformErr
     }
 
     async #initGenDirWithData() {
@@ -279,7 +289,11 @@ export class Hub {
                         `${logPrefix} ${filename} matches both adapters ${lastAdapterKey} and ${adapter.key}`,
                     )
                 }
-                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                try {
+                    output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                } catch (e) {
+                    throw this.#formatTransformErr(e, adapter.key, filename)
+                }
                 lastAdapterKey = adapter.key
             }
         }

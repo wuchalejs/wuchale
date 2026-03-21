@@ -1,30 +1,23 @@
 import { dirname } from 'node:path'
-import { inspect } from 'node:util'
 import { getConfig } from 'wuchale'
 import { Hub, pluginName } from '../hub.js'
 
-export function toViteError(err: unknown, adapterKey: string, filename: string): never {
+export function toViteError(err: any, adapterKey: string, filename: string): Error {
     const prefix = `${adapterKey}: transform failed for ${filename}`
     // Ensure we always throw an Error instance with a non-empty message so build tools (e.g. Vite)
     // don't end up printing only a generic "error during build:" line.
-    if (err instanceof Error) {
-        const anyErr = err as any
-        const frame: string | undefined = typeof anyErr.frame === 'string' ? anyErr.frame : undefined
-        if (!err.message || !err.message.startsWith(prefix)) {
-            const details = err.message ? `\n${err.message}` : ''
-            const frameText = frame ? `\n\n${frame}` : ''
-            err.message = `${prefix}${details}${frameText}`
-        }
-        // Preserve useful metadata that some tooling expects.
-        if (anyErr.id == null) anyErr.id = filename
-        if (anyErr.loc == null && anyErr.start?.line != null && anyErr.start?.column != null) {
-            anyErr.loc = { file: filename, line: anyErr.start.line, column: anyErr.start.column }
-        }
-        throw err
+    const frame: string | undefined = typeof err.frame === 'string' ? err.frame : undefined
+    if (!err.message || !err.message.startsWith(prefix)) {
+        const details = err.message ? `\n${err.message}` : ''
+        const frameText = frame ? `\n\n${frame}` : ''
+        err.message = `${prefix}${details}${frameText}`
     }
-    const rendered =
-        typeof err === 'string' ? err : inspect(err, { depth: 5, breakLength: 120, maxStringLength: 10_000 })
-    throw new Error(`${prefix}\n${rendered}`)
+    // Preserve useful metadata that some tooling expects.
+    if (err.id == null) err.id = filename
+    if (err.loc == null && err.start?.line != null && err.start?.column != null) {
+        err.loc = { file: filename, line: err.start.line, column: err.start.column }
+    }
+    return err
 }
 
 export function trimViteQueries(id: string) {
@@ -53,7 +46,13 @@ type HotUpdateCtx = {
 }
 
 export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
-    const hub = new Hub(() => getConfig(configPath), dirname(configPath ?? '.'), hmrDelayThreshold)
+    const hub = new Hub(
+        () => getConfig(configPath),
+        dirname(configPath ?? '.'),
+        hmrDelayThreshold,
+        undefined,
+        toViteError,
+    )
     return {
         name: pluginName,
         async configResolved(config: { env: { DEV?: boolean } }) {
