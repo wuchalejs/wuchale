@@ -334,6 +334,28 @@ test('Context', async t => {
     )
 })
 
+test('Tags and directives', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+            {@render foo('Hello')}
+            {@html 'Hello'}
+            <button on:click={() => alert('Hello')}>42</button>
+        `),
+        svelte`
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_());
+        </script>
+            {@render foo(_w_runtime_(0))}
+            {@html _w_runtime_(0)}
+            <button on:click={() => alert(_w_runtime_(0))}>42</button>
+    `,
+        ['Hello', 'Hello', 'Hello'],
+    )
+})
+
 test('Nested and mixed', async t => {
     transformTest(
         t,

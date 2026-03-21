@@ -1,4 +1,13 @@
-import type { AnyNode, Declaration, Identifier, Literal, Program, TemplateLiteral, VariableDeclarator } from 'acorn'
+import type {
+    AnyNode,
+    Declaration,
+    Expression,
+    Identifier,
+    Literal,
+    Program,
+    TemplateLiteral,
+    VariableDeclarator,
+} from 'acorn'
 import MagicString from 'magic-string'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
 import type {
@@ -247,10 +256,11 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         return this.visitVariableDeclaration(node.declaration)
     }
 
-    visitRenderTag = (node: AST.RenderTag): Message[] => {
-        // @ts-expect-error
-        return this.visit(node.expression)
-    }
+    visitRenderTag = (node: AST.RenderTag): Message[] => this.visit(node.expression as Expression)
+
+    visitHtmlTag = (node: AST.HtmlTag): Message[] => this.visit(node.expression as Expression)
+
+    visitOnDirective = (node: AST.OnDirective): Message[] => this.visit(node.expression as Expression)
 
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
         // use module runtime var because the snippet may be exported from the module
