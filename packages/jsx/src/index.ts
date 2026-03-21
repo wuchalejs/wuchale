@@ -80,7 +80,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
         return null
     }
     if (loader === 'default') {
-        return getDefaultLoaderPathVanilla('bundle', bundle)
+        return getDefaultLoaderPathVanilla('vite', bundle)
     }
     if (bundle) {
         loader += '.bundle'
