@@ -352,7 +352,8 @@ export class Hub {
             }
         }
         if (updated) {
-            await handler.sharedState.save()
+            await handler.saveStorage()
+            await handler.compile()
         }
         return updated
     }
