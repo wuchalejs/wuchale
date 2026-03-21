@@ -70,7 +70,7 @@ export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
                     ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
                 }
             }
-            if (!changeInfo.sourceTriggered) {
+            if (!changeInfo.sourceTriggered && changeInfo.invalidate.size > 0) {
                 ctx.server.ws.send({ type: 'full-reload' })
                 return []
             }
