@@ -75,6 +75,9 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             return msgs
         }
         const needsWrapping = msgs.some(msg => {
+            if (msg.details.leftSide) {
+                return false
+            }
             const topCall = msg.details.topLevelCall ?? ''
             if (noWrapTopCalls.includes(topCall) || noWrapTopCalls.some(c => topCall.startsWith(`${c}.`))) {
                 return false

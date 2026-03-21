@@ -26,19 +26,25 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         urlHandler.match,
     ).transformSv()
 
-test('Simple text', async t => {
+test('Simple text and props destruct', async t => {
     transformTest(
         t,
-        await getOutput(svelte`Hello`),
+        await getOutput(svelte`
+        <script>
+            let { label = 'Hello' } = $props()
+        </script>
+        Hello
+        `),
         svelte`
         <script>
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_ = $derived(_w_load_rx_());
+            let { label = _w_runtime_(0) } = $props()
         </script>
         {_w_runtime_(0)}
     `,
-        ['Hello'],
+        ['Hello', 'Hello'],
     )
 })
 

@@ -13,17 +13,19 @@ export type ScriptDeclType = 'variable' | 'function' | 'class' | 'expression'
 
 export type HeuristicDetails = HeuristicDetailsBase & {
     file: string
-    /* the type of the top level declaration */
+    /** the type of the top level declaration */
     declaring?: ScriptDeclType
-    /* the name of the function being defined, '' for arrow or null for global */
+    /** in assignments, whether the string is on the left side as destructuring default */
+    leftSide?: boolean
+    /** the name of the function being defined, '' for arrow or null for global */
     funcName?: string | null
-    /* whether the function being defined is nested inside another, null for no function */
+    /** whether the function being defined is nested inside another, null for no function */
     funcIsNested?: boolean
-    /* whether inside a script file/<script> instead of an expression inside markup */
+    /** whether inside a script file/<script> instead of an expression inside markup */
     insideProgram: boolean
-    /* the name of the call at the top level */
+    /** the name of the call at the top level */
     topLevelCall?: string
-    /* the name of the nearest call (for arguments) */
+    /** the name of the nearest call (for arguments) */
     call?: string
 }
 

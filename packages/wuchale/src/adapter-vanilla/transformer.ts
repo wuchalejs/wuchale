@@ -486,10 +486,13 @@ export class Transformer<RTCtxT = {}> {
                     this.heuristciDetails.declaring = 'variable'
                 }
             }
+            this.heuristciDetails.leftSide = true
             const msgs = this.visit(node.id)
+            this.heuristciDetails.leftSide = false
             if (topLevel && this.heuristciDetails.declaring === 'variable' && init.type === 'CallExpression') {
                 this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
             }
+            delete this.heuristciDetails.leftSide
             return [...msgs, ...this.visit(node.init)]
         })
 
