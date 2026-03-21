@@ -1,6 +1,7 @@
 import { mkdir, readFile, statfs, writeFile } from 'node:fs/promises'
 
 export type FS = {
+    inMemory: boolean
     read(file: string): string | Promise<string>
     write(file: string, content: string): void | Promise<void>
     mkdir(path: string): void | Promise<void>
@@ -8,6 +9,8 @@ export type FS = {
 }
 
 export const defaultFS: FS = {
+    inMemory: false,
+
     async read(file: string) {
         return await readFile(file, 'utf-8')
     },
@@ -35,6 +38,7 @@ export const defaultFS: FS = {
 
 export const readOnlyFS: FS = {
     ...defaultFS,
+    inMemory: true,
     write: () => {},
     mkdir: () => {},
 }

@@ -2,13 +2,13 @@
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
-import { type Config, defaultConfig, normalizeSep, pofile } from 'wuchale'
+import { type Config, defaultConfig, generatedDir, normalizeSep } from 'wuchale'
 import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
 import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { Hub } from './hub.js'
 
-const file = resolve(import.meta.dirname, 'foo.js') // needs to match files, relative to root
+const file = resolve(import.meta.dirname, 'src/foo.js') // needs to match files, relative to root
 
 const code = ts`
     function foo() {
@@ -16,23 +16,17 @@ const code = ts`
     }
 `
 
-const tmpDir = resolve(import.meta.dirname, '../tmp')
-
-const defaultLoader = resolve(import.meta.dirname, '../../wuchale/src/adapter-vanilla/loaders/server.js')
-
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
-    localesDir: tmpDir,
     adapters: {
         main: {
             ...defaultArgs,
-            storage: pofile({ dir: tmpDir }),
             transform: dummyTransform,
-            files: '*.js', // filename needs to match
+            files: 'src/*.js', // filename needs to match
             loaderExts: ['.js'],
             defaultLoaderPath: {
-                client: defaultLoader,
-                server: defaultLoader,
+                client: 'loader.js',
+                server: 'loader.server.js',
             },
         },
     },
@@ -49,7 +43,7 @@ test('hub transform basic', async (t: TestContext) => {
     t.assert.strictEqual(
         trimLines(output.code),
         trimLines(ts`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tmp/main.loader.js"
+            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.js"
             _w_load_('main')(0)
         `),
     )
@@ -61,7 +55,7 @@ test('hub transform ssr', async (t: TestContext) => {
     t.assert.strictEqual(
         trimLines(output.code),
         trimLines(ts`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "../tmp/main.loader.server.js"
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.server.js"
         _w_load_('main')(0)
     `),
     )
@@ -70,11 +64,15 @@ test('hub transform ssr', async (t: TestContext) => {
 test('hub onFileChange', async (t: TestContext) => {
     const res1 = await hub.onFileChange(file, () => '')
     t.assert.strictEqual(res1, undefined)
-    const poFname = normalizeSep(resolve(tmpDir, 'en.po'))
+    const poFname = normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, 'en.po'))
     const res2 = await hub.onFileChange(poFname, () => '')
     t.assert.deepEqual(res2?.sourceTriggered, false)
     t.assert.partialDeepStrictEqual(
-        new Set([normalizeSep(resolve(import.meta.dirname, '../tmp/.wuchale/main.main.en.compiled.js'))]),
+        new Set([
+            normalizeSep(
+                resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.main.en.compiled.js'),
+            ),
+        ]),
         res2?.invalidate,
     )
 })
@@ -85,7 +83,7 @@ test('hub transform with hmr', async (t: TestContext) => {
     t.assert.strictEqual(
         trimLines(output.code),
         trimLines(ts`
-        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../tmp/main.loader.js"
+        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./locales/main.loader.js"
         const _w_hmrUpdate_ = {"version":0,"data":{"en":[[0,"Hello"]]}}
         function _w_load_(loadID) {
             const _w_rt_ = _w_load_hmr_(loadID)
