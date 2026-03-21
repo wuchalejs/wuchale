@@ -1,5 +1,5 @@
 import { mkdir } from 'node:fs/promises'
-import { isAbsolute, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
 import { deepMergeObjects } from './config.js'
@@ -132,11 +132,9 @@ export class POFile {
     files: string[] = []
 
     constructor(opts: StorageFactoryOpts & POFileOptions) {
-        this.key = opts.dir
         this.opts = opts
-        if (!isAbsolute(opts.dir)) {
-            opts.dir = resolve(opts.root, opts.dir)
-        }
+        opts.dir = resolve(opts.root, opts.dir)
+        this.key = opts.dir
         for (const locale of opts.locales) {
             const locFiles = [resolve(opts.dir, `${locale}.po`), resolve(opts.dir, `${locale}.url.po`)] as [
                 string,
