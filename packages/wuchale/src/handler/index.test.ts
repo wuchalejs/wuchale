@@ -1,4 +1,4 @@
-// $ node --import ../../testing/resolve.ts %f
+// $ cd .. && node --import ../testing/resolve.ts handler/index.test.ts
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
@@ -12,8 +12,6 @@ import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
 import { SharedState } from './state.js'
 
-const localesDir = resolve(import.meta.dirname, '../../testing/tmp')
-
 const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
@@ -23,12 +21,15 @@ const adapter: Adapter = {
     defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
 }
 
-const conf = {
-    ...defaultConfig,
-    localesDir,
-}
-
-const handler = new AdapterHandler(adapter, 'test', conf, 'dev', inMemFS, import.meta.dirname, new Logger('error'))
+const handler = new AdapterHandler(
+    adapter,
+    'test',
+    defaultConfig,
+    'dev',
+    inMemFS,
+    import.meta.dirname,
+    new Logger('error'),
+)
 
 const storage = inMemStorage({
     locales: ['en'],
@@ -45,7 +46,7 @@ test('HMR', async (t: TestContext) => {
     t.assert.strictEqual(
         trimLines((await handler.transform(content, 'test.js', 1))[0].code),
         trimLines(ts`
-        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "../../testing/tmp/test.loader.js"
+        import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./src/locales/test.loader.js"
 
         const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
 
@@ -67,7 +68,7 @@ test('HMR', async (t: TestContext) => {
 })
 
 test('Manifest', async (t: TestContext) => {
-    const manifestPath = resolve(localesDir, generatedDir, 'test.test.manifest.js')
+    const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.test.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
         trimLines(content),

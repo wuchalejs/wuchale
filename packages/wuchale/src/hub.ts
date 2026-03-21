@@ -108,10 +108,11 @@ export class Hub {
     }
 
     async #initGenDirWithData() {
-        await this.#fs.mkdir(resolve(this.#config.localesDir, generatedDir))
+        const localesDirAbs = resolve(this.#projectRoot, this.#config.localesDir)
+        await this.#fs.mkdir(resolve(localesDirAbs, generatedDir))
         // data file
         await this.#fs.write(
-            resolve(this.#config.localesDir, dataFileName),
+            resolve(localesDirAbs, dataFileName),
             [
                 `/** @typedef {('${this.#config.locales.join("'|'")}')} Locale */`,
                 `/** @type {Locale[]} */`,
@@ -183,7 +184,8 @@ export class Hub {
                 }
             }
         }
-        this.#confUpdateFile = normalizeSep(resolve(this.#config.localesDir, generatedDir, confUpdateName))
+        const confUpdateFileAbs = resolve(this.#projectRoot, this.#config.localesDir, generatedDir, confUpdateName)
+        this.#confUpdateFile = normalizeSep(confUpdateFileAbs)
         await this.#fs.write(this.#confUpdateFile, '{}') // only watch changes so prepare first
     }
 

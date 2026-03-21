@@ -28,13 +28,13 @@ export function normalizeSep(path: string) {
 
 export function globConfToArgs(
     conf: GlobConf,
-    cwd: string,
+    root: string,
     localesDir: string,
     outDir?: string,
 ): [string[], { ignore: string[] }] {
     let patterns: string[] = []
     // ignore generated files
-    const options = { ignore: [localesDir], cwd }
+    const options = { ignore: [`${localesDir}/**/*`], cwd: root }
     if (outDir) {
         options.ignore.push(outDir)
     }
@@ -69,20 +69,20 @@ export class Files {
     proxySyncPath: string
     #urlManifestFname: string
     #urlsFname: string
-    #localesDir: string
+    #localesDirAbs: string
 
     #projectRoot: string
 
     constructor(adapter: Adapter, key: string, localesDir: string, fs: FS, root: string) {
         this.key = key
         this.#adapter = adapter
-        this.#localesDir = localesDir
+        this.#localesDirAbs = resolve(root, localesDir)
         this.#fs = fs
         this.#projectRoot = root
     }
 
     getLoaderPaths(): LoaderPath[] {
-        const loaderPathHead = resolve(this.#localesDir, `${this.key}.loader`)
+        const loaderPathHead = resolve(this.#localesDirAbs, `${this.key}.loader`)
         const paths: LoaderPath[] = []
         for (const ext of this.#adapter.loaderExts) {
             const pathClient = loaderPathHead + ext
@@ -128,15 +128,15 @@ export class Files {
 
     async #initPaths() {
         this.loaderPath = await this.getLoaderPath()
-        this.proxyPath = resolve(this.#localesDir, generatedDir, this.#proxyFileName())
-        this.proxySyncPath = resolve(this.#localesDir, generatedDir, this.#proxyFileName(true))
-        this.#urlManifestFname = resolve(this.#localesDir, generatedDir, `${this.key}.urls.js`)
-        this.#urlsFname = resolve(this.#localesDir, `${this.key}.url.js`)
+        this.proxyPath = resolve(this.#localesDirAbs, generatedDir, this.#proxyFileName())
+        this.proxySyncPath = resolve(this.#localesDirAbs, generatedDir, this.#proxyFileName(true))
+        this.#urlManifestFname = resolve(this.#localesDirAbs, generatedDir, `${this.key}.urls.js`)
+        this.#urlsFname = resolve(this.#localesDirAbs, `${this.key}.url.js`)
     }
 
     getCompiledFilePath(loc: string, id: string | null) {
         const ownerKey = this.ownerKey
-        return resolve(this.#localesDir, generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
+        return resolve(this.#localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
     }
 
     getImportPath(filename: string, importer?: string) {
@@ -245,7 +245,7 @@ export class Files {
 
     getManifestFilePath(id: string | null): string {
         const ownerKey = this.ownerKey
-        return resolve(this.#localesDir, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
+        return resolve(this.#localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
     }
 
     writeManifest = async (keys: ManifestEntry[], id: string | null) => {
