@@ -347,7 +347,11 @@ export class Hub {
         !watch && this.#log.info('Extracting...')
         const handlers = Array.from(this.#handlers.values())
         // owner adapter handlers should run last for cleanup
-        handlers.sort(h => (h.sharedState.ownerKey === h.key ? 1 : -1))
+        handlers.sort((a, b) => {
+            const aOwner = a.sharedState.ownerKey === a.key
+            const bOwner = b.sharedState.ownerKey === b.key
+            return aOwner === bOwner ? 0 : aOwner ? 1 : -1
+        })
         // separate loop to make sure that all otherFileMatchers are collected
         for (const handler of handlers) {
             await this.#directVisitHandler(handler, clean, sync)
