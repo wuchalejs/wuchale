@@ -6,7 +6,11 @@ import { testCatalog } from '../testing/utils.ts'
 import toRuntime from './runtime.js'
 
 function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
-    return msgs.join('_') + args.join('_')
+    let msg = msgs[0]
+    for (const [i, arg] of args.entries()) {
+        msg += `${arg}${msgs[i + 1]}`
+    }
+    return msg
 }
 
 test('Runtime', t => {
@@ -16,5 +20,5 @@ test('Runtime', t => {
     t.assert.equal(rt(1, ['User']), 'Hello User!')
     t.assert.deepEqual(rt.p(2), ['One item', '# items'])
     t.assert.equal(rt.t(taggedHandler, 1, [3]), taggedHandler`Hello ${3}!`)
-    t.assert.equal(rt.t(taggedHandler, 3, [3]), taggedHandler`Hello ${3}`)
+    t.assert.equal(rt.t(taggedHandler, 3, [3, 4]), taggedHandler`Hello ${3}${4}`)
 })

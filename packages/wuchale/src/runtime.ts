@@ -77,19 +77,18 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
         const ctx = getCompositeContext(id) as Mixed
         const strings: string[] = []
         const exprs: number[] = []
-        if (typeof ctx[0] === 'number') {
-            strings.push('')
-        }
+        let prevIsNumber = true
         for (const x of ctx) {
             if (typeof x === 'string') {
                 strings.push(x)
+                prevIsNumber = false
                 continue
             }
+            prevIsNumber && strings.push('')
             exprs.push(args?.[x])
+            prevIsNumber = true
         }
-        if (typeof ctx.at(-1) === 'number') {
-            strings.push('')
-        }
+        prevIsNumber && strings.push('')
         return tag(strings, ...exprs)
     }
 

@@ -15,7 +15,7 @@ export const testCatalog = {
         'Hello', // simple message
         ['Hello ', 0, '!'], // mixed message
         ['One item', '# items'], // plurals
-        ['Hello ', 0], // mixed message ending with arg
+        ['Hello ', 0, 1], // mixed message ending with arg
     ],
 }
 
