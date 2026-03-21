@@ -88,7 +88,7 @@ export class Files {
             const pathClient = loaderPathHead + ext
             const same = { client: pathClient, server: pathClient }
             const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
-            if (this.#adapter.defaultLoaderPath == null) {
+            if (this.#adapter.defaultLoaderPath === null) {
                 paths.push(diff, same)
             } else if (typeof this.#adapter.defaultLoaderPath === 'string') {
                 // same file for both
@@ -114,6 +114,20 @@ export class Files {
                 continue
             }
             return path
+        }
+        if (this.#adapter.defaultLoaderPath === null) {
+            const loaderForms = paths
+                .map(p => {
+                    let f = `  ${relative(this.#projectRoot, p.client)}`
+                    if (p.server !== p.client) {
+                        f += ` (and ${relative(this.#projectRoot, p.server)})`
+                    }
+                    return f
+                })
+                .join('\n')
+            throw new Error(
+                `Custom loader specified for adapter '${this.key}' but no loader file exists in one of the forms:\n${loaderForms}`,
+            )
         }
         return paths[0]
     }
