@@ -1,7 +1,8 @@
 import { createSignal } from 'solid-js'
 import toRuntime from 'wuchale/runtime'
+import { locales } from '${DATA}'
 
-const [locale, setLocale] = createSignal('en')
+const [locale, setLocale] = createSignal(locales[0])
 
 export { setLocale }
 
