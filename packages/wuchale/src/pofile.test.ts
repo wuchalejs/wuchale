@@ -1,5 +1,6 @@
 // $ node --import ../testing/resolve.ts %f
 
+import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { inMemFS } from '../testing/utils.ts'
@@ -50,7 +51,7 @@ test('POFile round-trips reference metadata', async (t: TestContext) => {
 
 test('POFile loads items without the source locale file', async (t: TestContext) => {
     await po.save(makeSaveData([item]))
-    await inMemFS.unlink(root + '/src/locales/en.po')
+    await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
     const loaded = await po.load()
     t.assert.deepStrictEqual(loaded.items[0].translations.get('en'), ['Hello'])
     t.assert.deepStrictEqual(loaded.items[0].translations.get('es'), ['Hola'])
@@ -66,7 +67,7 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     item.translations.set('en', ['/items/{0}'])
     item.translations.set('es', ['/elementos/{0}'])
     await po.save(makeSaveData([item]))
-    const urlPath = root + '/src/locales/es.url.po'
+    const urlPath = resolve(root, 'src/locales/es.url.po')
     t.assert.strictEqual(await inMemFS.exists(urlPath), true)
     await po.save(makeSaveData([]))
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
