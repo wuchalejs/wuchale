@@ -1,5 +1,18 @@
 # @wuchale/svelte
 
+## 0.19.3
+
+### Patch Changes
+
+- Fix on:... attributes and @html tags not visited ([`a79e5df`](https://github.com/wuchalejs/wuchale/commit/a79e5df7172330a79748b5b71bd24c9ecd09a369))
+
+- Fix unrelated export statement affecting chosen runtime for non module `<script>` ([`ce9ecfe`](https://github.com/wuchalejs/wuchale/commit/ce9ecfeddd5c06fb9c5655c8907ec8d6fae2b22f))
+
+- Fix $props with default value string being wrapped in $derived ([`44ceec8`](https://github.com/wuchalejs/wuchale/commit/44ceec88008b704e0bfd5bff43fc01a5afb5c22c))
+
+- Updated dependencies [[`ffc5d2a`](https://github.com/wuchalejs/wuchale/commit/ffc5d2a050e7556bb2dd6bff08903d27dc9d719d), [`f510e3a`](https://github.com/wuchalejs/wuchale/commit/f510e3afb9caaa87192f605983ccec92d9b74441), [`5ad8f3a`](https://github.com/wuchalejs/wuchale/commit/5ad8f3a91e50d3168c53bd46fc92791b5fb77533), [`9c7b6e9`](https://github.com/wuchalejs/wuchale/commit/9c7b6e97db0ad08a6bb03172d93527a4c44d9347), [`43fabca`](https://github.com/wuchalejs/wuchale/commit/43fabca0c8f33321090cbeddc75d03e3e57c8a54), [`808edcf`](https://github.com/wuchalejs/wuchale/commit/808edcfdb8d67c5e8c2e9f2b8113c6c26dd0b31a), [`8f2cfd6`](https://github.com/wuchalejs/wuchale/commit/8f2cfd6ea377aa2608b50e74b6d6556dbb3da76c), [`f0feafb`](https://github.com/wuchalejs/wuchale/commit/f0feafb74f9a72dec742071552dc3ef7470345b0), [`92dbf5f`](https://github.com/wuchalejs/wuchale/commit/92dbf5f55e0661c2a342c722d808561d42d4562d), [`31ed422`](https://github.com/wuchalejs/wuchale/commit/31ed42296b66ab46ba1aac9257b17f20d459bb6c), [`62c3691`](https://github.com/wuchalejs/wuchale/commit/62c3691cb21dc2126b6b1a77c53f9f251361ac80), [`44ceec8`](https://github.com/wuchalejs/wuchale/commit/44ceec88008b704e0bfd5bff43fc01a5afb5c22c)]:
+  - wuchale@0.22.1
+
 ## 0.19.2
 
 ### Patch Changes
