@@ -5,7 +5,7 @@ import { type CompiledElement, compileTranslation, isEquivalent } from './compil
 
 test('Compile messages', t => {
     const testCompile = (msg: string, expect: CompiledElement) =>
-        t.assert.deepEqual(compileTranslation(msg, ''), expect)
+        t.assert.deepEqual(compileTranslation(msg, 'Fallback'), expect)
     testCompile('Foo', 'Foo')
     testCompile('Foo {0}', ['Foo ', 0])
     testCompile('Foo <0>bar</0>', ['Foo ', [0, 'bar']])
@@ -18,6 +18,7 @@ test('Compile messages', t => {
         [1],
         ' bar',
     ])
+    testCompile('Invalid <0>', 'Fallback')
 })
 
 test('Compare compiled equivalent', (t: TestContext) => {

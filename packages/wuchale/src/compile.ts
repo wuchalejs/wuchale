@@ -86,13 +86,13 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
         if (type === CLOSE) {
             if (currentOpenTag != null) {
                 if (currentOpenTag != n) {
-                    throw Error('Closing a different tag')
+                    throw new Error('Closing a different tag')
                 }
                 currentOpenTag = null
             } else if (n === parentTag) {
                 break
             } else {
-                throw Error('Closing a different tag')
+                throw new Error('Closing a different tag')
             }
         } else if (type === SELF_CLOSE) {
             compiled.push([n as number])
@@ -104,6 +104,9 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
     }
     if (curTxt) {
         compiled.push(curTxt)
+    }
+    if (currentOpenTag !== null) {
+        throw new Error('Unexpected end')
     }
     return [compiled, i]
 }
