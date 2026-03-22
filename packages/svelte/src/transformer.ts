@@ -52,7 +52,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     currentElement?: string
     inCompoundText: boolean = false
     currentSnippet: number = 0
-    moduleExportRanges: [number, number][] = [] // to choose which runtime var to use for snippets
+    moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
 
     mixedVisitor: MixedVisitor<MixedNodesTypes>
 
@@ -99,7 +99,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         if (!needsWrapping) {
             return msgs
         }
-        const isExported = this.moduleExportRanges.some(([start, end]) => init.start >= start && init.end <= end)
+        const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
         if (!isExported) {
             this.mstr.appendLeft(init.start, '$derived(')
             this.mstr.appendRight(init.end, ')')
@@ -262,11 +262,23 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
 
     visitOnDirective = (node: AST.OnDirective): Message[] => this.visit(node.expression as Expression)
 
+    hasIdentifier = (node: AnyNode | AnyNode[], name: string): boolean => {
+        if (!node || typeof node !== 'object') {
+            return false
+        }
+        if (Array.isArray(node)) {
+            return node.some(child => this.hasIdentifier(child, name))
+        }
+        if (node.type === 'Identifier') {
+            return node.name === name
+        }
+        return Object.values(node).some(value => this.hasIdentifier(value, name))
+    }
+
     visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
         // use module runtime var because the snippet may be exported from the module
         const prevRtVar = this.currentRtVar
-        const pattern = new RegExp(`\\b${node.expression.name}\\b`)
-        if (this.moduleExportRanges.some(([start, end]) => pattern.test(this.content.slice(start, end)))) {
+        if (this.hasIdentifier(this.moduleExportExprs, node.expression.name)) {
             this.currentRtVar = rtModuleVar
         }
         const msgs = this.visitFragment(node.body)
@@ -360,7 +372,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     visitSv = (node: AST.SvelteNode | AnyNode): Message[] => this.visit(node as AnyNode)
 
     /** collects the ranges that will be checked if a snippet identifier is exported using RegExp test to simplify */
-    collectModuleExportRanges = (script: AST.Script) => {
+    collectModuleExportExprs = (script: AST.Script) => {
         for (const stmt of script.content.body) {
             if (stmt.type !== 'ExportNamedDeclaration') {
                 continue
@@ -368,7 +380,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             for (const spec of stmt.specifiers) {
                 if (spec.local.type === 'Identifier') {
                     const local = spec.local as Identifier
-                    this.moduleExportRanges.push([local.start, local.end])
+                    this.moduleExportExprs.push(local)
                 }
             }
             const declaration = stmt.declaration as Declaration
@@ -376,14 +388,14 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
                 continue
             }
             if (declaration.type === 'FunctionDeclaration' || declaration.type === 'ClassDeclaration') {
-                this.moduleExportRanges.push([declaration.start, declaration.end])
+                this.moduleExportExprs.push(declaration)
                 continue
             }
             for (const decl of declaration?.declarations ?? []) {
                 if (!decl.init) {
                     continue
                 }
-                this.moduleExportRanges.push([decl.init.start, decl.init.end])
+                this.moduleExportExprs.push(decl.init)
             }
         }
     }
@@ -400,7 +412,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         this.mstr = new MagicString(this.content)
         this.mixedVisitor = this.initMixedVisitor()
         if (ast.type === 'Root' && ast.module) {
-            this.collectModuleExportRanges(ast.module)
+            this.collectModuleExportExprs(ast.module)
         }
         const msgs = this.visitSv(ast)
         const initRuntime = this.initRuntime()
