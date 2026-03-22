@@ -58,7 +58,11 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
     return [OPEN, n, i + 1]
 }
 
-function compile(msgStr: string, start = 0, parentTag: number | null = null): [CompositePayload[], number] {
+function compile(
+    msgStr: string,
+    start = 0,
+    parentTag: number | null = null,
+): [CompositePayload[], number, string | null] {
     let curTxt = ''
     const compiled: CompositePayload[] = []
     let i = start
@@ -86,13 +90,13 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
         if (type === CLOSE) {
             if (currentOpenTag != null) {
                 if (currentOpenTag != n) {
-                    throw new Error('Closing a different tag')
+                    return [compiled, 0, 'Closing a different tag']
                 }
                 currentOpenTag = null
             } else if (n === parentTag) {
                 break
             } else {
-                throw new Error('Closing a different tag')
+                return [compiled, 0, 'Closing a different tag']
             }
         } else if (type === SELF_CLOSE) {
             compiled.push([n as number])
@@ -106,26 +110,24 @@ function compile(msgStr: string, start = 0, parentTag: number | null = null): [C
         compiled.push(curTxt)
     }
     if (currentOpenTag !== null) {
-        throw new Error('Unexpected end')
+        return [compiled, 0, 'Unexpected end']
     }
-    return [compiled, i]
+    return [compiled, i, null]
 }
 
 export function compileTranslation(msgStr: string, fallback: CompiledElement): CompiledElement {
     if (!msgStr) {
         return fallback
     }
-    try {
-        const [compiled] = compile(msgStr)
-        if (compiled.length === 1 && typeof compiled[0] === 'string') {
-            return compiled[0]
-        }
-        return compiled
-    } catch (err) {
-        console.error(err)
-        console.error(msgStr)
+    const [compiled, , err] = compile(msgStr)
+    if (err !== null) {
+        console.error('Compile error:', err, ':', msgStr)
         return fallback
     }
+    if (compiled.length === 1 && typeof compiled[0] === 'string') {
+        return compiled[0]
+    }
+    return compiled
 }
 
 export function isEquivalent(source: CompiledElement, translation: CompiledElement) {
