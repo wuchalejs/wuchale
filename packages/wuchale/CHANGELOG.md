@@ -1,5 +1,33 @@
 # wuchale
 
+## 0.22.1
+
+### Patch Changes
+
+- Fix full reload happening when writing to confUpdate.json ([`ffc5d2a`](https://github.com/wuchalejs/wuchale/commit/ffc5d2a050e7556bb2dd6bff08903d27dc9d719d))
+
+- Fix unclosed tags of nested messages not considered an error on compile ([`f510e3a`](https://github.com/wuchalejs/wuchale/commit/f510e3afb9caaa87192f605983ccec92d9b74441))
+
+- Fix `localesDir` not being resolved from project root when it's not cwd ([`5ad8f3a`](https://github.com/wuchalejs/wuchale/commit/5ad8f3a91e50d3168c53bd46fc92791b5fb77533))
+
+- Always normalize separators to fix `files` patterns not matching on windows ([`9c7b6e9`](https://github.com/wuchalejs/wuchale/commit/9c7b6e97db0ad08a6bb03172d93527a4c44d9347))
+
+- Fix wrong handling of adjacent expressions in tagged templates at runtime ([`43fabca`](https://github.com/wuchalejs/wuchale/commit/43fabca0c8f33321090cbeddc75d03e3e57c8a54))
+
+- Fix different paths resolving to the same location being considered different pofile storage keys ([`808edcf`](https://github.com/wuchalejs/wuchale/commit/808edcfdb8d67c5e8c2e9f2b8113c6c26dd0b31a))
+
+- Fix regression: transform errors not formatted for Vite ([`8f2cfd6`](https://github.com/wuchalejs/wuchale/commit/8f2cfd6ea377aa2608b50e74b6d6556dbb3da76c))
+
+- Fix pofile storage round trip issues and make it resistant to missing items in some catalogs ([`f0feafb`](https://github.com/wuchalejs/wuchale/commit/f0feafb74f9a72dec742071552dc3ef7470345b0))
+
+- Fix AI translate being rejected for locales with more than 2 plural forms, and bad translations being persisted after retries ([`92dbf5f`](https://github.com/wuchalejs/wuchale/commit/92dbf5f55e0661c2a342c722d808561d42d4562d))
+
+- Fix crash when sourceLocale is not the first in locales array ([`31ed422`](https://github.com/wuchalejs/wuchale/commit/31ed42296b66ab46ba1aac9257b17f20d459bb6c))
+
+- Fix error thrown on String.raw with extracted string at runtime ([`62c3691`](https://github.com/wuchalejs/wuchale/commit/62c3691cb21dc2126b6b1a77c53f9f251361ac80))
+
+- Fix $props with default value string being wrapped in $derived ([`44ceec8`](https://github.com/wuchalejs/wuchale/commit/44ceec88008b704e0bfd5bff43fc01a5afb5c22c))
+
 ## 0.22.0
 
 ### Minor Changes
