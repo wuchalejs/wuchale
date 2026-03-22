@@ -36,6 +36,7 @@ const storage = inMemStorage({
     root: import.meta.dirname,
     sourceLocale: 'en',
     haveUrl: false,
+    fs: inMemFS,
 })
 
 // needed to make sure generatedDir exists, normally done at hub init

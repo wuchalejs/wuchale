@@ -205,10 +205,8 @@ export class Hub {
             root: this.#projectRoot,
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
+            fs: this.#fs,
         })
-        if (this.#fs.inMemory) {
-            storage.save = async () => {} // disable actual writes
-        }
         let sharedState = this.#sharedStates.get(storage.key)
         if (sharedState == null) {
             sharedState = new SharedState(storage, key, sourceLocale)

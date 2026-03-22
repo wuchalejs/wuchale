@@ -88,13 +88,15 @@ export const dummyTransform: TransformFunc = ctx => {
 const inMemFiles = new Map<string, string>()
 
 export const inMemFS: FS = {
-    inMemory: true,
     write: (file, data) => {
         inMemFiles.set(file, data)
     },
     read: file => inMemFiles.get(file) ?? '',
     mkdir: () => {},
-    exists: () => true,
+    exists: file => inMemFiles.has(file),
+    unlink: file => {
+        inMemFiles.delete(file)
+    },
 }
 
 export const inMemStorage: StorageFactory = () => {

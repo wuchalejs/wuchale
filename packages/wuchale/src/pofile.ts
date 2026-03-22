@@ -1,4 +1,3 @@
-import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
@@ -16,7 +15,7 @@ import {
     type StorageFactoryOpts,
 } from './storage.js'
 
-type POItem = InstanceType<typeof PO.Item>
+export type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
 
@@ -26,6 +25,16 @@ type Additionals = {
 }
 
 type AdditionalsByLoc = Map<string, Additionals>
+
+function join(parts: string[], sep: string) {
+    return parts.map(s => s.replaceAll('\\', '\\\\').replaceAll(sep, `\\${sep}`)).join(sep)
+}
+
+function split(str: string, sep: string, count?: number) {
+    return str
+        .split(new RegExp(`(?<!\\\\)${sep}`), count)
+        .map(s => s.replaceAll(`\\${sep}`, sep).replaceAll('\\\\', '\\'))
+}
 
 function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
     const poi = new PO.Item()
@@ -46,9 +55,9 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
                     comm.push(frEntry.link)
                 }
                 for (const [i, ph] of frEntry.placeholders) {
-                    comm.push(`${i}: ${ph}`)
+                    comm.push(join([String(i), ph], ': '))
                 }
-                return comm.join('; ')
+                return join(comm, '; ')
             }),
         )
         .filter(c => c !== null)
@@ -62,16 +71,7 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
     return poi
 }
 
-function getItemId(poi: POItem) {
-    const msgid = [poi.msgid]
-    if (poi.msgid_plural) {
-        msgid.push(poi.msgid_plural)
-    }
-    return msgid
-}
-
 function poitemToItemCommons(poi: POItem): Item {
-    const msgid = getItemId(poi)
     const references: FileRef[] = []
     let lastRef: FileRef = { file: '', refs: [] }
     const urlAdapters: string[] = []
@@ -91,7 +91,7 @@ function poitemToItemCommons(poi: POItem): Item {
             continue
         }
         const refEnt: FileRefEntry = { placeholders: [] }
-        const commSp = comm.split('; ')
+        const commSp = split(comm, '; ')
         let phStart = 0
         if (urlAdapters.length) {
             // url
@@ -99,18 +99,52 @@ function poitemToItemCommons(poi: POItem): Item {
             phStart++
         }
         for (const c of commSp.slice(phStart)) {
-            const [i, ph] = c.split(': ', 2)
+            const [i, ph] = split(c, ': ', 2)
             refEnt.placeholders.push([Number(i), ph])
         }
         lastRef.refs.push(refEnt)
     }
     return {
-        id: msgid,
         translations: new Map(),
         context: poi.msgctxt,
         references,
         urlAdapters,
     }
+}
+
+function getItemId(poItem: POItem) {
+    const id = [poItem.msgid]
+    if (poItem.msgid_plural) {
+        id.push(poItem.msgid_plural)
+    }
+    return id
+}
+
+function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[], sourceLocale: string) {
+    // then merge them
+    const items: Item[] = []
+    for (const poIs of poItems) {
+        const basePoOtem = poIs.values().next().value
+        const item = poitemToItemCommons(basePoOtem)
+        const additionals: AdditionalsByLoc = new Map()
+        for (const loc of locales) {
+            const poi = poIs.get(loc)
+            item.translations.set(loc, poi?.msgstr ?? (loc === sourceLocale ? getItemId(basePoOtem) : []))
+            const add: Additionals = {
+                comments: poi?.comments ?? [],
+                flags: {},
+            }
+            for (const [k, v] of Object.entries(poi?.flags ?? {})) {
+                if (!k.startsWith(urlAdapterFlagPrefix)) {
+                    add.flags[k] = v
+                }
+            }
+            additionals.set(loc, add)
+        }
+        item.additionals = additionals
+        items.push(item)
+    }
+    return items
 }
 
 export type POFileOptions = {
@@ -148,15 +182,7 @@ export class POFile {
     async loadRaw(locale: string, url: boolean): Promise<PO | null> {
         const filename = this.filesByLoc.get(locale)![Number(url)]
         try {
-            return await new Promise((res, rej) => {
-                PO.load(filename, (err, po) => {
-                    if (err) {
-                        rej(err)
-                    } else {
-                        res(po)
-                    }
-                })
-            })
+            return PO.parse(await this.opts.fs.read(filename))
         } catch (err) {
             if (err.code !== 'ENOENT') {
                 throw err
@@ -193,46 +219,25 @@ export class POFile {
                 poItems.get(key)?.set(locale, poItem)
             }
         }
-        // then merge them
-        const items: Item[] = []
-        for (const poIs of poItems.values()) {
-            const item = poitemToItemCommons(poIs.get(this.opts.sourceLocale)!)
-            const additionals: AdditionalsByLoc = new Map()
-            for (const loc of this.opts.locales) {
-                const poi = poIs.get(loc)
-                item.translations.set(loc, poi?.msgstr ?? [])
-                const add: Additionals = {
-                    comments: poi?.comments ?? [],
-                    flags: {},
-                }
-                for (const [k, v] of Object.entries(poi?.flags ?? {})) {
-                    if (!k.startsWith(urlAdapterFlagPrefix)) {
-                        add.flags[k] = v
-                    }
-                }
-                additionals.set(loc, add)
-            }
-            item.additionals = additionals
-            items.push(item)
+        return {
+            items: poitemsToItems(poItems.values(), this.opts.locales, this.opts.sourceLocale),
+            pluralRules,
         }
-        return { items, pluralRules }
     }
 
     async saveRaw(items: POItem[], headers: POHeaders, locale: string, url: boolean) {
+        const filename = this.filesByLoc.get(locale)![Number(url)]
+        if (items.length === 0) {
+            if (await this.opts.fs.exists(filename)) {
+                await this.opts.fs.unlink(filename)
+            }
+            return
+        }
         const po = new PO()
         po.headers = headers
         po.items = items
-        const filename = this.filesByLoc.get(locale)![Number(url)]
-        await mkdir(this.opts.dir, { recursive: true })
-        await new Promise<void>((res, rej) => {
-            po.save(filename, err => {
-                if (err) {
-                    rej(err)
-                } else {
-                    res()
-                }
-            })
-        })
+        await this.opts.fs.mkdir(this.opts.dir)
+        await this.opts.fs.write(filename, po.toString())
     }
 
     async save(data: SaveData) {
@@ -249,9 +254,7 @@ export class POFile {
             }
             const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
             await this.saveRaw(poItems, headers, locale, false)
-            if (poItemsUrl.length > 0) {
-                await this.saveRaw(poItemsUrl, headers, locale, true)
-            }
+            await this.saveRaw(poItemsUrl, headers, locale, true)
         }
     }
 

@@ -1,3 +1,5 @@
+import type { FS } from './fs.js'
+
 export type FileRefEntry = {
     link?: string // for URLs
     placeholders: [number, string][]
@@ -91,6 +93,7 @@ export type StorageFactoryOpts = {
     /** whether the url is configured, can use to load separate url files */
     haveUrl: boolean
     sourceLocale: string
+    fs: FS
 }
 
 export type StorageFactory = (opts: StorageFactoryOpts) => CatalogStorage
