@@ -19,15 +19,15 @@ toolkit that requires no code changes. Write your components naturally, and
 `wuchale` automatically extracts and replaces translatable messages at build
 time.
 
-- **🧼 No extra syntax!** - Your normal code is enough, your codebase stays clean
-- **📦 Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
-- **🔌 Zero-effort integration** - Add i18n to existing projects without rewriting code
-- **🧩 Framework agnostic** - Works with React, Preact, Svelte(Kit), SolidJS, Astro, and plain JS/TS
-- **✨ Optional AI translation** - Configurable integration for automatic on-the-fly translations
-- **⚡ Full, granular HMR support** - Live updates during development, including AI auto-translation
-- **📦 Tiny footprint** - Very few (less than 5) additional dependencies, no bloated `node_modules`
-- **🧠 Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
-- **🌍 Standard .po files** - Compatible with existing translation tools and workflows
+- **No extra syntax!** - Your normal code is enough, your codebase stays clean
+- **Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
+- **Zero-effort integration** - Add i18n to existing projects without rewriting code
+- **Framework agnostic** - Works with React, Preact, Svelte(Kit), SolidJS, Astro, and plain JS/TS
+- **Optional AI translation** - Configurable integration for automatic on-the-fly translations
+- **Full, granular HMR support** - Live updates during development, including AI auto-translation
+- **Tiny footprint** - Very few (less than 5) additional dependencies, no bloated `node_modules`
+- **Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
+- **Standard .po files** - Compatible with existing translation tools and workflows
 
 ## A taste
 
@@ -143,14 +143,15 @@ This is a monorepo that houses these packages:
 | `@wuchale/jsx` | JSX adapter (for React and SolidJS)     |[![@wuchale/jsx](https://img.shields.io/npm/v/@wuchale/jsx?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/jsx)|
 | `@wuchale/svelte`    | Svelte adapter    |[![@wuchale/svelte](https://img.shields.io/npm/v/@wuchale/svelte?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/svelte)|
 | `@wuchale/astro`    | Astro adapter    |[![@wuchale/astro](https://img.shields.io/npm/v/@wuchale/astro?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/astro)|
-| `@wuchale/vite-plugin`    | The Vite plugin    |[![@wuchale/vite-plugin](https://img.shields.io/npm/v/@wuchale/vite-plugin?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/vite-plugin)|
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please check out the test suites located inside each
 package for examples of supported scenarios.
 
-## ❤️ Sponsors
+**Note**: The tests are also written in TypeScript and therefore you should have Node 22+ to run them.
+
+## Sponsors
 
 This project is supported by the community. Become a sponsor and get your name
 or logo listed here!
