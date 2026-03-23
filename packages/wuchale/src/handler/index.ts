@@ -11,7 +11,7 @@ import type { FS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
-import { type SharedState, State } from './state.js'
+import { type Compiled, type SharedState, State } from './state.js'
 import { URLHandler } from './url.js'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -131,9 +131,10 @@ export class AdapterHandler {
     }
 
     compile = async (hmrVersion = -1) => {
-        // for proper fallback
-        const localesOrdered = [this.sourceLocale, ...this.#config.locales.filter(l => l !== this.sourceLocale)]
-        await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
+        const locales = [this.sourceLocale, ...this.#config.locales.filter(loc => loc !== this.sourceLocale)]
+        for (const loc of locales) {
+            await this.#compileForLocale(loc, hmrVersion)
+        }
         await this.#writeManifests()
     }
 
@@ -142,7 +143,7 @@ export class AdapterHandler {
         for (const [key, index] of indices) {
             const item = this.sharedState.catalog.get(key)
             if (item === undefined) {
-                manifest[index] = { text: key, isUrl: true }
+                manifest[index] = null
                 continue
             }
 
@@ -219,8 +220,8 @@ export class AdapterHandler {
                     fallbackLoc = this.sourceLocale
                 }
             }
-            const catalog = this.sharedState.compiled.get(fallbackLoc)?.items!
-            const compiled = catalog[index]
+            const catalog = this.sharedState.compiled.get(fallbackLoc)?.items
+            const compiled = catalog?.[index]
             if (compiled || fallbackLoc === this.sourceLocale) {
                 // last try
                 return compiled || ''
@@ -231,11 +232,8 @@ export class AdapterHandler {
     }
 
     #compileForLocale = async (loc: string, hmrVersion = -1) => {
-        let sharedCompiledLoc = this.sharedState.compiled.get(loc)
-        if (sharedCompiledLoc == null) {
-            sharedCompiledLoc = { hasPlurals: false, items: [] }
-            this.sharedState.compiled.set(loc, sharedCompiledLoc)
-        }
+        const sharedCompiledLoc: Compiled = { hasPlurals: false, items: [] }
+        const granularCompiled: Map<string, Compiled> = new Map()
         for (const [itemKey, item] of this.sharedState.catalog) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
@@ -277,10 +275,22 @@ export class AdapterHandler {
                 }
                 for (const ref of item.references) {
                     const state = await this.granularState.byFileCreate(ref.file, this.#config.locales)
-                    const compiledLoc = state.compiled.get(loc)!
-                    compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
+                    let compiledLoc = granularCompiled.get(state.id)
+                    if (compiledLoc == null) {
+                        compiledLoc = { hasPlurals: false, items: [] }
+                        granularCompiled.set(state.id, compiledLoc)
+                    }
+                    if (transl.length > 1) {
+                        compiledLoc.hasPlurals = true
+                    }
                     compiledLoc.items[state.indexTracker.get(key)] = compiled
                 }
+            }
+        }
+        this.sharedState.compiled.set(loc, sharedCompiledLoc)
+        if (this.adapter.granularLoad) {
+            for (const state of this.granularState.byID.values()) {
+                state.compiled.set(loc, granularCompiled.get(state.id) ?? { hasPlurals: false, items: [] })
             }
         }
         await this.writeCompiled(loc, hmrVersion)
