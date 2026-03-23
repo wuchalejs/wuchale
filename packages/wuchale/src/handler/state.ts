@@ -50,6 +50,7 @@ export class SharedState {
     }
 
     async load(locales: string[]) {
+        this.catalog.clear()
         const loaded = await this.storage.load()
         this.pluralRules = loaded.pluralRules ?? new Map()
         for (const loc of locales) {
