@@ -41,6 +41,7 @@ export {
     defineConfig,
     getConfig,
 } from './config.js'
+export type { FS } from './fs.js'
 export { generatedDir, normalizeSep } from './handler/files.js'
 export type { Mode } from './handler/index.js'
 export { AdapterHandler } from './handler/index.js'
