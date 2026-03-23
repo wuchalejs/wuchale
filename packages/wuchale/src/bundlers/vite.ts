@@ -71,8 +71,8 @@ export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
             }
             if (!changeInfo.sourceTriggered && changeInfo.invalidate.size > 0) {
                 ctx.server.ws.send({ type: 'full-reload' })
-                return []
             }
+            return []
         },
         transform: {
             order: 'pre' as const,
