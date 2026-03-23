@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.2
+
+### Patch Changes
+
+- **Vite**: Fix unnecessary full reloads instead of HMR ([`49e03bb`](https://github.com/wuchalejs/wuchale/commit/49e03bb1b16c1dcdab189d306f3adfd79151c755))
+
 ## 0.22.1
 
 ### Patch Changes
