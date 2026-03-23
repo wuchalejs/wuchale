@@ -29,6 +29,20 @@ export const defaultConfig: Config = {
     logLevel: 'info',
 }
 
+function cloneValue<Value>(value: Value): Value {
+    if (!value || typeof value !== 'object') {
+        return value
+    }
+    if (Array.isArray(value)) {
+        return value.map(item => cloneValue(item)) as Value
+    }
+    const cloned = {} as Record<string, unknown>
+    for (const [key, item] of Object.entries(value)) {
+        cloned[key] = cloneValue(item)
+    }
+    return cloned as Value
+}
+
 function deepAssign<Type extends {}>(fromObj: Partial<Type>, toObj: Type) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
@@ -36,7 +50,7 @@ function deepAssign<Type extends {}>(fromObj: Partial<Type>, toObj: Type) {
             continue
         }
         if (!value || Array.isArray(value) || typeof value !== 'object') {
-            toObj[key] = value
+            toObj[key] = cloneValue(value)
             continue
         }
         // value is an object. force prepare an object on the destination
@@ -52,7 +66,7 @@ export function defineConfig(config: ConfigWithOptional) {
 }
 
 export function deepMergeObjects<Type extends {}>(source: Partial<Type>, target: Type): Type {
-    const full = { ...target }
+    const full = cloneValue(target)
     deepAssign(source, full)
     return full
 }
