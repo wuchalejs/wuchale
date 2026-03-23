@@ -147,7 +147,8 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
     return false
 }
 
-export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
+export const defaultGenerateLoadID = (filename: string) =>
+    filename.replace(/[^a-zA-Z0-9]/g, c => `_${c.codePointAt(0)!.toString(16)}_`)
 
 export class IndexTracker {
     indices: Map<string, number> = new Map()
