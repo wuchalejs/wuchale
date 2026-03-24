@@ -202,6 +202,7 @@ export class Hub {
         const storage = adapter.storage({
             locales: this.#config.locales,
             root: this.#projectRoot,
+            localesDir: this.#config.localesDir,
             sourceLocale: sourceLocale,
             haveUrl: adapter.url != null,
             fs: this.#fs,

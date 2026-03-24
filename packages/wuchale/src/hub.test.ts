@@ -77,6 +77,41 @@ test('hub onFileChange', async (t: TestContext) => {
     )
 })
 
+test('hub passes custom localesDir to default storage', async (t: TestContext) => {
+    const customConfig: Config = {
+        ...defaultConfig,
+        localesDir: 'custom/locales',
+        adapters: {
+            main: {
+                ...defaultArgs,
+                transform: dummyTransform,
+                files: 'src/*.js',
+                loaderExts: ['.js'],
+                defaultLoaderPath: {
+                    client: 'loader.js',
+                    server: 'loader.server.js',
+                },
+            },
+        },
+    }
+    const customHub = new Hub(() => customConfig, import.meta.dirname, 0, inMemFS)
+    await customHub.init('dev')
+
+    const wrongPoFname = normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, 'en.po'))
+    const customPoFname = normalizeSep(resolve(import.meta.dirname, customConfig.localesDir, 'en.po'))
+
+    t.assert.strictEqual(await customHub.onFileChange(wrongPoFname, () => ''), undefined)
+
+    const res = await customHub.onFileChange(customPoFname, () => '')
+    t.assert.deepEqual(res?.sourceTriggered, false)
+    t.assert.partialDeepStrictEqual(
+        new Set([
+            normalizeSep(resolve(import.meta.dirname, customConfig.localesDir, generatedDir, 'main.main.en.compiled.js')),
+        ]),
+        res?.invalidate,
+    )
+})
+
 test('hub transform with hmr', async (t: TestContext) => {
     await hub.init('dev')
     const [output] = await hub.transform(code, file)
