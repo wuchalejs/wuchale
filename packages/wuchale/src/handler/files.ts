@@ -228,8 +228,11 @@ export class Files {
             } else {
                 loaderTemplate = this.#adapter.defaultLoaderPath[side]
             }
-            const loaderContent = (await this.#fs.read(loaderTemplate))
-                .toString()
+            let loaderContent = await this.#fs.read(loaderTemplate)
+            if (loaderContent === null) {
+                throw new Error(`Loader template not found at ${loaderTemplate}`)
+            }
+            loaderContent = loaderContent
                 .replaceAll('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
                 .replaceAll('${DATA}', `./${dataFileName}`)

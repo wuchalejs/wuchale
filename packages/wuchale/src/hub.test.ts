@@ -16,6 +16,11 @@ const code = ts`
     }
 `
 
+const defaultLoaderPath = {
+    client: 'loader.js',
+    server: 'loader.server.js',
+}
+
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
     adapters: {
@@ -24,10 +29,7 @@ const loadConfig = async (): Promise<Config> => ({
             transform: dummyTransform,
             files: 'src/*.js', // filename needs to match
             loaderExts: ['.js'],
-            defaultLoaderPath: {
-                client: 'loader.js',
-                server: 'loader.server.js',
-            },
+            defaultLoaderPath,
         },
     },
 })
@@ -35,6 +37,8 @@ const loadConfig = async (): Promise<Config> => ({
 const hub = new Hub(loadConfig, import.meta.dirname, 0, inMemFS)
 
 test('hub init', async () => {
+    inMemFS.write(defaultLoaderPath.client, '')
+    inMemFS.write(defaultLoaderPath.server, '')
     await hub.init('dev')
 })
 

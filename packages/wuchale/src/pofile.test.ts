@@ -18,30 +18,30 @@ function makeSaveData(items: Item[]): SaveData {
     }
 }
 
-const item = newItem(
-    {
-        references: [
-            {
-                file: 'src/file.ts',
-                refs: [{ placeholders: [[0, 'foo: bar;']] }, null],
-            },
-        ],
-    },
-    ['en', 'es'],
-)
-item.translations.set('en', ['Hello'])
-item.translations.set('es', ['Hola'])
-
 const root = '/projects'
 
-export function testStorage(storage: CatalogStorage) {
-    test('POFile round-trips reference metadata', async (t: TestContext) => {
+export function testStorage(storage: CatalogStorage, name: string, urlFile: string, minimal = false) {
+    const item = newItem(
+        {
+            references: [
+                {
+                    file: 'src/file.ts',
+                    refs: minimal ? [null] : [{ placeholders: [[0, 'foo: bar;']] }, null],
+                },
+            ],
+        },
+        ['en', 'es'],
+    )
+    item.translations.set('en', ['Hello'])
+    item.translations.set('es', ['Hola'])
+
+    test(`${name} round-trips reference metadata`, async (t: TestContext) => {
         await storage.save(makeSaveData([item]))
         const loaded = await storage.load()
         t.assert.deepStrictEqual(loaded.items[0].references, item.references)
     })
 
-    test('POFile loads items without the source locale file', async (t: TestContext) => {
+    test(`${name} loads items without the source locale file`, async (t: TestContext) => {
         await storage.save(makeSaveData([item]))
         await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
         const loaded = await storage.load()
@@ -49,7 +49,7 @@ export function testStorage(storage: CatalogStorage) {
         t.assert.deepStrictEqual(loaded.items[0].translations.get('es'), ['Hola'])
     })
 
-    test('POFile removes stale url catalogs', async (t: TestContext) => {
+    test(`${name} removes stale url catalogs`, async (t: TestContext) => {
         const item = newItem(
             {
                 urlAdapters: ['test'],
@@ -59,7 +59,7 @@ export function testStorage(storage: CatalogStorage) {
         item.translations.set('en', ['/items/{0}'])
         item.translations.set('es', ['/elementos/{0}'])
         await storage.save(makeSaveData([item]))
-        const urlPath = resolve(root, 'src/locales/es.url.po')
+        const urlPath = resolve(root, urlFile)
         t.assert.strictEqual(await inMemFS.exists(urlPath), true)
         await storage.save(makeSaveData([]))
         t.assert.strictEqual(await inMemFS.exists(urlPath), false)
@@ -77,5 +77,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             sourceLocale: 'en',
             fs: inMemFS,
         }),
+        'POFile',
+        'src/locales/es.url.po',
     )
 }
