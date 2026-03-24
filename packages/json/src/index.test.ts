@@ -1,6 +1,5 @@
 // $ node --import ../../wuchale/testing/resolve.ts %f
 
-import { test } from 'node:test'
 // @ts-expect-error
 import { testStorage } from '../../wuchale/src/pofile.test.ts'
 // @ts-expect-error
@@ -19,4 +18,7 @@ testStorage(
         stringify: JSON.stringify,
         extension: 'json',
     }),
+    'JSONFile',
+    'src/locales/catalog.url.json',
+    true,
 )

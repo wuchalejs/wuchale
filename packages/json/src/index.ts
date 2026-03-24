@@ -1,12 +1,5 @@
 import { resolve } from 'node:path'
-import {
-    deepMergeObjects,
-    type FS,
-    type Item,
-    type SaveData,
-    type StorageFactory,
-    type StorageFactoryOpts,
-} from 'wuchale'
+import { deepMergeObjects, type Item, type SaveData, type StorageFactory, type StorageFactoryOpts } from 'wuchale'
 
 type SaveRef = {
     file: string
@@ -21,48 +14,6 @@ type PItem = Partial<Pick<Item, 'urlAdapters' | 'context' | 'translations'>>
 type SaveItem = {
     references?: SaveRef[]
     [loc: string]: string | string[] | SaveRef[] | PItem[keyof PItem]
-}
-
-async function loadItems(fs: FS, parse: typeof JSON.parse, filename: string, locales: string[]) {
-    try {
-        const saved = parse((await fs.read(filename)).toString()) as SaveItem[]
-        const items: Item[] = []
-        for (const sitem of saved ?? []) {
-            const item: Item = {
-                translations: new Map(),
-                urlAdapters: (sitem.urlAdapters as string[]) ?? [],
-                context: sitem.context as string,
-                references:
-                    sitem?.references?.map(ref => ({
-                        file: ref.file,
-                        refs: ref.refs?.map(r => ({
-                            link: r.link,
-                            placeholders: Object.entries(r.placeholders ?? []).map(([i, ph]) => [Number(i), ph]),
-                        })) ?? [null],
-                    })) ?? [],
-            }
-            for (const loc of locales) {
-                const str = sitem[loc]
-                if (str == null) {
-                    continue // filled below
-                }
-                item.translations.set(loc, typeof str === 'string' ? [str] : (str as string[]))
-            }
-            for (const loc of ['de-CH', 'fr-CH']) {
-                const base = loc.split('-')[0]!
-                if (!item.translations.has(loc)) {
-                    item.translations.set(loc, item.translations.get(base)!)
-                }
-            }
-            items.push(item)
-        }
-        return items
-    } catch (err: any) {
-        if (err.code !== 'ENOENT') {
-            throw err
-        }
-        return []
-    }
 }
 
 type JSONOpts = {
@@ -94,12 +45,59 @@ export class JSONFile {
         ]
     }
 
+    async loadRaw(filename: string) {
+        const content = await this.#opts.fs.read(filename)
+        if (content === null) {
+            return []
+        }
+        const saved = this.#opts.parse(content) as SaveItem[]
+        const items: Item[] = []
+        for (const sitem of saved ?? []) {
+            const item: Item = {
+                translations: new Map(),
+                urlAdapters: (sitem.urlAdapters as string[]) ?? [],
+                context: sitem.context as string,
+                references:
+                    sitem?.references?.map(ref => ({
+                        file: ref.file,
+                        refs: ref.refs?.map(r => ({
+                            link: r.link,
+                            placeholders: Object.entries(r.placeholders ?? []).map(([i, ph]) => [Number(i), ph]),
+                        })) ?? [null],
+                    })) ?? [],
+            }
+            for (const loc of this.#opts.locales) {
+                const str = sitem[loc]
+                if (str == null) {
+                    continue // filled below
+                }
+                item.translations.set(loc, typeof str === 'string' ? [str] : (str as string[]))
+            }
+            for (const loc of this.#opts.locales) {
+                const [base, region] = loc.split('-')
+                if (!region) {
+                    continue
+                }
+                if (!item.translations.has(loc)) {
+                    item.translations.set(loc, item.translations.get(base)!)
+                }
+            }
+            items.push(item)
+        }
+        return items
+    }
+
     load = async () => ({
-        items: [
-            ...(await loadItems(this.#opts.fs, this.#opts.parse, this.files[0], this.#opts.locales)),
-            ...(await loadItems(this.#opts.fs, this.#opts.parse, this.files[1], this.#opts.locales)),
-        ],
+        items: [...(await this.loadRaw(this.files[0])), ...(await this.loadRaw(this.files[1]))],
     })
+
+    saveRaw = async (filename: string, items: SaveItem[]) => {
+        if (items.length === 0) {
+            await this.#opts.fs.unlink(filename)
+            return
+        }
+        await this.#opts.fs.write(filename, this.#opts.stringify(items, null, '  '))
+    }
 
     save = async (data: SaveData) => {
         const items: SaveItem[] = []
@@ -120,8 +118,11 @@ export class JSONFile {
             }
             delete saveItem.translations
             delete saveItem.id
-            for (const loc of ['de-CH', 'fr-CH']) {
-                const base = loc.split('-')[0]!
+            for (const loc of this.#opts.locales) {
+                const [base, reg] = loc.split('-')
+                if (!reg) {
+                    continue
+                }
                 const tLoc = saveItem[loc] as string[]
                 const tBase = saveItem[base] as string[]
                 if (tLoc === tBase || Array.from(tLoc).join('') === Array.from(tBase).join('')) {
@@ -145,22 +146,13 @@ export class JSONFile {
             }
             items.push(saveItem)
         }
-        const [catalogFile, catalogFileUrl] = this.files
-        await this.#opts.fs.write(
-            catalogFile,
-            this.#opts.stringify(
-                items.filter(i => !(i.urlAdapters as string[])?.length),
-                null,
-                '  ',
-            ),
+        await this.saveRaw(
+            this.files[0],
+            items.filter(i => !(i.urlAdapters as string[])?.length),
         )
-        await this.#opts.fs.write(
-            catalogFileUrl,
-            this.#opts.stringify(
-                items.filter(i => (i.urlAdapters as string[])?.length),
-                null,
-                '  ',
-            ),
+        await this.saveRaw(
+            this.files[1],
+            items.filter(i => (i.urlAdapters as string[])?.length),
         )
     }
 }
