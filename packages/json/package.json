@@ -1,0 +1,40 @@
+{
+    "name": "@wuchale/json",
+    "version": "0.1.0",
+    "description": "Protobuf-like i18n from plain code: JSON storage driver",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node --import ../wuchale/testing/resolve.ts --test"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "po",
+        "json"
+    ],
+    "files": [
+        "dist"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "devDependencies": {
+        "typescript": "^5.9.3",
+        "wuchale": "^0.22.1"
+    },
+    "type": "module"
+}

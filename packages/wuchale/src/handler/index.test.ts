@@ -12,13 +12,16 @@ import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
 import { SharedState } from './state.js'
 
+const defaultLoaderPath = resolve('/project/loader.js')
+inMemFS.write(defaultLoaderPath, '')
+
 const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
     files: '*.js', // filename needs to match
     storage: inMemStorage,
     loaderExts: ['.js'],
-    defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
+    defaultLoaderPath,
 }
 
 const handler = new AdapterHandler(
@@ -70,7 +73,7 @@ test('HMR', async (t: TestContext) => {
 
 test('Manifest', async (t: TestContext) => {
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.test.manifest.js')
-    const content = await inMemFS.read(manifestPath)
+    const content = (await inMemFS.read(manifestPath)) ?? ''
     t.assert.strictEqual(
         trimLines(content),
         trimLines(

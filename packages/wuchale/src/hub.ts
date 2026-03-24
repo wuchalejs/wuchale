@@ -302,7 +302,7 @@ export class Hub {
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
         this.#log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
         const contents = await this.#fs.read(resolve(this.#projectRoot, filename))
-        const [, updated] = await handler.transform(contents, filename)
+        const [, updated] = await handler.transform(contents!, filename)
         return updated
     }
 
@@ -381,7 +381,7 @@ export class Hub {
                 return
             }
             const id = resolve(this.#projectRoot, filename)
-            const read = () => this.#fs.read(id)
+            const read = async () => (await this.#fs.read(id))!
             await this.onFileChange(id, read)
             await this.transform(await read(), id)
         })

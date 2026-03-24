@@ -91,7 +91,7 @@ export const inMemFS: FS = {
     write: (file, data) => {
         inMemFiles.set(file, data)
     },
-    read: file => inMemFiles.get(file) ?? '',
+    read: file => inMemFiles.get(file) ?? null,
     mkdir: () => {},
     exists: file => inMemFiles.has(file),
     unlink: file => {
