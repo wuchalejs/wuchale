@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.3
+
+### Patch Changes
+
+- Fix HMR being disabled when running cli while dev server is running #306 ([`25a1425`](https://github.com/wuchalejs/wuchale/commit/25a1425fa4ff3dc987a48641ad2edc90cb3685de))
+
 ## 0.22.2
 
 ### Patch Changes
