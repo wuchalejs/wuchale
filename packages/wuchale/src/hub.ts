@@ -226,9 +226,11 @@ export class Hub {
         file = normalizeSep(file) // just to be sure
         if (this.#confUpdateFile === file) {
             const updateTxt = await read()
-            const update: ConfUpdate = JSON.parse(updateTxt)
+            const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
             this.#log.info(`${logPrefix} config update received: ${color.cyan(updateTxt)}`)
-            this.#config.hmr = update.hmr
+            if (update.hmr !== undefined) {
+                this.#config.hmr = update.hmr
+            }
             return ignoreChange
         }
         if (!this.#config.hmr) {
