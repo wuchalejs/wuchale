@@ -339,25 +339,24 @@ export class Hub {
             updated ||= (await Promise.all(filePaths.map(f => this.#visitFileHandl(f, handler)))).some(r => r)
         }
         // only owner adapter should clean
-        if (clean && handler.sharedState.ownerKey === handler.key) {
-            const logPrefix = logPrefixHandler(handler.key)
-            this.#log.info(`${logPrefix} Cleaning...`)
+        if (handler.sharedState.ownerKey === handler.key) {
             let cleaned = 0
             for (const [key, item] of catalog) {
                 const initRefsN = item.references.length
                 // check if file deleted or pattern no longer matches
                 item.references = item.references.filter(ref => existingFiles.has(ref.file))
-                if (itemIsObsolete(item)) {
-                    catalog.delete(key)
+                if (item.references.length < initRefsN) {
                     updated = true
-                    cleaned++
-                } else if (item.references.length < initRefsN) {
-                    updated = true
-                    cleaned++
                 }
+                if (!clean || !itemIsObsolete(item)) {
+                    continue
+                }
+                catalog.delete(key)
+                updated = true
+                cleaned++
             }
-            if (cleaned) {
-                this.#log.info(`${logPrefix} Cleaned ${cleaned} items`)
+            if (cleaned > 0) {
+                this.#log.info(`${logPrefixHandler(handler.key)} Cleaned ${cleaned} items`)
             }
         }
         if (updated) {
