@@ -264,7 +264,7 @@ export class Files {
 
     writeManifest = async (keys: ManifestEntry[], id: string | null) => {
         const content =
-            `/** @type {(string | {text: string | string[], context?: string, isUrl?: boolean} | null)[]} */\n` +
+            `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\n` +
             `export const keys = ${JSON.stringify(keys)}`
         await this.#fs.write(this.getManifestFilePath(id), content)
     }
