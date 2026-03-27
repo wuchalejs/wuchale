@@ -149,7 +149,7 @@ export class AdapterHandler {
             const isUrl = itemIsUrl(item)
             const id = item.translations.get(this.sourceLocale)!
             const text = id.length === 1 ? id[0] : id
-            if (!isUrl && item.context === undefined) {
+            if (!isUrl && item.context == null) {
                 manifest[index] = text
                 continue
             }
