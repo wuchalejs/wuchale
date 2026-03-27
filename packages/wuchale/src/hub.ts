@@ -4,7 +4,6 @@
 
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
-import { type Matcher } from 'picomatch'
 import { glob } from 'tinyglobby'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation, isEquivalent } from './compile.js'
@@ -151,7 +150,7 @@ export class Hub {
                 this.#projectRoot,
                 this.#log,
             )
-            await handler.init(this.#getSharedState(adapter, key, handler.sourceLocale, handler.fileMatches))
+            await handler.init(this.#getSharedState(adapter, key, handler.sourceLocale))
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
@@ -199,7 +198,7 @@ export class Hub {
         await this.#fs.write(this.#confUpdateFile, '{}') // only watch changes so prepare first
     }
 
-    #getSharedState = (adapter: Adapter, key: string, sourceLocale: string, fileMatches: Matcher): SharedState => {
+    #getSharedState = (adapter: Adapter, key: string, sourceLocale: string): SharedState => {
         const storage = adapter.storage({
             locales: this.#config.locales,
             root: this.#projectRoot,
@@ -217,7 +216,6 @@ export class Hub {
                     `${logPrefix} Adapters with different source locales (${sharedState.ownerKey} and ${key}) cannot share catalogs.`,
                 )
             }
-            sharedState.otherFileMatches.push(fileMatches)
         }
         return sharedState
     }
@@ -308,7 +306,12 @@ export class Hub {
         return updated
     }
 
-    async #directVisitHandler(handler: AdapterHandler, clean: boolean, sync: boolean): Promise<boolean> {
+    async #directVisitHandler(
+        handler: AdapterHandler,
+        clean: boolean,
+        sync: boolean,
+        existingFilesByOwner: Map<string, Set<string>>,
+    ): Promise<boolean> {
         const filePaths = await glob(
             ...globConfToArgs(
                 handler.adapter.files,
@@ -317,6 +320,15 @@ export class Hub {
                 handler.adapter.outDir,
             ),
         )
+        let existingFiles = existingFilesByOwner.get(handler.sharedState.ownerKey)
+        if (existingFiles) {
+            for (const file of filePaths) {
+                existingFiles.add(file)
+            }
+        } else {
+            existingFiles = new Set(filePaths)
+            existingFilesByOwner.set(handler.sharedState.ownerKey, existingFiles)
+        }
         const catalog = handler.sharedState.catalog
         let updated = false
         if (sync) {
@@ -333,17 +345,13 @@ export class Hub {
             let cleaned = 0
             for (const [key, item] of catalog) {
                 const initRefsN = item.references.length
-                item.references = item.references.filter(
-                    ref =>
-                        handler.fileMatches(ref.file) ||
-                        handler.sharedState.otherFileMatches.some(match => match(ref.file)),
-                )
-                if (item.references.length < initRefsN) {
-                    updated = true
-                    cleaned++
-                }
+                // check if file deleted or pattern no longer matches
+                item.references = item.references.filter(ref => existingFiles.has(ref.file))
                 if (itemIsObsolete(item)) {
                     catalog.delete(key)
+                    updated = true
+                    cleaned++
+                } else if (item.references.length < initRefsN) {
                     updated = true
                     cleaned++
                 }
@@ -368,9 +376,9 @@ export class Hub {
             const bOwner = b.sharedState.ownerKey === b.key
             return aOwner === bOwner ? 0 : aOwner ? 1 : -1
         })
-        // separate loop to make sure that all otherFileMatchers are collected
+        const existingFilesByOwner = new Map<string, Set<string>>()
         for (const handler of handlers) {
-            await this.#directVisitHandler(handler, clean, sync)
+            await this.#directVisitHandler(handler, clean, sync, existingFilesByOwner)
         }
         if (!watch) {
             this.#log.info('Extraction finished.')
@@ -425,9 +433,10 @@ export class Hub {
         const errors: CheckErrorItem[] = []
         const syncs: string[] = []
         let checkedItems = 0
+        const existingFilesByOwner = new Map<string, Set<string>>()
         for (const handler of this.#handlers.values()) {
             const state = handler.sharedState
-            if (full && (await this.#directVisitHandler(handler, true, false))) {
+            if (full && (await this.#directVisitHandler(handler, true, false, existingFilesByOwner))) {
                 syncs.push(handler.key)
             }
             if (state.ownerKey !== handler.key) {

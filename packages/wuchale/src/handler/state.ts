@@ -1,4 +1,3 @@
-import { type Matcher } from 'picomatch'
 import { getKey, IndexTracker } from '../adapters.js'
 import { type CompiledElement } from '../compile.js'
 import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
@@ -34,7 +33,6 @@ function validatePluralRule(body: string) {
 export class SharedState {
     ownerKey: string
     sourceLocale: string
-    otherFileMatches: Matcher[] = []
     compiled: CompiledCatalogs = new Map()
     indexTracker = new IndexTracker()
 
