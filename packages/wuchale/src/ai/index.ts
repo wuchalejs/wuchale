@@ -193,7 +193,7 @@ export default class AIQueue {
                 if (loc === this.sourceLocale || transl[0]) {
                     continue
                 }
-                const group = this.ai.group[this.sourceLocale]?.find(g => g.includes(loc))
+                const group = this.ai.group?.[this.sourceLocale]?.find(g => g.includes(loc))
                 const groupKey = group ?? loc
                 if (!itemsByLocales.has(groupKey)) {
                     itemsByLocales.set(groupKey, [])
