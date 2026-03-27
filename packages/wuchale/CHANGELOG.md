@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.4
+
+### Patch Changes
+
+- Fix deleted file not resulting in catalog item obsolete/cleaning #313. Now both file deletion and `files` pattern updates result in obsoletes/catalog cleaning ([`a7d8d47`](https://github.com/wuchalejs/wuchale/commit/a7d8d478ac2a2196747cd2394065d25340828187))
+
 ## 0.22.3
 
 ### Patch Changes
