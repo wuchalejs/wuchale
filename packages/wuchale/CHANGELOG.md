@@ -1,5 +1,15 @@
 # wuchale
 
+## 0.22.5
+
+### Patch Changes
+
+- Fix items not marked obsolete for no longer existent files on cli without `--clean` ([`23ebbab`](https://github.com/wuchalejs/wuchale/commit/23ebbaba6f8e25f502932789af778241e9102d10))
+
+- Fix pofile storage not following `localesDir` by default ([#305](https://github.com/wuchalejs/wuchale/pull/305))
+
+- Fix AI translate not working after removing item.id property ([`ad8d5f7`](https://github.com/wuchalejs/wuchale/commit/ad8d5f7b33fcae66130052813f081e767b2bee98))
+
 ## 0.22.4
 
 ### Patch Changes
