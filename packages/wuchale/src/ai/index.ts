@@ -4,7 +4,7 @@
 import { compileTranslation, isEquivalent } from '../compile.js'
 import { getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
-import type { Item } from '../storage.js'
+import type { FileRef, Item } from '../storage.js'
 
 const MAX_RETRIES = 30
 
@@ -39,6 +39,12 @@ const outputSchema = {
             minItems: 1,
         },
     },
+}
+
+type InputItem = {
+    id: string[]
+    context?: string
+    references: FileRef[]
 }
 
 const instruct = (sourceLocale: string, targetLocales: string[]) =>
@@ -98,14 +104,13 @@ export default class AIQueue {
         const logStart = this.#requestName(batch.id, batch.targetLocales)
         let translated: OutputItem[] = []
         try {
+            const inputItems: InputItem[] = batch.messages.map(item => ({
+                id: item.translations.get(this.sourceLocale)!,
+                context: item.context,
+                references: item.references,
+            }))
             const translatedstr = await this.ai.translate(
-                JSON.stringify(
-                    batch.messages.map(item => ({
-                        id: item.id,
-                        context: item.context,
-                        references: item.references,
-                    })),
-                ),
+                JSON.stringify(inputItems),
                 instruct(this.sourceLocale, batch.targetLocales),
             )
             translated = JSON.parse(translatedstr)
