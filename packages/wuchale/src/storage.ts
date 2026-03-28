@@ -90,6 +90,8 @@ export type Catalog = Map<string, Item> // by item key
 export type StorageFactoryOpts = {
     locales: string[]
     root: string
+    /** shared locale artifacts directory from the top-level config */
+    localesDir: string
     /** whether the url is configured, can use to load separate url files */
     haveUrl: boolean
     sourceLocale: string

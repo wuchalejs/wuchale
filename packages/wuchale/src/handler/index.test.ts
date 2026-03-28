@@ -36,6 +36,7 @@ const storage = inMemStorage({
     root: import.meta.dirname,
     sourceLocale: 'en',
     haveUrl: false,
+    localesDir: 'src/locales',
     fs: inMemFS,
 })
 

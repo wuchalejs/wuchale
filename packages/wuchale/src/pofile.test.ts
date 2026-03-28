@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { inMemFS } from '../testing/utils.ts'
-import { POFile } from './pofile.js'
+import { POFile, pofile } from './pofile.js'
 import { defaultPluralRule, type Item, newItem, type SaveData } from './storage.js'
 
 function makeSaveData(items: Item[]): SaveData {
@@ -39,6 +39,7 @@ const po = new POFile({
     locales: ['en', 'es'],
     root,
     haveUrl: true,
+    localesDir: 'src/locales',
     sourceLocale: 'en',
     fs: inMemFS,
 })
@@ -71,4 +72,20 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     t.assert.strictEqual(await inMemFS.exists(urlPath), true)
     await po.save(makeSaveData([]))
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
+})
+
+test('pofile defaults dir to localesDir', (t: TestContext) => {
+    const storage = pofile()({
+        locales: ['en'],
+        root,
+        localesDir: 'custom/locales',
+        haveUrl: false,
+        sourceLocale: 'en',
+        fs: inMemFS,
+    })
+    t.assert.strictEqual(storage.key, resolve(root, 'custom/locales'))
+    t.assert.deepStrictEqual(storage.files, [
+        resolve(root, 'custom/locales/en.po'),
+        resolve(root, 'custom/locales/en.url.po'),
+    ])
 })

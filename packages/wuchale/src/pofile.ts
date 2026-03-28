@@ -276,6 +276,9 @@ export class POFile {
 }
 
 export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
-    const pofOptsFull = deepMergeObjects(pofOpts, defaultOpts)
-    return opts => new POFile({ ...pofOptsFull, ...opts })
+    return opts =>
+        new POFile({
+            ...opts,
+            ...deepMergeObjects(pofOpts, { ...defaultOpts, dir: opts.localesDir }),
+        })
 }
