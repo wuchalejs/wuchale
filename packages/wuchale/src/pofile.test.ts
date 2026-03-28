@@ -39,6 +39,7 @@ const po = new POFile({
     locales: ['en', 'es'],
     root,
     haveUrl: true,
+    localesDir: 'src/locales',
     sourceLocale: 'en',
     fs: inMemFS,
 })
@@ -73,7 +74,7 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
 })
 
-test('pofile defaults dir to localesDir when not explicitly configured', (t: TestContext) => {
+test('pofile defaults dir to localesDir', (t: TestContext) => {
     const storage = pofile()({
         locales: ['en'],
         root,
@@ -82,7 +83,6 @@ test('pofile defaults dir to localesDir when not explicitly configured', (t: Tes
         sourceLocale: 'en',
         fs: inMemFS,
     })
-
     t.assert.strictEqual(storage.key, resolve(root, 'custom/locales'))
     t.assert.deepStrictEqual(storage.files, [
         resolve(root, 'custom/locales/en.po'),
