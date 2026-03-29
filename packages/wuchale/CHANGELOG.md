@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.6
+
+### Patch Changes
+
+- Include no HMR code when on SSR ([`bbc828d`](https://github.com/wuchalejs/wuchale/commit/bbc828dc5daf7f104ec1a00bcd66965564831da5))
+
 ## 0.22.5
 
 ### Patch Changes
