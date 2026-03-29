@@ -67,6 +67,14 @@ test('HMR', async (t: TestContext) => {
         _w_load_('test')(0)
     `),
     )
+    // not on SSR
+    t.assert.strictEqual(
+        trimLines((await handler.transform(content, 'test.js', 1, true))[0].code),
+        trimLines(ts`
+        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./src/locales/test.loader.js"
+        _w_load_('test')(0)
+    `),
+    )
 })
 
 test('Manifest', async (t: TestContext) => {

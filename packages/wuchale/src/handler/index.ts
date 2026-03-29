@@ -528,7 +528,7 @@ export class AdapterHandler {
             }
             const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename)
             updated = updatedItems
-            if (msgs.length && hmrVersion >= 0) {
+            if (!forServer && msgs.length > 0 && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
                 for (const loc of this.#config.locales) {
                     hmrData.data[loc] =
