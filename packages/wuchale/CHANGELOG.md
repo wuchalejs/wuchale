@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.7
+
+### Patch Changes
+
+- Fix parsing errors when `</script>` appears in HMR strings in script blocks ([`ad74ebb`](https://github.com/wuchalejs/wuchale/commit/ad74ebb9e6caa1aba9edd656558adda5aa4d3d0d))
+
 ## 0.22.6
 
 ### Patch Changes
