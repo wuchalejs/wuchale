@@ -55,9 +55,9 @@
         "wuchale": "^0.22.0"
     },
     "devDependencies": {
-        "@types/node": "~24.12.0",
         "@types/estree-jsx": "^1.0.5",
-        "typescript": "^5.9.3"
+        "@types/node": "~24.12.0",
+        "typescript": "^6.0.2"
     },
     "type": "module"
 }
