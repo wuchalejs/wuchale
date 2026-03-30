@@ -323,7 +323,8 @@ export class AdapterHandler {
         let getRuntimePlain = getRuntimeVars.plain
         let getRuntimeReactive = getRuntimeVars.reactive
         if (hmrData != null) {
-            head.push(`const ${varNames.hmrUpdate} = ${JSON.stringify(hmrData)}`)
+            const hmrDataStr = JSON.stringify(hmrData).replaceAll('</script>', '\\x3C/script>')
+            head.push(`const ${varNames.hmrUpdate} = ${hmrDataStr}`)
             getRuntimePlain += 'hmr_'
             getRuntimeReactive += 'hmr_'
             head.push(
