@@ -224,14 +224,17 @@ export default class AIQueue {
             if (items.length === 0) {
                 continue
             }
-            const batch = {
-                id: this.nextBatchId,
-                targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
-                messages: items,
+            for (let i = 0; i < items.length; i += this.ai.batchSize) {
+                const chunk = items.slice(i, i + this.ai.batchSize)
+                const batch = {
+                    id: this.nextBatchId,
+                    targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
+                    messages: chunk,
+                }
+                this.batches.push(batch)
+                opInfo.push([color.yellow('(new)'), batch, chunk.length])
+                this.nextBatchId++
             }
-            this.batches.push(batch)
-            opInfo.push([color.yellow('(new)'), batch, items.length])
-            this.nextBatchId++
         }
         for (const [opType, batch, msgsLen] of opInfo) {
             this.log.info(
