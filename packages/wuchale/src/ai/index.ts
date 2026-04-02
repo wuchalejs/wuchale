@@ -14,6 +14,8 @@ type Batch = {
     messages: Item[]
 }
 
+type GroupKey = string | string[]
+
 export type AIPassThruOpts = {
     batchSize: number
     parallel: number
@@ -81,7 +83,7 @@ Respond ONLY with raw compact JSON. Do not wrap it in markdown code fences or ad
 // implements a queue for a sequential translation useful for vite's transform during dev
 // as vite can do async transform
 export default class AIQueue {
-    batches: Batch[] = []
+    batches = new Map<GroupKey, Batch[]>()
     nextBatchId: number = 0
     running: Promise<void> | null = null
     sourceLocale: string
@@ -177,10 +179,15 @@ export default class AIQueue {
     }
 
     run = async () => {
-        while (this.batches.length > 0) {
+        while (this.batches.size > 0) {
             const allBatches: Batch[] = []
-            while (this.batches.length > 0 && allBatches.length < this.ai.parallel) {
-                allBatches.push(this.batches.pop() as Batch)
+            for (const [group, batches] of this.batches) {
+                while (batches.length > 0 && allBatches.length < this.ai.parallel) {
+                    allBatches.push(batches.pop()!)
+                }
+                if (batches.length === 0) {
+                    this.batches.delete(group)
+                }
             }
             await Promise.all(allBatches.map(this.translate))
         }
@@ -188,52 +195,66 @@ export default class AIQueue {
         this.running = null
     }
 
-    add = (messages: Item[]) => {
-        if (!this.ai) {
-            return
-        }
-        const itemsByLocales = new Map<string | string[], Item[]>()
-        for (const item of messages) {
+    groupItemsByLocales = (items: Item[]) => {
+        const itemsByLocales = new Map<GroupKey, Item[]>()
+        for (const item of items) {
             for (const [loc, transl] of item.translations.entries()) {
                 if (loc === this.sourceLocale || transl[0]) {
                     continue
                 }
                 const group = this.ai.group[this.sourceLocale]?.find(g => g.includes(loc))
                 const groupKey = group ?? loc
-                if (!itemsByLocales.has(groupKey)) {
-                    itemsByLocales.set(groupKey, [])
+                const groupItems = itemsByLocales.get(groupKey)
+                if (groupItems == null) {
+                    itemsByLocales.set(groupKey, [item])
+                } else {
+                    groupItems.push(item)
                 }
-                itemsByLocales.get(groupKey)?.push(item)
             }
         }
+        return itemsByLocales
+    }
+
+    prepItemsInBatches = (itemsByGroup: Map<GroupKey, Item[]>) => {
+        const opInfo: [string, Batch, number][] = []
+        for (let [groupKey, items] of itemsByGroup) {
+            const groupBatches = this.batches.get(groupKey) ?? []
+            const lastBatch = groupBatches.at(-1)
+            if (lastBatch && lastBatch.messages.length < this.ai.batchSize) {
+                const lastBatchFree = this.ai.batchSize - lastBatch.messages.length
+                const itemsToAdd = items.slice(0, lastBatchFree)
+                opInfo.push(['(add)', lastBatch, itemsToAdd.length])
+                lastBatch.messages.push(...itemsToAdd)
+                items = items.slice(lastBatchFree)
+            }
+            for (let i = 0; i < items.length; i += this.ai.batchSize) {
+                const chunk = items.slice(i, i + this.ai.batchSize)
+                const batch: Batch = {
+                    id: this.nextBatchId,
+                    targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
+                    messages: chunk,
+                }
+                groupBatches.push(batch)
+                opInfo.push([color.yellow('(new)'), batch, chunk.length])
+                this.nextBatchId++
+            }
+            if (!this.batches.has(groupKey)) {
+                this.batches.set(groupKey, groupBatches)
+            }
+        }
+        return opInfo
+    }
+
+    add = (items: Item[]) => {
+        if (!this.ai) {
+            return
+        }
+        const itemsByLocales = this.groupItemsByLocales(items)
         if (itemsByLocales.size === 0) {
             // all translated
             return
         }
-        const opInfo: [string, Batch, number][] = []
-        const lastBatch = this.batches.at(-1)
-        if (lastBatch && lastBatch.messages.length < this.ai.batchSize && itemsByLocales.has(lastBatch.targetLocales)) {
-            const lastBatchFree = this.ai.batchSize - lastBatch.messages.length
-            const localeItems = itemsByLocales.get(lastBatch.targetLocales)!
-            const msgs = localeItems.slice(0, lastBatchFree)
-            opInfo.push(['(add)', lastBatch, msgs.length])
-            lastBatch.messages.push(...msgs)
-            itemsByLocales.set(lastBatch.targetLocales, localeItems.slice(lastBatchFree))
-        }
-        for (const [groupKey, items] of itemsByLocales) {
-            if (items.length === 0) {
-                continue
-            }
-            const batch = {
-                id: this.nextBatchId,
-                targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
-                messages: items,
-            }
-            this.batches.push(batch)
-            opInfo.push([color.yellow('(new)'), batch, items.length])
-            this.nextBatchId++
-        }
-        for (const [opType, batch, msgsLen] of opInfo) {
+        for (const [opType, batch, msgsLen] of this.prepItemsInBatches(itemsByLocales)) {
             this.log.info(
                 `${this.#requestName(batch.id, batch.targetLocales)}: ${opType} translate ${color.cyan(msgsLen)} messages`,
             )

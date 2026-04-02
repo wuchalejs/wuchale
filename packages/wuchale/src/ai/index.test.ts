@@ -20,24 +20,37 @@ const ai: AI = {
 
 const queue = new AIQueue('en', ai, async () => {}, new Logger('error'))
 
+const item: Item = {
+    id: ['Welcome'],
+    translations: new Map([
+        ['en', ['Welcome']],
+        ['es', []],
+        ['de', []],
+    ]),
+    references: [
+        {
+            file: 'src/routes/page.svelte',
+            refs: [null],
+        },
+    ],
+    urlAdapters: [],
+}
+
 test('Translations accepted correctly', async (t: TestContext) => {
-    const item: Item = {
-        id: ['Welcome'],
-        translations: new Map([
-            ['en', ['Welcome']],
-            ['es', []],
-            ['de', []],
-        ]),
-        references: [
-            {
-                file: 'src/routes/page.svelte',
-                refs: [null],
-            },
-        ],
-        urlAdapters: [],
-    }
-    queue.add([item])
+    const cItem = structuredClone(item)
+    queue.add([cItem])
     await queue.running
-    t.assert.deepStrictEqual(item.translations.get('es'), ['Bienvenido'])
-    t.assert.deepStrictEqual(item.translations.get('de'), [])
+    t.assert.deepStrictEqual(cItem.translations.get('es'), ['Bienvenido'])
+    t.assert.deepStrictEqual(cItem.translations.get('de'), [])
+})
+
+test('Group and prep items', async (t: TestContext) => {
+    const items = Array(30)
+        .fill(null)
+        .map(_ => structuredClone(item))
+    const groupedItems = queue.groupItemsByLocales(items)
+    t.assert.equal(groupedItems.get('es')?.length, 30)
+    t.assert.equal(groupedItems.get('de')?.length, 30)
+    const opInfo = queue.prepItemsInBatches(groupedItems)
+    t.assert.equal(opInfo.length, 16) // 7 * 4 + 1 * 2 = 30 for es and de
 })
