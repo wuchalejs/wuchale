@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.8
+
+### Patch Changes
+
+- Fix AI translate not strictly respecting batchSize config ([#329](https://github.com/wuchalejs/wuchale/pull/329))
+
 ## 0.22.7
 
 ### Patch Changes
