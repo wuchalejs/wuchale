@@ -2,10 +2,11 @@
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 // @ts-expect-error
 import { inMemFS } from '../testing/utils.ts'
 import { POFile, pofile } from './pofile.js'
-import { defaultPluralRule, type Item, newItem, type SaveData } from './storage.js'
+import { type CatalogStorage, defaultPluralRule, type Item, newItem, type SaveData } from './storage.js'
 
 function makeSaveData(items: Item[]): SaveData {
     return {
@@ -17,7 +18,9 @@ function makeSaveData(items: Item[]): SaveData {
     }
 }
 
-const item = newItem(
+const root = '/projects'
+
+const itemFull = newItem(
     {
         references: [
             {
@@ -32,84 +35,91 @@ const item = newItem(
     },
     ['en', 'es'],
 )
-item.translations.set('en', ['Hello'])
-item.translations.set('es', ['Hola'])
+itemFull.translations.set('en', ['Hello'])
+itemFull.translations.set('es', ['Hola'])
 
-const root = '/projects'
+const itemMin: Item = { ...itemFull, references: itemFull.references.map(r => ({ ...r, refs: [null] })) }
 
-const pofileOpts = {
-    dir: 'src/locales',
-    separateUrls: true,
-    locales: ['en', 'es'],
-    root,
-    haveUrl: true,
-    localesDir: 'src/locales',
-    sourceLocale: 'en',
-    fs: inMemFS,
+export function testStorage(storage: CatalogStorage, name: string, urlFile: string, minimal = false) {
+    const item = minimal ? itemMin : itemFull
+
+    test(`${name} round-trips reference metadata`, async (t: TestContext) => {
+        await storage.save(makeSaveData([item]))
+        const loaded = await storage.load()
+        t.assert.deepStrictEqual(loaded.items[0]!.references, item.references)
+    })
+
+    test(`${name} loads items without the source locale file`, async (t: TestContext) => {
+        await storage.save(makeSaveData([item]))
+        await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
+        const loaded = await storage.load()
+        t.assert.deepStrictEqual(loaded.items[0]!.translations.get('en'), ['Hello'])
+        t.assert.deepStrictEqual(loaded.items[0]!.translations.get('es'), ['Hola'])
+    })
+
+    test(`${name} removes stale url catalogs`, async (t: TestContext) => {
+        const item = newItem(
+            {
+                urlAdapters: ['test'],
+            },
+            ['en', 'es'],
+        )
+        item.translations.set('en', ['/items/{0}'])
+        item.translations.set('es', ['/elementos/{0}'])
+        await storage.save(makeSaveData([item]))
+        const urlPath = resolve(root, urlFile)
+        t.assert.strictEqual(await inMemFS.exists(urlPath), true)
+        await storage.save(makeSaveData([]))
+        t.assert.strictEqual(await inMemFS.exists(urlPath), false)
+    })
 }
 
-const po = new POFile(pofileOpts)
-
-test('POFile round-trips reference metadata', async (t: TestContext) => {
-    await po.save(makeSaveData([item]))
-    const loaded = await po.load()
-    t.assert.deepStrictEqual(loaded.items[0]!.references, item.references)
-})
-
-test('POFile loads items without the source locale file', async (t: TestContext) => {
-    await po.save(makeSaveData([item]))
-    await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
-    const loaded = await po.load()
-    t.assert.deepStrictEqual(loaded.items[0]!.translations.get('en'), ['Hello'])
-    t.assert.deepStrictEqual(loaded.items[0]!.translations.get('es'), ['Hola'])
-})
-
-test('POFile removes stale url catalogs', async (t: TestContext) => {
-    const item = newItem(
-        {
-            urlAdapters: ['test'],
-        },
-        ['en', 'es'],
-    )
-    item.translations.set('en', ['/items/{0}'])
-    item.translations.set('es', ['/elementos/{0}'])
-    await po.save(makeSaveData([item]))
-    const urlPath = resolve(root, 'src/locales/es.url.po')
-    t.assert.strictEqual(await inMemFS.exists(urlPath), true)
-    await po.save(makeSaveData([]))
-    t.assert.strictEqual(await inMemFS.exists(urlPath), false)
-})
-
-test('POFile skips unlinking non existent catalogs', async (t: TestContext) => {
-    let unlinkCalls = 0
-    const fs = {
-        ...inMemFS,
-        unlink(file: string) {
-            unlinkCalls++
-            return inMemFS.unlink(file)
-        },
-    }
-    const po = new POFile({ ...pofileOpts, fs })
-    await po.save(makeSaveData([item]))
-    const reloaded = new POFile({ ...pofileOpts, fs })
-    await reloaded.load()
-    unlinkCalls = 0
-    await reloaded.save(makeSaveData([item]))
-    t.assert.strictEqual(unlinkCalls, 0)
-})
-
-test('pofile defaults dir to localesDir', async (t: TestContext) => {
-    const storage = await pofile()({
-        locales: ['en'],
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const pofileOpts = {
+        dir: 'src/locales',
+        separateUrls: true,
+        locales: ['en', 'es'],
         root,
-        localesDir: 'custom/locales',
-        haveUrl: false,
+        haveUrl: true,
+        localesDir: 'src/locales',
         sourceLocale: 'en',
         fs: inMemFS,
+    }
+    const po = new POFile(pofileOpts)
+
+    testStorage(po, 'POFile', 'src/locales/es.url.po')
+
+    test('POFile skips unlinking non existent catalogs', async (t: TestContext) => {
+        let unlinkCalls = 0
+        const fs = {
+            ...inMemFS,
+            unlink(file: string) {
+                unlinkCalls++
+                return inMemFS.unlink(file)
+            },
+        }
+        const po = new POFile({ ...pofileOpts, fs })
+        await po.save(makeSaveData([itemFull]))
+        const reloaded = new POFile({ ...pofileOpts, fs })
+        await reloaded.load()
+        unlinkCalls = 0
+        await reloaded.save(makeSaveData([itemFull]))
+        t.assert.strictEqual(unlinkCalls, 0)
     })
-    t.assert.strictEqual(storage.key, resolve(root, 'custom/locales'))
-    t.assert.deepStrictEqual(storage.files, [
-        resolve(root, 'custom/locales/en.po'),
-        resolve(root, 'custom/locales/en.url.po'),
-    ])
-})
+
+    test('pofile defaults dir to localesDir', async (t: TestContext) => {
+        const storage = await pofile()({
+            locales: ['en'],
+            root,
+            localesDir: 'custom/locales',
+            haveUrl: false,
+            sourceLocale: 'en',
+            fs: inMemFS,
+        })
+        t.assert.strictEqual(storage.key, resolve(root, 'custom/locales'))
+        t.assert.deepStrictEqual(storage.files, [
+            resolve(root, 'custom/locales/en.po'),
+            resolve(root, 'custom/locales/en.url.po'),
+        ])
+    })
+}

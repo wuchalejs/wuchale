@@ -42,6 +42,7 @@ export {
     fillDefaults,
     getConfig,
 } from './config.js'
+export type { FS } from './fs.js'
 export { generatedDir, normalizeSep } from './handler/files.js'
 export type { Mode } from './handler/index.js'
 export { AdapterHandler } from './handler/index.js'
@@ -53,9 +54,11 @@ export type {
     Catalog,
     CatalogStorage,
     FileRef,
+    FileRefEntry,
     Item,
     LoadData,
     PluralRule,
+    PluralRules,
     SaveData,
     StorageFactory,
     StorageFactoryOpts,

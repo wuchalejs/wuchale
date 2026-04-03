@@ -67,7 +67,7 @@ export type SaveData = {
 }
 
 export type LoadData = {
-    pluralRules?: PluralRules // optional if it's the first time etc, will be filled by the default one
+    pluralRules?: PluralRules | undefined // optional if it's the first time etc, will be filled by the default one
     items: Item[]
 }
 

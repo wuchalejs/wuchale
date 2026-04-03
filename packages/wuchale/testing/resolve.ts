@@ -22,7 +22,10 @@ registerHooks({
                 specifier.startsWith('.')
             ) {
                 const absoluteTarget = pathResolve(parentDir, specifier)
-                if (absoluteTarget.includes('/src/') || absoluteTarget.includes('\\src\\')) {
+                if (
+                    (absoluteTarget.includes('/src/') || absoluteTarget.includes('\\src\\')) &&
+                    absoluteTarget.endsWith('.js')
+                ) {
                     const redirectedPath = absoluteTarget.replace('/src/', '/dist/').replace('\\src\\', '\\dist\\')
                     const newUrl = pathToFileURL(redirectedPath).href
                     return nextResolve(newUrl)
