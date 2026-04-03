@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.19.4
+
+### Patch Changes
+
+- Include navigation and path functions as url calls in SvelteKit default heuristic ([#327](https://github.com/wuchalejs/wuchale/pull/327))
+
 ## 0.19.3
 
 ### Patch Changes
