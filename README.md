@@ -156,8 +156,7 @@ package for examples of supported scenarios.
 This project is supported by the community. Become a sponsor and get your name
 or logo listed here!
 
-[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/wuchalejs)
-[![Donate on Open Collective](https://img.shields.io/badge/Donate%20on-Open%20Collective-%230092e6?logo=opencollective&logoColor=white)](https://opencollective.com/wuchale)
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
 
 Special thanks to our supporters:
 

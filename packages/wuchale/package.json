@@ -98,6 +98,6 @@
         "@types/picomatch": "^4.0.1",
         "typescript": "^6.0.2"
     },
-    "funding": "https://github.com/sponsors/wuchalejs",
+    "funding": "https://github.com/sponsors/K1DV5",
     "type": "module"
 }
