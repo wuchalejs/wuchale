@@ -181,14 +181,8 @@ export class POFile {
 
     async loadRaw(locale: string, url: boolean): Promise<PO | null> {
         const filename = this.filesByLoc.get(locale)![Number(url)]
-        try {
-            return PO.parse(await this.opts.fs.read(filename))
-        } catch (err) {
-            if (err.code !== 'ENOENT') {
-                throw err
-            }
-            return null
-        }
+        const content = await this.opts.fs.read(filename)
+        return content == null ? null : PO.parse(content)
     }
 
     async load(): Promise<SaveData> {

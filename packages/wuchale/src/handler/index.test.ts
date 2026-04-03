@@ -81,7 +81,7 @@ test('Manifest', async (t: TestContext) => {
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.test.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
-        trimLines(content),
+        trimLines(content!),
         trimLines(
             `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\nexport const keys = ["Hello"]`,
         ),

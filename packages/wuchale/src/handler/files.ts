@@ -228,7 +228,7 @@ export class Files {
             } else {
                 loaderTemplate = this.#adapter.defaultLoaderPath[side]
             }
-            const loaderContent = (await this.#fs.read(loaderTemplate))
+            const loaderContent = (await this.#fs.read(loaderTemplate))!
                 .toString()
                 .replaceAll('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
                 .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)

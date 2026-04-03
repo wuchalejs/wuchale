@@ -1,7 +1,7 @@
 import { mkdir, readFile, statfs, unlink, writeFile } from 'node:fs/promises'
 
 export type FS = {
-    read(file: string): string | Promise<string>
+    read(file: string): string | null | Promise<string | null>
     write(file: string, content: string): void | Promise<void>
     mkdir(path: string): void | Promise<void>
     exists(path: string): boolean | Promise<boolean>
@@ -10,7 +10,14 @@ export type FS = {
 
 export const defaultFS: FS = {
     async read(file: string) {
-        return await readFile(file, 'utf-8')
+        try {
+            return await readFile(file, 'utf-8')
+        } catch (err: any) {
+            if (err.code !== 'ENOENT') {
+                throw err
+            }
+            return null
+        }
     },
 
     async write(file: string, content: string) {
