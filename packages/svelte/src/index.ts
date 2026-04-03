@@ -25,7 +25,10 @@ export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc 
 
 /** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
 export const svelteDefaultHeuristic = createSvelteHeuristic(defaultHeuristicOpts)
-export const svelteKitDefaultHeuristic = createSvelteHeuristic({ ...defaultHeuristicOpts, urlCalls: ['goto'] })
+export const svelteKitDefaultHeuristic = createSvelteHeuristic({
+    ...defaultHeuristicOpts,
+    urlCalls: ['asset', 'goto', 'pushState', 'replaceState', 'resolve'],
+})
 
 /** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
 export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
