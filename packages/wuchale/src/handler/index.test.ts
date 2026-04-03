@@ -12,13 +12,16 @@ import { generatedDir } from './files.js'
 import { AdapterHandler } from './index.js'
 import { SharedState } from './state.js'
 
+const defaultLoaderPath = '/loader/template/js'
+inMemFS.write(defaultLoaderPath, '')
+
 const adapter: Adapter = {
     ...defaultArgs,
     transform: dummyTransform,
     files: '*.js', // filename needs to match
     storage: inMemStorage,
     loaderExts: ['.js'],
-    defaultLoaderPath: resolve(import.meta.dirname, '../adapter-vanilla/loaders/server.js'),
+    defaultLoaderPath: defaultLoaderPath,
 }
 
 const handler = new AdapterHandler(
