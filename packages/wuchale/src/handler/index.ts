@@ -116,7 +116,6 @@ export class AdapterHandler {
         }
         await this.compile()
         await writeProxies()
-        await this.files.writeUrlFiles(this.url.buildManifest(this.sharedState.catalog), this.#config.locales[0])
     }
 
     loadStorage = async () => {
@@ -135,6 +134,7 @@ export class AdapterHandler {
         const localesOrdered = [this.sourceLocale, ...this.#config.locales.filter(l => l !== this.sourceLocale)]
         await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
         await this.#writeManifests()
+        await this.files.writeUrlFiles(this.url.buildManifest(this.sharedState.catalog), this.#config.locales[0])
     }
 
     #buildManifest = (indices: Map<string, number>): ManifestEntry[] => {
