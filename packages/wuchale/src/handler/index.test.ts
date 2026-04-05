@@ -24,16 +24,6 @@ const adapter: Adapter = {
     defaultLoaderPath: defaultLoaderPath,
 }
 
-const handler = new AdapterHandler(
-    adapter,
-    'test',
-    defaultConfig,
-    'dev',
-    inMemFS,
-    import.meta.dirname,
-    new Logger('error'),
-)
-
 const storage = inMemStorage({
     locales: ['en'],
     root: import.meta.dirname,
@@ -43,8 +33,17 @@ const storage = inMemStorage({
     fs: inMemFS,
 })
 
-// needed to make sure generatedDir exists, normally done at hub init
-await handler.init(new SharedState(storage, handler.key, 'en'))
+const handler = await AdapterHandler.create({
+    adapter,
+    key: 'test',
+    config: defaultConfig,
+    mode: 'dev',
+    fs: inMemFS,
+    root: import.meta.dirname,
+    log: new Logger('error'),
+    sourceLocale: 'en',
+    sharedState: new SharedState(storage, 'test', 'en'),
+})
 
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`

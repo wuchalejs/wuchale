@@ -97,8 +97,7 @@ if (cmd === 'status') {
     console.log(help.trimEnd())
 } else if (cmd == null) {
     const [config, root] = await configRootLocales()
-    const hub = new Hub(() => config, root)
-    await hub.init('cli')
+    const hub = await Hub.create('cli', () => config, root)
     await hub.directVisit(values.clean, values.watch, values.sync)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)

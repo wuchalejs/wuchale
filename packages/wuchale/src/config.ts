@@ -80,7 +80,7 @@ export async function getConfig(configPath?: string): Promise<Config> {
         try {
             module = await import(fileUrl)
             break
-        } catch (err) {
+        } catch (err: any) {
             if (err.code !== 'ERR_MODULE_NOT_FOUND' || err.url != fileUrl) {
                 throw err
             }

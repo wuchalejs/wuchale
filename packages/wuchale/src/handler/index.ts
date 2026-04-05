@@ -7,11 +7,17 @@ import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
-import type { FS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
-import { Files, globConfToArgs, type ManifestEntry, normalizeSep, objKeyLocale } from './files.js'
-import { type SharedState, State } from './state.js'
+import {
+    Files,
+    type FilesOptsCreatePass,
+    globConfToArgs,
+    type ManifestEntry,
+    normalizeSep,
+    objKeyLocale,
+} from './files.js'
+import { type GranularState, type SharedState, State, type WriteProxies } from './state.js'
 import { URLHandler } from './url.js'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -32,96 +38,105 @@ type TrackedRefs = Map<
     }
 >
 
-export class AdapterHandler {
-    key: string
+/** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */
+export function getLoadIDs(
+    adapter: Adapter,
+    key: string,
+    ownerKey: string,
+    granularStates: Iterable<GranularState>,
+    sourceLocale: string,
+): [string[], string[]] {
+    const loadIDs: string[] = []
+    if (!adapter.granularLoad) {
+        return [[key], [ownerKey]]
+    }
+    for (const state of granularStates) {
+        // only the ones with ready messages
+        if (state.compiled.get(sourceLocale)!.items.length) {
+            loadIDs.push(state.id)
+        }
+    }
+    return [loadIDs, loadIDs]
+}
 
-    /** config.locales and adapter's sourceLocale */
+type HandlerOptsCreate = FilesOptsCreatePass & {
+    config: ConfigPartial
+    mode: Mode
+    log: Logger
+    sourceLocale: string
+    sharedState: SharedState
+}
+
+type HandlerOpts = HandlerOptsCreate & {
+    granularState: State
+    files: Files
+}
+
+export class AdapterHandler {
+    readonly key: string
+    #opts: HandlerOpts
     readonly sourceLocale: string
     readonly adapter: Adapter
+    readonly sharedState: SharedState
+    readonly granularState: State
+    readonly fileMatches: Matcher
+    readonly files: Files
+    readonly url: URLHandler
+    readonly aiQueue?: AIQueue
+    onBeforeSave?: () => void
 
-    #projectRoot: string
-
-    #config: ConfigPartial
-    fileMatches: Matcher
-
-    /* Shared state with other adapter handlers */
-    sharedState: SharedState
-    granularState: State
-
-    // sub handlers
-    files: Files
-    url: URLHandler
-
-    #mode: Mode
-    #aiQueue: AIQueue
-
-    #log: Logger
-
-    onBeforeSave: () => void
-
-    constructor(
-        adapter: Adapter,
-        key: string,
-        config: ConfigPartial,
-        mode: Mode,
-        fs: FS,
-        projectRoot: string,
-        log: Logger,
-    ) {
-        this.adapter = adapter
-        this.key = key
-        this.#mode = mode
-        this.#projectRoot = projectRoot
-        this.#config = config
-        this.#log = log
+    private constructor(opts: HandlerOpts) {
+        this.#opts = opts
+        this.key = opts.key
+        this.adapter = opts.adapter
+        this.granularState = opts.granularState
+        this.sharedState = opts.sharedState
         this.fileMatches = pm(
-            ...globConfToArgs(this.adapter.files, projectRoot, this.#config.localesDir, this.adapter.outDir),
+            ...globConfToArgs(opts.adapter.files, opts.root, opts.config.localesDir, opts.adapter.outDir),
         )
-        this.sourceLocale = this.adapter.sourceLocale ?? this.#config.locales[0]
-        if (this.#config.ai) {
-            this.#aiQueue = new AIQueue(
-                this.sourceLocale,
-                this.#config.ai,
-                mode === 'cli' ? this.saveStorage : this.saveStorageCompile,
-                this.#log,
+        this.sourceLocale = opts.sourceLocale
+        this.url = new URLHandler(opts.config.locales, this.sourceLocale, opts.adapter.url)
+        this.files = opts.files
+        if (opts.config.ai) {
+            this.aiQueue = new AIQueue(
+                opts.sourceLocale,
+                opts.config.ai,
+                opts.mode === 'cli' ? this.saveStorage : this.saveStorageCompile,
+                opts.log,
             )
         }
-        this.url = new URLHandler(this.#config.locales, this.sourceLocale, adapter.url)
-        this.files = new Files(this.adapter, this.key, this.#config.localesDir, fs, this.#projectRoot)
     }
 
-    /** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */
-    getLoadIDs(): [string[], string[]] {
-        const loadIDs: string[] = []
-        if (!this.adapter.granularLoad) {
-            return [[this.key], [this.sharedState.ownerKey]]
+    static create = async (opts: HandlerOptsCreate) => {
+        const { adapter, key, sharedState, config, fs, root } = opts
+        const files = await Files.create({
+            adapter,
+            key,
+            ownerKey: sharedState.ownerKey,
+            localesDirAbs: resolve(root, config.localesDir),
+            fs,
+            root,
+        })
+        const writeProxies: WriteProxies = states =>
+            files.writeProxies(
+                config.locales,
+                ...getLoadIDs(adapter, key, sharedState.ownerKey, states, opts.sourceLocale),
+            )
+        const granularState = new State(writeProxies, adapter.generateLoadID)
+        const handler = new AdapterHandler({ ...opts, granularState, files })
+        await handler.loadStorage()
+        if (await handler.url.initPatterns(key, sharedState.catalog, handler.aiQueue)) {
+            await handler.saveStorage()
         }
-        for (const state of this.granularState.byID.values()) {
-            // only the ones with ready messages
-            if (state.compiled.get(this.sourceLocale)!.items.length) {
-                loadIDs.push(state.id)
-            }
-        }
-        return [loadIDs, loadIDs]
-    }
-
-    init = async (sharedState: SharedState) => {
-        this.sharedState = sharedState
-        await this.files.init(this.sharedState.ownerKey)
-        const writeProxies = () => this.files.writeProxies(this.#config.locales, ...this.getLoadIDs())
-        this.granularState = new State(writeProxies, this.adapter.generateLoadID)
-        await this.loadStorage()
-        if (await this.url.initPatterns(this.key, this.sharedState.catalog, this.#aiQueue)) {
-            await this.saveStorage()
-        }
-        await this.compile()
-        await writeProxies()
-        await this.files.writeUrlFiles(this.url.buildManifest(this.sharedState.catalog), this.#config.locales[0])
+        await handler.compile()
+        await writeProxies(granularState.byID.values())
+        await files.writeUrlFiles(handler.url.buildManifest(sharedState.catalog), config.locales[0])
+        return handler
     }
 
     loadStorage = async () => {
         if (this.sharedState.ownerKey === this.key) {
-            await this.sharedState.load(this.#config.locales)
+            await this.sharedState.load(this.#opts.config.locales)
         }
     }
 
@@ -132,7 +147,7 @@ export class AdapterHandler {
 
     compile = async (hmrVersion = -1) => {
         // for proper fallback
-        const localesOrdered = [this.sourceLocale, ...this.#config.locales.filter(l => l !== this.sourceLocale)]
+        const localesOrdered = [this.sourceLocale, ...this.#opts.config.locales.filter(l => l !== this.sourceLocale)]
         await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
         await this.#writeManifests()
     }
@@ -181,7 +196,7 @@ export class AdapterHandler {
     writeCompiled = async (loc: string, hmrVersion = -1) => {
         let compiledData = this.sharedState.compiled.get(loc)!
         const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
-        const hmrVersionMode = this.#mode === 'dev' ? hmrVersion : null
+        const hmrVersionMode = this.#opts.mode === 'dev' ? hmrVersion : null
         await this.files.writeCatalogModule(
             compiledData.items,
             compiledData.hasPlurals ? pluralRule : null,
@@ -210,12 +225,12 @@ export class AdapterHandler {
     getCompiledFallback(index: number, loc: string) {
         for (let _ = 0; _ < 100; _++) {
             // just to be sure
-            let fallbackLoc = this.#config.fallback[loc]
+            let fallbackLoc = this.#opts.config.fallback[loc]
             if (fallbackLoc == null) {
                 if (loc.includes('-')) {
                     fallbackLoc = new Intl.Locale(loc).language
                 }
-                if (fallbackLoc == null || !this.#config.locales.includes(fallbackLoc)) {
+                if (fallbackLoc == null || !this.#opts.config.locales.includes(fallbackLoc)) {
                     fallbackLoc = this.sourceLocale
                 }
             }
@@ -276,7 +291,7 @@ export class AdapterHandler {
                     continue
                 }
                 for (const ref of item.references) {
-                    const state = await this.granularState.byFileCreate(ref.file, this.#config.locales)
+                    const state = await this.granularState.byFileCreate(ref.file, this.#opts.config.locales)
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
                     compiledLoc.items[state.indexTracker.get(key)] = compiled
@@ -347,7 +362,7 @@ export class AdapterHandler {
         }
         const imports: string[] = []
         const objElms: string[] = []
-        for (const [i, loc] of this.#config.locales.entries()) {
+        for (const [i, loc] of this.#opts.config.locales.entries()) {
             const locKW = `_w_c_${i}_`
             const importFrom = this.files.getImportPath(this.files.getCompiledFilePath(loc, loadID), loaderRelTo)
             imports.push(`import * as ${locKW} from '${importFrom}'`)
@@ -453,7 +468,7 @@ export class AdapterHandler {
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ id: msgInfo.msgStr }, this.#config.locales)
+                item = newItem({ id: msgInfo.msgStr }, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
                 updated = true
             }
@@ -477,14 +492,14 @@ export class AdapterHandler {
             }
             toTranslate.push(item)
         }
-        if (this.#aiQueue?.ai) {
-            this.#aiQueue.add(toTranslate)
-            await this.#aiQueue.running
+        if (this.aiQueue) {
+            this.aiQueue.add(toTranslate)
+            await this.aiQueue.running
         }
         if (this.cleanTrackedRefs(previousReferences)) {
             updated = true
         }
-        if (updated && this.#mode != 'cli') {
+        if (updated && this.#opts.mode != 'cli') {
             // cli saved at the end
             await this.saveStorageCompile()
         }
@@ -502,7 +517,7 @@ export class AdapterHandler {
         let loadID = this.key
         let compiled = this.sharedState.compiled
         if (this.adapter.granularLoad) {
-            const state = await this.granularState.byFileCreate(filename, this.#config.locales)
+            const state = await this.granularState.byFileCreate(filename, this.#opts.config.locales)
             indexTracker = state.indexTracker
             loadID = state.id
             compiled = state.compiled
@@ -516,22 +531,22 @@ export class AdapterHandler {
         })
         let hmrData: HMRData | null = null
         let updated = false
-        if (this.#mode !== 'build') {
-            if (this.#log.checkLevel('verbose')) {
+        if (this.#opts.mode !== 'build') {
+            if (this.#opts.log.checkLevel('verbose')) {
                 if (msgs.length) {
-                    this.#log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
+                    this.#opts.log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
                     for (const msg of msgs) {
-                        this.#log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
+                        this.#opts.log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
                     }
                 } else {
-                    this.#log.verbose(`${this.key}: No messages from ${filename}.`)
+                    this.#opts.log.verbose(`${this.key}: No messages from ${filename}.`)
                 }
             }
             const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename)
             updated = updatedItems
             if (!forServer && msgs.length > 0 && hmrVersion >= 0) {
                 hmrData = { version: hmrVersion, data: {} }
-                for (const loc of this.#config.locales) {
+                for (const loc of this.#opts.config.locales) {
                     hmrData.data[loc] =
                         hmrKeys.map(key => {
                             const index = indexTracker.get(key)

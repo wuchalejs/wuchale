@@ -15,8 +15,7 @@ Options:
 
 export async function status(config: Config, root: string, json: boolean) {
     // console.log because if the user invokes this command, they want full info regardless of config
-    const hub = new Hub(() => config, root, 0, readOnlyFS)
-    await hub.init('cli')
+    const hub = await Hub.create('cli', () => config, root, 0, readOnlyFS)
     if (json) {
         console.log(JSON.stringify(await hub.status(), null, process.stdout.isTTY ? '  ' : undefined))
         return

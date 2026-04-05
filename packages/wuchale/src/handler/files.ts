@@ -17,6 +17,22 @@ export type ManifestEntryObj = {
 
 export type ManifestEntry = string | string[] | ManifestEntryObj | null
 
+export type FilesOptsCreatePass = {
+    adapter: Adapter
+    key: string
+    fs: FS
+    root: string
+}
+
+export type FilesOptsCreate = FilesOptsCreatePass & {
+    ownerKey: string
+    localesDirAbs: string
+}
+
+type FilesOpts = FilesOptsCreate & {
+    loaderPath: LoaderPath
+}
+
 export const objKeyLocale = (locale: string) => (locale.includes('-') ? `'${locale}'` : locale)
 
 export function normalizeSep(path: string) {
@@ -57,104 +73,90 @@ export function globConfToArgs(
     return [patterns.map(normalizeSep), options]
 }
 
-export class Files {
-    key: string
-    ownerKey: string
-    #adapter: Adapter
-    #fs: FS
+export async function getLoaderPath(
+    adapter: Adapter,
+    key: string,
+    localesDirAbs: string,
+    root: string,
+    fs: FS,
+): Promise<LoaderPath> {
+    const loaderPathHead = resolve(localesDirAbs, `${key}.loader`)
+    const paths: LoaderPath[] = []
+    for (const ext of adapter.loaderExts) {
+        const pathClient = loaderPathHead + ext
+        const same = { client: pathClient, server: pathClient }
+        const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
+        if (adapter.defaultLoaderPath === null) {
+            paths.push(diff, same)
+        } else if (typeof adapter.defaultLoaderPath === 'string') {
+            // same file for both
+            paths.push(same)
+        } else {
+            paths.push(diff)
+        }
+    }
+    for (const path of paths) {
+        let bothExist = true
+        for (const side in path) {
+            if (!(await fs.exists(path[side]))) {
+                bothExist = false
+                break
+            }
+        }
+        if (!bothExist) {
+            continue
+        }
+        return path
+    }
+    if (adapter.defaultLoaderPath === null) {
+        const loaderForms = paths
+            .map(p => {
+                let f = `  ${relative(root, p.client)}`
+                if (p.server !== p.client) {
+                    f += ` (and ${relative(root, p.server)})`
+                }
+                return f
+            })
+            .join('\n')
+        throw new Error(
+            `Custom loader specified for adapter '${key}' but no loader file exists in one of the forms:\n${loaderForms}`,
+        )
+    }
+    return paths[0]
+}
 
-    // paths
-    loaderPath: LoaderPath
-    proxyPath: string
-    proxySyncPath: string
+function proxyFileName(key: string, sync = false) {
+    const namePart = `${key}.proxy`
+    if (sync) {
+        return `${namePart}.sync.js`
+    }
+    return `${namePart}.js`
+}
+
+export class Files {
+    #opts: FilesOpts
+    readonly loaderPath: LoaderPath
+    #proxyPath: string
+    #proxySyncPath: string
     #urlManifestFname: string
     #urlsFname: string
-    #localesDirAbs: string
 
-    #projectRoot: string
-
-    constructor(adapter: Adapter, key: string, localesDir: string, fs: FS, root: string) {
-        this.key = key
-        this.#adapter = adapter
-        this.#localesDirAbs = resolve(root, localesDir)
-        this.#fs = fs
-        this.#projectRoot = root
-    }
-
-    getLoaderPaths(): LoaderPath[] {
-        const loaderPathHead = resolve(this.#localesDirAbs, `${this.key}.loader`)
-        const paths: LoaderPath[] = []
-        for (const ext of this.#adapter.loaderExts) {
-            const pathClient = loaderPathHead + ext
-            const same = { client: pathClient, server: pathClient }
-            const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
-            if (this.#adapter.defaultLoaderPath === null) {
-                paths.push(diff, same)
-            } else if (typeof this.#adapter.defaultLoaderPath === 'string') {
-                // same file for both
-                paths.push(same)
-            } else {
-                paths.push(diff)
-            }
-        }
-        return paths
-    }
-
-    async getLoaderPath(): Promise<LoaderPath> {
-        const paths = this.getLoaderPaths()
-        for (const path of paths) {
-            let bothExist = true
-            for (const side in path) {
-                if (!(await this.#fs.exists(path[side]))) {
-                    bothExist = false
-                    break
-                }
-            }
-            if (!bothExist) {
-                continue
-            }
-            return path
-        }
-        if (this.#adapter.defaultLoaderPath === null) {
-            const loaderForms = paths
-                .map(p => {
-                    let f = `  ${relative(this.#projectRoot, p.client)}`
-                    if (p.server !== p.client) {
-                        f += ` (and ${relative(this.#projectRoot, p.server)})`
-                    }
-                    return f
-                })
-                .join('\n')
-            throw new Error(
-                `Custom loader specified for adapter '${this.key}' but no loader file exists in one of the forms:\n${loaderForms}`,
-            )
-        }
-        return paths[0]
-    }
-
-    #proxyFileName(sync = false) {
-        const namePart = `${this.key}.proxy`
-        if (sync) {
-            return `${namePart}.sync.js`
-        }
-        return `${namePart}.js`
-    }
-
-    async #initPaths() {
-        this.loaderPath = await this.getLoaderPath()
-        this.proxyPath = resolve(this.#localesDirAbs, generatedDir, this.#proxyFileName())
-        this.proxySyncPath = resolve(this.#localesDirAbs, generatedDir, this.#proxyFileName(true))
-        this.#urlManifestFname = resolve(this.#localesDirAbs, generatedDir, `${this.key}.urls.js`)
-        this.#urlsFname = resolve(this.#localesDirAbs, `${this.key}.url.js`)
+    private constructor(opts: FilesOpts) {
+        this.#opts = opts
+        this.loaderPath = opts.loaderPath
+        this.#proxyPath = resolve(opts.localesDirAbs, generatedDir, proxyFileName(opts.key))
+        this.#proxySyncPath = resolve(opts.localesDirAbs, generatedDir, proxyFileName(opts.key, true))
+        this.#urlManifestFname = resolve(opts.localesDirAbs, generatedDir, `${opts.key}.urls.js`)
+        this.#urlsFname = resolve(opts.localesDirAbs, `${opts.key}.url.js`)
     }
 
     getCompiledFilePath(loc: string, id: string | null) {
-        const ownerKey = this.ownerKey
-        return resolve(this.#localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
+        const ownerKey = this.#opts.ownerKey
+        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
     }
 
     getImportPath(filename: string, importer?: string) {
-        const relTo = importer ? resolve(this.#projectRoot, importer) : filename
+        const relTo = importer ? resolve(this.#opts.root, importer) : filename
         filename = normalizeSep(relative(dirname(relTo), filename))
         if (!filename.startsWith('.')) {
             filename = `./${filename}`
@@ -210,32 +212,32 @@ export class Files {
     }
 
     writeProxies = async (locales: string[], loadIDs: string[], loadIDsImport: string[]) => {
-        await this.#fs.write(this.proxyPath, this.genProxy(locales, loadIDs, loadIDsImport))
-        await this.#fs.write(this.proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
+        await this.#opts.fs.write(this.#proxyPath, this.genProxy(locales, loadIDs, loadIDsImport))
+        await this.#opts.fs.write(this.#proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
     }
 
-    init = async (ownerKey: string) => {
-        this.ownerKey = ownerKey
-        await this.#initPaths()
-        if (this.#adapter.defaultLoaderPath == null) {
-            // using custom loaders
-            return
-        }
-        for (const side in this.loaderPath) {
-            let loaderTemplate: string
-            if (typeof this.#adapter.defaultLoaderPath === 'string') {
-                loaderTemplate = this.#adapter.defaultLoaderPath
-            } else {
-                loaderTemplate = this.#adapter.defaultLoaderPath[side]
+    static create = async (opts: FilesOptsCreate) => {
+        const { adapter, key, localesDirAbs, root, fs } = opts
+        const loaderPath = await getLoaderPath(adapter, key, localesDirAbs, root, fs)
+        if (adapter.defaultLoaderPath != null) {
+            // write loader files
+            for (const side in loaderPath) {
+                let loaderTemplate: string
+                if (typeof adapter.defaultLoaderPath === 'string') {
+                    loaderTemplate = adapter.defaultLoaderPath
+                } else {
+                    loaderTemplate = adapter.defaultLoaderPath[side]
+                }
+                const loaderContent = (await fs.read(loaderTemplate))!
+                    .toString()
+                    .replaceAll('${PROXY}', `./${generatedDir}/${proxyFileName(key)}`)
+                    .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${proxyFileName(key, true)}`)
+                    .replaceAll('${DATA}', `./${dataFileName}`)
+                    .replaceAll('${KEY}', key)
+                await fs.write(loaderPath[side], loaderContent)
             }
-            const loaderContent = (await this.#fs.read(loaderTemplate))!
-                .toString()
-                .replaceAll('${PROXY}', `./${generatedDir}/${this.#proxyFileName()}`)
-                .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${this.#proxyFileName(true)}`)
-                .replaceAll('${DATA}', `./${dataFileName}`)
-                .replaceAll('${KEY}', this.key)
-            await this.#fs.write(this.loaderPath[side], loaderContent)
         }
+        return new Files({ ...opts, loaderPath })
     }
 
     writeUrlFiles = async (manifest: URLManifest, fallbackLocale: string) => {
@@ -246,7 +248,7 @@ export class Files {
             `/** @type {import('wuchale/url').URLManifest} */`,
             `export default ${JSON.stringify(manifest)}`,
         ].join('\n')
-        await this.#fs.write(this.#urlManifestFname, urlManifestData)
+        await this.#opts.fs.write(this.#urlManifestFname, urlManifestData)
         const urlFileContent = [
             'import {URLMatcher, deLocalizeDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
@@ -254,19 +256,19 @@ export class Files {
             `export const getLocale = (/** @type {URL} */ url) => deLocalizeDefault(url.pathname, locales)[1] ?? '${fallbackLocale}'`,
             `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
-        await this.#fs.write(this.#urlsFname, urlFileContent)
+        await this.#opts.fs.write(this.#urlsFname, urlFileContent)
     }
 
     getManifestFilePath(id: string | null): string {
-        const ownerKey = this.ownerKey
-        return resolve(this.#localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
+        const ownerKey = this.#opts.ownerKey
+        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
     }
 
     writeManifest = async (keys: ManifestEntry[], id: string | null) => {
         const content =
             `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\n` +
             `export const keys = ${JSON.stringify(keys)}`
-        await this.#fs.write(this.getManifestFilePath(id), content)
+        await this.#opts.fs.write(this.getManifestFilePath(id), content)
     }
 
     writeCatalogModule = async (
@@ -298,19 +300,19 @@ export class Files {
                 }
             `
         }
-        await this.#fs.write(this.getCompiledFilePath(locale, loadID), module)
+        await this.#opts.fs.write(this.getCompiledFilePath(locale, loadID), module)
     }
 
     writeTransformed = async (filename: string, content: string) => {
-        if (!this.#adapter.outDir) {
+        if (!this.#opts.adapter.outDir) {
             return
         }
-        const fname = resolve(this.#adapter.outDir + '/' + filename)
-        await this.#fs.mkdir(dirname(fname))
-        await this.#fs.write(fname, content)
+        const fname = resolve(this.#opts.adapter.outDir + '/' + filename)
+        await this.#opts.fs.mkdir(dirname(fname))
+        await this.#opts.fs.write(fname, content)
     }
 
     getImportLoaderPath(forServer: boolean, relativeTo: string) {
-        return this.getImportPath(forServer ? this.loaderPath.server : this.loaderPath.client, relativeTo)
+        return this.getImportPath(forServer ? this.#opts.loaderPath.server : this.#opts.loaderPath.client, relativeTo)
     }
 }

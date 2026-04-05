@@ -34,13 +34,9 @@ const loadConfig = async (): Promise<Config> => ({
     },
 })
 
-const hub = new Hub(loadConfig, import.meta.dirname, 0, inMemFS)
-
-test('hub init', async () => {
-    inMemFS.write(defaultLoaderPath.client, '')
-    inMemFS.write(defaultLoaderPath.server, '')
-    await hub.init('dev')
-})
+inMemFS.write(defaultLoaderPath.client, '')
+inMemFS.write(defaultLoaderPath.server, '')
+const hub = await Hub.create('dev', loadConfig, import.meta.dirname, 0, inMemFS)
 
 test('hub transform basic', async (t: TestContext) => {
     const [output] = await hub.transform(code, file)
@@ -54,7 +50,7 @@ test('hub transform basic', async (t: TestContext) => {
 })
 
 test('hub transform ssr', async (t: TestContext) => {
-    await hub.init('build')
+    const hub = await Hub.create('build', loadConfig, import.meta.dirname, 0, inMemFS)
     const [output] = await hub.transform(code, file, true)
     t.assert.strictEqual(
         trimLines(output.code),
@@ -82,7 +78,6 @@ test('hub onFileChange', async (t: TestContext) => {
 })
 
 test('hub transform with hmr', async (t: TestContext) => {
-    await hub.init('dev')
     const [output] = await hub.transform(code, file)
     t.assert.strictEqual(
         trimLines(output.code),

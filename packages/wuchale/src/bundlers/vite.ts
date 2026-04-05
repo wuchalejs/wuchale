@@ -46,17 +46,18 @@ type HotUpdateCtx = {
 }
 
 export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
-    const hub = new Hub(
-        () => getConfig(configPath),
-        dirname(configPath ?? '.'),
-        hmrDelayThreshold,
-        undefined,
-        toViteError,
-    )
+    let hub: Hub
     return {
         name: pluginName,
         async configResolved(config: { env: { DEV?: boolean } }) {
-            await hub.init(config.env.DEV ? 'dev' : 'build')
+            hub = await Hub.create(
+                config.env.DEV ? 'dev' : 'build',
+                () => getConfig(configPath),
+                dirname(configPath ?? '.'),
+                hmrDelayThreshold,
+                undefined,
+                toViteError,
+            )
         },
         async handleHotUpdate(ctx: HotUpdateCtx) {
             const changeInfo = await hub.onFileChange(ctx.file, ctx.read)

@@ -15,7 +15,6 @@ import type {
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
-import MagicString from 'magic-string'
 import type {
     CatalogExpr,
     CodePattern,
@@ -73,6 +72,7 @@ export class AstroTransformer extends Transformer {
         super(content.trim(), filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
         this.byteArray = new Uint8Array(Buffer.from(this.content))
         this.heuristciDetails.insideProgram = false
+        this.mixedVisitor = this.initMixedVisitor()
     }
 
     _byteOffsetToIndex = (offset?: number) => {
@@ -302,8 +302,6 @@ export class AstroTransformer extends Transformer {
 
     transformAs = async (): Promise<TransformOutput> => {
         const { ast } = await parse(this.content)
-        this.mstr = new MagicString(this.content)
-        this.mixedVisitor = this.initMixedVisitor()
         const msgs = this.visitAs(ast)
         if (this.frontMatterStart == null) {
             this.mstr.appendLeft(0, '---\n')

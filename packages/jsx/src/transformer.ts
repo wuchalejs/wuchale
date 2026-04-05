@@ -2,7 +2,6 @@ import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
-import MagicString from 'magic-string'
 import type {
     CatalogExpr,
     CodePattern,
@@ -51,6 +50,7 @@ export class JSXTransformer extends Transformer {
         matchUrl: UrlMatcher,
     ) {
         super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
+        this.mixedVisitor = this.initMixedVisitor()
     }
 
     initMixedVisitor = () =>
@@ -238,8 +238,6 @@ export class JSXTransformer extends Transformer {
             this.content,
         )
         this.comments = comments
-        this.mstr = new MagicString(this.content)
-        this.mixedVisitor = this.initMixedVisitor()
         if (lib === 'default') {
             this.currentJsxKey = 0
         }

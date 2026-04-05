@@ -108,6 +108,7 @@ export class Transformer<RTCtxT = {}> {
         this.heuristic = heuristic
         this.patterns = patterns
         this.content = content
+        this.mstr = new MagicString(this.content)
         this.heuristciDetails.file = filename
         this.matchUrl = matchUrl
         const topLevelUseReactive =
@@ -819,7 +820,6 @@ export class Transformer<RTCtxT = {}> {
     transform = (): TransformOutput => {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
-        this.mstr = new MagicString(this.content)
         return this.finalize(this.visit(ast), this.getRealBodyStart(ast.body) ?? 0)
     }
 }

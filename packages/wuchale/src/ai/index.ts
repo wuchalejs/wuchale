@@ -88,7 +88,6 @@ export default class AIQueue {
     running: Promise<void> | null = null
     sourceLocale: string
     ai: AI
-    instruction: string
     onComplete: () => Promise<void>
     log: Logger
 

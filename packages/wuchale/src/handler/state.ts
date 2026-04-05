@@ -76,20 +76,22 @@ export class SharedState {
     }
 }
 
-type GranularState = {
+export type GranularState = {
     id: string
     compiled: CompiledCatalogs
     indexTracker: IndexTracker
 }
 
+export type WriteProxies = (states: Iterable<GranularState>) => Promise<void>
+
 export class State {
     byFile: Map<string, GranularState> = new Map()
     byID: Map<string, GranularState> = new Map()
 
-    writeProxies: () => Promise<void>
+    writeProxies: WriteProxies
     generateLoadID: (filename: string) => string
 
-    constructor(writeProxies: () => Promise<void>, generateLoadID: (filename: string) => string) {
+    constructor(writeProxies: WriteProxies, generateLoadID: (filename: string) => string) {
         this.writeProxies = writeProxies
         this.generateLoadID = generateLoadID
     }
@@ -120,7 +122,7 @@ export class State {
                 )
             }
             this.byID.set(id, state)
-            await this.writeProxies()
+            await this.writeProxies(this.byID.values())
         }
         this.byFile.set(filename, state)
         return state

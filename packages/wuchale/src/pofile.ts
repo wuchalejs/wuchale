@@ -124,7 +124,7 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
     // then merge them
     const items: Item[] = []
     for (const poIs of poItems) {
-        const basePoOtem = poIs.values().next().value
+        const basePoOtem = poIs.values().next().value! // ! as poIs exists because at least one exists
         const item = poitemToItemCommons(basePoOtem)
         const additionals: AdditionalsByLoc = new Map()
         for (const loc of locales) {

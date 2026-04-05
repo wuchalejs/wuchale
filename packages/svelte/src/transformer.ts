@@ -8,7 +8,6 @@ import type {
     TemplateLiteral,
     VariableDeclarator,
 } from 'acorn'
-import MagicString from 'magic-string'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
 import type {
     CatalogExpr,
@@ -68,6 +67,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     ) {
         super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
         this.heuristciDetails.insideProgram = false
+        this.mixedVisitor = this.initMixedVisitor()
     }
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
@@ -409,8 +409,6 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         } else {
             ;[ast, this.comments] = parseScript(this.content)
         }
-        this.mstr = new MagicString(this.content)
-        this.mixedVisitor = this.initMixedVisitor()
         if (ast.type === 'Root' && ast.module) {
             this.collectModuleExportExprs(ast.module)
         }
