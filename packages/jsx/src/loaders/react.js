@@ -5,6 +5,7 @@ import { loadCatalog, loadIDs } from '${PROXY}'
 export const key = '${KEY}'
 /** @type {{[loadID: string]: Set<Function>}} */
 const callbacks = {}
+/** @type {{[loadID: string]: import('wuchale/runtime').Runtime}} */
 const store = {}
 
 // non-reactive

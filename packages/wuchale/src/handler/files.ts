@@ -98,7 +98,7 @@ export async function getLoaderPath(
     for (const path of paths) {
         let bothExist = true
         for (const side in path) {
-            if (!(await fs.exists(path[side]))) {
+            if (!(await fs.exists(path[side as keyof LoaderPath]))) {
                 bothExist = false
                 break
             }
@@ -226,7 +226,7 @@ export class Files {
                 if (typeof adapter.defaultLoaderPath === 'string') {
                     loaderTemplate = adapter.defaultLoaderPath
                 } else {
-                    loaderTemplate = adapter.defaultLoaderPath[side]
+                    loaderTemplate = adapter.defaultLoaderPath[side as keyof LoaderPath]
                 }
                 const loaderContent = (await fs.read(loaderTemplate))!
                     .toString()
@@ -234,7 +234,7 @@ export class Files {
                     .replaceAll('${PROXY_SYNC}', `./${generatedDir}/${proxyFileName(key, true)}`)
                     .replaceAll('${DATA}', `./${dataFileName}`)
                     .replaceAll('${KEY}', key)
-                await fs.write(loaderPath[side], loaderContent)
+                await fs.write(loaderPath[side as keyof LoaderPath], loaderContent)
             }
         }
         return new Files({ ...opts, loaderPath })

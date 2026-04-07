@@ -6,6 +6,7 @@ import { Parser } from 'acorn'
 import MagicString from 'magic-string'
 import {
     type CommentDirectives,
+    pullDirective,
     type RuntimeVars,
     runtimeVars,
     updateCommentDirectives,
@@ -786,10 +787,45 @@ export class Transformer<RTCtxT = {}> {
         }
         const res = func()
         for (const key in this.commentDirectives) {
-            this.commentDirectives[key] = commentDirectives[key] // restore
+            pullDirective(this.commentDirectives, commentDirectives, key as keyof CommentDirectives) // restore
         }
         return res
     }
+
+    visitEmptyStatement = (): Message[] => []
+    visitArrayPattern = (): Message[] => []
+    visitBreakStatement = (): Message[] => []
+    visitCatchClause = (): Message[] => []
+    visitClassBody = (): Message[] => []
+    visitClassExpression = (): Message[] => []
+    visitContinueStatement = (): Message[] => []
+    visitDebuggerStatement = (): Message[] => []
+    visitDoWhileStatement = (): Message[] => []
+    visitExportAllDeclaration = (): Message[] => []
+    visitExportSpecifier = (): Message[] => []
+    visitIdentifier = (): Message[] => []
+    visitImportAttribute = (): Message[] => []
+    visitImportDeclaration = (): Message[] => []
+    visitImportDefaultSpecifier = (): Message[] => []
+    visitImportExpression = (): Message[] => []
+    visitImportNamespaceSpecifier = (): Message[] => []
+    visitImportSpecifier = (): Message[] => []
+    visitLabeledStatement = (): Message[] => []
+    visitMetaProperty = (): Message[] => []
+    visitMethodDefinition = (): Message[] => []
+    visitParenthesizedExpression = (): Message[] => []
+    visitPrivateIdentifier = (): Message[] => []
+    visitPropertyDefinition = (): Message[] => []
+    visitStaticBlock = (): Message[] => []
+    visitSuper = (): Message[] => []
+    visitSwitchCase = (): Message[] => []
+    visitTemplateElement = (): Message[] => []
+    visitThisExpression = (): Message[] => []
+    visitThrowStatement = (): Message[] => []
+    visitUpdateExpression = (): Message[] => []
+    visitWhileStatement = (): Message[] => []
+    visitWithStatement = (): Message[] => []
+    visitYieldExpression = (): Message[] => []
 
     visit = (node: Estree.AnyNode): Message[] =>
         this.visitWithCommentDirectives(node, () => {
@@ -797,9 +833,9 @@ export class Transformer<RTCtxT = {}> {
                 return []
             }
             let msgs: Message[] = []
-            const visitor = this[`visit${node.type}`]
+            const visitor = this[`visit${node.type}` as `visit${typeof node.type}`]
             if (visitor != null) {
-                msgs = visitor(node)
+                msgs = visitor(node as any)
                 // } else {
                 //     console.log(node)
             }

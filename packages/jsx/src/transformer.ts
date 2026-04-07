@@ -139,7 +139,7 @@ export class JSXTransformer extends Transformer {
     visitNameJSXIdentifier = (node: JX.JSXIdentifier): string => node.name
 
     visitName = (node: JX.JSXIdentifier | JX.JSXMemberExpression | JX.JSXNamespacedName): string => {
-        return this['visitName' + node.type]?.(node)
+        return this[('visitName' + node.type) as `visitName${typeof node.type}`](node as any)
     }
 
     visitJSXElement = (node: JX.JSXElement): Message[] => {

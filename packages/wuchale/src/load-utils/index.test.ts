@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 // @ts-expect-error
 import { testCatalog } from '../../testing/utils.ts'
+import type { Runtime } from '../runtime.js'
 import { defaultCollection, loadLocaleSync, registerLoaders } from './index.js'
 import { loadCatalogs } from './pure.js'
 import { loadLocales, runWithLocale } from './server.js'
@@ -10,7 +11,7 @@ import { loadLocales, runWithLocale } from './server.js'
 const loaderFunc = () => testCatalog
 
 test('Loading', async t => {
-    const collection = {}
+    const collection: Record<string, Runtime> = {}
     const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
     loadLocaleSync('en')
     t.assert.notEqual(collection['foo'], null) // setCatalogs was called

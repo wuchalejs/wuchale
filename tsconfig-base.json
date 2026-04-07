@@ -10,7 +10,6 @@
         "isolatedModules": true,
         "resolveJsonModule": true,
         "strictFunctionTypes": false,
-        "noImplicitAny": false,
         "sourceMap": true,
         "declarationMap": true,
         "esModuleInterop": true,

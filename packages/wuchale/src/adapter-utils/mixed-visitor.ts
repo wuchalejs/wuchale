@@ -15,6 +15,7 @@ import {
     type CommentDirectives,
     commentPrefix,
     nonWhitespaceText,
+    pullDirective,
     type RuntimeVars,
     updateCommentDirectives,
     varNames,
@@ -129,9 +130,8 @@ export class MixedVisitor<NodeT> {
             if (!lastVisitIsComment) {
                 continue
             }
-            // restore. like Object.assign but in reverse for keys
             for (const key in props.commentDirectives) {
-                props.commentDirectives[key] = commentDirectivesOrig[key]
+                pullDirective(props.commentDirectives, commentDirectivesOrig, key as keyof CommentDirectives)
             }
             lastVisitIsComment = false
         }

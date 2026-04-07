@@ -29,7 +29,7 @@ export const defaultConfig: Config = {
     logLevel: 'info',
 }
 
-function deepAssign<Type extends {}>(fromObj: Partial<Type>, toObj: Type) {
+function deepAssign(fromObj: any, toObj: any) {
     for (const [key, value] of Object.entries(fromObj)) {
         if (value === undefined) {
             delete toObj[key]

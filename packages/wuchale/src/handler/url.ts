@@ -28,7 +28,7 @@ export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
 export function patternToTranslate(pattern: string) {
     const { keys } = pathToRegexp(pattern)
     const compile = compileUrlPattern(pattern, { encode: false })
-    const paramsReplace = {}
+    const paramsReplace: Record<string, string> = {}
     for (const [i, { name }] of keys.entries()) {
         paramsReplace[name] = `{${i}}`
     }

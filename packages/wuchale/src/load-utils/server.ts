@@ -10,7 +10,7 @@ const runtimes: Record<string, LoadedRuntimes> = {}
 export const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
 const emptyRuntime = toRuntime()
 
-const warningShown = {}
+const warningShown: Record<string, boolean> = {}
 
 export function currentRuntime(key: string, loadID: string) {
     const runtime = runtimeCtx.getStore()?.[key]?.[loadID]

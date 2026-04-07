@@ -55,7 +55,7 @@ export function transformTest(
         t.assert.deepStrictEqual(msg.msgStr, exp.msgStr, `Different msgStr`)
         for (const prop of ['context', 'placeholders']) {
             if (prop in exp) {
-                t.assert.deepStrictEqual(msg[prop], exp[prop], `Different ${prop}`)
+                t.assert.deepStrictEqual(msg[prop as keyof Message], exp[prop as keyof Message], `Different ${prop}`)
             }
         }
     }
