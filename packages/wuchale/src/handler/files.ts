@@ -250,7 +250,7 @@ export class Files {
         const urlFileContent = [
             'import {URLMatcher, deLocalizeDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
-            `import manifest from "./${relative(dirname(this.#urlsFname), this.#urlManifestFname)}"`,
+            `import manifest from "./${normalizeSep(relative(dirname(this.#urlsFname), this.#urlManifestFname))}"`,
             `export const getLocale = (/** @type {URL} */ url) => deLocalizeDefault(url.pathname, locales)[1] ?? '${fallbackLocale}'`,
             `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
