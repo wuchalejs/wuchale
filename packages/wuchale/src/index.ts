@@ -36,9 +36,9 @@ export type {
 } from './compile.js'
 export {
     type Config,
-    deepMergeObjects,
     defaultConfig,
     defineConfig,
+    fillDefaults,
     getConfig,
 } from './config.js'
 export { generatedDir, normalizeSep } from './handler/files.js'

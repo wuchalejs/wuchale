@@ -29,32 +29,39 @@ export const defaultConfig: Config = {
     logLevel: 'info',
 }
 
-function deepAssign(fromObj: any, toObj: any) {
-    for (const [key, value] of Object.entries(fromObj)) {
-        if (value === undefined) {
-            delete toObj[key]
+function deepFill(target: any, defaults: any) {
+    for (const [key, def] of Object.entries(defaults)) {
+        const value = target[key]
+        if (!def || Array.isArray(def) || typeof def !== 'object') {
+            if (value === undefined) {
+                target[key] = def
+            }
             continue
         }
+        // def is an object. force prepare an object on the destination
         if (!value || Array.isArray(value) || typeof value !== 'object') {
-            toObj[key] = value
-            continue
+            target[key] = {}
         }
-        // value is an object. force prepare an object on the destination
-        if (!toObj[key] || Array.isArray(toObj[key]) || typeof toObj[key] !== 'object') {
-            toObj[key] = {}
-        }
-        deepAssign(fromObj[key], toObj[key])
+        deepFill(target[key], def)
     }
+}
+
+type DeepPartial<T> = {
+    [K in keyof T]?: T[K] extends (infer A)[] // is array
+        ? DeepPartial<A>[]
+        : T[K] extends object
+          ? DeepPartial<T[K]> // go deep on object
+          : T[K]
+}
+
+/** mutates the target, and returns */
+export function fillDefaults<T extends {}>(target: DeepPartial<T>, defaults: T): T {
+    deepFill(target, defaults)
+    return target as T
 }
 
 export function defineConfig(config: ConfigWithOptional) {
     return config
-}
-
-export function deepMergeObjects<Type extends {}>(source: Partial<Type>, target: Type): Type {
-    const full = { ...target }
-    deepAssign(source, full)
-    return full
 }
 
 export const defaultConfigNames = ['js', 'mjs', 'ts', 'mts'].map(ext => `wuchale.config.${ext}`)
@@ -89,7 +96,7 @@ export async function getConfig(configPath?: string): Promise<Config> {
     if (module == null) {
         throw new Error('Config file not found')
     }
-    const config = deepMergeObjects(module.default, defaultConfig)
+    const config = fillDefaults(module.default, defaultConfig)
     for (const loc of config.locales) {
         checkValidLocale(loc)
     }

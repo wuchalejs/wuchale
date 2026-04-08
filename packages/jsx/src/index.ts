@@ -1,5 +1,5 @@
 import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
-import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts, pofile } from 'wuchale'
+import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
 import { type JSXLib, JSXTransformer } from './transformer.js'
@@ -89,7 +89,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
-    let { heuristic, patterns, variant, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
+    let { heuristic, patterns, variant, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     if (variant === 'solidjs' && args.runtime == null) {
         runtime = defaultRuntimeSolid
     }

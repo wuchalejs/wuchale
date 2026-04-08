@@ -3,7 +3,7 @@
 import { loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
 import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
-import { deepMergeObjects } from '../config.js'
+import { fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
 import { Transformer } from './transformer.js'
 
@@ -57,7 +57,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: Partial<VanillaArgs> = defaultArgs): Adapter => {
-    const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) =>
             new Transformer(

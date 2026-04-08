@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
-import { deepMergeObjects } from './config.js'
+import { fillDefaults } from './config.js'
 import {
     type FileRef,
     type FileRefEntry,
@@ -273,6 +273,6 @@ export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
     return opts =>
         new POFile({
             ...opts,
-            ...deepMergeObjects(pofOpts, { ...defaultOpts, dir: opts.localesDir }),
+            ...fillDefaults(pofOpts, { ...defaultOpts, dir: opts.localesDir }),
         })
 }

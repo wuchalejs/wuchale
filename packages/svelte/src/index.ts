@@ -1,5 +1,5 @@
 import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
-import { createHeuristic, deepMergeObjects, defaultGenerateLoadID, defaultHeuristicOpts, pofile } from 'wuchale'
+import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { type RuntimeCtxSv, SvelteTransformer } from './transformer.js'
@@ -100,7 +100,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
-    const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
+    const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) => {
             return new SvelteTransformer(
