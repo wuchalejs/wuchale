@@ -626,6 +626,32 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
+    visitWhileStatement = (node: Estree.WhileStatement): Message[] => [
+        ...this.visit(node.test),
+        ...this.visit(node.body),
+    ]
+
+    visitDoWhileStatement = (node: Estree.DoWhileStatement): Message[] => [
+        ...this.visit(node.body),
+        ...this.visit(node.test),
+    ]
+
+    visitLabeledStatement = (node: Estree.LabeledStatement): Message[] => this.visit(node.body)
+
+    visitParenthesizedExpression = (node: Estree.ParenthesizedExpression): Message[] => this.visit(node.expression)
+
+    visitSwitchStatement = (node: Estree.SwitchStatement): Message[] => node.cases.flatMap(this.visit)
+
+    visitSwitchCase = (node: Estree.SwitchCase): Message[] => {
+        const msgs = node.consequent.flatMap(this.visit)
+        if (node.test) {
+            return [...this.visit(node.test), ...msgs]
+        }
+        return msgs
+    }
+
+    visitYieldExpression = (node: Estree.YieldExpression): Message[] => (node.argument ? this.visit(node.argument) : [])
+
     visitClassDeclaration = (node: Estree.ClassDeclaration): Message[] => {
         const msgs: Message[] = []
         const prevDecl = this.heuristciDetails.declaring
@@ -749,9 +775,6 @@ export class Transformer<RTCtxT = {}> {
         return msgs
     }
 
-    visitSwitchStatement = (node: Estree.SwitchStatement): Message[] =>
-        node.cases.flatMap(c => c.consequent.map(this.visit)).flat()
-
     visitTryStatement = (node: Estree.TryStatement): Message[] => {
         const msgs = this.visit(node.block)
         if (node.handler) {
@@ -800,7 +823,6 @@ export class Transformer<RTCtxT = {}> {
     visitClassExpression = (): Message[] => []
     visitContinueStatement = (): Message[] => []
     visitDebuggerStatement = (): Message[] => []
-    visitDoWhileStatement = (): Message[] => []
     visitExportAllDeclaration = (): Message[] => []
     visitExportSpecifier = (): Message[] => []
     visitIdentifier = (): Message[] => []
@@ -810,22 +832,17 @@ export class Transformer<RTCtxT = {}> {
     visitImportExpression = (): Message[] => []
     visitImportNamespaceSpecifier = (): Message[] => []
     visitImportSpecifier = (): Message[] => []
-    visitLabeledStatement = (): Message[] => []
     visitMetaProperty = (): Message[] => []
-    visitMethodDefinition = (): Message[] => []
-    visitParenthesizedExpression = (): Message[] => []
+    visitMethodDefinition = (): Message[] => [] // handled inside visitClassDeclaration
     visitPrivateIdentifier = (): Message[] => []
     visitPropertyDefinition = (): Message[] => []
-    visitStaticBlock = (): Message[] => []
+    visitStaticBlock = (): Message[] => [] // handled inside visitClassDeclaration
     visitSuper = (): Message[] => []
-    visitSwitchCase = (): Message[] => []
     visitTemplateElement = (): Message[] => []
     visitThisExpression = (): Message[] => []
     visitThrowStatement = (): Message[] => []
     visitUpdateExpression = (): Message[] => []
-    visitWhileStatement = (): Message[] => []
     visitWithStatement = (): Message[] => []
-    visitYieldExpression = (): Message[] => []
 
     visit = (node: Estree.AnyNode): Message[] =>
         this.visitWithCommentDirectives(node, () => {
