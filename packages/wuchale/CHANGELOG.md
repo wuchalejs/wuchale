@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.9
+
+### Patch Changes
+
+- Windows: fix wrong import path separator for url manifests ([`5abd24a`](https://github.com/wuchalejs/wuchale/commit/5abd24a1ae830d9bd446af661b8b77ab1a5f16d6))
+
 ## 0.22.8
 
 ### Patch Changes
