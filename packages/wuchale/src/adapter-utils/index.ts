@@ -79,10 +79,16 @@ export function updateCommentDirectives(data: string, directives: CommentDirecti
 }
 
 /** for restore. like Object.assign but in reverse, pull the keys on the target from the source */
-export function pullDirective<K extends keyof CommentDirectives>(
+function pullDirective<K extends keyof CommentDirectives>(
     target: CommentDirectives,
     source: CommentDirectives,
     key: K,
 ) {
     target[key] = source[key]
+}
+
+export function restoreCommentDirectives(target: CommentDirectives, original: CommentDirectives) {
+    for (const key in target) {
+        pullDirective(target, original, key as keyof CommentDirectives) // restore
+    }
 }

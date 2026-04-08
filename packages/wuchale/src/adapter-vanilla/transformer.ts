@@ -6,8 +6,8 @@ import { Parser } from 'acorn'
 import MagicString from 'magic-string'
 import {
     type CommentDirectives,
-    pullDirective,
     type RuntimeVars,
+    restoreCommentDirectives,
     runtimeVars,
     updateCommentDirectives,
     varNames,
@@ -809,9 +809,7 @@ export class Transformer<RTCtxT = {}> {
             return []
         }
         const res = func()
-        for (const key in this.commentDirectives) {
-            pullDirective(this.commentDirectives, commentDirectives, key as keyof CommentDirectives) // restore
-        }
+        restoreCommentDirectives(this.commentDirectives, commentDirectives)
         return res
     }
 

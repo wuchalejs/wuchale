@@ -15,8 +15,8 @@ import {
     type CommentDirectives,
     commentPrefix,
     nonWhitespaceText,
-    pullDirective,
     type RuntimeVars,
+    restoreCommentDirectives,
     updateCommentDirectives,
     varNames,
 } from './index.js'
@@ -130,9 +130,7 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
             if (!lastVisitIsComment) {
                 continue
             }
-            for (const key in props.commentDirectives) {
-                pullDirective(props.commentDirectives, commentDirectivesOrig, key as keyof CommentDirectives)
-            }
+            restoreCommentDirectives(props.commentDirectives, commentDirectivesOrig)
             lastVisitIsComment = false
         }
         return res
