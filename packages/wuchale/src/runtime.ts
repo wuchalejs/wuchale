@@ -30,8 +30,10 @@ export type Runtime = {
     l?: string
     c: (id: number) => Mixed | CompositePayload[] // composite context
     x: (ctx: Mixed, args?: any[], start?: number) => string // mixed to string
-    t: (tag: CallableFunction, id: number, args?: any[]) => any // tagged template
-    p: (id: number) => any // plural text
+    /** for tagged template strings */
+    t: (tag: (strs: TemplateStringsArray, ...args: any[]) => any, id: number, args?: any[]) => any // tagged template
+    /** get translation for plural */
+    p: (id: number) => any
     (id: number, args?: any[]): any // most frequent use as direct call
 }
 
@@ -53,7 +55,6 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
 export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] }, locale?: string): Runtime {
     const catalog = mod[catalogVarName]
 
-    /** get composite context */
     const getCompositeContext = (id: number) => {
         const ctx: CompiledElement = catalog[id]
         if (typeof ctx == 'string') {
@@ -65,19 +66,16 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
         return [onInvalidFunc(id, catalog)]
     }
 
-    const rt: Runtime = (id: number, args: any[] = []) => mixedToString(getCompositeContext(id) as Mixed, args, 0)
+    const rt: Runtime = (id, args = []) => mixedToString(getCompositeContext(id) as Mixed, args, 0)
 
     rt._ = mod
     rt.l = locale
     rt.c = getCompositeContext
     rt.x = mixedToString
-
-    /** for tagged template strings */
-    rt.t = (tag: (strs: TemplateStringsArray, ...args: any[]) => any, id: number, args?: any[]) => {
-        const ctx = getCompositeContext(id) as Mixed
+    rt.t = (tag, id, args) => {
         const strings = ['']
         const exprs: number[] = []
-        for (const x of ctx) {
+        for (const x of getCompositeContext(id) as Mixed) {
             if (typeof x === 'string') {
                 strings[strings.length - 1] += x
                 continue
@@ -85,10 +83,8 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
             exprs.push(args?.[x])
             strings.push('')
         }
-        return tag(Object.assign(strings, { raw: strings }) as TemplateStringsArray, ...exprs)
+        return tag(Object.assign(strings, { raw: strings }), ...exprs)
     }
-
-    /** get translation for plural */
     rt.p = (id: number) => catalog[id] ?? []
 
     return rt

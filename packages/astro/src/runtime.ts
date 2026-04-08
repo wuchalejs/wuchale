@@ -8,7 +8,7 @@ export type WuchaleComponentProps = {
 }
 
 export default ({ t, n, x, a }: WuchaleComponentProps) =>
-    x.map((x: Composite, i) => {
+    x.map((x, i) => {
         if (typeof x === 'string') {
             return x
         }

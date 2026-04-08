@@ -99,7 +99,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter => {
+export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
     const { heuristic, patterns, runtime, loader, ...rest } = deepMergeObjects(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) => {

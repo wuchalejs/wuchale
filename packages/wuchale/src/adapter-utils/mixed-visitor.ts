@@ -23,19 +23,19 @@ import {
 
 type NestedRanges = [number, number, boolean][]
 
-type InitProps<NodeT> = {
+type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> = {
     vars: () => RuntimeVars
     mstr: MagicString
-    getRange: (node: NodeT) => { start: number; end: number }
-    isText: (node: NodeT) => boolean
-    isExpression: (node: NodeT) => boolean
-    isComment: (node: NodeT) => boolean
-    leaveInPlace: (node: NodeT) => boolean
-    canHaveChildren: (node: NodeT) => boolean
-    getTextContent: (node: NodeT) => string
-    getCommentData: (node: NodeT) => string
-    visitFunc: (node: NodeT, inCompoundText: boolean) => Message[]
-    visitExpressionTag: (node: NodeT) => Message[]
+    getRange: (node: MixNodeT) => { start: number; end: number }
+    isText: (node: MixNodeT) => node is TxtT
+    isExpression: (node: MixNodeT) => node is ExprT
+    isComment: (node: MixNodeT) => node is ComT
+    leaveInPlace: (node: MixNodeT) => boolean
+    canHaveChildren: (node: MixNodeT) => boolean
+    getTextContent: (node: TxtT) => string
+    getCommentData: (node: ComT) => string
+    visitFunc: (node: MixNodeT, inCompoundText: boolean) => Message[]
+    visitExpressionTag: (node: ExprT) => Message[]
     fullHeuristicDetails: (details: HeuristicDetailsBase) => HeuristicDetails
     checkHeuristic: HeuristicFunc
     wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
@@ -57,16 +57,16 @@ type VisitProps<NodeT> = {
     useComponent?: boolean
 }
 
-export interface MixedVisitor<NodeT> extends InitProps<NodeT> {}
+export interface MixedVisitor<MixNodeT, TxtT, ComT, ExprT> extends InitProps<MixNodeT, TxtT, ComT, ExprT> {}
 
 type SeparateVisitRes = [boolean, boolean, boolean, MessageType, Message[]]
 
-export class MixedVisitor<NodeT> {
-    constructor(props: InitProps<NodeT>) {
+export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> {
+    constructor(props: InitProps<MixNodeT, TxtT, ComT, ExprT>) {
         Object.assign(this, props)
     }
 
-    separatelyVisitChildren = (props: VisitProps<NodeT>): SeparateVisitRes => {
+    separatelyVisitChildren = (props: VisitProps<MixNodeT>): SeparateVisitRes => {
         let hasTextChild = false
         let hasNonTextChild = false
         let heurStr = ''
@@ -138,7 +138,7 @@ export class MixedVisitor<NodeT> {
         return res
     }
 
-    visit = (props: VisitProps<NodeT>): Message[] => {
+    visit = (props: VisitProps<MixNodeT>): Message[] => {
         if (props.children.length === 0) {
             return []
         }

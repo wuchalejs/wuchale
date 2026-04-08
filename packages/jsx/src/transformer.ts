@@ -27,6 +27,7 @@ const nodesWithChildren = ['JSXElement']
 const rtComponent = 'W_tx_'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
+type MixedVisitorJSX = MixedVisitor<MixedNodesTypes, JX.JSXText, JX.JSXExpressionContainer, JX.JSXExpressionContainer>
 
 export type JSXLib = 'default' | 'solidjs'
 
@@ -37,7 +38,7 @@ export class JSXTransformer extends Transformer {
     lastVisitIsComment: boolean = false
     currentJsxKey?: number
 
-    mixedVisitor: MixedVisitor<MixedNodesTypes>
+    mixedVisitor: MixedVisitorJSX
 
     constructor(
         content: string,
@@ -53,24 +54,23 @@ export class JSXTransformer extends Transformer {
         this.mixedVisitor = this.initMixedVisitor()
     }
 
-    initMixedVisitor = () =>
-        new MixedVisitor<MixedNodesTypes>({
+    initMixedVisitor = (): MixedVisitorJSX =>
+        new MixedVisitor({
             mstr: this.mstr,
             vars: this.vars,
             getRange: node => ({
                 start: node.start,
                 end: node.end,
             }),
-            isComment: node =>
+            isComment: (node): node is JX.JSXExpressionContainer =>
                 node.type === 'JSXExpressionContainer' &&
                 node.expression.type === 'JSXEmptyExpression' &&
                 node.expression.end > node.expression.start,
             isText: node => node.type === 'JSXText',
             leaveInPlace: () => false,
             isExpression: node => node.type === 'JSXExpressionContainer',
-            getTextContent: (node: JX.JSXText) => node.value,
-            getCommentData: (node: JX.JSXExpressionContainer) =>
-                this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
+            getTextContent: node => node.value,
+            getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: (child, inCompoundText) => {
                 const inCompoundTextPrev = this.inCompoundText

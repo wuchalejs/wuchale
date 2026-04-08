@@ -44,7 +44,7 @@ const rtRenderFunc = '_w_Tx_'
 
 const u8decoder = new TextDecoder()
 
-type MixedAstroNodes = Node
+type MixedVisitorAstro = MixedVisitor<Node, TextNode, CommentNode, ExpressionNode>
 
 export class AstroTransformer extends Transformer {
     byteArray: Uint8Array
@@ -53,7 +53,7 @@ export class AstroTransformer extends Transformer {
     inCompoundText: boolean = false
     frontMatterStart?: number
 
-    mixedVisitor: MixedVisitor<MixedAstroNodes>
+    mixedVisitor: MixedVisitorAstro
 
     // astro's compiler gives wrong offsets for expressions
     correctedExprRanges: WeakMap<Node | AttributeNode, { start: number; end: number }> = new WeakMap()
@@ -122,8 +122,8 @@ export class AstroTransformer extends Transformer {
         }
     }
 
-    initMixedVisitor = () =>
-        new MixedVisitor<MixedAstroNodes>({
+    initMixedVisitor = (): MixedVisitorAstro =>
+        new MixedVisitor({
             mstr: this.mstr,
             vars: this.vars,
             getRange: this.getRange,
@@ -131,8 +131,8 @@ export class AstroTransformer extends Transformer {
             isComment: node => node.type === 'comment',
             leaveInPlace: node => [''].includes(node.type),
             isExpression: node => node.type === 'expression',
-            getTextContent: (node: TextNode) => node.value,
-            getCommentData: (node: CommentNode) => node.value.trim(),
+            getTextContent: node => node.value,
+            getCommentData: node => node.value.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: (child, inCompoundText) => {
                 const inCompoundTextPrev = this.inCompoundText

@@ -33,6 +33,7 @@ const snipPrefix = '_w_snippet_'
 const rtModuleVar = varNames.rt + 'mod_'
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
+type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AST.Text, AST.Comment, AST.ExpressionTag>
 
 // for use before actually parsing the code,
 // to remove the contents of e.g. <style lang="scss"> which can cause parse errors
@@ -53,7 +54,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     currentSnippet: number = 0
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
 
-    mixedVisitor: MixedVisitor<MixedNodesTypes>
+    mixedVisitor: MixedVisitorSvelte
 
     constructor(
         content: string,
@@ -107,8 +108,8 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         return msgs
     }
 
-    initMixedVisitor = () =>
-        new MixedVisitor<MixedNodesTypes>({
+    initMixedVisitor = (): MixedVisitorSvelte =>
+        new MixedVisitor({
             mstr: this.mstr,
             vars: this.vars,
             getRange: node => ({ start: node.start, end: node.end }),
@@ -116,9 +117,9 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
             isComment: node => node.type === 'Comment',
             leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
             isExpression: node => node.type === 'ExpressionTag',
-            getTextContent: (node: AST.Text) => node.data,
-            getCommentData: (node: AST.Comment) => node.data.trim(),
-            canHaveChildren: (node: AST.BaseNode) => nodesWithChildren.includes(node.type),
+            getTextContent: node => node.data,
+            getCommentData: node => node.data.trim(),
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: (child, inCompoundText) => {
                 const inCompoundTextPrev = this.inCompoundText
                 this.inCompoundText = inCompoundText

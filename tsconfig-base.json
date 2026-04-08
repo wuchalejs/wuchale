@@ -9,7 +9,6 @@
         "verbatimModuleSyntax": true,
         "isolatedModules": true,
         "resolveJsonModule": true,
-        "strictFunctionTypes": false,
         "sourceMap": true,
         "declarationMap": true,
         "esModuleInterop": true,

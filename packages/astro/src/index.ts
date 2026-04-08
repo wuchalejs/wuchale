@@ -4,10 +4,6 @@ import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { AstroTransformer } from './transformer.js'
 
-/**
- * Create a heuristic function optimized for Astro files
- * Uses the default heuristic which handles translatable vs non-translatable strings
- */
 export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
     return msg => {
@@ -25,7 +21,6 @@ export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     }
 }
 
-/** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
 export const astroDefaultHeuristic = createAstroHeuristic(defaultHeuristicOpts)
 
 type LoadersAvailable = 'default'
@@ -69,24 +64,8 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>): st
     return resolveLoaderPath('astro')
 }
 
-/**
- * Create an Astro adapter for wuchale
- *
- * @example
- * ```js
- * // wuchale.config.js
- * import { adapter as astro } from '@wuchale/astro'
- *
- * export default defineConfig({
- *   adapters: {
- *     astro: astro({ files: 'src/pages/**\/*.astro' })
- *   }
- * })
- * ```
- */
-export const adapter = (args: Partial<AstroArgs> = {}): Adapter => {
+export const adapter = (args: Partial<AstroArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, loader, ...rest } = deepMergeObjects(args, defaultArgs)
-
     return {
         transform: async ({ content, filename, index, expr, matchUrl }) => {
             return new AstroTransformer(
