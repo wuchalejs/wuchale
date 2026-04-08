@@ -3,7 +3,6 @@ import { platform } from 'node:process'
 import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
 import type { FS } from '../fs.js'
-import { catalogVarName } from '../runtime.js'
 import { type URLManifest } from '../url.js'
 
 export const dataFileName = 'data.js'
@@ -279,7 +278,7 @@ export class Files {
         loadID: string | null,
     ) => {
         const compiledItems = JSON.stringify(compiledData)
-        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let ${catalogVarName} = ${compiledItems}`
+        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
         if (pluralRule) {
             module = `${module}\nexport let p = (/** @type number */ n) => ${pluralRule}`
         }
@@ -294,7 +293,7 @@ export class Files {
                         return
                     }
                     for (const [ index, item ] of data['${locale}'] ?? []) {
-                        ${catalogVarName}[index] = item
+                        c[index] = item
                     }
                     latestVersion = version
                 }

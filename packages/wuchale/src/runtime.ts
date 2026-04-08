@@ -1,8 +1,7 @@
 import type { CompiledElement, CompositePayload, Mixed } from './compile.js'
 
-export const catalogVarName = 'c' as 'c'
 export type CatalogModule = {
-    [catalogVarName]: CompiledElement[]
+    c: CompiledElement[]
     p?: (n: number) => number
     update?: Function
 }
@@ -52,18 +51,16 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
     return msgStr
 }
 
-export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] }, locale?: string): Runtime {
-    const catalog = mod[catalogVarName]
-
+export default function toRuntime(mod: CatalogModule = { c: [] }, locale?: string): Runtime {
     const getCompositeContext = (id: number) => {
-        const ctx: CompiledElement = catalog[id]
+        const ctx: CompiledElement = mod.c[id]
         if (typeof ctx == 'string') {
             return [ctx]
         }
         if (Array.isArray(ctx)) {
             return ctx
         }
-        return [onInvalidFunc(id, catalog)]
+        return [onInvalidFunc(id, mod.c)]
     }
 
     const rt: Runtime = (id, args = []) => mixedToString(getCompositeContext(id) as Mixed, args, 0)
@@ -85,7 +82,7 @@ export default function toRuntime(mod: CatalogModule = { [catalogVarName]: [] },
         }
         return tag(Object.assign(strings, { raw: strings }), ...exprs)
     }
-    rt.p = (id: number) => catalog[id] ?? []
+    rt.p = (id: number) => mod.c[id] ?? []
 
     return rt
 }
