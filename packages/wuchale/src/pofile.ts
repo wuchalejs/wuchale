@@ -18,6 +18,7 @@ import {
 export type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
+const refIndexCommentPrefix = 'wuchale-ref:'
 
 type Additionals = {
     comments: string[]
@@ -43,23 +44,34 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
     poi.msgid_plural = id[1]
     poi.msgstr = item.translations.get(locale)!
     poi.msgctxt = item.context
-    poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
-    poi.extractedComments = item.references
-        .flatMap(r =>
-            r.refs.map(frEntry => {
-                if (frEntry === null) {
-                    return ''
-                }
-                let comm: string[] = []
-                if (frEntry.link) {
-                    comm.push(frEntry.link)
-                }
-                for (const [i, ph] of frEntry.placeholders) {
-                    comm.push(join([String(i), ph], ': '))
-                }
-                return join(comm, '; ')
-            }),
-        )
+    const references: string[] = []
+    const extractedComments: string[] = []
+    let sawSkippedRef = false
+    let refIndex = 0
+    for (const fileRef of item.references) {
+        for (const frEntry of fileRef.refs) {
+            references.push(fileRef.file)
+            if (frEntry === null) {
+                sawSkippedRef = true
+                refIndex++
+                continue
+            }
+            const comm: string[] = []
+            if (sawSkippedRef) {
+                comm.push(`${refIndexCommentPrefix}${refIndex}`)
+            }
+            if (frEntry.link) {
+                comm.push(frEntry.link)
+            }
+            for (const [i, ph] of frEntry.placeholders) {
+                comm.push(join([String(i), ph], ': '))
+            }
+            extractedComments.push(join(comm, '; '))
+            refIndex++
+        }
+    }
+    poi.references = references
+    poi.extractedComments = extractedComments
     const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
@@ -74,6 +86,7 @@ function poitemToItemCommons(poi: POItem): Item {
     const references: FileRef[] = []
     let lastRef: FileRef = { file: '', refs: [] }
     const urlAdapters: string[] = []
+    let commentIndex = 0
     for (const key in poi.flags) {
         if (key.startsWith(urlAdapterFlagPrefix)) {
             urlAdapters.push(key.slice(urlAdapterFlagPrefix.length))
@@ -84,20 +97,27 @@ function poitemToItemCommons(poi: POItem): Item {
             lastRef = { file: ref, refs: [] }
             references.push(lastRef)
         }
-        const comm = poi.extractedComments[i]?.trim()
-        if (!comm) {
+        const comment = poi.extractedComments[commentIndex]
+        if (comment == null) {
             lastRef.refs.push(null)
             continue
         }
+        const commSp = split(comment.trim(), '; ')
+        const target = commSp[0]?.match(new RegExp(`^${refIndexCommentPrefix}(\\d+)$`))
+        if (target && Number(target[1]) !== i) {
+            lastRef.refs.push(null)
+            continue
+        }
+        commentIndex++
+        const comm = target ? commSp.slice(1) : commSp
         const refEnt: FileRefEntry = { placeholders: [] }
-        const commSp = split(comm, '; ')
         let phStart = 0
         if (urlAdapters.length) {
             // url
-            refEnt.link = commSp[0]
+            refEnt.link = comm[0]
             phStart++
         }
-        for (const c of commSp.slice(phStart)) {
+        for (const c of comm.slice(phStart)) {
             const [i, ph] = split(c, ': ', 2)
             refEnt.placeholders.push([Number(i), ph])
         }
