@@ -42,7 +42,9 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
     poi.msgid = id[0]
     poi.msgid_plural = id[1]
     poi.msgstr = item.translations.get(locale)!
-    poi.msgctxt = item.context
+    if (item.context) {
+        poi.msgctxt = item.context
+    }
     poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
     poi.extractedComments = item.references
         .flatMap(r =>

@@ -39,17 +39,19 @@ export class URLHandler {
     patternKeys: Map<string, string> = new Map()
     locales: string[]
     sourceLocale: string
-    patterns?: string[] = []
+    patterns: string[] = []
 
     constructor(locales: string[], sourceLocale: string, urlConf?: URLConf) {
         this.locales = locales
         this.sourceLocale = sourceLocale
-        this.patterns = urlConf?.patterns
+        if (urlConf?.patterns) {
+            this.patterns = urlConf.patterns
+        }
     }
 
     buildManifest = (catalog: Catalog): URLManifest =>
         // order of catalogs should be based on locales
-        this.patterns?.map(patt => {
+        this.patterns.map(patt => {
             const catalogPattKey = this.patternKeys.get(patt)!
             const { keys } = pathToRegexp(patt)
             const locPatterns: string[] = []
@@ -67,22 +69,21 @@ export class URLHandler {
                 return [patt, locPatterns]
             }
             return [patt]
-        }) ?? []
+        })
 
     initPatterns = async (adapterKey: string, catalog: Catalog, aiQueue?: AIQueue): Promise<boolean> => {
-        const urlPatterns = this.patterns ?? []
-        const urlPatternsForTranslate = urlPatterns.map(patternToTranslate)
+        const urlPatternsForTranslate = this.patterns.map(patternToTranslate)
         const urlPatternCatKeys: string[] = []
         const toTranslate: Item[] = []
         let needWriteCatalog = false
         for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
             let context: string | undefined
-            if (locPattern !== urlPatterns[i]) {
-                context = `original: ${urlPatterns[i]}`
+            if (locPattern !== this.patterns[i]) {
+                context = `original: ${this.patterns[i]}`
             }
             const key = getKey([locPattern], context)
             urlPatternCatKeys[i] = key
-            this.patternKeys.set(urlPatterns[i], key) // save for href translate
+            this.patternKeys.set(this.patterns[i], key) // save for href translate
             let item = catalog.get(key)
             if (!item) {
                 item = newItem({ id: [locPattern], context }, this.locales)
@@ -120,7 +121,7 @@ export class URLHandler {
     }
 
     match = (url: string) => {
-        for (const pattern of this.patterns ?? []) {
+        for (const pattern of this.patterns) {
             if (matchUrlPattern(pattern, { decode: false })(url)) {
                 return pattern
             }

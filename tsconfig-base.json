@@ -9,6 +9,7 @@
         "verbatimModuleSyntax": true,
         "isolatedModules": true,
         "resolveJsonModule": true,
+        "exactOptionalPropertyTypes": true,
         "sourceMap": true,
         "declarationMap": true,
         "esModuleInterop": true,

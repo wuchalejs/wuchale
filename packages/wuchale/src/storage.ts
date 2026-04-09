@@ -15,7 +15,7 @@ export type FileRef = {
 }
 
 export interface Item {
-    context?: string
+    context?: string | undefined
     translations: Map<string, string[]>
     references: FileRef[]
     urlAdapters: string[] // for URLs

@@ -33,7 +33,7 @@ export type JSXLib = 'default' | 'solidjs'
 
 export class JSXTransformer extends Transformer {
     // state
-    currentElement?: string
+    currentElement?: string | undefined
     inCompoundText: boolean = false
     lastVisitIsComment: boolean = false
     currentJsxKey?: number

@@ -5,8 +5,8 @@ type TxtScope = 'script' | 'markup' | 'attribute'
 
 export type HeuristicDetailsBase = {
     scope: TxtScope
-    element?: string
-    attribute?: string
+    element?: string | undefined
+    attribute?: string | undefined
 }
 
 export type ScriptDeclType = 'variable' | 'function' | 'class' | 'expression'
@@ -14,19 +14,19 @@ export type ScriptDeclType = 'variable' | 'function' | 'class' | 'expression'
 export type HeuristicDetails = HeuristicDetailsBase & {
     file: string
     /** the type of the top level declaration */
-    declaring?: ScriptDeclType
+    declaring?: ScriptDeclType | undefined
     /** in assignments, whether the string is on the left side as destructuring default */
-    leftSide?: boolean
+    leftSide?: boolean | undefined
     /** the name of the function being defined, '' for arrow or null for global */
-    funcName?: string | null
+    funcName?: string | null | undefined
     /** whether the function being defined is nested inside another, null for no function */
-    funcIsNested?: boolean
+    funcIsNested?: boolean | undefined
     /** whether inside a script file/<script> instead of an expression inside markup */
     insideProgram: boolean
     /** the name of the call at the top level */
-    topLevelCall?: string
+    topLevelCall?: string | undefined
     /** the name of the nearest call (for arguments) */
-    call?: string
+    call?: string | undefined
 }
 
 export type MessageType = 'message' | 'url'
@@ -34,7 +34,7 @@ export type MessageType = 'message' | 'url'
 export type Message = {
     msgStr: string[] // array for plurals
     plural: boolean
-    context?: string
+    context?: string | undefined
     placeholders: [number, string][]
     details: HeuristicDetails
     type: MessageType
@@ -210,7 +210,7 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type DecideReactiveDetails<RTCtxT> = RTCtxT & { funcName?: string; nested: boolean; file: string }
+export type DecideReactiveDetails<RTCtxT> = RTCtxT & { funcName?: string | undefined; nested: boolean; file: string }
 
 type RuntimeConfDetails = {
     wrapInit: WrapFunc

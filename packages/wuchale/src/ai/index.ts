@@ -45,7 +45,7 @@ const outputSchema = {
 
 type InputItem = {
     id: string[]
-    context?: string
+    context?: string | undefined
     references: FileRef[]
 }
 

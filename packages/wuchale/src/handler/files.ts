@@ -10,8 +10,8 @@ export const generatedDir = '.wuchale'
 
 export type ManifestEntryObj = {
     text: string | string[]
-    context?: string
-    isUrl?: boolean
+    context?: string | undefined
+    isUrl?: boolean | undefined
 }
 
 export type ManifestEntry = string | string[] | ManifestEntryObj | null

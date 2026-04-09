@@ -26,7 +26,7 @@ export function onInvalid(newOnInvalid: typeof onInvalidFunc) {
 // using pre-minified methods
 export type Runtime = {
     _: CatalogModule
-    l?: string
+    l?: string | undefined
     c: (id: number) => Mixed | CompositePayload[] // composite context
     x: (ctx: Mixed, args?: any[], start?: number) => string // mixed to string
     /** for tagged template strings */

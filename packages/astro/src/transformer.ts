@@ -49,7 +49,7 @@ type MixedVisitorAstro = MixedVisitor<Node, TextNode, CommentNode, ExpressionNod
 export class AstroTransformer extends Transformer {
     byteArray: Uint8Array
     // state
-    currentElement?: string
+    currentElement?: string | undefined
     inCompoundText: boolean = false
     frontMatterStart?: number
 

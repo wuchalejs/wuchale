@@ -49,7 +49,7 @@ export type RuntimeCtxSv = {
 
 export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
     // state
-    currentElement?: string
+    currentElement?: string | undefined
     inCompoundText: boolean = false
     currentSnippet: number = 0
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
