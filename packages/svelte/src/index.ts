@@ -1,4 +1,12 @@
-import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
+import type {
+    Adapter,
+    AdapterArgs,
+    CreateHeuristicOpts,
+    DeepPartial,
+    HeuristicFunc,
+    LoaderChoice,
+    RuntimeConf,
+} from 'wuchale'
 import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
@@ -99,7 +107,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
+export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) => {

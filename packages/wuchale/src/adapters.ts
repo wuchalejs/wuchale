@@ -245,7 +245,7 @@ export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     bundleLoad: boolean
     url?: URLConf
     generateLoadID: (filename: string) => string
-    runtime: Partial<RuntimeConf<RTCtxT>>
+    runtime: RuntimeConf<RTCtxT>
 }
 
 export type Adapter<RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {

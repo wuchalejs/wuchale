@@ -1,4 +1,12 @@
-import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
+import type {
+    Adapter,
+    AdapterArgs,
+    CreateHeuristicOpts,
+    DeepPartial,
+    HeuristicFunc,
+    LoaderChoice,
+    RuntimeConf,
+} from 'wuchale'
 import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
@@ -64,7 +72,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>): st
     return resolveLoaderPath('astro')
 }
 
-export const adapter = (args: Partial<AstroArgs> = defaultArgs): Adapter => {
+export const adapter = (args: DeepPartial<AstroArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: async ({ content, filename, index, expr, matchUrl }) => {

@@ -125,8 +125,8 @@ export class Transformer<RTCtxT = {}> {
         // to enable the use of different runtime vars for different places, right now for svelte <script module>s
         for (const baseVar of rtBaseVars) {
             vars[baseVar] = {
-                reactive: rtConf.reactive?.wrapUse && runtimeVars(rtConf.reactive.wrapUse, baseVar),
-                plain: rtConf.plain?.wrapUse && runtimeVars(rtConf.plain.wrapUse, baseVar),
+                reactive: runtimeVars(rtConf.reactive.wrapUse, baseVar),
+                plain: runtimeVars(rtConf.plain.wrapUse, baseVar),
             }
         }
         this.currentRtVar = rtBaseVars[0]

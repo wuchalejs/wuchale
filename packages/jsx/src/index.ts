@@ -1,4 +1,12 @@
-import type { Adapter, AdapterArgs, CreateHeuristicOpts, HeuristicFunc, LoaderChoice, RuntimeConf } from 'wuchale'
+import type {
+    Adapter,
+    AdapterArgs,
+    CreateHeuristicOpts,
+    DeepPartial,
+    HeuristicFunc,
+    LoaderChoice,
+    RuntimeConf,
+} from 'wuchale'
 import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
@@ -88,7 +96,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<JSXArgs> = defaultArgs): Adapter => {
+export const adapter = (args: DeepPartial<JSXArgs> = defaultArgs): Adapter => {
     let { heuristic, patterns, variant, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     if (variant === 'solidjs' && args.runtime == null) {
         runtime = defaultRuntimeSolid

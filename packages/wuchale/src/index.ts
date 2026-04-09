@@ -36,6 +36,7 @@ export type {
 } from './compile.js'
 export {
     type Config,
+    type DeepPartial,
     defaultConfig,
     defineConfig,
     fillDefaults,

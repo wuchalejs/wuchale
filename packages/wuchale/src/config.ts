@@ -17,7 +17,17 @@ export type Config = ConfigPartial & {
     hmr: boolean
 }
 
-type ConfigWithOptional = Partial<Config>
+export type DeepPartial<T> = {
+    [K in keyof T]?: T[K] extends (infer A)[] // is array
+        ? DeepPartial<A>[]
+        : T[K] extends (...args: any[]) => any // is function
+          ? T[K]
+          : T[K] extends object
+            ? DeepPartial<T[K]> // go deep on object
+            : T[K]
+}
+
+type ConfigWithOptional = DeepPartial<Config>
 
 export const defaultConfig: Config = {
     locales: ['en'],
@@ -44,14 +54,6 @@ function deepFill(target: any, defaults: any) {
         }
         deepFill(target[key], def)
     }
-}
-
-type DeepPartial<T> = {
-    [K in keyof T]?: T[K] extends (infer A)[] // is array
-        ? DeepPartial<A>[]
-        : T[K] extends object
-          ? DeepPartial<T[K]> // go deep on object
-          : T[K]
 }
 
 /** mutates the target, and returns */

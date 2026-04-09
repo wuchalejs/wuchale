@@ -3,7 +3,7 @@
 import { loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
 import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
-import { fillDefaults } from '../config.js'
+import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
 import { Transformer } from './transformer.js'
 
@@ -35,6 +35,10 @@ export const defaultArgs: VanillaArgs = {
             wrapInit: expr => expr,
             wrapUse: expr => expr,
         },
+        reactive: {
+            wrapInit: expr => expr,
+            wrapUse: expr => expr,
+        },
     },
 }
 
@@ -56,7 +60,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: Partial<VanillaArgs> = defaultArgs): Adapter => {
+export const adapter = (args: DeepPartial<VanillaArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) =>
