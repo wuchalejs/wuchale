@@ -50,6 +50,29 @@ test('POFile round-trips reference metadata', async (t: TestContext) => {
     t.assert.deepStrictEqual(loaded.items[0].references, item.references)
 })
 
+test('POFile preserves extracted comment alignment across mixed null and non-null refs', async (t: TestContext) => {
+    const item = newItem(
+        {
+            references: [
+                {
+                    file: 'src/a.ts',
+                    refs: [null],
+                },
+                {
+                    file: 'src/b.ts',
+                    refs: [{ placeholders: [[0, 'selected_label']] }],
+                },
+            ],
+        },
+        ['en', 'es'],
+    )
+    item.translations.set('en', ['{0} is not available for the current verse.'])
+    item.translations.set('es', ['{0} no esta disponible para el verso actual.'])
+    await po.save(makeSaveData([item]))
+    const loaded = await po.load()
+    t.assert.deepStrictEqual(loaded.items[0].references, item.references)
+})
+
 test('POFile loads items without the source locale file', async (t: TestContext) => {
     await po.save(makeSaveData([item]))
     await inMemFS.unlink(resolve(root, 'src/locales/en.po'))

@@ -48,7 +48,7 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
         .flatMap(r =>
             r.refs.map(frEntry => {
                 if (frEntry === null) {
-                    return null
+                    return ''
                 }
                 let comm: string[] = []
                 if (frEntry.link) {
@@ -60,7 +60,6 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
                 return join(comm, '; ')
             }),
         )
-        .filter(c => c !== null)
     const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
