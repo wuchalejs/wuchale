@@ -73,7 +73,7 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 
 type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
-export class Transformer<RTCtxT = {}> {
+export class Transformer {
     index: IndexTracker
     heuristic: HeuristicFunc
     content: string
@@ -92,7 +92,7 @@ export class Transformer<RTCtxT = {}> {
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
     /** will be passed to decide which runtime variable to use */
-    runtimeCtx: RTCtxT = {} as RTCtxT
+    runtimeCtx: {} = {}
 
     constructor(
         content: string,
@@ -101,7 +101,7 @@ export class Transformer<RTCtxT = {}> {
         heuristic: HeuristicFunc,
         patterns: CodePattern[],
         catalogExpr: RuntimeExpr,
-        rtConf: RuntimeConf<RTCtxT>,
+        rtConf: RuntimeConf,
         matchUrl: UrlMatcher,
         rtBaseVars = [varNames.rt],
     ) {
@@ -138,7 +138,7 @@ export class Transformer<RTCtxT = {}> {
                           funcName: this.heuristciDetails.funcName ?? undefined,
                           nested: this.heuristciDetails.funcIsNested ?? false,
                           file: filename,
-                          ...this.runtimeCtx,
+                          ctx: this.runtimeCtx,
                       }) ?? topLevelUseReactive)
             const currentVars = vars[this.currentRtVar]
             return useReactive ? currentVars.reactive : currentVars.plain
@@ -148,7 +148,7 @@ export class Transformer<RTCtxT = {}> {
                 funcName,
                 nested: parentFunc != null,
                 file: filename,
-                ...this.runtimeCtx,
+                ctx: this.runtimeCtx,
             })
             if (initReactive == null) {
                 return

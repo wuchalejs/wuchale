@@ -2,6 +2,7 @@ import type {
     Adapter,
     AdapterArgs,
     CreateHeuristicOpts,
+    DecideReactiveDetails,
     DeepPartial,
     HeuristicFunc,
     LoaderChoice,
@@ -58,7 +59,9 @@ export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
 
 type LoadersAvailable = 'svelte' | 'sveltekit'
 
-export type SvelteArgs = AdapterArgs<LoadersAvailable, RuntimeCtxSv>
+export type SvelteArgs = AdapterArgs<LoadersAvailable>
+
+type DecideRxDetails = DecideReactiveDetails<RuntimeCtxSv>
 
 export const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
@@ -70,11 +73,11 @@ export const defaultArgs: SvelteArgs = {
     generateLoadID: defaultGenerateLoadID,
     loader: 'svelte',
     runtime: {
-        initReactive: ({ file, funcName, module }) => {
+        initReactive: ({ file, funcName, ctx: { module } }: DecideRxDetails) => {
             const inTopLevel = funcName == null
             return file.endsWith('.svelte.js') || module ? inTopLevel : inTopLevel ? true : null
         },
-        useReactive: ({ file, funcName, module }) => {
+        useReactive: ({ file, funcName, ctx: { module } }: DecideRxDetails) => {
             const inTopLevel = funcName == null
             return file.endsWith('.svelte.js') || module ? inTopLevel : true
         },
@@ -107,7 +110,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
     return resolveLoaderPath(loader)
 }
 
-export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter<RuntimeCtxSv> => {
+export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) => {
@@ -118,7 +121,7 @@ export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter<Ru
                 heuristic,
                 patterns,
                 expr,
-                runtime as RuntimeConf<RuntimeCtxSv>,
+                runtime as RuntimeConf,
                 matchUrl,
             ).transformSv()
         },

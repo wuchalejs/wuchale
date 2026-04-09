@@ -47,7 +47,7 @@ export type RuntimeCtxSv = {
     module: boolean
 }
 
-export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
+export class SvelteTransformer extends Transformer {
     // state
     currentElement?: string | undefined
     inCompoundText: boolean = false
@@ -63,7 +63,7 @@ export class SvelteTransformer extends Transformer<RuntimeCtxSv> {
         heuristic: HeuristicFunc,
         patterns: CodePattern[],
         catalogExpr: CatalogExpr,
-        rtConf: RuntimeConf<RuntimeCtxSv>,
+        rtConf: RuntimeConf,
         matchUrl: UrlMatcher,
     ) {
         super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])

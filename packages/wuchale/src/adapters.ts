@@ -210,17 +210,22 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type DecideReactiveDetails<RTCtxT> = RTCtxT & { funcName?: string | undefined; nested: boolean; file: string }
+export type DecideReactiveDetails<RTCtxT = any /* can be changed at the adapter */> = {
+    funcName?: string | undefined
+    nested: boolean
+    file: string
+    ctx: RTCtxT
+}
 
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
     wrapUse: WrapFunc
 }
 
-export type RuntimeConf<RTCtxT = {}> = {
+export type RuntimeConf = {
     /** return null to disable */
-    initReactive: (details: DecideReactiveDetails<RTCtxT>) => boolean | null
-    useReactive: boolean | ((details: DecideReactiveDetails<RTCtxT>) => boolean)
+    initReactive: (details: DecideReactiveDetails) => boolean | null
+    useReactive: boolean | ((details: DecideReactiveDetails) => boolean)
     plain: RuntimeConfDetails
     reactive: RuntimeConfDetails
 }
@@ -235,7 +240,7 @@ export type URLConf = {
     localize?: boolean | string
 }
 
-export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
+export type AdapterPassThruOpts = {
     sourceLocale?: string
     files: GlobConf
     storage: StorageFactory
@@ -245,10 +250,10 @@ export type AdapterPassThruOpts<RTCtxT extends {} = {}> = {
     bundleLoad: boolean
     url?: URLConf
     generateLoadID: (filename: string) => string
-    runtime: RuntimeConf<RTCtxT>
+    runtime: RuntimeConf
 }
 
-export type Adapter<RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
+export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc | TransformFuncAsync
     /** possible filename extensions for loader. E.g. `.js` */
     loaderExts: string[]
@@ -265,7 +270,7 @@ export type CodePattern = {
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | (string & {}) | 'custom'
 
-export type AdapterArgs<LoadersAvailable, RTCtxT extends {} = {}> = AdapterPassThruOpts<RTCtxT> & {
+export type AdapterArgs<LoadersAvailable> = AdapterPassThruOpts & {
     loader: LoaderChoice<LoadersAvailable>
     heuristic: HeuristicFunc
     patterns: CodePattern[]
