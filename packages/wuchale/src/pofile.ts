@@ -18,7 +18,7 @@ import {
 export type POItem = InstanceType<typeof PO.Item>
 
 const urlAdapterFlagPrefix = 'url:'
-const refIndexCommentPrefix = 'wuchale-ref:'
+const refIndexCommentPrefix = '@wuchale ref='
 
 type Additionals = {
     comments: string[]

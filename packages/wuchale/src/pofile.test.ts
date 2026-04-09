@@ -70,7 +70,7 @@ test('POFile preserves extracted comment alignment across mixed null and non-nul
     item.translations.set('es', ['{0} no esta disponible para el verso actual.'])
     await po.save(makeSaveData([item]))
     const saved = await inMemFS.read(resolve(root, 'src/locales/en.po'))
-    t.assert.match(saved ?? '', /#\. wuchale-ref:1; 0: selected_label/)
+    t.assert.match(saved ?? '', /#\. @wuchale ref=1; 0: selected_label/)
     t.assert.doesNotMatch(saved ?? '', /^#\. $/m)
     const loaded = await po.load()
     t.assert.deepStrictEqual(loaded.items[0].references, item.references)
