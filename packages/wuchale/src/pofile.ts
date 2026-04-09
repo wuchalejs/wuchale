@@ -166,6 +166,7 @@ export class POFile {
     opts: StorageFactoryOpts & POFileOptions
     filesByLoc: Map<string, [string, string]> = new Map() // main and url
     files: string[] = []
+    knownFiles: Map<string, boolean> = new Map()
 
     constructor(opts: StorageFactoryOpts & POFileOptions) {
         this.opts = opts
@@ -184,6 +185,7 @@ export class POFile {
     async loadRaw(locale: string, url: boolean): Promise<PO | null> {
         const filename = this.filesByLoc.get(locale)![Number(url)]!
         const content = await this.opts.fs.read(filename)
+        this.knownFiles.set(filename, content != null)
         return content == null ? null : PO.parse(content)
     }
 
@@ -224,34 +226,49 @@ export class POFile {
     async saveRaw(items: POItem[], headers: POHeaders, locale: string, url: boolean) {
         const filename = this.filesByLoc.get(locale)![Number(url)]!
         if (items.length === 0) {
-            if (await this.opts.fs.exists(filename)) {
+            if (this.knownFiles.get(filename) === false) {
+                return
+            }
+            try {
                 await this.opts.fs.unlink(filename)
+                this.knownFiles.set(filename, false)
+            } catch (err: any) {
+                if (err.code !== 'ENOENT') {
+                    throw err
+                }
+                this.knownFiles.set(filename, false)
             }
             return
         }
         const po = new PO()
         po.headers = headers
         po.items = items
-        await this.opts.fs.mkdir(this.opts.dir)
         await this.opts.fs.write(filename, po.toString())
+        this.knownFiles.set(filename, true)
     }
 
     async save(data: SaveData) {
-        for (const locale of this.opts.locales) {
-            const poItems: POItem[] = []
-            const poItemsUrl: POItem[] = []
-            for (const item of data.items) {
-                const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
-                if (itemIsUrl(item) && this.opts.separateUrls && this.opts.haveUrl) {
-                    poItemsUrl.push(poItem)
-                } else {
-                    poItems.push(poItem)
+        await this.opts.fs.mkdir(this.opts.dir)
+        const useSeparateUrls = this.opts.separateUrls && this.opts.haveUrl
+        await Promise.all(
+            this.opts.locales.map(async locale => {
+                const poItems: POItem[] = []
+                const poItemsUrl: POItem[] = []
+                for (const item of data.items) {
+                    const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
+                    if (itemIsUrl(item) && useSeparateUrls) {
+                        poItemsUrl.push(poItem)
+                    } else {
+                        poItems.push(poItem)
+                    }
                 }
-            }
-            const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
-            await this.saveRaw(poItems, headers, locale, false)
-            await this.saveRaw(poItemsUrl, headers, locale, true)
-        }
+                const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
+                await this.saveRaw(poItems, headers, locale, false)
+                if (useSeparateUrls) {
+                    await this.saveRaw(poItemsUrl, headers, locale, true)
+                }
+            }),
+        )
     }
 
     getHeaders(locale: string, pluralRule: PluralRule) {

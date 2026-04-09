@@ -74,6 +74,66 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
 })
 
+test('POFile skips unlinking missing url catalogs once their absence is known', async (t: TestContext) => {
+    const root = '/projects-known-missing-url'
+    let unlinkCalls = 0
+    const fs = {
+        ...inMemFS,
+        unlink(file: string) {
+            unlinkCalls++
+            return inMemFS.unlink(file)
+        },
+    }
+    const po = new POFile({
+        dir: 'src/locales',
+        separateUrls: true,
+        locales: ['en', 'es'],
+        root,
+        haveUrl: true,
+        localesDir: 'src/locales',
+        sourceLocale: 'en',
+        fs,
+    })
+    await po.save(makeSaveData([item]))
+    const reloaded = new POFile({
+        dir: 'src/locales',
+        separateUrls: true,
+        locales: ['en', 'es'],
+        root,
+        haveUrl: true,
+        localesDir: 'src/locales',
+        sourceLocale: 'en',
+        fs,
+    })
+    await reloaded.load()
+    unlinkCalls = 0
+    await reloaded.save(makeSaveData([item]))
+    t.assert.strictEqual(unlinkCalls, 0)
+})
+
+test('POFile does not touch url catalogs when url handling is disabled', async (t: TestContext) => {
+    let unlinkCalls = 0
+    const fs = {
+        ...inMemFS,
+        unlink(file: string) {
+            unlinkCalls++
+            return inMemFS.unlink(file)
+        },
+    }
+    const po = new POFile({
+        dir: 'src/locales',
+        separateUrls: true,
+        locales: ['en', 'es'],
+        root: '/projects-no-url-support',
+        haveUrl: false,
+        localesDir: 'src/locales',
+        sourceLocale: 'en',
+        fs,
+    })
+    await po.save(makeSaveData([item]))
+    t.assert.strictEqual(unlinkCalls, 0)
+})
+
 test('pofile defaults dir to localesDir', async (t: TestContext) => {
     const storage = await pofile()({
         locales: ['en'],
