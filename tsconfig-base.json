@@ -10,6 +10,7 @@
         "isolatedModules": true,
         "resolveJsonModule": true,
         "exactOptionalPropertyTypes": true,
+        "noUncheckedIndexedAccess": true,
         "sourceMap": true,
         "declarationMap": true,
         "esModuleInterop": true,

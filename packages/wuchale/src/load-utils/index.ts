@@ -15,7 +15,7 @@ export type LoaderState = {
 
 export function defaultCollection(store: Record<string, Runtime>): RuntimeCollection {
     return {
-        get: loadID => store[loadID],
+        get: loadID => store[loadID]!,
         set: (loadID, rt) => {
             store[loadID] = rt
         },
@@ -44,7 +44,7 @@ export function registerLoaders(
     for (const id of loadIDs) {
         states[key].collection.set(id, emptyRuntime)
     }
-    return loadID => states[key].collection.get(loadID)
+    return loadID => states[key]!.collection.get(loadID)
 }
 
 /* Sets the most recently loaded locale as the current one */
@@ -71,7 +71,7 @@ export async function loadLocale(locale: string, commit = true): Promise<void> {
         }
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        const [loadID, state] = statesArr[i]
+        const [loadID, state] = statesArr[i]!
         state.catalogs[loadID] = loaded
     }
     commit && commitLocale(locale)

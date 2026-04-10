@@ -40,7 +40,7 @@ export type Runtime = {
 function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
     let msgStr = ''
     for (let i = start; i < ctx.length; i++) {
-        const fragment = ctx[i]
+        const fragment = ctx[i]!
         if (typeof fragment === 'string') {
             msgStr += fragment
         } else {
@@ -53,7 +53,7 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
 
 export default function toRuntime(mod: CatalogModule = { c: [] }, locale?: string): Runtime {
     const getCompositeContext = (id: number) => {
-        const ctx: CompiledElement = mod.c[id]
+        const ctx: CompiledElement = mod.c[id]!
         if (typeof ctx == 'string') {
             return [ctx]
         }

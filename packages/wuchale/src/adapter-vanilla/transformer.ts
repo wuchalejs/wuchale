@@ -129,7 +129,7 @@ export class Transformer {
                 plain: runtimeVars(rtConf.plain.wrapUse, baseVar),
             }
         }
-        this.currentRtVar = rtBaseVars[0]
+        this.currentRtVar = rtBaseVars[0]!
         this.vars = () => {
             const useReactive =
                 typeof rtConf.useReactive === 'boolean'
@@ -140,7 +140,7 @@ export class Transformer {
                           file: filename,
                           ctx: this.runtimeCtx,
                       }) ?? topLevelUseReactive)
-            const currentVars = vars[this.currentRtVar]
+            const currentVars = vars[this.currentRtVar]!
             return useReactive ? currentVars.reactive : currentVars.plain
         }
         this.initRuntime = (funcName, parentFunc) => {
@@ -322,7 +322,7 @@ export class Transformer {
                 continue
             }
             // message, always required
-            if (argVal === null) {
+            if (argVal == null) {
                 return this.defaultVisitCallExpression(node)
             }
             if (argVal.type === 'Literal') {
@@ -581,7 +581,7 @@ export class Transformer {
                     // get real start if surrounded by parens
                     let start = node.start - 1
                     for (; start > 0; start--) {
-                        const char = this.content[start]
+                        const char = this.content[start]!
                         if (char === '(') {
                             break
                         }
@@ -693,11 +693,11 @@ export class Transformer {
 
     visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
         const msgs: Message[] = []
-        let msgStr = node.quasis[0].value?.cooked ?? ''
+        let msgStr = node.quasis[0]!.value?.cooked ?? ''
         const placeholders: [number, string][] = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
-            const quasi = node.quasis[i + 1]
+            const quasi = node.quasis[i + 1]!
             msgStr += `{${i}}${quasi.value.cooked}`
             placeholders.push([i, this.content.slice(expr.start, expr.end)])
             const { start, end } = quasi
@@ -735,7 +735,7 @@ export class Transformer {
             msgTyp = heuRes
         }
         const [index, msgs] = this.visitTemplateLiteralQuasis(node, msgTyp)
-        const { start: start0, end: end0 } = node.quasis[0]
+        const { start: start0, end: end0 } = node.quasis[0]!
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
         if (msgTyp === 'url') {
@@ -764,7 +764,7 @@ export class Transformer {
             this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
             const { start, end, expressions } = node.quasi
             if (expressions.length > 0) {
-                this.mstr.update(start, expressions[0].start, `, ${index}, [`)
+                this.mstr.update(start, expressions[0]!.start, `, ${index}, [`)
                 this.mstr.update(end - 1, end, `])`)
             } else {
                 this.mstr.remove(start, start + 1)

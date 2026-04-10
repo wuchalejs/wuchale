@@ -163,7 +163,7 @@ export class AdapterHandler {
 
             const isUrl = itemIsUrl(item)
             const id = item.translations.get(this.sourceLocale)!
-            const text = id.length === 1 ? id[0] : id
+            const text = id.length === 1 ? id[0]! : id
             if (!isUrl && item.context == null) {
                 manifest[index] = text
                 continue
@@ -263,7 +263,7 @@ export class AdapterHandler {
                 const id = item.translations.get(this.sourceLocale)!
                 for (const reference of item.references) {
                     for (const ref of reference.refs) {
-                        keys.push(ref?.link ?? id[0])
+                        keys.push(ref?.link ?? id[0]!)
                     }
                 }
             }
@@ -280,7 +280,7 @@ export class AdapterHandler {
                         compiled = fallback
                     }
                 } else {
-                    let toCompile = transl[0]
+                    let toCompile = transl[0]!
                     if (itemIsUrl(item)) {
                         toCompile = this.url.matchToCompile(key, this.sharedState.catalog, loc)
                     }
@@ -404,7 +404,7 @@ export class AdapterHandler {
             placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
         if (msgInfo.type === 'url' && getKey(msgInfo.msgStr, msgInfo.context) !== key) {
-            newRef.link = msgInfo.msgStr[0]
+            newRef.link = msgInfo.msgStr[0]!
         }
         const newRefEntry = newRef.link || msgInfo.placeholders.length ? newRef : null
         const prevRef = trackedRefrences.get(key)
@@ -550,7 +550,7 @@ export class AdapterHandler {
                     hmrData.data[loc] =
                         hmrKeys.map(key => {
                             const index = indexTracker.get(key)
-                            return [index, compiled.get(loc)!.items[index]]
+                            return [index, compiled.get(loc)!.items[index]!]
                         }) ?? []
                 }
             }

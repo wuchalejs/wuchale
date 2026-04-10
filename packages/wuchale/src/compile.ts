@@ -9,7 +9,7 @@ const CLOSE = Symbol()
 const SELF_CLOSE = Symbol()
 const PLACEHOLDER = Symbol()
 
-const digitRange = ['0', '9'].map(d => d.charCodeAt(0))
+const digitRange = ['0', '9'].map(d => d.charCodeAt(0)) as [number, number]
 
 function extractSpecial(msgStr: string, start: number): [symbol | null, number | null, number] {
     const inPlaceHolder = msgStr[start] === '{'
@@ -27,7 +27,7 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
         i++
     }
     while (i < msgStr.length) {
-        const char = msgStr[i]
+        const char = msgStr[i]!
         const code = char.charCodeAt(0)
         if (code < digitRange[0] || code > digitRange[1]) {
             endChar = char

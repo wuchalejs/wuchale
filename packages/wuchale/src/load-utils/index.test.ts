@@ -18,7 +18,7 @@ test('Loading', async t => {
     const rt = getRT('foo')
     t.assert.equal(rt.l, 'en')
     const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(cPure['foo'].c[0], 'Hello')
+    t.assert.equal(cPure['foo']!.c[0], 'Hello')
 })
 
 test('Loading server side', async t => {

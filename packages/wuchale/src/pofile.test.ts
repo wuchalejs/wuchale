@@ -47,15 +47,15 @@ const po = new POFile({
 test('POFile round-trips reference metadata', async (t: TestContext) => {
     await po.save(makeSaveData([item]))
     const loaded = await po.load()
-    t.assert.deepStrictEqual(loaded.items[0].references, item.references)
+    t.assert.deepStrictEqual(loaded.items[0]!.references, item.references)
 })
 
 test('POFile loads items without the source locale file', async (t: TestContext) => {
     await po.save(makeSaveData([item]))
     await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
     const loaded = await po.load()
-    t.assert.deepStrictEqual(loaded.items[0].translations.get('en'), ['Hello'])
-    t.assert.deepStrictEqual(loaded.items[0].translations.get('es'), ['Hola'])
+    t.assert.deepStrictEqual(loaded.items[0]!.translations.get('en'), ['Hello'])
+    t.assert.deepStrictEqual(loaded.items[0]!.translations.get('es'), ['Hola'])
 })
 
 test('POFile removes stale url catalogs', async (t: TestContext) => {

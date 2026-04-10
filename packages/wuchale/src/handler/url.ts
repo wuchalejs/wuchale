@@ -18,7 +18,7 @@ export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
     }
     const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
         if (typeof part === 'number') {
-            return keys[part]
+            return keys[part]!
         }
         return { type: 'text', value: part }
     })
@@ -60,7 +60,7 @@ export class URLHandler {
                 let pattern = patt
                 const transl = item?.translations?.get(loc)
                 if (transl) {
-                    const patternTranslated = transl[0] || item!.translations.get(this.sourceLocale)![0]
+                    const patternTranslated = transl[0]! || item!.translations.get(this.sourceLocale)![0]!
                     pattern = patternFromTranslate(patternTranslated, keys)
                 }
                 locPatterns.push(pattern)
@@ -83,7 +83,7 @@ export class URLHandler {
             }
             const key = getKey([locPattern], context)
             urlPatternCatKeys[i] = key
-            this.patternKeys.set(this.patterns[i], key) // save for href translate
+            this.patternKeys.set(this.patterns[i]!, key) // save for href translate
             let item = catalog.get(key)
             if (!item) {
                 item = newItem({ id: [locPattern], context }, this.locales)
@@ -148,7 +148,7 @@ export class URLHandler {
             return toCompile
         }
         const translatedPattern =
-            patternItem.translations.get(locale)![0] || patternItem.translations.get(this.sourceLocale)![0]
+            patternItem.translations.get(locale)![0] || patternItem.translations.get(this.sourceLocale)![0]!
         // e.g. translatedPattern: /elementos/{0}
         const { keys } = pathToRegexp(relevantPattern)
         const translatedPattUrl = patternFromTranslate(translatedPattern, keys)

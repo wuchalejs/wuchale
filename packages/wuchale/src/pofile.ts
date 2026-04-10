@@ -39,8 +39,8 @@ function split(str: string, sep: string, count?: number) {
 function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
     const poi = new PO.Item()
     const id = item.translations.get(sourceLocale)!
-    poi.msgid = id[0]
-    poi.msgid_plural = id[1]
+    poi.msgid = id[0]!
+    poi.msgid_plural = id[1]!
     poi.msgstr = item.translations.get(locale)!
     if (item.context) {
         poi.msgctxt = item.context
@@ -97,12 +97,12 @@ function poitemToItemCommons(poi: POItem): Item {
         let phStart = 0
         if (urlAdapters.length) {
             // url
-            refEnt.link = commSp[0]
+            refEnt.link = commSp[0]!
             phStart++
         }
         for (const c of commSp.slice(phStart)) {
             const [i, ph] = split(c, ': ', 2)
-            refEnt.placeholders.push([Number(i), ph])
+            refEnt.placeholders.push([Number(i), ph!])
         }
         lastRef.refs.push(refEnt)
     }
@@ -182,7 +182,7 @@ export class POFile {
     }
 
     async loadRaw(locale: string, url: boolean): Promise<PO | null> {
-        const filename = this.filesByLoc.get(locale)![Number(url)]
+        const filename = this.filesByLoc.get(locale)![Number(url)]!
         const content = await this.opts.fs.read(filename)
         return content == null ? null : PO.parse(content)
     }
@@ -222,7 +222,7 @@ export class POFile {
     }
 
     async saveRaw(items: POItem[], headers: POHeaders, locale: string, url: boolean) {
-        const filename = this.filesByLoc.get(locale)![Number(url)]
+        const filename = this.filesByLoc.get(locale)![Number(url)]!
         if (items.length === 0) {
             if (await this.opts.fs.exists(filename)) {
                 await this.opts.fs.unlink(filename)
@@ -255,7 +255,7 @@ export class POFile {
     }
 
     getHeaders(locale: string, pluralRule: PluralRule) {
-        const updateHeaders = [
+        const updateHeaders: [string, string][] = [
             ['Plural-Forms', `nplurals=${pluralRule.nplurals}; plural=${pluralRule.plural};`],
             ['Source-Language', this.opts.sourceLocale],
             ['Language', locale],

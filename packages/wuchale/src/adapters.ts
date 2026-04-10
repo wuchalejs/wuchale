@@ -117,7 +117,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         //  non-letter beginnings
         //  lower-case English letter beginnings
         //  containing only upper-case English and non-letters
-        if (!/\p{L}/u.test(msgStr[0]) || /[a-z]/.test(msgStr[0]) || /^([A-Z]|\P{L})+$/u.test(msgStr)) {
+        if (!/\p{L}/u.test(msgStr[0]!) || /[a-z]/.test(msgStr[0]!) || /^([A-Z]|\P{L})+$/u.test(msgStr)) {
             return false
         }
         if (msg.details.scope === 'attribute') {
@@ -256,7 +256,7 @@ export type AdapterPassThruOpts = {
 export type Adapter = AdapterPassThruOpts & {
     transform: TransformFunc | TransformFuncAsync
     /** possible filename extensions for loader. E.g. `.js` */
-    loaderExts: string[]
+    loaderExts: [string, ...string[]]
     /** default loaders to copy, `null` means custom */
     defaultLoaderPath: LoaderPath | string | null
     /** names to import from loaders, should avoid collision with code variables */

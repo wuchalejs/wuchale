@@ -9,7 +9,7 @@ export async function loadCatalogs(locale: string, loadIDs: string[], loadCatalo
     const promises = loadIDs.map(id => loadCatalog(id, locale))
     // merge into one object
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
-        data[loadIDs[i]] = loaded
+        data[loadIDs[i]!] = loaded
     }
     return data
 }

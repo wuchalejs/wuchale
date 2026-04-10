@@ -41,17 +41,17 @@ export async function loadLocales(
         if (!(locale in runtimes)) {
             runtimes[locale] = {}
         }
-        const loaded = runtimes[locale]
+        const loaded = runtimes[locale]!
         if (!(key in loaded)) {
             loaded[key] = {}
         }
         for (const id of loadIDs) {
-            loaded[key][id] = toRuntime(await load(id, locale), locale)
+            loaded[key]![id] = toRuntime(await load(id, locale), locale)
         }
     }
     return (loadID: string) => currentRuntime(key, loadID)
 }
 
 export async function runWithLocale<T>(locale: string, func: () => T): Promise<T> {
-    return await runtimeCtx.run(runtimes[locale], func)
+    return await runtimeCtx.run(runtimes[locale]!, func)
 }

@@ -148,7 +148,7 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         let msgStr = ''
         let iArg = 0
         let iTag = 0
-        const lastChildEnd = this.getRange(props.children.slice(-1)[0]).end
+        const lastChildEnd = this.getRange(props.children.slice(-1)[0]!).end
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
         const msgs: Message[] = []
@@ -262,8 +262,8 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
                 begin += ', ['
                 end = ']' + end
             }
-            if (props.scope === 'attribute' && `'"`.includes(this.mstr.original[lastChildEnd])) {
-                const firstChild = props.children[0]
+            if (props.scope === 'attribute' && `'"`.includes(this.mstr.original[lastChildEnd]!)) {
+                const firstChild = props.children[0]!
                 const { start } = this.getRange(firstChild)
                 this.mstr.remove(start - 1, start)
                 this.mstr.remove(lastChildEnd, lastChildEnd + 1)

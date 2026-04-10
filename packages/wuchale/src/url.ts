@@ -67,7 +67,7 @@ export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]
             return noMatchRes
         }
         for (const [pattern, altPatterns] of manifestWithLocales) {
-            const params = getParams(url, altPatterns[locale])
+            const params = getParams(url, altPatterns[locale]!)
             if (params) {
                 return { path: fillParams(params, pattern), params, altPatterns }
             }

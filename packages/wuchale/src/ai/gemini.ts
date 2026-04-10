@@ -69,7 +69,7 @@ export function gemini({
             if (json.error) {
                 throw new Error(`error: ${json.error.code} ${json.error.message}`)
             }
-            return json.candidates?.[0]?.content.parts[0].text ?? ''
+            return json.candidates?.[0]?.content?.parts[0]?.text ?? ''
         },
     }
 }

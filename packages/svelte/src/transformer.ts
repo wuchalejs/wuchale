@@ -222,7 +222,7 @@ export class SvelteTransformer extends Transformer {
                 attribute: node.name,
             })
         }
-        const value = values[0]
+        const value = values[0]!
         const heuDetails: HeuristicDetailsBase = {
             scope: 'script',
             element: this.currentElement,
@@ -245,7 +245,7 @@ export class SvelteTransformer extends Transformer {
             return []
         }
         this.mstr.update(value.start, value.end, `{${this.literalRepl(msgInfo)}}`)
-        if (`'"`.includes(this.content[value.start - 1])) {
+        if (`'"`.includes(this.content[value.start - 1]!)) {
             this.mstr.remove(value.start - 1, value.start)
             this.mstr.remove(value.end, value.end + 1)
         }

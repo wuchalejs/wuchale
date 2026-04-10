@@ -5,7 +5,7 @@ import type { AI } from './ai/index.js'
 import type { LogLevel } from './log.js'
 
 export type ConfigPartial = {
-    locales: string[]
+    locales: [string, ...string[]]
     fallback: Record<string, string>
     localesDir: string
     ai: AI | null

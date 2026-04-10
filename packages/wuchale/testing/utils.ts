@@ -51,7 +51,7 @@ export function transformTest(
         if (typeof exp === 'string') {
             exp = { msgStr: [exp] }
         }
-        const msg = msgs[i]
+        const msg = msgs[i]!
         t.assert.deepStrictEqual(msg.msgStr, exp.msgStr, `Different msgStr`)
         for (const prop of ['context', 'placeholders']) {
             if (prop in exp) {

@@ -41,13 +41,15 @@ const defaultRuntime: RuntimeConf = {
     initReactive: ({ funcName, nested }) => {
         const inTopLevel = funcName == null
         const insideReactive =
-            !inTopLevel && !nested && ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]))
+            !inTopLevel &&
+            !nested &&
+            ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!))
         return inTopLevel ? null : insideReactive
     },
     useReactive: ({ funcName, nested }) =>
         funcName != null &&
         !nested &&
-        ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0])),
+        ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!)),
     reactive: {
         wrapInit: expr => expr,
         wrapUse: expr => expr,

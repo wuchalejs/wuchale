@@ -121,7 +121,7 @@ export async function getLoaderPath(
             `Custom loader specified for adapter '${key}' but no loader file exists in one of the forms:\n${loaderForms}`,
         )
     }
-    return paths[0]
+    return paths[0]!
 }
 
 function proxyFileName(key: string, sync = false) {
@@ -185,7 +185,7 @@ export class Files {
             const importsByLocale: string[] = []
             for (const loc of locales) {
                 importsByLocale.push(
-                    `${objKeyLocale(loc)}: () => import('${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]))}')`,
+                    `${objKeyLocale(loc)}: () => import('${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]!))}')`,
                 )
             }
             imports.push(`${id}: {${importsByLocale.join(',')}}`)
@@ -201,7 +201,7 @@ export class Files {
             for (const [i, loc] of locales.entries()) {
                 const locKey = `_w_c_${id}_${i}_`
                 imports.push(
-                    `import * as ${locKey} from '${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]))}'`,
+                    `import * as ${locKey} from '${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]!))}'`,
                 )
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }

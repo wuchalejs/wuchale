@@ -494,7 +494,7 @@ export class Hub {
                         continue
                     }
                     for (const [i, sou] of sourceCompEntries.entries()) {
-                        if (!isEquivalent(sou, compileTranslation(translation[i], ''))) {
+                        if (!isEquivalent(sou, compileTranslation(translation[i]!, ''))) {
                             err.type = 'notEquivalent'
                             errors.push(err)
                             break
