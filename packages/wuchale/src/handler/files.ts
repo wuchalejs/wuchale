@@ -241,6 +241,12 @@ export class Files {
 
     writeUrlFiles = async (manifest: URLManifest, fallbackLocale: string) => {
         if (manifest.length === 0) {
+            if (await this.#opts.fs.exists(this.#urlManifestFname)) {
+                await this.#opts.fs.unlink(this.#urlManifestFname)
+            }
+            if (await this.#opts.fs.exists(this.#urlsFname)) {
+                await this.#opts.fs.unlink(this.#urlsFname)
+            }
             return
         }
         const urlManifestData = [
@@ -251,7 +257,7 @@ export class Files {
         const urlFileContent = [
             'import {URLMatcher, deLocalizeDefault} from "wuchale/url"',
             `import {locales} from "./${dataFileName}"`,
-            `import manifest from "./${normalizeSep(relative(dirname(this.#urlsFname), this.#urlManifestFname))}"`,
+            `import manifest from "${this.getImportPath(this.#urlManifestFname, this.#urlsFname)}"`,
             `export const getLocale = (/** @type {URL} */ url) => deLocalizeDefault(url.pathname, locales)[1] ?? '${fallbackLocale}'`,
             `export const matchUrl = URLMatcher(manifest, locales)`,
         ].join('\n')
