@@ -73,7 +73,7 @@ export class SvelteTransformer extends Transformer {
 
     visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
 
-    visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
+    override visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
         const msgs = this.defaultVisitVariableDeclarator(node)
         const init = node.init
         if (
