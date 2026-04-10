@@ -48,7 +48,7 @@ export function gemini({
     parallel = 4,
 }: GeminiOpts = {}): AI | null {
     if (apiKey === 'env') {
-        apiKey = process.env.GEMINI_API_KEY ?? ''
+        apiKey = process.env['GEMINI_API_KEY'] ?? ''
     }
     if (!apiKey) {
         return null

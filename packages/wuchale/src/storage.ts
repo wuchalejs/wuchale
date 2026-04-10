@@ -39,7 +39,6 @@ export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
         fillTranslations(init as Item, locales)
     }
     return {
-        id: init.id ?? [],
         translations: init.translations,
         context: init.context,
         references: init.references ?? [],

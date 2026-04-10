@@ -63,7 +63,7 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
             }),
         )
         .filter(c => c !== null)
-    const additionals: AdditionalsByLoc = (item.additionals as AdditionalsByLoc) ?? new Map()
+    const additionals: AdditionalsByLoc = (item['additionals'] as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
     for (const key of item.urlAdapters) {
@@ -143,7 +143,7 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
             }
             additionals.set(loc, add)
         }
-        item.additionals = additionals
+        item['additionals'] = additionals
         items.push(item)
     }
     return items
