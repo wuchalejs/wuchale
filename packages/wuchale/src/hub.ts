@@ -92,7 +92,7 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
     )
 }
 
-function getSharedState(
+async function getSharedState(
     sharedStates: Map<string, SharedState>,
     config: Config,
     fs: FS,
@@ -100,8 +100,8 @@ function getSharedState(
     adapter: Adapter,
     key: string,
     sourceLocale: string,
-): SharedState {
-    const storage = adapter.storage({
+): Promise<SharedState> {
+    const storage = await adapter.storage({
         locales: config.locales,
         root,
         localesDir: config.localesDir,
@@ -224,7 +224,7 @@ export class Hub {
                 adapter,
                 key,
                 sourceLocale,
-                sharedState: getSharedState(sharedStates, config, fs, root, adapter, key, sourceLocale),
+                sharedState: await getSharedState(sharedStates, config, fs, root, adapter, key, sourceLocale),
             })
             handlers.set(key, handler)
         }

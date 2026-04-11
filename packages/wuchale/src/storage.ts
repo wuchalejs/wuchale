@@ -97,4 +97,4 @@ export type StorageFactoryOpts = {
     fs: FS
 }
 
-export type StorageFactory = (opts: StorageFactoryOpts) => CatalogStorage
+export type StorageFactory = (opts: StorageFactoryOpts) => CatalogStorage | Promise<CatalogStorage>
