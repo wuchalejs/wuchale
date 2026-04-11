@@ -33,7 +33,7 @@ item.translations.set('es', ['Hola'])
 
 const root = '/projects'
 
-const po = new POFile({
+const pofileOpts = {
     dir: 'src/locales',
     separateUrls: true,
     locales: ['en', 'es'],
@@ -42,7 +42,9 @@ const po = new POFile({
     localesDir: 'src/locales',
     sourceLocale: 'en',
     fs: inMemFS,
-})
+}
+
+const po = new POFile(pofileOpts)
 
 test('POFile round-trips reference metadata', async (t: TestContext) => {
     await po.save(makeSaveData([item]))
@@ -72,6 +74,24 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     t.assert.strictEqual(await inMemFS.exists(urlPath), true)
     await po.save(makeSaveData([]))
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
+})
+
+test('POFile skips unlinking non existent catalogs', async (t: TestContext) => {
+    let unlinkCalls = 0
+    const fs = {
+        ...inMemFS,
+        unlink(file: string) {
+            unlinkCalls++
+            return inMemFS.unlink(file)
+        },
+    }
+    const po = new POFile({ ...pofileOpts, fs })
+    await po.save(makeSaveData([item]))
+    const reloaded = new POFile({ ...pofileOpts, fs })
+    await reloaded.load()
+    unlinkCalls = 0
+    await reloaded.save(makeSaveData([item]))
+    t.assert.strictEqual(unlinkCalls, 0)
 })
 
 test('pofile defaults dir to localesDir', async (t: TestContext) => {
