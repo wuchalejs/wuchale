@@ -74,8 +74,8 @@ test('POFile removes stale url catalogs', async (t: TestContext) => {
     t.assert.strictEqual(await inMemFS.exists(urlPath), false)
 })
 
-test('pofile defaults dir to localesDir', (t: TestContext) => {
-    const storage = pofile()({
+test('pofile defaults dir to localesDir', async (t: TestContext) => {
+    const storage = await pofile()({
         locales: ['en'],
         root,
         localesDir: 'custom/locales',

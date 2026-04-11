@@ -24,7 +24,7 @@ const adapter: Adapter = {
     defaultLoaderPath: defaultLoaderPath,
 }
 
-const storage = inMemStorage({
+const storage = await inMemStorage({
     locales: ['en'],
     root: import.meta.dirname,
     sourceLocale: 'en',
