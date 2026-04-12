@@ -21,7 +21,11 @@ const item = newItem(
     {
         references: [
             {
-                file: 'src/file.ts',
+                file: 'src/file1.ts',
+                refs: [null],
+            },
+            {
+                file: 'src/file2.ts',
                 refs: [{ placeholders: [[0, 'foo: bar;']] }, null],
             },
         ],

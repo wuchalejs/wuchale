@@ -45,24 +45,26 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
     if (item.context) {
         poi.msgctxt = item.context
     }
-    poi.references = item.references.flatMap(r => r.refs.map(_ => r.file))
-    poi.extractedComments = item.references
-        .flatMap(r =>
-            r.refs.map(frEntry => {
-                if (frEntry === null) {
-                    return null
-                }
-                let comm: string[] = []
-                if (frEntry.link) {
-                    comm.push(frEntry.link)
-                }
-                for (const [i, ph] of frEntry.placeholders) {
-                    comm.push(join([String(i), ph], ': '))
-                }
-                return join(comm, '; ')
-            }),
-        )
-        .filter(c => c !== null)
+    for (const ref of item.references) {
+        for (const entry of ref.refs) {
+            poi.references.push(ref.file)
+            if (entry === null) {
+                poi.extractedComments.push('')
+                continue
+            }
+            let comm: string[] = []
+            if (entry.link) {
+                comm.push(entry.link)
+            }
+            for (const [i, ph] of entry.placeholders) {
+                comm.push(join([String(i), ph], ': '))
+            }
+            poi.extractedComments.push(join(comm, '; '))
+        }
+    }
+    if (!poi.extractedComments.some(c => c !== '')) {
+        poi.extractedComments = []
+    }
     const additionals: AdditionalsByLoc = (item['additionals'] as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
