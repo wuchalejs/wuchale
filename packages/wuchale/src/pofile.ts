@@ -231,9 +231,7 @@ export class POFile {
             if (this.fileExistsCache.get(filename) === false) {
                 return
             }
-            if (this.opts.fs.exists(filename)) {
-                await this.opts.fs.unlink(filename)
-            }
+            await this.opts.fs.unlink(filename)
             this.fileExistsCache.set(filename, false)
             return
         }

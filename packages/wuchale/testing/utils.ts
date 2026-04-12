@@ -95,7 +95,9 @@ export const inMemFS: FS = {
     mkdir: () => {},
     exists: file => inMemFiles.has(file),
     unlink: file => {
+        const was = inMemFiles.has(file)
         inMemFiles.delete(file)
+        return was
     },
 }
 

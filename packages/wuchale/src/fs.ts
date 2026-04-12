@@ -5,19 +5,23 @@ export type FS = {
     write(file: string, content: string): void | Promise<void>
     mkdir(path: string): void | Promise<void>
     exists(path: string): boolean | Promise<boolean>
-    unlink(path: string): void | Promise<void>
+    unlink(path: string): boolean | Promise<boolean>
+}
+
+async function handleEnoent<T>(func: () => Promise<T>, defRet: T) {
+    try {
+        return await func()
+    } catch (err: any) {
+        if (err.code !== 'ENOENT') {
+            throw err
+        }
+        return defRet
+    }
 }
 
 export const defaultFS: FS = {
     async read(file: string) {
-        try {
-            return await readFile(file, 'utf-8')
-        } catch (err: any) {
-            if (err.code !== 'ENOENT') {
-                throw err
-            }
-            return null
-        }
+        return handleEnoent(() => readFile(file, 'utf-8'), null)
     },
 
     async write(file: string, content: string) {
@@ -29,19 +33,11 @@ export const defaultFS: FS = {
     },
 
     async exists(path: string) {
-        try {
-            await statfs(path)
-            return true
-        } catch (err: any) {
-            if (err.code !== 'ENOENT') {
-                throw err
-            }
-            return false
-        }
+        return handleEnoent(async () => (await statfs(path), true), false)
     },
 
     async unlink(path: string) {
-        await unlink(path)
+        return handleEnoent(async () => (await unlink(path), true), false)
     },
 }
 
@@ -49,5 +45,5 @@ export const readOnlyFS: FS = {
     ...defaultFS,
     write: () => {},
     mkdir: () => {},
-    unlink: () => {},
+    unlink: () => true,
 }
