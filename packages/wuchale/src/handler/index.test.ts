@@ -24,26 +24,30 @@ const adapter: Adapter = {
     defaultLoaderPath: defaultLoaderPath,
 }
 
-const storage = await inMemStorage({
-    locales: ['en'],
-    root: import.meta.dirname,
-    sourceLocale: 'en',
-    haveUrl: false,
-    localesDir: 'src/locales',
-    fs: inMemFS,
-})
+async function makeHandler() {
+    const storage = await inMemStorage({
+        locales: ['en'],
+        root: import.meta.dirname,
+        sourceLocale: 'en',
+        haveUrl: false,
+        localesDir: 'src/locales',
+        fs: inMemFS,
+    })
 
-const handler = await AdapterHandler.create({
-    adapter,
-    key: 'test',
-    config: defaultConfig,
-    mode: 'dev',
-    fs: inMemFS,
-    root: import.meta.dirname,
-    log: new Logger('error'),
-    sourceLocale: 'en',
-    sharedState: new SharedState(storage, 'test', 'en'),
-})
+    return await AdapterHandler.create({
+        adapter,
+        key: 'test',
+        config: defaultConfig,
+        mode: 'dev',
+        fs: inMemFS,
+        root: import.meta.dirname,
+        log: new Logger('error'),
+        sourceLocale: 'en',
+        sharedState: new SharedState(storage, 'test', 'en'),
+    })
+}
+
+const handler = await makeHandler()
 
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`
@@ -101,4 +105,29 @@ test('Handle messages', async (t: TestContext) => {
     t.assert.strictEqual(updated1, false)
     const [, updated2] = await handler.handleMessages(msgs, 'bar.ts')
     t.assert.strictEqual(updated2, true)
+})
+
+test('Handler compiles only when necessary', async (t: TestContext) => {
+    const handler = await makeHandler()
+    const msgs = [newMessage({ msgStr: ['Hello'] })]
+    let saveCalls = 0
+    let compileCalls = 0
+    const handlerSaveStorage = handler.saveStorage.bind(handler)
+    const handlerCompile = handler.compile.bind(handler)
+    handler.saveStorage = async () => {
+        saveCalls++
+        await handlerSaveStorage()
+    }
+    handler.compile = async (...args) => {
+        compileCalls++
+        return handlerCompile(...args)
+    }
+    const [, updated1] = await handler.handleMessages(msgs, 'foo.ts')
+    t.assert.strictEqual(updated1, true)
+    t.assert.strictEqual(saveCalls, 1)
+    t.assert.strictEqual(compileCalls, 1)
+    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts')
+    t.assert.strictEqual(updated2, true)
+    t.assert.strictEqual(saveCalls, 2)
+    t.assert.strictEqual(compileCalls, 1)
 })
