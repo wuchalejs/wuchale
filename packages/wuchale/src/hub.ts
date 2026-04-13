@@ -163,9 +163,7 @@ export class Hub {
                 this.#granularLoadHandlers.push(handler)
             } else {
                 for (const locale of opts.config.locales) {
-                    this.#singleCompiledCatalogs.add(
-                        normalizeSep(resolve(handler.files.getCompiledFilePath(locale, null))),
-                    )
+                    this.#singleCompiledCatalogs.add(normalizeSep(handler.files.getCompiledFilePath(locale, null)))
                 }
             }
             for (const path of Object.values(handler.files.loaderPath)) {
@@ -265,7 +263,7 @@ export class Hub {
             for (const adapter of this.#granularLoadHandlers) {
                 for (const loc of this.#opts.config.locales) {
                     for (const id of adapter.granularState.byID.keys()) {
-                        if (normalizeSep(resolve(adapter.files.getCompiledFilePath(loc, id))) === file) {
+                        if (normalizeSep(adapter.files.getCompiledFilePath(loc, id)) === file) {
                             return ignoreChange
                         }
                     }
@@ -280,19 +278,20 @@ export class Hub {
             invalidate: new Set(),
         }
         for (const handler of handlers) {
+            if (!changeInfo.sourceTriggered) {
+                await handler.loadStorage()
+                await handler.compile(this.#hmrVersion)
+            }
+            const [loadIDs] = getLoadIDs(
+                handler.adapter,
+                handler.key,
+                handler.sharedState.ownerKey,
+                handler.granularState.byID.values(),
+                handler.sourceLocale,
+            )
             for (const loc of this.#opts.config.locales) {
-                if (!changeInfo.sourceTriggered) {
-                    await handler.loadStorage()
-                    await handler.compile(this.#hmrVersion)
-                }
-                for (const loadID of getLoadIDs(
-                    handler.adapter,
-                    handler.key,
-                    handler.sharedState.ownerKey,
-                    handler.granularState.byID.values(),
-                    handler.sourceLocale,
-                )[0]) {
-                    changeInfo.invalidate.add(normalizeSep(resolve(handler.files.getCompiledFilePath(loc, loadID))))
+                for (const loadID of loadIDs) {
+                    changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
                 }
             }
         }
