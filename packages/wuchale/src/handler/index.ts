@@ -434,6 +434,7 @@ export class AdapterHandler {
 
     cleanTrackedRefs = (trackedRefs: TrackedRefs) => {
         let cleaned = false
+        let cleanedUrls = false
         for (const [key, info] of trackedRefs) {
             if (info.used < info.ref.refs.length) {
                 info.ref.refs = info.ref.refs.slice(0, info.used) // trim unused
@@ -444,14 +445,16 @@ export class AdapterHandler {
             }
             const item = this.sharedState.catalog.get(key)!
             item.references = item.references.filter(ref => ref.refs.length > 0)
+            cleanedUrls ||= itemIsUrl(item)
             // after this, it can be marked obsolete and cleaned by cli
         }
-        return cleaned
+        return { cleaned, cleanedUrls }
     }
 
     handleMessages = async (msgs: Message[], filename: string): Promise<[string[], boolean]> => {
         const previousReferences = this.popTrackedRefs(filename)
-        let updated = false
+        let storageUpdated = false
+        let compileUpdated = false
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
         for (const msgInfo of msgs) {
@@ -470,10 +473,14 @@ export class AdapterHandler {
             if (!item) {
                 item = newItem({ id: msgInfo.msgStr }, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
-                updated = true
+                storageUpdated = true
+                compileUpdated = true
             }
             if (this.updateRef(item, key, filename, msgInfo, previousReferences)) {
-                updated = true
+                storageUpdated = true
+                if (msgInfo.type === 'url') {
+                    compileUpdated = true
+                }
             }
             if (msgInfo.type === 'url') {
                 // already translated or attempted at startup
@@ -482,13 +489,16 @@ export class AdapterHandler {
             }
             if (msgInfo.context != item.context) {
                 // NOT !== because they may be null (from pofile!)
-                updated = true
+                storageUpdated = true
+                compileUpdated = true
             }
             item.context = msgInfo.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
             const msgStr = msgInfo.msgStr.join('\n')
             if (sourceTransl.join('\n') !== msgStr) {
                 item.translations.set(this.sourceLocale, msgInfo.msgStr)
+                storageUpdated = true
+                compileUpdated = true
             }
             toTranslate.push(item)
         }
@@ -496,14 +506,21 @@ export class AdapterHandler {
             this.aiQueue.add(toTranslate)
             await this.aiQueue.running
         }
-        if (this.cleanTrackedRefs(previousReferences)) {
-            updated = true
+        const { cleaned, cleanedUrls } = this.cleanTrackedRefs(previousReferences)
+        if (cleaned) {
+            storageUpdated = true
         }
-        if (updated && this.#opts.mode != 'cli') {
-            // cli saved at the end
-            await this.saveStorageCompile()
+        if (cleanedUrls) {
+            compileUpdated = true
         }
-        return [hmrKeys, updated]
+        if (storageUpdated && this.#opts.mode != 'cli') {
+            // cli saves and compiles at the end
+            await this.saveStorage()
+            if (compileUpdated) {
+                await this.compile()
+            }
+        }
+        return [hmrKeys, storageUpdated]
     }
 
     transform = async (
