@@ -77,6 +77,58 @@ test('hub onFileChange', async (t: TestContext) => {
     )
 })
 
+test('hub onFileChange compiles once per handler for catalog changes', async (t: TestContext) => {
+    const writes: string[] = []
+    const countingFS = {
+        ...inMemFS,
+        write(file: string, data: string) {
+            writes.push(normalizeSep(resolve(file)))
+            return inMemFS.write(file, data)
+        },
+    }
+    countingFS.write(defaultLoaderPath.client, '')
+    countingFS.write(defaultLoaderPath.server, '')
+
+    const hub = await Hub.create(
+        'dev',
+        async () => ({
+            ...defaultConfig,
+            locales: ['en', 'fr'],
+            adapters: {
+                main: {
+                    ...defaultArgs,
+                    transform: dummyTransform,
+                    files: 'src/*.js',
+                    loaderExts: ['.js'],
+                    defaultLoaderPath,
+                },
+            },
+        }),
+        import.meta.dirname,
+        0,
+        countingFS,
+    )
+
+    await hub.transform(code, file)
+    writes.length = 0
+
+    const po_fname = normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, 'fr.po'))
+    const res = await hub.onFileChange(po_fname, () => 'external catalog change')
+
+    t.assert.strictEqual(res?.sourceTriggered, false)
+
+    const compiled_writes = writes.filter(file => file.endsWith('.compiled.js'))
+
+    t.assert.strictEqual(compiled_writes.length, 2)
+    t.assert.deepStrictEqual(
+        new Set(compiled_writes),
+        new Set([
+            normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.main.en.compiled.js')),
+            normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.main.fr.compiled.js')),
+        ]),
+    )
+})
+
 test('hub transform with hmr', async (t: TestContext) => {
     const [output] = await hub.transform(code, file)
     t.assert.strictEqual(
