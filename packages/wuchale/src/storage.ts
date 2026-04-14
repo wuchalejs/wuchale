@@ -1,7 +1,7 @@
 import type { FS } from './fs.js'
 
 export type FileRefEntry = {
-    link?: string // for URLs
+    link?: string | undefined // for URLs
     placeholders: [number, string][]
 }
 
@@ -68,7 +68,7 @@ export type SaveData = {
 
 export type LoadData = {
     pluralRules?: PluralRules // optional if it's the first time etc, will be filled by the default one
-    items: Iterable<Item> // not just constrained to being array
+    items: Item[]
 }
 
 export type CatalogStorage = {
