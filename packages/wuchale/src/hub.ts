@@ -367,17 +367,21 @@ export class Hub {
         return updated
     }
 
-    async directVisit(clean: boolean, watch: boolean, sync: boolean) {
-        !watch && this.#log.info('Extracting...')
-        const handlers = Array.from(this.#handlers.values())
+    #getSortedHandlersForDirectVisit = () => {
+        const handlers = [...this.#handlers.values()]
         // owner adapter handlers should run last for cleanup
         handlers.sort((a, b) => {
             const aOwner = a.sharedState.ownerKey === a.key
             const bOwner = b.sharedState.ownerKey === b.key
             return aOwner === bOwner ? 0 : aOwner ? 1 : -1
         })
+        return handlers
+    }
+
+    async directVisit(clean: boolean, watch: boolean, sync: boolean) {
+        !watch && this.#log.info('Extracting...')
         const existingFilesByOwner = new Map<string, Set<string>>()
-        for (const handler of handlers) {
+        for (const handler of this.#getSortedHandlersForDirectVisit()) {
             await this.#directVisitHandler(handler, clean, sync, existingFilesByOwner)
         }
         if (!watch) {
@@ -434,7 +438,7 @@ export class Hub {
         const syncs: string[] = []
         let checkedItems = 0
         const existingFilesByOwner = new Map<string, Set<string>>()
-        for (const handler of this.#handlers.values()) {
+        for (const handler of this.#getSortedHandlersForDirectVisit()) {
             const state = handler.sharedState
             if (full && (await this.#directVisitHandler(handler, false, false, existingFilesByOwner))) {
                 syncs.push(handler.key)
