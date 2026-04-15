@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.10
+
+### Patch Changes
+
+- Fix incorrect behavior on `npx wuchale check --full` #342 ([#344](https://github.com/wuchalejs/wuchale/pull/344))
+
 ## 0.22.9
 
 ### Patch Changes
