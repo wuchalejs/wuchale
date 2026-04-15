@@ -18,9 +18,10 @@ const checkErrMsgs: { [key in CheckErrorType]: string } = {
 }
 
 export async function check(config: Config, root: string, full: boolean) {
-    // console.log because if the user invokes this command, they want full info regardless of config
-    const hub = await Hub.create('cli', () => config, root, 0, readOnlyFS)
+    // disable ai as this is a check, not persisted
+    const hub = await Hub.create('cli', () => ({ ...config, ai: null }), root, 0, readOnlyFS)
     const { checked, errors, syncs } = await hub.check(full)
+    // console.log because if the user invokes this command, they want full info regardless of config
     for (const err of errors) {
         console.error(`${color.magenta(err.adapter)}: ${color.red(checkErrMsgs[err.type])}`)
         console.error(`  ${color.grey('Source:')} ${err.source}`)
