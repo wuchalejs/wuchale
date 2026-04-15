@@ -436,7 +436,7 @@ export class Hub {
         const existingFilesByOwner = new Map<string, Set<string>>()
         for (const handler of this.#handlers.values()) {
             const state = handler.sharedState
-            if (full && (await this.#directVisitHandler(handler, true, false, existingFilesByOwner))) {
+            if (full && (await this.#directVisitHandler(handler, false, false, existingFilesByOwner))) {
                 syncs.push(handler.key)
             }
             if (state.ownerKey !== handler.key) {
