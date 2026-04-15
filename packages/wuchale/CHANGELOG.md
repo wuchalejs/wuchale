@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.22.11
+
+### Patch Changes
+
+- Fix wrong handler order when running `npx wuchale check --full` #342 ([`18368ae`](https://github.com/wuchalejs/wuchale/commit/18368aeb95425e0f6f53db6b4cfbf73d0b4781e8))
+
 ## 0.22.10
 
 ### Patch Changes
