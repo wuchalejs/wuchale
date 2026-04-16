@@ -154,17 +154,21 @@ package for examples of supported scenarios.
 ## Sponsors
 
 This project is supported by the community. Become a sponsor and get your name
-or logo listed here!
+or logo listed on the README and the website!
 
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
 
+Sponsors:
+
+<!-- s:sponsors -->
+[![mightygroup](https://avatars.githubusercontent.com/u/24351170?v=4&s=96)](https://github.com/mightygroup)
+
 Special thanks to our supporters:
 
-[![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&size=48)](https://github.com/hayzamjs)
-[![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&size=48)](https://github.com/p-mercury)
-[![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&size=48)](https://github.com/perdix)
-
-And one private donor 🙏.
+<!-- s:backers -->
+[![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&s=48)](https://github.com/hayzamjs)
+[![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&s=48)](https://github.com/p-mercury)
+[![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&s=48)](https://github.com/perdix)
 
 ## Inspiration
 
