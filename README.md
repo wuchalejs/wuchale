@@ -14,7 +14,7 @@
 
 # 📜`wuchale`🪶
 
-**`wuchale`** (pronounced "wuh-cha-lay") is a compile-time internationalization
+**`wuchale`** (pronounced /wʊtʃɑleɪ/ or _wuh-'CHAH-lay_) is a compile-time internationalization
 toolkit that requires no code changes. Write your components naturally, and
 `wuchale` automatically extracts and replaces translatable messages at build
 time.
