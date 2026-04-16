@@ -170,6 +170,8 @@ Special thanks to our supporters:
 [![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&s=48)](https://github.com/p-mercury)
 [![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&s=48)](https://github.com/perdix)
 
+And <!-- s:private -->one private donor 🙏.
+
 ## Inspiration
 
 This project was inspired by [Lingui](https://lingui.dev/) especially some of

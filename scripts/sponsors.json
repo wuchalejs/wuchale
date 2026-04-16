@@ -1,4 +1,23 @@
 {
-    "sponsors": ["mightygroup"],
-    "backers": ["hayzamjs", "p-mercury", "perdix"]
+    "sponsors": [
+        {
+            "username": "mightygroup",
+            "id": 24351170
+        }
+    ],
+    "backers": [
+        {
+            "username": "hayzamjs",
+            "id": 3922884
+        },
+        {
+            "username": "p-mercury",
+            "id": 9084532
+        },
+        {
+            "username": "perdix",
+            "id": 1526654
+        }
+    ],
+    "private": 1
 }
