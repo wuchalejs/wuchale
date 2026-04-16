@@ -1,7 +1,7 @@
 {
     "extends": "./tsconfig-base",
     "files": [],
-    "include": [],
+    "include": ["./scripts/*.ts"],
     "references": [
         { "path": "./packages/wuchale/tsconfig.json" },
         { "path": "./packages/svelte/tsconfig.json" },
