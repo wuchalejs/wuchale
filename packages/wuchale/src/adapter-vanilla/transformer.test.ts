@@ -175,6 +175,46 @@ test('Runtime init place', t => {
     )
 })
 
+test('useReactive nullish fallback stays boolean', t => {
+    transformTest(
+        t,
+        new Transformer(
+            ts`
+            function foo() {
+                return 'Hello'
+            }
+        `,
+            filename,
+            new IndexTracker(),
+            defaultArgs.heuristic,
+            defaultArgs.patterns,
+            catalogExpr,
+            {
+                initReactive: () => false,
+                useReactive: ({ funcName }) => (funcName == null ? false : undefined),
+                plain: {
+                    wrapInit: expr => expr,
+                    wrapUse: expr => `plainUse(${expr})`,
+                },
+                reactive: {
+                    wrapInit: expr => expr,
+                    wrapUse: expr => `reactiveUse(${expr})`,
+                },
+            } as RuntimeConf,
+            urlHandler.match,
+        ).transform(),
+        ts`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+
+        function foo() {
+            const _w_runtime_ = _w_load_();
+            return plainUse(_w_runtime_)(0)
+        }
+    `,
+        ['Hello'],
+    )
+})
+
 test('Plural and patterns', t => {
     transformTest(
         t,

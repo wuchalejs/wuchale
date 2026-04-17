@@ -114,12 +114,13 @@ export class Transformer {
         this.matchUrl = matchUrl
         const topLevelUseReactive =
             typeof rtConf.useReactive === 'boolean'
-                ? () => rtConf.useReactive
-                : {
+                ? rtConf.useReactive
+                : (rtConf.useReactive({
+                      funcName: undefined,
                       nested: false,
                       file: filename,
                       ctx: this.runtimeCtx,
-                  }
+                  }) ?? false)
 
         const vars: Record<string, { [key in 'plain' | 'reactive']: RuntimeVars }> = {}
         // to enable the use of different runtime vars for different places, right now for svelte <script module>s
