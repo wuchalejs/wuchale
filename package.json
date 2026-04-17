@@ -9,7 +9,7 @@
         "typecheck": "npm exec --workspaces tsc -- --noEmit",
         "test": "npm run test --workspaces",
         "check": "npm run typecheck && npm run test",
-        "fmt": "npx @biomejs/biome check --write",
+        "lintfmt": "npx @biomejs/biome check --write",
         "v": "npx changeset",
         "postinstall": "ln -fs ../../scripts/pre-commit .git/hooks/pre-commit"
     },
@@ -17,7 +17,7 @@
         "packages/*"
     ],
     "devDependencies": {
-        "@biomejs/biome": "2.3.10",
+        "@biomejs/biome": "2.4.12",
         "@changesets/cli": "^2.30.0",
         "@svitejs/changesets-changelog-github-compact": "^1.2.0",
         "@types/node": "^25.6.0"

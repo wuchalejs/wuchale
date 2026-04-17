@@ -33,11 +33,17 @@ export const defaultFS: FS = {
     },
 
     async exists(path: string) {
-        return handleEnoent(async () => (await statfs(path), true), false)
+        return handleEnoent(async () => {
+            await statfs(path)
+            return true
+        }, false)
     },
 
     async unlink(path: string) {
-        return handleEnoent(async () => (await unlink(path), true), false)
+        return handleEnoent(async () => {
+            await unlink(path)
+            return true
+        }, false)
     },
 }
 

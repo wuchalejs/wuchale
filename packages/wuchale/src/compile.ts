@@ -49,7 +49,7 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
     if (endChar === '/' && msgStr[i + 1] === '>') {
         return [SELF_CLOSE, n, i + 2]
     }
-    if (endChar != '>') {
+    if (endChar !== '>') {
         return [null, null, start]
     }
     if (inClose) {
@@ -89,7 +89,7 @@ function compile(
         }
         if (type === CLOSE) {
             if (currentOpenTag != null) {
-                if (currentOpenTag != n) {
+                if (currentOpenTag !== n) {
                     return [compiled, 0, 'Closing a different tag']
                 }
                 currentOpenTag = null

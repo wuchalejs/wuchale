@@ -2,12 +2,13 @@ import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
-import type { Adapter, HMRData, Message, RuntimeExpr as RuntimeExpr, TransformOutputCode } from '../adapters.js'
+import type { Adapter, Message, RuntimeExpr, TransformOutputCode } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial } from '../config.js'
 import type { Logger } from '../log.js'
+import type { HMRData } from '../runtime.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import {
     Files,
@@ -25,7 +26,7 @@ const loaderImportGetRuntimeRx = 'getRuntimeRx'
 
 const getFuncPlainDefault = '_w_load_'
 const urlLocalizeUdfName = 'localize'
-const getFuncReactiveDefault = getFuncPlainDefault + 'rx_'
+const getFuncReactiveDefault = `${getFuncPlainDefault}rx_`
 const bundleCatalogsVarName = '_w_catalogs_'
 
 export type Mode = 'dev' | 'build' | 'cli'
@@ -234,7 +235,7 @@ export class AdapterHandler {
                     fallbackLoc = this.sourceLocale
                 }
             }
-            const catalog = this.sharedState.compiled.get(fallbackLoc)?.items!
+            const catalog = this.sharedState.compiled.get(fallbackLoc)!.items!
             const compiled = catalog[index]
             if (compiled || fallbackLoc === this.sourceLocale) {
                 // last try
@@ -349,7 +350,7 @@ export class AdapterHandler {
         }
         let loaderRelTo = filename
         if (this.adapter.outDir) {
-            loaderRelTo = resolve(this.adapter.outDir + '/' + filename)
+            loaderRelTo = resolve(`${this.adapter.outDir}/${filename}`)
         }
         const loaderPath = this.files.getImportLoaderPath(forServer, loaderRelTo)
         const importsFuncs = [
@@ -487,8 +488,8 @@ export class AdapterHandler {
                 // and context not to be updated
                 continue
             }
+            // biome-ignore lint: noDoubleEquals: NOT !== because they may be null (from pofile!)
             if (msgInfo.context != item.context) {
-                // NOT !== because they may be null (from pofile!)
                 storageUpdated = true
                 compileUpdated = true
             }
@@ -513,7 +514,7 @@ export class AdapterHandler {
         if (cleanedUrls) {
             compileUpdated = true
         }
-        if (storageUpdated && this.#opts.mode != 'cli') {
+        if (storageUpdated && this.#opts.mode !== 'cli') {
             // cli saves and compiles at the end
             await this.saveStorage()
             if (compileUpdated) {

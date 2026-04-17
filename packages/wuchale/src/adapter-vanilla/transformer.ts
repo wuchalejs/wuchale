@@ -92,7 +92,7 @@ export class Transformer {
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
     /** will be passed to decide which runtime variable to use */
-    runtimeCtx: {} = {}
+    runtimeCtx = {}
 
     constructor(
         content: string,
@@ -202,7 +202,7 @@ export class Transformer {
     }
 
     literalRepl(msgInfo: Message) {
-        let repl = `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})`
+        const repl = `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})`
         if (msgInfo.type !== 'url') {
             return repl
         }
@@ -744,7 +744,7 @@ export class Transformer {
         }
         if (node.expressions.length) {
             begin += ', ['
-            end = ']' + end
+            end = `]${end}`
             this.mstr.update(start0 - 1, end0 + 2, begin)
             this.mstr.update(node.end - 1, node.end, end)
         } else {
@@ -797,7 +797,7 @@ export class Transformer {
         return msgs
     }
 
-    visitWithCommentDirectives = (node: Estree.AnyNode, func: Function) => {
+    visitWithCommentDirectives = (node: Estree.AnyNode, func: () => Message[]) => {
         const commentDirectives = { ...this.commentDirectives }
         // for estree
         const comments = this.comments[node.start]

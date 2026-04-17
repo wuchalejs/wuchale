@@ -1,5 +1,5 @@
 import { getKey, IndexTracker } from '../adapters.js'
-import { type CompiledElement } from '../compile.js'
+import type { CompiledElement } from '../compile.js'
 import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
 
 export type Compiled = {
@@ -25,8 +25,9 @@ function validatePluralRule(body: string) {
         return false
     }
     // check if it returns a number, just an example
+    // biome-ignore lint: noGlobalEval
     const num = eval(`(n => ${body})(42)`)
-    return !isNaN(num) && num >= 0
+    return !Number.isNaN(num) && num >= 0
 }
 
 /** shared states among multiple adapters handlers */

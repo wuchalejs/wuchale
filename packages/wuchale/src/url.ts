@@ -20,7 +20,7 @@ export const deLocalizeDefault = <L extends string>(path: string, locales: L[]):
     if (!locales.includes(locale)) {
         return [path, null]
     }
-    let rest = path.slice(1 + locale.length)
+    const rest = path.slice(1 + locale.length)
     return [rest || '/', locale]
 }
 

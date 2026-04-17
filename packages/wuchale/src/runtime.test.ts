@@ -21,5 +21,5 @@ test('Runtime', t => {
     t.assert.deepEqual(rt.p(2), ['One item', '# items'])
     t.assert.equal(rt.t(taggedHandler, 1, [3]), taggedHandler`Hello ${3}!`)
     t.assert.equal(rt.t(taggedHandler, 3, [3, 4]), taggedHandler`Hello ${3}${4}`)
-    t.assert.equal(rt.t(String.raw, 3, [3, 4]), String.raw`Hello ${3}${4}`)
+    t.assert.equal(rt.t(String.raw, 4), String.raw`Raw \${3}`)
 })

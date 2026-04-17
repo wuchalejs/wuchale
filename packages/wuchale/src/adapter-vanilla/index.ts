@@ -7,8 +7,8 @@ import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
 import { Transformer } from './transformer.js'
 
-export { Transformer }
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'
+export { Transformer }
 
 export const pluralPattern: CodePattern = {
     name: 'plural',

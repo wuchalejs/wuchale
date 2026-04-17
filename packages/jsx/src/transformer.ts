@@ -107,7 +107,7 @@ export class JSXTransformer extends Transformer {
                 let end = ' />'
                 if (hasExprs) {
                     begin += ' a={['
-                    end = ']}' + end
+                    end = `]}${end}`
                 }
                 this.mstr.appendLeft(lastChildEnd, begin)
                 this.mstr.appendRight(lastChildEnd, end)
@@ -139,7 +139,7 @@ export class JSXTransformer extends Transformer {
     visitNameJSXIdentifier = (node: JX.JSXIdentifier): string => node.name
 
     visitName = (node: JX.JSXIdentifier | JX.JSXMemberExpression | JX.JSXNamespacedName): string => {
-        return this[('visitName' + node.type) as `visitName${typeof node.type}`](node as any)
+        return this[`visitName${node.type}` as `visitName${typeof node.type}`](node as any)
     }
 
     visitJSXElement = (node: JX.JSXElement): Message[] => {

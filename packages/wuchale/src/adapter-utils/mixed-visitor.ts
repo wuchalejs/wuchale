@@ -57,13 +57,13 @@ type VisitProps<NodeT> = {
     useComponent?: boolean
 }
 
-export interface MixedVisitor<MixNodeT, TxtT, ComT, ExprT> extends InitProps<MixNodeT, TxtT, ComT, ExprT> {}
-
 type SeparateVisitRes = [boolean, boolean, boolean, MessageType, Message[]]
 
 export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> {
+    #props: InitProps<MixNodeT, TxtT, ComT, ExprT>
+
     constructor(props: InitProps<MixNodeT, TxtT, ComT, ExprT>) {
-        Object.assign(this, props)
+        this.#props = props
     }
 
     separatelyVisitChildren = (props: VisitProps<MixNodeT>): SeparateVisitRes => {
@@ -72,18 +72,18 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         let heurStr = ''
         let hasCommentDirectives = false
         for (const child of props.children) {
-            if (this.isText(child)) {
-                const strContent = this.getTextContent(child)
+            if (this.#props.isText(child)) {
+                const strContent = this.#props.getTextContent(child)
                 if (!strContent.trim()) {
                     continue
                 }
                 hasTextChild = true
                 heurStr += strContent
-            } else if (this.isComment(child)) {
-                if (this.getCommentData(child).trim().startsWith(commentPrefix)) {
+            } else if (this.#props.isComment(child)) {
+                if (this.#props.getCommentData(child).trim().startsWith(commentPrefix)) {
                     hasCommentDirectives = true
                 }
-            } else if (!this.leaveInPlace(child)) {
+            } else if (!this.#props.leaveInPlace(child)) {
                 hasNonTextChild = true
                 heurStr += `#`
             }
@@ -91,13 +91,13 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         heurStr = heurStr.trimEnd()
         const msg = newMessage({
             msgStr: [heurStr],
-            details: this.fullHeuristicDetails({
+            details: this.#props.fullHeuristicDetails({
                 scope: props.scope,
                 element: props.element,
                 attribute: props.attribute,
             }),
         })
-        const heurMsgType = this.checkHeuristic(msg)
+        const heurMsgType = this.#props.checkHeuristic(msg)
         if (heurMsgType || props.commentDirectives.unit) {
             const hasCompoundText = hasTextChild && hasNonTextChild
             if (props.inCompoundText || props.commentDirectives.unit || (hasCompoundText && !hasCommentDirectives)) {
@@ -113,19 +113,19 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         const commentDirectivesOrig: CommentDirectives = { ...props.commentDirectives }
         let lastVisitIsComment = false
         for (const child of props.children) {
-            if (this.isComment(child)) {
-                updateCommentDirectives(this.getCommentData(child), props.commentDirectives)
+            if (this.#props.isComment(child)) {
+                updateCommentDirectives(this.#props.getCommentData(child), props.commentDirectives)
                 lastVisitIsComment = true
                 continue
             }
-            if (this.isText(child) && !this.getTextContent(child).trim()) {
+            if (this.#props.isText(child) && !this.#props.getTextContent(child).trim()) {
                 continue
             }
             if (props.commentDirectives.ignoreFile) {
                 break
             }
             if (props.commentDirectives.forceType !== false) {
-                msgs.push(...this.visitFunc(child, props.inCompoundText))
+                msgs.push(...this.#props.visitFunc(child, props.inCompoundText))
             }
             if (!lastVisitIsComment) {
                 continue
@@ -148,21 +148,21 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         let msgStr = ''
         let iArg = 0
         let iTag = 0
-        const lastChildEnd = this.getRange(props.children.slice(-1)[0]!).end
+        const lastChildEnd = this.#props.getRange(props.children.slice(-1)[0]!).end
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
         const msgs: Message[] = []
         const placeholders: [number, string][] = []
         for (const child of props.children) {
-            if (this.isComment(child)) {
+            if (this.#props.isComment(child)) {
                 continue
             }
-            const chRange = this.getRange(child)
-            if (this.isText(child)) {
-                const [startWh, trimmed, endWh] = nonWhitespaceText(this.getTextContent(child))
+            const chRange = this.#props.getRange(child)
+            if (this.#props.isText(child)) {
+                const [startWh, trimmed, endWh] = nonWhitespaceText(this.#props.getTextContent(child))
                 const msgInfo = newMessage({
                     msgStr: [trimmed],
-                    details: this.fullHeuristicDetails({ scope: props.scope }),
+                    details: this.#props.fullHeuristicDetails({ scope: props.scope }),
                     context: props.commentDirectives.context,
                 })
                 if (startWh && !msgStr.endsWith(' ')) {
@@ -176,35 +176,35 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
                 if (endWh) {
                     msgStr += ' '
                 }
-                this.mstr.remove(chRange.start, chRange.end)
+                this.#props.mstr.remove(chRange.start, chRange.end)
                 continue
             }
-            if (this.isExpression(child)) {
-                msgs.push(...this.visitExpressionTag(child))
+            if (this.#props.isExpression(child)) {
+                msgs.push(...this.#props.visitExpressionTag(child))
                 if (!hasCompoundText) {
                     continue
                 }
                 msgStr += `{${iArg}}`
-                placeholders.push([iArg, this.mstr.original.slice(chRange.start + 1, chRange.end - 1)])
+                placeholders.push([iArg, this.#props.mstr.original.slice(chRange.start + 1, chRange.end - 1)])
                 let moveStart = chRange.start
                 if (iArg > 0) {
-                    this.mstr.update(chRange.start, chRange.start + 1, ', ')
+                    this.#props.mstr.update(chRange.start, chRange.start + 1, ', ')
                 } else {
                     moveStart++
-                    this.mstr.remove(chRange.start, chRange.start + 1)
+                    this.#props.mstr.remove(chRange.start, chRange.start + 1)
                 }
-                this.mstr.move(moveStart, chRange.end - 1, lastChildEnd)
-                this.mstr.remove(chRange.end - 1, chRange.end)
+                this.#props.mstr.move(moveStart, chRange.end - 1, lastChildEnd)
+                this.#props.mstr.remove(chRange.end - 1, chRange.end)
                 iArg++
                 continue
             }
-            if (this.leaveInPlace(child)) {
-                msgs.push(...this.visitFunc(child, this.canHaveChildren(child)))
+            if (this.#props.leaveInPlace(child)) {
+                msgs.push(...this.#props.visitFunc(child, this.#props.canHaveChildren(child)))
                 continue
             }
             // elements, components and other things as well
-            const canHaveChildren = this.canHaveChildren(child)
-            const childMsgs = this.visitFunc(child, canHaveChildren)
+            const canHaveChildren = this.#props.canHaveChildren(child)
+            const childMsgs = this.#props.visitFunc(child, canHaveChildren)
             let nestedNeedsCtx = false
             let chTxt = ''
             for (const msgInfo of childMsgs) {
@@ -233,7 +233,7 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         }
         const msgInfo = newMessage({
             msgStr: [msgStr],
-            details: this.fullHeuristicDetails({ scope: props.scope }),
+            details: this.#props.fullHeuristicDetails({ scope: props.scope }),
             context: props.commentDirectives.context,
         })
         msgInfo.type = heurMsgType
@@ -244,32 +244,32 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
             return msgs
         }
         if (((props.useComponent ?? true) && props.scope === 'markup' && iArg > 0) || childrenNestedRanges.length > 0) {
-            this.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
+            this.#props.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
         } else {
             // no need for component use
             let begin = '{'
             let end = ')}'
             if (props.inCompoundText) {
-                begin += `${this.vars().rtTransCtx}(${this.vars().nestCtx}`
+                begin += `${this.#props.vars().rtTransCtx}(${this.#props.vars().nestCtx}`
             } else {
                 if (msgInfo.type === 'url') {
                     begin += `${varNames.urlLocalize}(`
-                    end = `), ${this.vars().rtLocale}${end}`
+                    end = `), ${this.#props.vars().rtLocale}${end}`
                 }
-                begin += `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))}`
+                begin += `${this.#props.vars().rtTrans}(${this.#props.index.get(getKey(msgInfo.msgStr, msgInfo.context))}`
             }
             if (iArg > 0) {
                 begin += ', ['
-                end = ']' + end
+                end = `]${end}`
             }
-            if (props.scope === 'attribute' && `'"`.includes(this.mstr.original[lastChildEnd]!)) {
+            if (props.scope === 'attribute' && `'"`.includes(this.#props.mstr.original[lastChildEnd]!)) {
                 const firstChild = props.children[0]!
-                const { start } = this.getRange(firstChild)
-                this.mstr.remove(start - 1, start)
-                this.mstr.remove(lastChildEnd, lastChildEnd + 1)
+                const { start } = this.#props.getRange(firstChild)
+                this.#props.mstr.remove(start - 1, start)
+                this.#props.mstr.remove(lastChildEnd, lastChildEnd + 1)
             }
-            this.mstr.appendLeft(lastChildEnd, begin)
-            this.mstr.appendRight(lastChildEnd, end)
+            this.#props.mstr.appendLeft(lastChildEnd, begin)
+            this.#props.mstr.appendRight(lastChildEnd, end)
         }
         return msgs
     }

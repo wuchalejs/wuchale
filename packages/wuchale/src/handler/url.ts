@@ -9,7 +9,7 @@ import { getKey, type URLConf } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
 import { compileTranslation, type Mixed } from '../compile.js'
 import { type Catalog, type Item, newItem } from '../storage.js'
-import { type URLManifest } from '../url.js'
+import type { URLManifest } from '../url.js'
 
 export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
     const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
@@ -131,7 +131,7 @@ export class URLHandler {
 
     matchToCompile = (key: string, catalog: Catalog, locale: string) => {
         // e.g. key: /items/foo/{0}
-        let toCompile = key
+        const toCompile = key
         const relevantPattern = this.match(key)
         if (relevantPattern == null) {
             return toCompile

@@ -168,7 +168,7 @@ export class AstroTransformer extends Transformer {
                 let end = '\n})}'
                 if (hasExprs) {
                     begin += ',\na: ['
-                    end = ']' + end
+                    end = `]${end}`
                 }
                 this.mstr.appendLeft(lastChildEnd, begin)
                 this.mstr.appendRight(lastChildEnd, end)
@@ -200,7 +200,7 @@ export class AstroTransformer extends Transformer {
             }
             msgs.push(...this.visitAs(part))
             const { start, end } = this.getRange(part)
-            if (end == -1) console.log(part, node)
+            if (end === -1) console.log(part, node)
             expr += `"${' '.repeat(end - start)}"`
         }
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))
@@ -233,9 +233,9 @@ export class AstroTransformer extends Transformer {
         return msgs
     }
 
-    visitcomponent = (node: ComponentNode): Message[] => this.visitelement(node as unknown as ElementNode);
+    visitcomponent = (node: ComponentNode): Message[] => this.visitelement(node as unknown as ElementNode)
 
-    ['visitcustom-element'] = (node: CustomElementNode): Message[] => this.visitelement(node as unknown as ElementNode)
+    'visitcustom-element' = (node: CustomElementNode): Message[] => this.visitelement(node as unknown as ElementNode)
 
     visitattribute = (node: AttributeNode): Message[] => {
         const heurBase: HeuristicDetailsBase = {

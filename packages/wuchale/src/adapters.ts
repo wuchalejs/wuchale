@@ -1,4 +1,3 @@
-import type { CompiledElement } from './compile.js'
 import type { StorageFactory } from './storage.js'
 
 type TxtScope = 'script' | 'markup' | 'attribute'
@@ -186,11 +185,6 @@ type TransformCtx = {
     index: IndexTracker
     expr: RuntimeExpr
     matchUrl: UrlMatcher
-}
-
-export type HMRData = {
-    version: number
-    data: Record<string, [number, CompiledElement][]>
 }
 
 export type TransformOutputCode = {

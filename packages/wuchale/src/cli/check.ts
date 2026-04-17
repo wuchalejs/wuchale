@@ -1,4 +1,4 @@
-import { type Config } from '../config.js'
+import type { Config } from '../config.js'
 import { readOnlyFS } from '../fs.js'
 import { type CheckErrorType, Hub } from '../hub.js'
 import { color } from '../log.js'

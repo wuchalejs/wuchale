@@ -6,7 +6,7 @@ import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
 
 const key = '${KEY}'
 
-export { loadCatalog, loadIDs, key }
+export { key, loadCatalog, loadIDs }
 
 // For non-reactive server-side rendering
 export const getRuntime = (/** @type {string} */ loadID) => currentRuntime(key, loadID)

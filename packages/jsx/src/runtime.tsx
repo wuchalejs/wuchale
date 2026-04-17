@@ -3,7 +3,7 @@ import type { Composite, Mixed } from 'wuchale'
 export type WuchaleComponentProps = {
     n?: boolean
     x: Composite
-    t: Function[]
+    t: ((...a: any[]) => any)[]
     a: any[]
 }
 

@@ -3,7 +3,7 @@ import { platform } from 'node:process'
 import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
 import type { FS } from '../fs.js'
-import { type URLManifest } from '../url.js'
+import type { URLManifest } from '../url.js'
 
 export const dataFileName = 'data.js'
 export const generatedDir = '.wuchale'
@@ -84,7 +84,7 @@ export async function getLoaderPath(
     for (const ext of adapter.loaderExts) {
         const pathClient = loaderPathHead + ext
         const same = { client: pathClient, server: pathClient }
-        const diff = { client: pathClient, server: loaderPathHead + '.server' + ext }
+        const diff = { client: pathClient, server: `${loaderPathHead}.server${ext}` }
         if (adapter.defaultLoaderPath === null) {
             paths.push(diff, same)
         } else if (typeof adapter.defaultLoaderPath === 'string') {
@@ -312,7 +312,7 @@ export class Files {
         if (!this.#opts.adapter.outDir) {
             return
         }
-        const fname = resolve(this.#opts.adapter.outDir + '/' + filename)
+        const fname = resolve(`${this.#opts.adapter.outDir}/${filename}`)
         await this.#opts.fs.mkdir(dirname(fname))
         await this.#opts.fs.write(fname, content)
     }

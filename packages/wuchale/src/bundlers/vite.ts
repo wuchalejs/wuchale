@@ -7,7 +7,7 @@ export function toViteError(err: any, adapterKey: string, filename: string): Err
     // Ensure we always throw an Error instance with a non-empty message so build tools (e.g. Vite)
     // don't end up printing only a generic "error during build:" line.
     const frame: string | undefined = typeof err.frame === 'string' ? err.frame : undefined
-    if (!err.message || !err.message.startsWith(prefix)) {
+    if (!err.message?.startsWith(prefix)) {
         const details = err.message ? `\n${err.message}` : ''
         const frameText = frame ? `\n\n${frame}` : ''
         err.message = `${prefix}${details}${frameText}`
@@ -35,10 +35,10 @@ export function trimViteQueries(id: string) {
 type HotUpdateCtx = {
     file: string
     server: {
-        ws: { send: Function }
+        ws: { send: (...a: any[]) => any }
         moduleGraph: {
-            getModulesByFile: Function
-            invalidateModule: Function
+            getModulesByFile: (...a: any[]) => any
+            invalidateModule: (...a: any[]) => any
         }
     }
     read: () => string | Promise<string>

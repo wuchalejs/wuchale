@@ -1,5 +1,5 @@
-import { type TestContext } from 'node:test'
-import { statfs } from 'fs/promises'
+import { statfs } from 'node:fs/promises'
+import type { TestContext } from 'node:test'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
 import { type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 import type { FS } from '../src/fs.js'
@@ -10,12 +10,13 @@ const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an 
 export const ts = (s: TemplateStringsArray) => s.join('') // syntax
 
 export const testCatalog = {
-    p: (n: number) => (n == 1 ? 0 : 1),
+    p: (n: number) => (n === 1 ? 0 : 1),
     c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // mixed message
         ['One item', '# items'], // plurals
         ['Hello ', 0, 1], // mixed message ending with arg
+        'Raw \\${3}', // for String.raw
     ],
 }
 
@@ -45,7 +46,7 @@ export function transformTest(
     t.assert.strictEqual(
         msgs.length,
         expectedMsgs.length,
-        `Unexpected number of messages: ${msgs.length} !== ${expectedMsgs.length}\n${msgs.map(m => '  ' + m.msgStr[0]).join('\n')}`,
+        `Unexpected number of messages: ${msgs.length} !== ${expectedMsgs.length}\n${msgs.map(m => `  ${m.msgStr[0]}`).join('\n')}`,
     )
     for (let [i, exp] of expectedMsgs.entries()) {
         if (typeof exp === 'string') {

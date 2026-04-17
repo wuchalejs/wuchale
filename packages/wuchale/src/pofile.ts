@@ -52,7 +52,7 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
                 poi.extractedComments.push('')
                 continue
             }
-            let comm: string[] = []
+            const comm: string[] = []
             if (entry.link) {
                 comm.push(entry.link)
             }

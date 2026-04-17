@@ -1,9 +1,14 @@
 import type { CompiledElement, CompositePayload, Mixed } from './compile.js'
 
+export type HMRData = {
+    version: number
+    data: Record<string, [number, CompiledElement][]>
+}
+
 export type CatalogModule = {
     c: CompiledElement[]
     p?: (n: number) => number
-    update?: Function
+    update?: (data: HMRData) => void
 }
 
 let onInvalidFunc: (i: number, c: CompiledElement[]) => string = () => ''
@@ -54,7 +59,7 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
 export default function toRuntime(mod: CatalogModule = { c: [] }, locale?: string): Runtime {
     const getCompositeContext = (id: number) => {
         const ctx: CompiledElement = mod.c[id]!
-        if (typeof ctx == 'string') {
+        if (typeof ctx === 'string') {
             return [ctx]
         }
         if (Array.isArray(ctx)) {

@@ -30,7 +30,7 @@ const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 const rtComponent = 'W_tx_'
 const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
 const snipPrefix = '_w_snippet_'
-const rtModuleVar = varNames.rt + 'mod_'
+const rtModuleVar = `${varNames.rt}mod_`
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
 type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AST.Text, AST.Comment, AST.ExpressionTag>
@@ -156,7 +156,7 @@ export class SvelteTransformer extends Transformer {
                 let end = ' />\n'
                 if (hasExprs) {
                     begin += ' a={['
-                    end = ']}' + end
+                    end = `]}${end}`
                 }
                 this.mstr.appendLeft(lastChildEnd, begin)
                 this.mstr.appendRight(lastChildEnd, end)

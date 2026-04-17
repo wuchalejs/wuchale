@@ -90,7 +90,7 @@ export async function getConfig(configPath?: string): Promise<Config> {
             module = await import(fileUrl)
             break
         } catch (err: any) {
-            if (err.code !== 'ERR_MODULE_NOT_FOUND' || err.url != fileUrl) {
+            if (err.code !== 'ERR_MODULE_NOT_FOUND' || err.url !== fileUrl) {
                 throw err
             }
         }
