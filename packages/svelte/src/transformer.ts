@@ -76,11 +76,13 @@ export class SvelteTransformer extends Transformer {
     override visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
         const msgs = this.defaultVisitVariableDeclarator(node)
         const init = node.init
+        const filename = this.heuristciDetails.file
         if (
             !msgs.length ||
             this.heuristciDetails.declaring != null ||
             init == null ||
-            ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)
+            ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type) ||
+            !['.svelte', '.svelte.js', '.svelte.ts'].some(ext => filename.endsWith(ext))
         ) {
             return msgs
         }

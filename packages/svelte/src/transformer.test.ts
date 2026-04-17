@@ -14,7 +14,7 @@ const urlHandler = new URLHandler(['en'], 'en', {
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
-const getOutput = (content: string, filename = 'test.svelte') =>
+const getOutput = (content: string, filename = 'test.svelte', runtime = defaultArgs.runtime as RuntimeConf) =>
     new SvelteTransformer(
         content,
         filename,
@@ -22,7 +22,7 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         defaultArgs.heuristic,
         defaultArgs.patterns,
         catalogExpr,
-        defaultArgs.runtime as RuntimeConf,
+        runtime,
         urlHandler.match,
     ).transformSv()
 
@@ -81,6 +81,34 @@ test('JS module files', async t => {
         }
     `,
         ['Simple bare assign', 'Foo', 'Hello', 'Should extract'],
+    )
+})
+
+test('Plain JS files respect runtime reactive overrides', async t => {
+    transformTest(
+        t,
+        await getOutput(
+            ts`
+            const LINK_TYPES = {
+                docs: 'Docs'
+            }
+        `,
+            'developer-links.js',
+            {
+                ...defaultArgs.runtime,
+                initReactive: () => false,
+                useReactive: () => false,
+            } as RuntimeConf,
+        ),
+        ts`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+
+        const _w_runtime_ = _w_load_();
+        const LINK_TYPES = {
+            docs: _w_runtime_(0)
+        }
+    `,
+        ['Docs'],
     )
 })
 
