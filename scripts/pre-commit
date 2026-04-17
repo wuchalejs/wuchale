@@ -1,3 +1,10 @@
-#!/usr/bin/sh
+#!/usr/bin/env bash
+set -e
 
-node scripts/fmt.ts
+# optimized for latency using direct binaries & targeting staged files
+staged=$(git diff --staged --diff-filter=ACM --name-only)
+if [[ -n "$staged" ]]; then
+    mapfile -t files <<< "$staged"
+    ./node_modules/.bin/biome check --write --no-errors-on-unmatched "${files[@]}"
+    git add "${files[@]}"
+fi
