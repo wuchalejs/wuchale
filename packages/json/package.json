@@ -33,7 +33,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "devDependencies": {
-        "typescript": "^6.0.2",
+        "typescript": "^6.0.3",
         "@types/node": "~24.12.2",
         "wuchale": "^0.22.1"
     },
