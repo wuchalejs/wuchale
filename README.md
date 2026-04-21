@@ -143,6 +143,7 @@ This is a monorepo that houses these packages:
 | `@wuchale/jsx` | JSX adapter (for React and SolidJS)     |[![@wuchale/jsx](https://img.shields.io/npm/v/@wuchale/jsx?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/jsx)|
 | `@wuchale/svelte`    | Svelte adapter    |[![@wuchale/svelte](https://img.shields.io/npm/v/@wuchale/svelte?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/svelte)|
 | `@wuchale/astro`    | Astro adapter    |[![@wuchale/astro](https://img.shields.io/npm/v/@wuchale/astro?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/astro)|
+| `@wuchale/json`    | JSON storage    |[![@wuchale/json](https://img.shields.io/npm/v/@wuchale/json?logo=npm&logoColor=red&color=blue")](https://npmjs.com/package/@wuchale/json)|
 
 ## Contributing
 
