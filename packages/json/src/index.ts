@@ -3,7 +3,7 @@ import {
     type FileRefEntry,
     fillDefaults,
     type Item,
-    type LoadData,
+    type PluralRule,
     type PluralRules,
     type SaveData,
     type StorageFactory,
@@ -25,7 +25,13 @@ type SaveRefFull = {
 
 type SaveItem = Partial<Pick<Item, 'urlAdapters' | 'context'>> & {
     references?: (SaveRefMin | SaveRefFull)[]
+    translations?: Record<string, string | string[]>
     [loc: string]: unknown // translations flattened
+}
+
+type SaveDataCustom = {
+    items: SaveItem[]
+    pluralRules: Record<string, PluralRule>
 }
 
 type JSONOpts = {
@@ -35,6 +41,7 @@ type JSONOpts = {
     removePluralRule: boolean
     removePlaceholders: boolean
     flattenTranslations: boolean
+    stringForSingle: boolean
     parse: typeof JSON.parse
     stringify: typeof JSON.stringify
 }
@@ -46,6 +53,7 @@ const defaultOpts: JSONOpts = {
     removePluralRule: false,
     removePlaceholders: false,
     flattenTranslations: false,
+    stringForSingle: false,
     parse: JSON.parse,
     stringify: JSON.stringify,
 }
@@ -80,14 +88,21 @@ export class JSONFile {
                             link: r.link,
                             placeholders: Object.entries(r.placeholders).map(([i, v]) => [Number(i), v]),
                         }))
+                    } else {
+                        refs = [null]
                     }
                     return { file: ref.file, refs }
                 }) ?? [],
         }
         for (const loc of this.#opts.locales) {
-            const str = sitem[loc]
+            let str: string | string[] | undefined
+            if (this.#opts.flattenTranslations) {
+                str = sitem[loc] as string | string[]
+            } else {
+                str = sitem.translations?.[loc]
+            }
             if (str == null) {
-                continue // filled below
+                continue // filled at main handler
             }
             item.translations.set(loc, typeof str === 'string' ? [str] : (str as string[]))
         }
@@ -112,12 +127,18 @@ export class JSONFile {
         }
         let savedItems: SaveItem[]
         let pluralRules: PluralRules | undefined
+        let parsed: SaveItem[] | SaveDataCustom
+        try {
+            parsed = this.#opts.parse(content)
+        } catch {
+            return {}
+        }
         if (this.#opts.removePluralRule) {
-            savedItems = this.#opts.parse(content)
+            savedItems = parsed as SaveItem[]
         } else {
-            const data = this.#opts.parse(content) as LoadData
+            const data = parsed as SaveDataCustom
             savedItems = data.items
-            pluralRules = data.pluralRules
+            pluralRules = new Map(Object.entries(data.pluralRules ?? {}))
         }
         return { items: savedItems.map(this.fromSaveItem), pluralRules }
     }
@@ -131,20 +152,36 @@ export class JSONFile {
         }
     }
 
-    saveRaw = async (filename: string, items: SaveItem[]) => {
+    saveRaw = async (filename: string, items: SaveItem[], pluralRules: PluralRules) => {
         if (items.length === 0) {
             await this.#opts.fs.unlink(filename)
             return
         }
-        await this.#opts.fs.write(filename, this.#opts.stringify(items, null, '  '))
+        let data: SaveItem[] | SaveDataCustom
+        if (this.#opts.removePluralRule) {
+            data = items
+        } else {
+            data = { pluralRules: Object.fromEntries(pluralRules.entries()), items } as SaveDataCustom
+        }
+        await this.#opts.fs.write(filename, this.#opts.stringify(data, null, '  '))
     }
 
     toSaveItem = (item: Item): SaveItem => {
+        let translations: [string, string | string[]][] = Array.from(item.translations)
+        if (this.#opts.stringForSingle) {
+            translations = translations.map(([k, t]) => [k, t.length === 1 ? t[0]! : t])
+        }
         const saveItem: SaveItem = {
             context: item.context,
             urlAdapters: item.urlAdapters,
-            ...Object.fromEntries(Array.from(item.translations).map(([k, t]) => [k, t.length === 1 ? t[0] : t])),
             references: [],
+        }
+        if (this.#opts.flattenTranslations) {
+            for (const [loc, transl] of translations) {
+                saveItem[loc] = transl
+            }
+        } else {
+            saveItem.translations = Object.fromEntries(translations)
         }
         if (this.#opts.removePlaceholders) {
             saveItem.references = item.references.map(ref => {
@@ -201,10 +238,12 @@ export class JSONFile {
         await this.saveRaw(
             this.files[0],
             items.filter(i => !(i.urlAdapters as string[])?.length),
+            data.pluralRules,
         )
         await this.saveRaw(
             this.files[1],
             items.filter(i => (i.urlAdapters as string[])?.length),
+            data.pluralRules,
         )
     }
 }
