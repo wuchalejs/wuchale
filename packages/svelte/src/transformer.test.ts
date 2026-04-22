@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { IndexTracker, type RuntimeConf, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { ts as svelte, transformTest, ts } from '../../wuchale/testing/utils.ts'
-import { defaultArgs } from './index.js'
+import { defaultArgs, svelteKitDefaultHeuristic } from './index.js'
 import { SvelteTransformer } from './transformer.js'
 
 const urlHandler = new URLHandler(['en'], 'en', {
@@ -19,7 +19,7 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         content,
         filename,
         new IndexTracker(),
-        defaultArgs.heuristic,
+        svelteKitDefaultHeuristic,
         defaultArgs.patterns,
         catalogExpr,
         defaultArgs.runtime as RuntimeConf,

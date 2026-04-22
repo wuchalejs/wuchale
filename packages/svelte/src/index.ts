@@ -67,7 +67,7 @@ export const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     storage: pofile(),
     patterns: [pluralPattern],
-    heuristic: svelteKitDefaultHeuristic,
+    heuristic: svelteDefaultHeuristic,
     granularLoad: false,
     bundleLoad: false,
     generateLoadID: defaultGenerateLoadID,
@@ -111,6 +111,9 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter => {
+    if (args.loader === 'sveltekit' && args.heuristic == null) {
+        args.heuristic = svelteKitDefaultHeuristic
+    }
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
         transform: ({ content, filename, index, expr, matchUrl }) => {
