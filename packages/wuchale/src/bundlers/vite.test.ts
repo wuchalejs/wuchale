@@ -5,10 +5,13 @@ import { type TestContext, test } from 'node:test'
 import { toViteError, trimViteQueries } from './vite.js'
 
 test('vite queries trimmed', async (t: TestContext) => {
-    t.assert.strictEqual(trimViteQueries('/foo/bar?v=foo'), '/foo/bar')
-    t.assert.strictEqual(trimViteQueries('/foo/bar?t=123'), '/foo/bar')
-    t.assert.strictEqual(trimViteQueries('/foo/bar?t=123&css=true'), '/foo/bar?t=123&css=true')
-    t.assert.strictEqual(trimViteQueries('/foo/bar?css=true'), '/foo/bar?css=true')
+    const trim = new Set(['v', 't'])
+    t.assert.strictEqual(trimViteQueries('/foo/bar', trim), '/foo/bar')
+    t.assert.strictEqual(trimViteQueries('/foo/bar?v=foo', trim), '/foo/bar')
+    t.assert.strictEqual(trimViteQueries('/foo/bar?t=123', trim), '/foo/bar')
+    t.assert.strictEqual(trimViteQueries('/foo/bar?t=123&html&css=true', trim), '/foo/bar?t=123&html&css=true')
+    t.assert.strictEqual(trimViteQueries('/foo/bar?css=true', trim), '/foo/bar?css=true')
+    t.assert.strictEqual(trimViteQueries('/foo/bar?v&t=true', trim), '/foo/bar')
 })
 
 test('error correctly formatted', async (t: TestContext) => {

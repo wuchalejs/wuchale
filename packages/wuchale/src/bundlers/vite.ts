@@ -20,14 +20,31 @@ export function toViteError(err: any, adapterKey: string, filename: string): Err
     return err
 }
 
-export function trimViteQueries(id: string) {
-    let queryIndex = id.indexOf('?v=')
-    if (queryIndex === -1) {
-        queryIndex = id.indexOf('?t=')
+export function trimViteQueries(id: string, trimParams: Set<string>) {
+    const queryStart = id.indexOf('?')
+    if (queryStart === -1) {
+        return id
     }
-    if (queryIndex >= 0 && !id.includes('&', queryIndex)) {
-        // trim after this, like ?v=b65b2c3b when it's from node_modules
-        id = id.slice(0, queryIndex)
+    let currentI = queryStart + 1
+    const lastI = id.length + 1
+    let allTrimmed = true
+    do {
+        let nextI = id.indexOf('&', currentI)
+        if (nextI === -1) {
+            nextI = lastI
+        }
+        let endI = id.indexOf('=', currentI)
+        if (endI === -1 || endI > nextI) {
+            endI = nextI
+        }
+        if (!trimParams.has(id.slice(currentI, endI))) {
+            allTrimmed = false
+            break
+        }
+        currentI = nextI + 1
+    } while (currentI < lastI)
+    if (allTrimmed) {
+        id = id.slice(0, queryStart)
     }
     return id
 }
@@ -45,8 +62,15 @@ type HotUpdateCtx = {
     timestamp: number
 }
 
-export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
+export type PluginConf = {
+    configPath?: string
+    hmrDelayThreshold?: number
+    trimQueryParams?: string[]
+}
+
+export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
     let hub: Hub
+    const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'raw'])
     return {
         name: pluginName,
         async configResolved(config: { env: { DEV?: boolean } }) {
@@ -78,7 +102,7 @@ export const wuchale = (configPath?: string, hmrDelayThreshold = 1000) => {
         transform: {
             order: 'pre' as const,
             async handler(code: string, id: string, options?: { ssr?: boolean | undefined }) {
-                const [output] = await hub.transform(code, trimViteQueries(id), options?.ssr)
+                const [output] = await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
                 return output
             },
         },
