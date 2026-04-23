@@ -78,8 +78,8 @@ export type CatalogStorage = {
      * two storages with same keys means they are the same/shared
      */
     key: string
-    load(): Promise<LoadData>
-    save(items: SaveData): Promise<void>
+    load(): LoadData | Promise<LoadData>
+    save(data: SaveData): void | Promise<void>
     /** the files controlled by this storage, for e.g. for Vite to watch */
     files: string[]
 }
@@ -98,3 +98,20 @@ export type StorageFactoryOpts = {
 }
 
 export type StorageFactory = (opts: StorageFactoryOpts) => CatalogStorage | Promise<CatalogStorage>
+
+export function migrateStorage(fromStorages: StorageFactory[], toStorage: StorageFactory): StorageFactory {
+    return async opts => {
+        const fromSts = await Promise.all(fromStorages.map(s => s(opts)))
+        return {
+            ...(await toStorage(opts)),
+            files: fromSts.flatMap(s => s.files),
+            load: async () => {
+                const loadeds = await Promise.all(fromSts.map(st => st.load()))
+                return {
+                    pluralRules: loadeds[0]?.pluralRules,
+                    items: loadeds.flatMap(l => l.items),
+                }
+            },
+        }
+    }
+}
