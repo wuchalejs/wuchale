@@ -32,10 +32,12 @@
     "bugs": "https://github.com/wuchalejs/wuchale/issues",
     "author": "K1DV5",
     "license": "MIT",
+    "dependencies": {
+        "wuchale": "^0.22.1"
+    },
     "devDependencies": {
         "typescript": "^6.0.3",
-        "@types/node": "~24.12.2",
-        "wuchale": "^0.22.1"
+        "@types/node": "~24.12.2"
     },
     "type": "module"
 }
