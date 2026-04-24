@@ -109,11 +109,12 @@ export class JSONFile {
         if (this.#opts.mergeSameRegionals) {
             for (const loc of this.#opts.locales) {
                 const [base, region] = loc.split('-')
-                if (!region) {
+                if (!region || item.translations.has(loc)) {
                     continue
                 }
-                if (!item.translations.has(loc)) {
-                    item.translations.set(loc, item.translations.get(base!)!)
+                const baseTransl = item.translations.get(base!)
+                if (baseTransl) {
+                    item.translations.set(loc, baseTransl)
                 }
             }
         }
@@ -144,12 +145,13 @@ export class JSONFile {
     }
 
     load = async () => {
-        const { items, pluralRules } = await this.loadRaw(this.files[0])
-        const { items: urlItems } = await this.loadRaw(this.files[1])
-        return {
-            items: [...(urlItems ?? []), ...(items ?? [])],
-            pluralRules,
+        let { items, pluralRules } = await this.loadRaw(this.files[0])
+        if (this.#opts.haveUrl) {
+            items = [...((await this.loadRaw(this.files[1])).items ?? []), ...(items ?? [])]
+        } else {
+            items = items ?? []
         }
+        return { items, pluralRules }
     }
 
     saveRaw = async (filename: string, items: SaveItem[], pluralRules: PluralRules) => {
