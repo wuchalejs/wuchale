@@ -38,7 +38,6 @@ type JSONOpts = {
     dir: string
     extension: string
     mergeSameRegionals: boolean
-    removePluralRule: boolean
     removePlaceholders: boolean
     flattenTranslations: boolean
     stringForSingle: boolean
@@ -50,7 +49,6 @@ const defaultOpts: JSONOpts = {
     dir: 'src/locales',
     extension: 'json',
     mergeSameRegionals: false,
-    removePluralRule: false,
     removePlaceholders: false,
     flattenTranslations: false,
     stringForSingle: false,
@@ -123,25 +121,14 @@ export class JSONFile {
 
     loadRaw = async (filename: string) => {
         const content = await this.#opts.fs.read(filename)
-        if (content === null) {
+        if (content == null || !content.trim()) {
             return {}
         }
-        let savedItems: SaveItem[]
-        let pluralRules: PluralRules | undefined
-        let parsed: SaveItem[] | SaveDataCustom
-        try {
-            parsed = this.#opts.parse(content)
-        } catch {
-            return {}
+        const data: SaveDataCustom = this.#opts.parse(content)
+        return {
+            items: data.items.map(this.fromSaveItem),
+            pluralRules: new Map(Object.entries(data.pluralRules ?? {})),
         }
-        if (this.#opts.removePluralRule) {
-            savedItems = parsed as SaveItem[]
-        } else {
-            const data = parsed as SaveDataCustom
-            savedItems = data.items
-            pluralRules = new Map(Object.entries(data.pluralRules ?? {}))
-        }
-        return { items: savedItems.map(this.fromSaveItem), pluralRules }
     }
 
     load = async () => {
@@ -159,12 +146,7 @@ export class JSONFile {
             await this.#opts.fs.unlink(filename)
             return
         }
-        let data: SaveItem[] | SaveDataCustom
-        if (this.#opts.removePluralRule) {
-            data = items
-        } else {
-            data = { pluralRules: Object.fromEntries(pluralRules.entries()), items } as SaveDataCustom
-        }
+        const data = { pluralRules: Object.fromEntries(pluralRules.entries()), items } as SaveDataCustom
         await this.#opts.fs.write(filename, this.#opts.stringify(data, null, '  '))
     }
 
@@ -178,12 +160,28 @@ export class JSONFile {
             urlAdapters: item.urlAdapters,
             references: [],
         }
+        let translationsForMerge: Record<string, unknown>
         if (this.#opts.flattenTranslations) {
             for (const [loc, transl] of translations) {
                 saveItem[loc] = transl
             }
+            translationsForMerge = saveItem
         } else {
             saveItem.translations = Object.fromEntries(translations)
+            translationsForMerge = saveItem.translations
+        }
+        if (this.#opts.mergeSameRegionals) {
+            for (const loc of this.#opts.locales) {
+                const [base, reg] = loc.split('-')
+                if (!reg) {
+                    continue
+                }
+                const tLoc = translationsForMerge[loc] as string[]
+                const tBase = translationsForMerge[base!] as string[]
+                if (tLoc === tBase || (tLoc.length === tBase.length && !tLoc.some((t, i) => t !== tBase[i]))) {
+                    delete translationsForMerge[loc]
+                }
+            }
         }
         if (this.#opts.removePlaceholders) {
             saveItem.references = item.references.map(ref => {
@@ -212,19 +210,6 @@ export class JSONFile {
                 }
                 return nref
             })
-        }
-        if (this.#opts.mergeSameRegionals) {
-            for (const loc of this.#opts.locales) {
-                const [base, reg] = loc.split('-')
-                if (!reg) {
-                    continue
-                }
-                const tLoc = saveItem[loc] as string[]
-                const tBase = saveItem[base!] as string[]
-                if (tLoc === tBase || Array.from(tLoc).join('') === Array.from(tBase).join('')) {
-                    delete saveItem[loc]
-                }
-            }
         }
         if (saveItem.references?.length === 0) {
             delete saveItem.references
