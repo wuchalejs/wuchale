@@ -1,10 +1,10 @@
 import { loadLocales } from 'wuchale/load-utils/server'
 import { locales } from '${DATA}'
-import { loadCatalog, loadIDs } from '${PROXY_SYNC}'
+import { loadCatalog, nLoadIDs } from '${PROXY_SYNC}'
 
-export { loadCatalog, loadIDs }
+export { loadCatalog, nLoadIDs }
 export const key = '${KEY}'
 
 // two exports
-export const getRuntime = await loadLocales(key, loadIDs, loadCatalog, locales)
+export const getRuntime = await loadLocales(key, nLoadIDs, loadCatalog, locales)
 export const getRuntimeRx = getRuntime

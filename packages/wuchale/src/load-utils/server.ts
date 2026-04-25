@@ -3,7 +3,7 @@ import toRuntime, { type Runtime } from '../runtime.js'
 import type { LoaderFunc } from './index.js'
 
 // by key, by loadID
-type LoadedRuntimes = Record<string, Record<string, Runtime>>
+type LoadedRuntimes = Record<string, Runtime[]>
 // by locale
 const runtimes: Record<string, LoadedRuntimes> = {}
 // exported mainly for stackblitz examples polyfills
@@ -12,7 +12,7 @@ const emptyRuntime = toRuntime()
 
 const warningShown: Record<string, boolean> = {}
 
-export function currentRuntime(key: string, loadID: string) {
+export function currentRuntime(key: string, loadID: number) {
     const runtime = runtimeCtx.getStore()?.[key]?.[loadID]
     if (runtime != null) {
         return runtime
@@ -30,26 +30,23 @@ export function currentRuntime(key: string, loadID: string) {
 
 export async function loadLocales(
     key: string,
-    loadIDs: string[],
+    nLoadIDs: number,
     load: LoaderFunc,
     locales: string[],
-): Promise<(loadID: string) => Runtime> {
-    if (loadIDs == null) {
-        loadIDs = [key]
-    }
+): Promise<(loadID?: number) => Runtime> {
     for (const locale of locales) {
         if (!(locale in runtimes)) {
             runtimes[locale] = {}
         }
         const loaded = runtimes[locale]!
         if (!(key in loaded)) {
-            loaded[key] = {}
+            loaded[key] = []
         }
-        for (const id of loadIDs) {
+        for (let id = 0; id < nLoadIDs; id++) {
             loaded[key]![id] = toRuntime(await load(id, locale), locale)
         }
     }
-    return (loadID: string) => currentRuntime(key, loadID)
+    return (loadID = 0) => currentRuntime(key, loadID)
 }
 
 export async function runWithLocale<T>(locale: string, func: () => T): Promise<T> {

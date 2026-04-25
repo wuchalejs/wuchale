@@ -161,7 +161,7 @@ export class Hub {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
             const adapter = handler.adapter
-            if (adapter.granularLoad) {
+            if (adapter.loading.granular) {
                 this.#granularLoadHandlers.push(handler)
             } else {
                 for (const locale of opts.config.locales) {
@@ -284,13 +284,7 @@ export class Hub {
                 await handler.loadStorage()
                 await handler.compile(this.#hmrVersion)
             }
-            const [loadIDs] = getLoadIDs(
-                handler.adapter,
-                handler.key,
-                handler.sharedState.ownerKey,
-                handler.granularState.byID.values(),
-                handler.sourceLocale,
-            )
+            const loadIDs = getLoadIDs(handler.adapter, handler.granularState.byID.values(), handler.sourceLocale)
             for (const loc of this.#opts.config.locales) {
                 for (const loadID of loadIDs) {
                     changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
@@ -338,14 +332,12 @@ export class Hub {
         sync: boolean,
         existingFilesByOwner: Map<string, Set<string>>,
     ): Promise<boolean> {
-        const filePaths = await glob(
-            ...globConfToArgs(
-                handler.adapter.files,
-                this.#opts.root,
-                this.#opts.config.localesDir,
-                handler.adapter.outDir,
-            ),
+        const [patterns, ignore] = globConfToArgs(
+            handler.adapter.files,
+            this.#opts.config.localesDir,
+            handler.adapter.outDir,
         )
+        const filePaths = await glob(patterns, { ignore, cwd: this.#opts.root })
         let existingFiles = existingFilesByOwner.get(handler.sharedState.ownerKey)
         if (existingFiles) {
             for (const file of filePaths) {

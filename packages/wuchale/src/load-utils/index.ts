@@ -1,19 +1,19 @@
 import toRuntime, { type CatalogModule, type Runtime } from '../runtime.js'
 
-export type LoaderFunc = (loadID: string, locale: string) => CatalogModule | Promise<CatalogModule>
+export type LoaderFunc = (loadID: number, locale: string) => CatalogModule | Promise<CatalogModule>
 
 export type RuntimeCollection = {
-    get: (loadID: string) => Runtime
-    set: (loadID: string, catalog: Runtime) => void
+    get: (loadID: number) => Runtime
+    set: (loadID: number, runtime: Runtime) => void
 }
 
 export type LoaderState = {
     load: LoaderFunc
-    catalogs: { [loadID: string]: CatalogModule | undefined }
+    catalogs: (CatalogModule | undefined)[]
     collection: RuntimeCollection
 }
 
-export function defaultCollection(store: Record<string, Runtime>): RuntimeCollection {
+export function defaultCollection(store: Runtime[]): RuntimeCollection {
     return {
         get: loadID => store[loadID]!,
         set: (loadID, rt) => {
@@ -33,24 +33,24 @@ const emptyRuntime = toRuntime()
 export function registerLoaders(
     key: string,
     load: LoaderFunc,
-    loadIDs: string[],
+    nLoadIDs: number,
     collection?: RuntimeCollection,
-): (fileID: string) => Runtime {
+): (loadID?: number) => Runtime {
     states[key] = {
         load,
-        catalogs: Object.fromEntries(loadIDs.map(id => [id])),
-        collection: collection ?? defaultCollection({}),
+        catalogs: Array(nLoadIDs).fill(undefined),
+        collection: collection ?? defaultCollection([]),
     }
-    for (const id of loadIDs) {
+    for (let id = 0; id < nLoadIDs; id++) {
         states[key].collection.set(id, emptyRuntime)
     }
-    return loadID => states[key]!.collection.get(loadID)
+    return (loadID = 0) => states[key]!.collection.get(loadID)
 }
 
 /* Sets the most recently loaded locale as the current one */
 export function commitLocale(locale: string) {
     for (const state of Object.values(states)) {
-        for (const [loadID, catalog] of Object.entries(state.catalogs)) {
+        for (const [loadID, catalog] of state.catalogs.entries()) {
             state.collection.set(loadID, toRuntime(catalog, locale))
         }
     }
@@ -63,11 +63,11 @@ export function commitLocale(locale: string) {
  */
 export async function loadLocale(locale: string, commit = true): Promise<void> {
     const promises: Promise<CatalogModule>[] = []
-    const statesArr: [string, LoaderState][] = []
+    const statesArr: [number, LoaderState][] = []
     for (const state of Object.values(states)) {
-        for (const loadID of Object.keys(state.catalogs)) {
-            promises.push(state.load(loadID, locale) as Promise<CatalogModule>)
-            statesArr.push([loadID, state])
+        for (let id = 0; id < state.catalogs.length; id++) {
+            promises.push(state.load(id, locale) as Promise<CatalogModule>)
+            statesArr.push([id, state])
         }
     }
     for (const [i, loaded] of (await Promise.all(promises)).entries()) {
@@ -85,8 +85,8 @@ export async function loadLocale(locale: string, commit = true): Promise<void> {
  */
 export function loadLocaleSync(locale: string, commit = true) {
     for (const state of Object.values(states)) {
-        for (const loadID of Object.keys(state.catalogs)) {
-            state.catalogs[loadID] = state.load(loadID, locale) as CatalogModule
+        for (let id = 0; id < state.catalogs.length; id++) {
+            state.catalogs[id] = state.load(id, locale) as CatalogModule
         }
     }
     commit && commitLocale(locale)

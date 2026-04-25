@@ -7,7 +7,7 @@ import type {
     LoaderChoice,
     RuntimeConf,
 } from 'wuchale'
-import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
+import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { AstroTransformer } from './transformer.js'
@@ -34,10 +34,7 @@ export const astroDefaultHeuristic = createAstroHeuristic(defaultHeuristicOpts)
 type LoadersAvailable = 'default'
 
 // astro is an SSR framework, omit irrelevant
-export type AstroArgs = Omit<
-    AdapterArgs<LoadersAvailable>,
-    'bundleLoad' | 'granularLoad' | 'generateLoadID' | 'runtime'
->
+export type AstroArgs = Omit<AdapterArgs<LoadersAvailable>, 'loading' | 'runtime'>
 
 export const defaultRuntime: RuntimeConf = {
     // Astro is SSR-only, so we use non-reactive runtime by default
@@ -89,9 +86,11 @@ export const adapter = (args: DeepPartial<AstroArgs> = defaultArgs): Adapter => 
         },
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader),
-        granularLoad: false,
-        bundleLoad: false,
-        generateLoadID: defaultGenerateLoadID,
+        loading: {
+            direct: false,
+            granular: false,
+            group: [],
+        },
         runtime: defaultRuntime,
         ...rest,
     }

@@ -1,6 +1,6 @@
 declare module 'solid-js' {
     export function For(props: any): any
-    export function createSignal(init: any): [Function, Function]
+    export function createSignal<T>(init: T): [() => T, ((a: T | (() => T)) => void)]
 }
 
 declare module 'solid-js/store' {
@@ -8,7 +8,7 @@ declare module 'solid-js/store' {
 }
 
 declare module 'react' {
-    export function useState(init: any): [any, Function]
+    export function useState<T>(init: T | (() => T)): [T, ((a: T | (() => T)) => void)]
     export function useEffect(cb: Function, deps: Array): any
     export function useMemo(cb: Function, deps: Array): any
 }

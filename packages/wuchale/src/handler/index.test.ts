@@ -70,7 +70,7 @@ test('HMR', async (t: TestContext) => {
             return _w_rt_
         }
 
-        _w_load_('test')(0)
+        _w_load_()(0)
     `),
     )
     // not on SSR
@@ -78,13 +78,13 @@ test('HMR', async (t: TestContext) => {
         trimLines((await handler.transform(content, 'test.js', 1, true))[0].code),
         trimLines(ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./src/locales/test.loader.js"
-        _w_load_('test')(0)
+        _w_load_()(0)
     `),
     )
 })
 
 test('Manifest', async (t: TestContext) => {
-    const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.test.manifest.js')
+    const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
         trimLines(content!),

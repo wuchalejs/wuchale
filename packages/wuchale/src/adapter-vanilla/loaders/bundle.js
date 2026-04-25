@@ -11,7 +11,7 @@ export function setLocale(newLocale) {
 }
 
 /**
- * @param {{ [locale: string]: import("wuchale/runtime").CatalogModule }} catalogs
+ * @param {{ [locale in import('${DATA}').Locale]: import("wuchale/runtime").CatalogModule }} catalogs
  */
 export const getRuntime = catalogs => toRuntime(catalogs[locale], locale)
 export const getRuntimeRx = getRuntime

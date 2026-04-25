@@ -10,6 +10,7 @@ export type {
     HeuristicFunc,
     HeuristicResult,
     LoaderChoice,
+    LoadGroupPatt,
     Message,
     MessageType,
     RuntimeConf,
@@ -21,7 +22,6 @@ export type {
 } from './adapters.js'
 export {
     createHeuristic,
-    defaultGenerateLoadID,
     defaultHeuristic,
     defaultHeuristicOpts,
     getKey,

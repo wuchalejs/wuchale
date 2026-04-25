@@ -7,7 +7,7 @@ const [locale, setLocale] = createSignal(locales[0])
 export { setLocale }
 
 /**
- * @param {{ [locale: string]: import('wuchale/runtime').CatalogModule }} catalogs
+ * @param {{ [locale in import('${DATA}').Locale]: import('wuchale/runtime').CatalogModule }} catalogs
  */
 export const getRuntimeRx = catalogs => toRuntime(catalogs[locale()], locale())
 // same function, because solid-js can use them anywhere
