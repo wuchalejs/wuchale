@@ -8,7 +8,7 @@ import type {
     LoaderChoice,
     RuntimeConf,
 } from 'wuchale'
-import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
+import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { type RuntimeCtxSv, SvelteTransformer } from './transformer.js'
@@ -68,9 +68,11 @@ export const defaultArgs: SvelteArgs = {
     storage: pofile(),
     patterns: [pluralPattern],
     heuristic: svelteDefaultHeuristic,
-    granularLoad: false,
-    bundleLoad: false,
-    generateLoadID: defaultGenerateLoadID,
+    loading: {
+        direct: false,
+        granular: false,
+        group: [],
+    },
     loader: 'svelte',
     runtime: {
         initReactive: ({ file, funcName, ctx: { module } }: DecideRxDetails) => {
@@ -129,7 +131,7 @@ export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter =>
             ).transformSv()
         },
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
-        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
+        defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,
         ...rest,
     }

@@ -146,8 +146,6 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
     return false
 }
 
-export const defaultGenerateLoadID = (filename: string) => filename.replace(/[^a-zA-Z0-9_]+/g, '_')
-
 export class IndexTracker {
     indices: Map<string, number> = new Map()
     nextIndex: number = 0
@@ -234,16 +232,20 @@ export type URLConf = {
     localize?: boolean | string
 }
 
+export type LoadGroupPatt = string | string[]
+
 export type AdapterPassThruOpts = {
     sourceLocale?: string
     files: GlobConf
     storage: StorageFactory
     /** if writing transformed code to a directory is desired, specify this */
     outDir?: string
-    granularLoad: boolean
-    bundleLoad: boolean
+    loading: {
+        direct: boolean
+        granular: boolean
+        group: LoadGroupPatt[]
+    }
     url?: URLConf
-    generateLoadID: (filename: string) => string
     runtime: RuntimeConf
 }
 

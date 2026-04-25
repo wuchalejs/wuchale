@@ -19,16 +19,21 @@ export function setLocale(locale) {
     }
 }
 
-export const getRuntimeRx = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) => {
+/**
+ * @param {{[locale in import('${DATA}').Locale]: import('wuchale/runtime').CatalogModule }} catalogs
+ */
+export const getRuntimeRx = catalogs => {
     const [locale, setLocale] = useState(locales[0])
     useEffect(() => {
-        const cb = (/** @type {string} */ locale) => setLocale(locale)
+        const cb = (/** @type {import('${DATA}').Locale} */ locale) => setLocale(locale)
         callbacks.add(cb)
         return () => callbacks.delete(cb)
     }, [catalogs])
     return useMemo(() => toRuntime(catalogs[locale], locale), [locale, catalogs])
 }
 
-// non-reactive
-export const getRuntime = (/** @type {{[locale: string]: import('wuchale/runtime').CatalogModule }} */ catalogs) =>
-    toRuntime(catalogs[locale], locale)
+/**
+ * non-reactive
+ * @param {{[locale in import('${DATA}').Locale]: import('wuchale/runtime').CatalogModule }} catalogs
+ */
+export const getRuntime = catalogs => toRuntime(catalogs[locale], locale)

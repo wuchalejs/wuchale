@@ -11,20 +11,20 @@ import { loadLocales, runWithLocale } from './server.js'
 const loaderFunc = () => testCatalog
 
 test('Loading', async t => {
-    const collection: Record<string, Runtime> = {}
-    const getRT = registerLoaders('main', loaderFunc, ['foo'], defaultCollection(collection))
+    const collection: Runtime[] = []
+    const getRT = registerLoaders('main', loaderFunc, 1, defaultCollection(collection))
     loadLocaleSync('en')
-    t.assert.notEqual(collection['foo'], null) // setCatalogs was called
-    const rt = getRT('foo')
+    t.assert.notEqual(collection[0], null) // setCatalogs was called
+    const rt = getRT()
     t.assert.equal(rt.l, 'en')
-    const cPure = await loadCatalogs('en', ['foo'], loaderFunc)
-    t.assert.equal(cPure['foo']!.c[0], 'Hello')
+    const cPure = await loadCatalogs('en', [0], loaderFunc)
+    t.assert.equal(cPure[0]!.c[0], 'Hello')
 })
 
 test('Loading server side', async t => {
-    const getRT = await loadLocales('main', ['main'], _ => testCatalog, ['en'])
+    const getRT = await loadLocales('main', 1, _ => testCatalog, ['en'])
     const msg = await runWithLocale('en', () => {
-        return getRT('main')(1, ['server user'])
+        return getRT()(1, ['server user'])
     })
     t.assert.equal(msg, 'Hello server user!')
 })

@@ -1,12 +1,13 @@
 import { dirname, relative, resolve } from 'node:path'
 import { platform } from 'node:process'
-import type { Adapter, GlobConf, LoaderPath } from '../adapters.js'
+import type { Adapter, GlobConf, LoaderPath, LoadGroupPatt } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
 import type { FS } from '../fs.js'
 import type { URLManifest } from '../url.js'
 
 export const dataFileName = 'data.js'
 export const generatedDir = '.wuchale'
+export const defaultLoadID = 0
 
 export type ManifestEntryObj = {
     text: string | string[]
@@ -41,17 +42,12 @@ export function normalizeSep(path: string) {
     return path.replaceAll('\\', '/')
 }
 
-export function globConfToArgs(
-    conf: GlobConf,
-    root: string,
-    localesDir: string,
-    outDir?: string,
-): [string[], { ignore: string[] }] {
+export function globConfToArgs(conf: GlobConf, localesDir: string, outDir?: string): [string[], string[]] {
     let patterns: string[] = []
     // ignore generated files
-    const options = { ignore: [`${localesDir}/**/*`], cwd: root }
+    const ignore = [`${localesDir}/**/*`]
     if (outDir) {
-        options.ignore.push(outDir)
+        ignore.push(outDir)
     }
     if (typeof conf === 'string') {
         patterns = [conf]
@@ -64,12 +60,12 @@ export function globConfToArgs(
             patterns = conf.include
         }
         if (typeof conf.ignore === 'string') {
-            options.ignore.push(conf.ignore)
+            ignore.push(conf.ignore)
         } else {
-            options.ignore.push(...conf.ignore)
+            ignore.push(...conf.ignore)
         }
     }
-    return [patterns.map(normalizeSep), options]
+    return [patterns.map(normalizeSep), ignore]
 }
 
 export async function getLoaderPath(
@@ -149,9 +145,9 @@ export class Files {
         this.#urlsFname = resolve(opts.localesDirAbs, `${opts.key}.url.js`)
     }
 
-    getCompiledFilePath(loc: string, id: string | null) {
+    getCompiledFilePath(loc: string, id: number | null) {
         const ownerKey = this.#opts.ownerKey
-        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.${loc}.compiled.js`)
+        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? defaultLoadID}.${loc}.compiled.js`)
     }
 
     getImportPath(filename: string, importer?: string) {
@@ -164,55 +160,57 @@ export class Files {
     }
 
     // typed to work regardless of user's noUncheckedIndexedAccess setting in tsconfig
-    genProxyContent(catalogs: string[], loadIDs: string[], syncImports?: string[]) {
+    genProxyContent(catalogs: string[], patterns: LoadGroupPatt[], syncImports?: string[]) {
         const baseType = 'import("wuchale/runtime").CatalogModule'
         return `
             ${syncImports?.join('\n') ?? ''}
             /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod */
             /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs */
-            /** @type {{[loadID: string]: KeyCatalogs}} */
-            const catalogs = {${catalogs.join(',')}}
-            export const loadCatalog = (/** @type {string} */ loadID, /** @type {string} */ locale) => {
+            /** @type {KeyCatalogs[]} */
+            const catalogs = [${catalogs.join(',')}]
+            export const loadCatalog = (/** @type {number} */ loadID, /** @type {string} */ locale) => {
                 return /** @type {CatalogMod} */ (/** @type {KeyCatalogs} */ (catalogs[loadID])[locale])${syncImports ? '' : '()'}
             }
-            export const loadIDs = ['${loadIDs.join("', '")}']
+            export const nLoadIDs = ${catalogs.length}
+            export const patterns = ${JSON.stringify(patterns)}
         `
     }
 
-    genProxy(locales: string[], loadIDs: string[], loadIDsImport: string[]) {
+    genProxy(locales: string[], patterns: LoadGroupPatt[]) {
         const imports: string[] = []
-        for (const [i, id] of loadIDs.entries()) {
+        for (const [loadID] of patterns.entries()) {
             const importsByLocale: string[] = []
             for (const loc of locales) {
                 importsByLocale.push(
-                    `${objKeyLocale(loc)}: () => import('${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[i]!))}')`,
+                    `${objKeyLocale(loc)}: () => import('${this.getImportPath(this.getCompiledFilePath(loc, loadID!))}')`,
                 )
             }
-            imports.push(`${id}: {${importsByLocale.join(',')}}`)
+            imports.push(`{${importsByLocale.join(',')}}`)
         }
-        return this.genProxyContent(imports, loadIDs)
+        return this.genProxyContent(imports, patterns)
     }
 
-    genProxySync(locales: string[], loadIDs: string[], loadIDsImport: string[]) {
+    genProxySync(locales: string[], patterns: LoadGroupPatt[]) {
         const imports: string[] = []
         const object: string[] = []
-        for (const [il, id] of loadIDs.entries()) {
+        for (const [loadID] of patterns.entries()) {
             const importedByLocale: string[] = []
             for (const [i, loc] of locales.entries()) {
-                const locKey = `_w_c_${id}_${i}_`
+                const locKey = `_w_c_${loadID}_${i}_`
                 imports.push(
-                    `import * as ${locKey} from '${this.getImportPath(this.getCompiledFilePath(loc, loadIDsImport[il]!))}'`,
+                    `import * as ${locKey} from '${this.getImportPath(this.getCompiledFilePath(loc, loadID))}'`,
                 )
                 importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
             }
-            object.push(`${id}: {${importedByLocale.join(',')}}`)
+            object.push(`{${importedByLocale.join(',')}}`)
         }
-        return this.genProxyContent(object, loadIDs, imports)
+        return this.genProxyContent(object, patterns, imports)
     }
 
-    writeProxies = async (locales: string[], loadIDs: string[], loadIDsImport: string[]) => {
-        await this.#opts.fs.write(this.#proxyPath, this.genProxy(locales, loadIDs, loadIDsImport))
-        await this.#opts.fs.write(this.#proxySyncPath, this.genProxySync(locales, loadIDs, loadIDsImport))
+    writeProxies = async (locales: string[], groupPatterns: LoadGroupPatt[]) => {
+        const allPatterns: LoadGroupPatt[] = [this.#opts.key, ...groupPatterns]
+        await this.#opts.fs.write(this.#proxyPath, this.genProxy(locales, allPatterns))
+        await this.#opts.fs.write(this.#proxySyncPath, this.genProxySync(locales, allPatterns))
     }
 
     static create = async (opts: FilesOptsCreate) => {
@@ -264,12 +262,12 @@ export class Files {
         await this.#opts.fs.write(this.#urlsFname, urlFileContent)
     }
 
-    getManifestFilePath(id: string | null): string {
+    getManifestFilePath(id: number | null): string {
         const ownerKey = this.#opts.ownerKey
-        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? ownerKey}.manifest.js`)
+        return resolve(this.#opts.localesDirAbs, generatedDir, `${ownerKey}.${id ?? defaultLoadID}.manifest.js`)
     }
 
-    writeManifest = async (keys: ManifestEntry[], id: string | null) => {
+    writeManifest = async (keys: ManifestEntry[], id: number | null) => {
         const content =
             `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\n` +
             `export const keys = ${JSON.stringify(keys)}`
@@ -281,7 +279,7 @@ export class Files {
         pluralRule: string | null,
         locale: string,
         hmrVersion: number | null,
-        loadID: string | null,
+        loadID: number | null,
     ) => {
         const compiledItems = JSON.stringify(compiledData)
         let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`

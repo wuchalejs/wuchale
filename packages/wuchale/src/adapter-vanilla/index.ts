@@ -2,7 +2,7 @@
 
 import { loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
-import { defaultGenerateLoadID, defaultHeuristicFuncOnly } from '../adapters.js'
+import { defaultHeuristicFuncOnly } from '../adapters.js'
 import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
 import { Transformer } from './transformer.js'
@@ -24,9 +24,11 @@ export const defaultArgs: VanillaArgs = {
     storage: pofile(),
     patterns: [pluralPattern],
     heuristic: defaultHeuristicFuncOnly,
-    granularLoad: false,
-    bundleLoad: false,
-    generateLoadID: defaultGenerateLoadID,
+    loading: {
+        direct: false,
+        granular: false,
+        group: [],
+    },
     loader: 'vite',
     runtime: {
         initReactive: ({ nested }) => (nested ? null : false),
@@ -75,7 +77,7 @@ export const adapter = (args: DeepPartial<VanillaArgs> = defaultArgs): Adapter =
                 matchUrl,
             ).transform(),
         loaderExts: ['.js', '.ts'],
-        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
+        defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,
         ...rest,
     }

@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react'
 import { registerLoaders } from 'wuchale/load-utils'
-import { loadCatalog, loadIDs } from '${PROXY}'
+import { loadCatalog, nLoadIDs } from '${PROXY}'
 
 export const key = '${KEY}'
-/** @type {{[loadID: string]: Set<Function>}} */
-const callbacks = {}
-/** @type {{[loadID: string]: import('wuchale/runtime').Runtime}} */
-const store = {}
+/** @type {Set<Function>[]} */
+const callbacks = []
+/** @type {import('wuchale/runtime').Runtime[]} */
+const store = []
 
 // non-reactive
-export const getRuntime = (/** @type {string} */ loadID) =>
-    /** @type {import('wuchale/runtime').Runtime} */ (store[loadID])
+export const getRuntime = (loadID = 0) => /** @type {import('wuchale/runtime').Runtime} */ (store[loadID])
 
 const collection = {
     get: getRuntime,
-    set: (/** @type {string} */ loadID, /** @type {import('wuchale/runtime').Runtime} */ runtime) => {
+    set: (/** @type {number} */ loadID, /** @type {import('wuchale/runtime').Runtime} */ runtime) => {
         store[loadID] = runtime // for when useEffect hasn't run yet
         callbacks[loadID]?.forEach(cb => {
             cb(runtime)
@@ -22,9 +21,9 @@ const collection = {
     },
 }
 
-registerLoaders(key, loadCatalog, loadIDs, collection)
+registerLoaders(key, loadCatalog, nLoadIDs, collection)
 
-export const getRuntimeRx = (/** @type {string} */ loadID) => {
+export const getRuntimeRx = (loadID = 0) => {
     // function to useState because runtime is a function too
     const [runtime, setRuntime] = useState(() => getRuntime(loadID))
     useEffect(() => {

@@ -11,6 +11,7 @@ import type { Logger } from '../log.js'
 import type { HMRData } from '../runtime.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import {
+    defaultLoadID,
     Files,
     type FilesOptsCreatePass,
     globConfToArgs,
@@ -39,25 +40,18 @@ type TrackedRefs = Map<
     }
 >
 
-/** return two arrays: the corresponding one, and the one to import from in the case of shared catalogs */
-export function getLoadIDs(
-    adapter: Adapter,
-    key: string,
-    ownerKey: string,
-    granularStates: Iterable<GranularState>,
-    sourceLocale: string,
-): [string[], string[]] {
-    const loadIDs: string[] = []
-    if (!adapter.granularLoad) {
-        return [[key], [ownerKey]]
+export function getLoadIDs(adapter: Adapter, granularStates: Iterable<GranularState>, sourceLocale: string): number[] {
+    if (!adapter.loading.granular) {
+        return [defaultLoadID]
     }
+    const loadIDs: number[] = []
     for (const state of granularStates) {
         // only the ones with ready messages
         if (state.compiled.get(sourceLocale)!.items.length) {
             loadIDs.push(state.id)
         }
     }
-    return [loadIDs, loadIDs]
+    return loadIDs
 }
 
 type HandlerOptsCreate = FilesOptsCreatePass & {
@@ -92,9 +86,8 @@ export class AdapterHandler {
         this.adapter = opts.adapter
         this.granularState = opts.granularState
         this.sharedState = opts.sharedState
-        this.fileMatches = pm(
-            ...globConfToArgs(opts.adapter.files, opts.root, opts.config.localesDir, opts.adapter.outDir),
-        )
+        const [patterns, ignore] = globConfToArgs(opts.adapter.files, opts.config.localesDir, opts.adapter.outDir)
+        this.fileMatches = pm(patterns, { ignore })
         this.sourceLocale = opts.sourceLocale
         this.url = new URLHandler(opts.config.locales, this.sourceLocale, opts.adapter.url)
         this.files = opts.files
@@ -118,19 +111,15 @@ export class AdapterHandler {
             fs,
             root,
         })
-        const writeProxies: WriteProxies = states =>
-            files.writeProxies(
-                config.locales,
-                ...getLoadIDs(adapter, key, sharedState.ownerKey, states, opts.sourceLocale),
-            )
-        const granularState = new State(writeProxies, adapter.generateLoadID)
+        const writeProxies: WriteProxies = groupPatts => files.writeProxies(config.locales, groupPatts)
+        const granularState = new State(writeProxies, adapter.loading.group)
         const handler = new AdapterHandler({ ...opts, granularState, files })
         await handler.loadStorage()
         if (await handler.url.initPatterns(key, sharedState.catalog, handler.aiQueue)) {
             await handler.saveStorage()
         }
         await handler.compile()
-        await writeProxies(granularState.byID.values())
+        await writeProxies(granularState.groupPatterns)
         await files.writeUrlFiles(handler.url.buildManifest(sharedState.catalog), config.locales[0])
         return handler
     }
@@ -181,7 +170,7 @@ export class AdapterHandler {
 
     #writeManifests = async () => {
         const promises = [this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)]
-        if (this.adapter.granularLoad) {
+        if (this.adapter.loading.granular) {
             for (const state of this.granularState.byID.values()) {
                 promises.push(this.files.writeManifest(this.#buildManifest(state.indexTracker.indices), state.id))
             }
@@ -207,7 +196,7 @@ export class AdapterHandler {
                 null,
             ),
         ]
-        if (this.adapter.granularLoad) {
+        if (this.adapter.loading.granular) {
             for (const state of this.granularState.byID.values()) {
                 compiledData = state.compiled?.get(loc) || {
                     hasPlurals: false,
@@ -292,7 +281,7 @@ export class AdapterHandler {
                     compiled = compileTranslation(toCompile, fallback)
                 }
                 sharedCompiledLoc.items[index] = compiled
-                if (!this.adapter.granularLoad) {
+                if (!this.adapter.loading.granular) {
                     continue
                 }
                 for (const ref of item.references) {
@@ -324,7 +313,7 @@ export class AdapterHandler {
 
     #prepareHeader = (
         filename: string,
-        loadID: string,
+        loadID: number,
         hmrData: HMRData | null,
         hasUrls: boolean,
         forServer: boolean,
@@ -362,7 +351,7 @@ export class AdapterHandler {
             `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
         ]
         head = [`import {${importsFuncs.join(', ')}} from "${loaderPath}"`, ...head]
-        if (!this.adapter.bundleLoad) {
+        if (!this.adapter.loading.direct) {
             return head.join('\n')
         }
         const imports: string[] = []
@@ -376,17 +365,19 @@ export class AdapterHandler {
         return [...imports, ...head, `const ${bundleCatalogsVarName} = {${objElms.join(',')}}`].join('\n')
     }
 
-    #prepareRuntimeExpr = (loadID: string): RuntimeExpr => {
+    #prepareRuntimeExpr = (loadID: number): RuntimeExpr => {
         const importLoaderVars = this.#getRuntimeVars()
-        if (this.adapter.bundleLoad) {
+        if (this.adapter.loading.direct) {
             return {
                 plain: `${importLoaderVars.plain}(${bundleCatalogsVarName})`,
                 reactive: `${importLoaderVars.reactive}(${bundleCatalogsVarName})`,
             }
         }
+        // default is always 0 unless loading.granular is true
+        const loadIDParam = loadID === 0 ? '' : loadID
         return {
-            plain: `${importLoaderVars.plain}('${loadID}')`,
-            reactive: `${importLoaderVars.reactive}('${loadID}')`,
+            plain: `${importLoaderVars.plain}(${loadIDParam})`,
+            reactive: `${importLoaderVars.reactive}(${loadIDParam})`,
         }
     }
 
@@ -536,9 +527,9 @@ export class AdapterHandler {
     ): Promise<[TransformOutputCode, boolean]> => {
         filename = normalizeSep(filename)
         let indexTracker = this.sharedState.indexTracker
-        let loadID = this.key
+        let loadID = defaultLoadID
         let compiled = this.sharedState.compiled
-        if (this.adapter.granularLoad) {
+        if (this.adapter.loading.granular) {
             const state = await this.granularState.byFileCreate(filename, this.#opts.config.locales)
             indexTracker = state.indexTracker
             loadID = state.id

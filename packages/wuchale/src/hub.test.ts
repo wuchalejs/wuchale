@@ -44,7 +44,7 @@ test('hub transform basic', async (t: TestContext) => {
         trimLines(output.code),
         trimLines(ts`
             import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.js"
-            _w_load_('main')(0)
+            _w_load_()(0)
         `),
     )
 })
@@ -56,7 +56,7 @@ test('hub transform ssr', async (t: TestContext) => {
         trimLines(output.code),
         trimLines(ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.server.js"
-        _w_load_('main')(0)
+        _w_load_()(0)
     `),
     )
 })
@@ -69,9 +69,7 @@ test('hub onFileChange', async (t: TestContext) => {
     t.assert.deepEqual(res2?.sourceTriggered, false)
     t.assert.partialDeepStrictEqual(
         new Set([
-            normalizeSep(
-                resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.main.en.compiled.js'),
-            ),
+            normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.0.en.compiled.js')),
         ]),
         res2?.invalidate,
     )
@@ -94,7 +92,7 @@ test('hub transform with hmr', async (t: TestContext) => {
             _w_rt_?._?.update?.(_w_hmrUpdate_)
             return _w_rt_
         }
-        _w_load_('main')(0)
+        _w_load_()(0)
     `),
     )
 })
