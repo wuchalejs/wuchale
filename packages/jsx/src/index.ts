@@ -7,7 +7,7 @@ import type {
     LoaderChoice,
     RuntimeConf,
 } from 'wuchale'
-import { createHeuristic, defaultGenerateLoadID, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
+import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
 import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
 import { type JSXLib, JSXTransformer } from './transformer.js'
@@ -75,10 +75,12 @@ export const defaultArgs: JSXArgs = {
     storage: pofile(),
     patterns: [pluralPattern],
     heuristic: jsxDefaultHeuristic,
-    granularLoad: false,
-    bundleLoad: false,
+    loading: {
+        direct: false,
+        granular: false,
+        group: [],
+    },
     loader: 'default',
-    generateLoadID: defaultGenerateLoadID,
     runtime: defaultRuntime,
     variant: 'default',
 }
@@ -117,7 +119,7 @@ export const adapter = (args: DeepPartial<JSXArgs> = defaultArgs): Adapter => {
             ).transformJx(variant)
         },
         loaderExts: ['.js', '.ts'],
-        defaultLoaderPath: getDefaultLoaderPath(loader, rest.bundleLoad),
+        defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,
         getRuntimeVars: {
             reactive: 'useW_load_rx_',
