@@ -286,7 +286,7 @@ export class POFile {
 export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
     return async opts => {
         const fullOpts = fillDefaults(pofOpts, { ...defaultOpts, dir: opts.localesDir })
-        await opts.fs.mkdir(fullOpts.dir) // create once
+        await opts.fs.mkdir(resolve(opts.root, fullOpts.dir)) // create once
         return new POFile({ ...opts, ...fullOpts })
     }
 }

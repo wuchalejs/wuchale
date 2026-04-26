@@ -238,7 +238,7 @@ export class JSONFile {
 export function json(jsonOpts: Partial<JSONOpts> = {}): StorageFactory {
     return async opts => {
         const fullOpts = fillDefaults(jsonOpts, { ...defaultOpts, dir: opts.localesDir })
-        await opts.fs.mkdir(fullOpts.dir)
+        await opts.fs.mkdir(resolve(opts.root, fullOpts.dir)) // create once
         return new JSONFile({ ...opts, ...fullOpts })
     }
 }
