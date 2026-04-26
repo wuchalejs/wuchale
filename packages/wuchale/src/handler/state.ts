@@ -1,4 +1,5 @@
-import { getKey, IndexTracker } from '../adapters.js'
+import pm from 'picomatch'
+import { getKey, IndexTracker, type LoadGroupPatt } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
 import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
 
@@ -78,54 +79,65 @@ export class SharedState {
 }
 
 export type GranularState = {
-    id: string
+    id: number
     compiled: CompiledCatalogs
     indexTracker: IndexTracker
 }
 
-export type WriteProxies = (states: Iterable<GranularState>) => Promise<void>
+export type WriteProxies = (groupPatterns: LoadGroupPatt[]) => Promise<void>
 
 export class State {
-    byFile: Map<string, GranularState> = new Map()
-    byID: Map<string, GranularState> = new Map()
+    #byFile: Map<string, GranularState> = new Map()
+    readonly byID: Map<number, GranularState> = new Map()
 
-    writeProxies: WriteProxies
-    generateLoadID: (filename: string) => string
+    #writeProxies: WriteProxies
+    readonly groupPatterns: LoadGroupPatt[] = []
+    #groupMatches: ((f: string) => boolean)[] = []
 
-    constructor(writeProxies: WriteProxies, generateLoadID: (filename: string) => string) {
-        this.writeProxies = writeProxies
-        this.generateLoadID = generateLoadID
+    constructor(writeProxies: WriteProxies, groupPatterns: LoadGroupPatt[]) {
+        this.#writeProxies = writeProxies
+        this.groupPatterns = groupPatterns
+        this.#groupMatches = groupPatterns.map(p => pm(p))
+    }
+
+    #getLoadID(filename: string) {
+        let id = -1
+        for (const [i, match] of this.#groupMatches.entries()) {
+            if (!match(filename)) {
+                continue
+            }
+            id = i
+        }
+        if (id === -1) {
+            id = this.groupPatterns.length
+            this.groupPatterns.push(filename)
+            this.#groupMatches.push(f => f === filename)
+        }
+        return id + 1 // not to start from 0 which is reserved for the shared
     }
 
     async byFileCreate(filename: string, locales: string[]): Promise<GranularState> {
-        let state = this.byFile.get(filename)
+        let state = this.#byFile.get(filename)
         if (state != null) {
             return state
         }
-        const id = this.generateLoadID(filename)
+        const id = this.#getLoadID(filename)
         const stateG = this.byID.get(id)
         if (stateG) {
             state = stateG
         } else {
-            const compiledLoaded: Map<string, Compiled> = new Map()
             state = {
                 id,
                 compiled: new Map(),
                 indexTracker: new IndexTracker(),
             }
             for (const loc of locales) {
-                state.compiled.set(
-                    loc,
-                    compiledLoaded.get(loc) ?? {
-                        hasPlurals: false,
-                        items: [],
-                    },
-                )
+                state.compiled.set(loc, { hasPlurals: false, items: [] })
             }
             this.byID.set(id, state)
-            await this.writeProxies(this.byID.values())
+            await this.#writeProxies(this.groupPatterns)
         }
-        this.byFile.set(filename, state)
+        this.#byFile.set(filename, state)
         return state
     }
 }

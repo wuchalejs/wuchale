@@ -21,7 +21,6 @@ export type {
 } from './adapters.js'
 export {
     createHeuristic,
-    defaultGenerateLoadID,
     defaultHeuristic,
     defaultHeuristicOpts,
     getKey,
