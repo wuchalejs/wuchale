@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/json",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Protobuf-like i18n from plain code: JSON storage driver",
     "scripts": {
         "dev": "tsc --watch",
@@ -33,7 +33,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "wuchale": "^0.22.1"
+        "wuchale": "^0.23.0"
     },
     "devDependencies": {
         "typescript": "^6.0.3",

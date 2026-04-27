@@ -1,5 +1,37 @@
 # wuchale
 
+## 0.23.0
+
+### Minor Changes
+
+- Allow async initialization of storage handlers ([`e5306c2`](https://github.com/wuchalejs/wuchale/commit/e5306c2e62e4da7991dcd067ff28ab165e226ee2))
+
+- Add support for configuring what query params are trimmed in the vite plugin ([`2d8462e`](https://github.com/wuchalejs/wuchale/commit/2d8462e9421e9c376a295be464a5d95a3e4ac1c5))
+
+- Add `migrateStorage` function to assist migrating between different storages ([`ba05cf2`](https://github.com/wuchalejs/wuchale/commit/ba05cf22b61fc2ec416c6b26873b79654ed77084))
+
+  This function can itself be used as a storage config. For example, to migrate
+  from the PO file to JSON:
+
+  ```js
+  // wuchale.config.js
+  import { defineConfig, pofile, migrateStorage } from "wuchale";
+  import { json } from "@wuchale/json";
+
+  export default defineConfig({
+    // ...
+    adapters: {
+      main: svelte({
+        // ...
+        storage: migrateStorage([pofile()], json()),
+      }),
+    },
+  });
+  ```
+
+  After running `npx wuchale` with this config, it can be replaced by the target
+  storage config.
+
 ## 0.22.11
 
 ### Patch Changes
