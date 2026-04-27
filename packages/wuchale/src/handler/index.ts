@@ -180,13 +180,13 @@ export class AdapterHandler {
     }
 
     #writeManifests = async () => {
-        await this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)
-        if (!this.adapter.granularLoad) {
-            return
+        const promises = [this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)]
+        if (this.adapter.granularLoad) {
+            for (const state of this.granularState.byID.values()) {
+                promises.push(this.files.writeManifest(this.#buildManifest(state.indexTracker.indices), state.id))
+            }
         }
-        for (const state of this.granularState.byID.values()) {
-            await this.files.writeManifest(this.#buildManifest(state.indexTracker.indices), state.id)
-        }
+        await Promise.all(promises)
     }
 
     saveStorageCompile = async () => {
