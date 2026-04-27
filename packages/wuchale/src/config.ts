@@ -42,6 +42,9 @@ export const defaultConfig: Config = {
 function deepFill(target: any, defaults: any) {
     for (const [key, def] of Object.entries(defaults)) {
         const value = target[key]
+        if (Array.isArray(value)) {
+            continue
+        }
         if (!def || Array.isArray(def) || typeof def !== 'object') {
             if (value === undefined) {
                 target[key] = def
@@ -49,7 +52,7 @@ function deepFill(target: any, defaults: any) {
             continue
         }
         // def is an object. force prepare an object on the destination
-        if (!value || Array.isArray(value) || typeof value !== 'object') {
+        if (!value || typeof value !== 'object') {
             target[key] = {}
         }
         deepFill(target[key], def)
