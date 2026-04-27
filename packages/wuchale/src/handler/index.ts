@@ -198,29 +198,33 @@ export class AdapterHandler {
         let compiledData = this.sharedState.compiled.get(loc)!
         const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
         const hmrVersionMode = this.#opts.mode === 'dev' ? hmrVersion : null
-        await this.files.writeCatalogModule(
-            compiledData.items,
-            compiledData.hasPlurals ? pluralRule : null,
-            loc,
-            hmrVersionMode,
-            null,
-        )
-        if (!this.adapter.granularLoad) {
-            return
-        }
-        for (const state of this.granularState.byID.values()) {
-            compiledData = state.compiled?.get(loc) || {
-                hasPlurals: false,
-                items: [],
-            }
-            await this.files.writeCatalogModule(
+        const promises = [
+            this.files.writeCatalogModule(
                 compiledData.items,
                 compiledData.hasPlurals ? pluralRule : null,
                 loc,
                 hmrVersionMode,
-                state.id,
-            )
+                null,
+            ),
+        ]
+        if (this.adapter.granularLoad) {
+            for (const state of this.granularState.byID.values()) {
+                compiledData = state.compiled?.get(loc) || {
+                    hasPlurals: false,
+                    items: [],
+                }
+                promises.push(
+                    this.files.writeCatalogModule(
+                        compiledData.items,
+                        compiledData.hasPlurals ? pluralRule : null,
+                        loc,
+                        hmrVersionMode,
+                        state.id,
+                    ),
+                )
+            }
         }
+        await Promise.all(promises)
     }
 
     getCompiledFallback(index: number, loc: string) {
