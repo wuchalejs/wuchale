@@ -150,6 +150,8 @@ export class Hub {
     #hmrVersion = -1
     #lastSourceTriggeredCatalogWrite: number = 0
 
+    #lastAdapterForFile = new Map<string, string>()
+
     private constructor(opts: HubOpts) {
         this.#opts = opts
         this.#handlers = opts.handlers
@@ -304,26 +306,26 @@ export class Hub {
         }
         const filename = normalizeSep(relative(this.#opts.root, filePath))
         let output: [TransformOutputCode, boolean] | null = null
-        let lastAdapterKey: string | null = null
         for (const adapter of this.#handlers.values()) {
-            if (adapter.fileMatches(filename)) {
-                if (lastAdapterKey != null) {
-                    throw new Error(
-                        `${logPrefix} ${filename} matches both adapters ${lastAdapterKey} and ${adapter.key}`,
-                    )
-                }
-                try {
-                    output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
-                } catch (e) {
-                    throw this.#formatTransformErr(e as Error, adapter.key, filename)
-                }
-                lastAdapterKey = adapter.key
+            if (!adapter.fileMatches(filename)) {
+                continue
             }
+            try {
+                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+            } catch (e) {
+                throw this.#formatTransformErr(e as Error, adapter.key, filename)
+            }
+            break
         }
         return output ?? [{}, false]
     }
 
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
+        const lastAdapterKey = this.#lastAdapterForFile.get(filename)
+        if (lastAdapterKey && lastAdapterKey !== handler.key) {
+            this.#opts.log.warn(`${filename} matches both adapters '${lastAdapterKey}' and '${handler.key}'`)
+        }
+        this.#lastAdapterForFile.set(filename, handler.key)
         this.#opts.log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
         const contents = await this.#opts.fs.read(resolve(this.#opts.root, filename))
         const [, updated] = await handler.transform(contents!, filename)
