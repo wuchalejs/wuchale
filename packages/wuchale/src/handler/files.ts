@@ -157,7 +157,7 @@ export class Files {
     getImportPath(filename: string, importer?: string) {
         const relTo = importer ? resolve(this.#opts.root, importer) : filename
         filename = normalizeSep(relative(dirname(relTo), filename))
-        if (!filename.startsWith('.')) {
+        if (!filename.startsWith('../') && !filename.startsWith('./')) {
             filename = `./${filename}`
         }
         return filename
