@@ -70,7 +70,7 @@ export type PluginConf = {
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
     let hub: Hub
-    const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'raw'])
+    const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap'])
     return {
         name: pluginName,
         async configResolved(config: { env: { DEV?: boolean } }) {
