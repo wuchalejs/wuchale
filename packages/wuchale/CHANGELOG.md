@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.23.1
+
+### Patch Changes
+
+- Fix wrong import path in generated files ([`9b19633`](https://github.com/wuchalejs/wuchale/commit/9b19633c7540fda6ae9c4645027242632bf3f28f))
+
 ## 0.23.0
 
 ### Minor Changes
