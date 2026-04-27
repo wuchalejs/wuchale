@@ -3,10 +3,10 @@
     "type": "module",
     "private": true,
     "scripts": {
-        "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+        "clean": "rm -rf dist *.tsbuildinfo packages/*/dist packages/*/*.tsbuildinfo",
         "dev": "npm run clean; tsc --build tsconfig.build.json --watch",
         "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
-        "typecheck": "npm exec --workspaces tsc -- --noEmit",
+        "typecheck": "tsc --build --emitDeclarationOnly",
         "test": "npm run test --workspaces",
         "check": "npm run typecheck && npm run test",
         "lintfmt": "npx @biomejs/biome check --write",

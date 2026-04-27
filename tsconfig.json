@@ -1,12 +1,15 @@
 {
     "extends": "./tsconfig-base",
-    "files": [],
+    "compilerOptions": {
+        "outDir": "dist",
+        "composite": true
+    },
     "include": ["./scripts/*.ts"],
     "references": [
-        { "path": "./packages/wuchale/tsconfig.json" },
-        { "path": "./packages/svelte/tsconfig.json" },
-        { "path": "./packages/jsx/tsconfig.json" },
-        { "path": "./packages/astro/tsconfig.json" },
-        { "path": "./packages/json/tsconfig.json" }
+        { "path": "./packages/wuchale/tsconfig.dev.json" },
+        { "path": "./packages/svelte/tsconfig.dev.json" },
+        { "path": "./packages/jsx/tsconfig.dev.json" },
+        { "path": "./packages/astro/tsconfig.dev.json" },
+        { "path": "./packages/json/tsconfig.dev.json" }
     ]
 }

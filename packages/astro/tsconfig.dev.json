@@ -4,6 +4,6 @@
         "outDir": "dist",
         "composite": true
     },
-    "references": [{ "path": "../wuchale" }],
+    "references": [{ "path": "../wuchale/tsconfig.dev.json" }],
     "include": ["src", "../wuchale/tests", "../wuchale/ambient.d.ts"]
 }
