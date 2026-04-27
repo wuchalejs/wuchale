@@ -1,5 +1,16 @@
 # @wuchale/svelte
 
+## 0.19.4
+
+### Patch Changes
+
+- Include navigation and path functions as url calls in SvelteKit default heuristic ([#327](https://github.com/wuchalejs/wuchale/pull/327))
+
+- Use SvelteKit default heuristic only when loader is set to `sveltekit`, otherwise plain Svelte heuristic ([`4b3cc91`](https://github.com/wuchalejs/wuchale/commit/4b3cc9151643fb040477561f79e21235ce7395d2))
+
+- Updated dependencies [[`e5306c2`](https://github.com/wuchalejs/wuchale/commit/e5306c2e62e4da7991dcd067ff28ab165e226ee2), [`2d8462e`](https://github.com/wuchalejs/wuchale/commit/2d8462e9421e9c376a295be464a5d95a3e4ac1c5), [`ba05cf2`](https://github.com/wuchalejs/wuchale/commit/ba05cf22b61fc2ec416c6b26873b79654ed77084)]:
+  - wuchale@0.23.0
+
 ## 0.19.3
 
 ### Patch Changes
