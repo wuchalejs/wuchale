@@ -1,5 +1,13 @@
 # wuchale
 
+## 0.23.2
+
+### Patch Changes
+
+- Make adapter conflicts CLI warnings instead of throwing an error ([`e6e62d4`](https://github.com/wuchalejs/wuchale/commit/e6e62d43605ac5db3e79434993c2451b790e4fc6))
+
+- Fix wrong files config caused by config merge function regression #357 ([`7927908`](https://github.com/wuchalejs/wuchale/commit/792790844387083aca20e6300cde65b72f0d4be7))
+
 ## 0.23.1
 
 ### Patch Changes
