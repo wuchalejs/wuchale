@@ -1,0 +1,82 @@
+name: Bug Report
+description: File a bug report.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+projects: []
+assignees: []
+type: bug
+body:
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the bug you encountered.
+      options:
+      - label: I have searched the existing issues
+        required: true
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Minimal reproduction repo link (preferred) or Steps to reproduce
+      placeholder: |
+        1. Create a new '...' project
+        2. Install wuchale with the config: '...'
+        3. Add file '....' with contents '...'
+        4. `npm run build` (example)
+        5. See error
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: OS
+      description: What OS are you using?
+      options:
+        - Linux
+        - Windows WSL
+        - Mac
+        - Windows (no WSL)
+        - Other
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Package versions
+      description: The versions of `wuchale` and `@wuchale/*` packages you use
+      placeholder: |
+        wuchale: 0.23.2
+        @wuchale/svelte: 0.19.3
+        ...
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: What browser are you using (if relevant)
+      options:
+        - Firefox
+        - Chrome
+        - Safari
+        - Microsoft Edge
+  - type: textarea
+    attributes:
+      label: Relevant log output (e.g. `npx wuchale --sync` or Vite logs)
+      description: If an error happens in the console, copy and paste any relevant log output.
+      render: shell
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com).
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: |
+        Links? References? Screenshots? Anything that will give us more context about the issue you are encountering.
