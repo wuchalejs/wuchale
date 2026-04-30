@@ -33,15 +33,15 @@ const emptyRuntime = toRuntime()
 export function registerLoaders(
     key: string,
     load: LoaderFunc,
-    nLoadIDs: number,
+    loadCount: number,
     collection?: RuntimeCollection,
 ): (loadID?: number) => Runtime {
     states[key] = {
         load,
-        catalogs: Array(nLoadIDs).fill(undefined),
+        catalogs: Array(loadCount).fill(undefined),
         collection: collection ?? defaultCollection([]),
     }
-    for (let id = 0; id < nLoadIDs; id++) {
+    for (let id = 0; id < loadCount; id++) {
         states[key].collection.set(id, emptyRuntime)
     }
     return (loadID = 0) => states[key]!.collection.get(loadID)

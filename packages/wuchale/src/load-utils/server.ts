@@ -30,7 +30,7 @@ export function currentRuntime(key: string, loadID: number) {
 
 export async function loadLocales(
     key: string,
-    nLoadIDs: number,
+    loadCount: number,
     load: LoaderFunc,
     locales: string[],
 ): Promise<(loadID?: number) => Runtime> {
@@ -42,7 +42,7 @@ export async function loadLocales(
         if (!(key in loaded)) {
             loaded[key] = []
         }
-        for (let id = 0; id < nLoadIDs; id++) {
+        for (let id = 0; id < loadCount; id++) {
             loaded[key]![id] = toRuntime(await load(id, locale), locale)
         }
     }
