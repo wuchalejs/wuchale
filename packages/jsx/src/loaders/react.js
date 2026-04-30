@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { registerLoaders } from 'wuchale/load-utils'
-import { loadCatalog, nLoadIDs } from '${PROXY}'
+import { loadCatalog, loadCount } from '${PROXY}'
 
 export const key = '${KEY}'
 /** @type {Set<Function>[]} */
@@ -21,7 +21,7 @@ const collection = {
     },
 }
 
-registerLoaders(key, loadCatalog, nLoadIDs, collection)
+registerLoaders(key, loadCatalog, loadCount, collection)
 
 export const getRuntimeRx = (loadID = 0) => {
     // function to useState because runtime is a function too

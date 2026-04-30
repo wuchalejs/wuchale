@@ -160,51 +160,49 @@ export class Files {
     }
 
     // typed to work regardless of user's noUncheckedIndexedAccess setting in tsconfig
-    genProxyContent(catalogs: string[], patterns: LoadGroupPatt[], syncImports?: string[]) {
+    genProxyContent(catalogs: string[], patterns: LoadGroupPatt[], locales: string[], syncImports?: string[]) {
         const baseType = 'import("wuchale/runtime").CatalogModule'
+        const byLocale = catalogs.map((locCats, i) => `${objKeyLocale(locales[i]!)}: ${locCats}`).join(',')
         return `
             ${syncImports?.join('\n') ?? ''}
             /** @typedef {${syncImports ? baseType : `() => Promise<${baseType}>`}} CatalogMod */
-            /** @typedef {{[locale: string]: CatalogMod}} KeyCatalogs */
-            /** @type {KeyCatalogs[]} */
-            const catalogs = [${catalogs.join(',')}]
+            /** @type {{[locale: string]: CatalogMod[]}} */
+            const catalogs = {${byLocale}}
             export const loadCatalog = (/** @type {number} */ loadID, /** @type {string} */ locale) => {
-                return /** @type {CatalogMod} */ (/** @type {KeyCatalogs} */ (catalogs[loadID])[locale])${syncImports ? '' : '()'}
+                return /** @type {CatalogMod} */ (/** @type {CatalogMod[]} */ (catalogs[locale])[loadID])${syncImports ? '' : '()'}
             }
-            export const nLoadIDs = ${catalogs.length}
+            export const loadCount = ${patterns.length}
             export const patterns = ${JSON.stringify(patterns)}
         `
     }
 
     genProxy(locales: string[], patterns: LoadGroupPatt[]) {
         const imports: string[] = []
-        for (const [loadID] of patterns.entries()) {
-            const importsByLocale: string[] = []
-            for (const loc of locales) {
-                importsByLocale.push(
-                    `${objKeyLocale(loc)}: () => import('${this.getImportPath(this.getCompiledFilePath(loc, loadID!))}')`,
-                )
+        for (const loc of locales) {
+            const importsForLocale: string[] = []
+            for (const [loadID] of patterns.entries()) {
+                importsForLocale.push(`() => import('${this.getImportPath(this.getCompiledFilePath(loc, loadID!))}')`)
             }
-            imports.push(`{${importsByLocale.join(',')}}`)
+            imports.push(`[${importsForLocale.join(',')}]`)
         }
-        return this.genProxyContent(imports, patterns)
+        return this.genProxyContent(imports, patterns, locales)
     }
 
     genProxySync(locales: string[], patterns: LoadGroupPatt[]) {
         const imports: string[] = []
         const object: string[] = []
-        for (const [loadID] of patterns.entries()) {
-            const importedByLocale: string[] = []
-            for (const [i, loc] of locales.entries()) {
+        for (const [i, loc] of locales.entries()) {
+            const importedForLocale: string[] = []
+            for (const [loadID] of patterns.entries()) {
                 const locKey = `_w_c_${loadID}_${i}_`
                 imports.push(
                     `import * as ${locKey} from '${this.getImportPath(this.getCompiledFilePath(loc, loadID))}'`,
                 )
-                importedByLocale.push(`${objKeyLocale(loc)}: ${locKey}`)
+                importedForLocale.push(locKey)
             }
-            object.push(`{${importedByLocale.join(',')}}`)
+            object.push(`[${importedForLocale.join(',')}]`)
         }
-        return this.genProxyContent(object, patterns, imports)
+        return this.genProxyContent(object, patterns, locales, imports)
     }
 
     writeProxies = async (locales: string[], groupPatterns: LoadGroupPatt[]) => {

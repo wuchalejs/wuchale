@@ -1,5 +1,5 @@
 import { defaultCollection, registerLoaders } from 'wuchale/load-utils'
-import { loadCatalog, nLoadIDs } from '${PROXY}'
+import { loadCatalog, loadCount } from '${PROXY}'
 
 const key = '${KEY}'
 
@@ -7,7 +7,7 @@ const key = '${KEY}'
 const runtimes = $state([])
 
 // for non-reactive
-export const getRuntime = registerLoaders(key, loadCatalog, nLoadIDs, defaultCollection(runtimes))
+export const getRuntime = registerLoaders(key, loadCatalog, loadCount, defaultCollection(runtimes))
 
 // same function, only will be inside $derived when used
 export const getRuntimeRx = getRuntime
