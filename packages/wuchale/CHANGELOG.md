@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.23.3
+
+### Patch Changes
+
+- Fix TS satisfies expressions not visited ([`cc89f6e`](https://github.com/wuchalejs/wuchale/commit/cc89f6ece5d3e48c59881f497359f98e9b009f88))
+
 ## 0.23.2
 
 ### Patch Changes
