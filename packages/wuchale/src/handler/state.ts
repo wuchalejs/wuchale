@@ -122,10 +122,8 @@ export class State {
             return state
         }
         const id = this.#getLoadID(filename)
-        const stateG = this.byID.get(id)
-        if (stateG) {
-            state = stateG
-        } else {
+        state = this.byID.get(id)
+        if (!state) {
             state = {
                 id,
                 compiled: new Map(),

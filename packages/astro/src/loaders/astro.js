@@ -2,11 +2,11 @@
 // This is a template file that wuchale will use to generate the actual loader
 
 import { currentRuntime } from 'wuchale/load-utils/server'
-import { loadCatalog, patterns } from '${PROXY_SYNC}'
+import { loadCatalog, loadCount } from '${PROXY_SYNC}'
 
 const key = '${KEY}'
 
-export { key, loadCatalog, patterns }
+export { key, loadCatalog, loadCount }
 
 // For non-reactive server-side rendering
 export const getRuntime = (loadID = 0) => currentRuntime(key, loadID)

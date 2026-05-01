@@ -172,6 +172,7 @@ export class Files {
                 return /** @type {CatalogMod} */ (/** @type {CatalogMod[]} */ (catalogs[locale])[loadID])${syncImports ? '' : '()'}
             }
             export const loadCount = ${patterns.length}
+            // not essential. in case it is needed and for debugging
             export const patterns = ${JSON.stringify(patterns)}
         `
     }
