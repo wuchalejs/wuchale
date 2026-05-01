@@ -86,7 +86,7 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
         resolve(localesDirAbs, dataFileName),
         [
             `/** @typedef {('${config.locales.join("'|'")}')} Locale */`,
-            `/** @type {Locale[]} */`,
+            `/** @type {[Locale, ...Locale[]]} */`,
             `export const locales = ['${config.locales.join("','")}']`,
         ].join('\n'),
     )
