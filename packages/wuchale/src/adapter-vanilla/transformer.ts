@@ -791,6 +791,8 @@ export class Transformer {
 
     visitTSTypeAssertion = (node: Estree.TSTypeAssertion): Message[] => this.visit(node.expression)
 
+    visitTSSatisfiesExpression = (node: Estree.TSSatisfiesExpression): Message[] => this.visit(node.expression)
+
     visitProgram = (node: Estree.Program): Message[] => {
         this.heuristciDetails.insideProgram = true
         const msgs = this.visitStatementsNSaveRealBodyStart(node.body)

@@ -10,4 +10,8 @@ declare module 'acorn' {
       type: "TSTypeAssertion"
       expression: Expression
     }
+    interface TSSatisfiesExpression extends Node {
+      type: "TSSatisfiesExpression"
+      expression: Expression
+    }
 }
