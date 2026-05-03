@@ -75,3 +75,82 @@ export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]
         return noMatchRes
     }
 }
+
+const wilds = ['/*/**', '/**/*', '/**', '*'] as const
+
+const DOUBLE = 2 // index of /**
+
+export type Pattern = (string | number)[]
+
+export function compilePattern(pattern: string) {
+    const parts: Pattern = []
+    if (pattern.length > 1 && pattern.endsWith('/')) {
+        pattern = pattern.slice(0, -1)
+    }
+    for (let i = 0; i < pattern.length; i++) {
+        let iWildInPatMin = -1
+        let wildIdxMin: number | null = null
+        for (const [wi, wild] of wilds.entries()) {
+            const iWildInPat = pattern.indexOf(wild, i)
+            if (iWildInPat === -1 || (iWildInPatMin !== -1 && iWildInPat >= iWildInPatMin)) {
+                continue
+            }
+            iWildInPatMin = iWildInPat
+            wildIdxMin = wi
+        }
+        if (wildIdxMin === null) {
+            parts.push(pattern.slice(i))
+            break
+        }
+        const wild = wilds[wildIdxMin]!
+        if (iWildInPatMin > 0) {
+            parts.push(pattern.slice(i, iWildInPatMin))
+        }
+        parts.push(wildIdxMin)
+        i = iWildInPatMin + wild.length - 1
+    }
+    return parts
+}
+
+export function matchPattern(pattern: Pattern, url: string) {
+    let lastWild: number | null = null
+    let lastI = 0
+    if (url.length > 1 && url.endsWith('/')) {
+        url = url.slice(0, -1)
+    }
+    for (const patt of pattern) {
+        if (typeof patt === 'number') {
+            lastWild = patt
+            continue
+        }
+        const wild = lastWild
+        lastWild = null // reset
+        const i = url.indexOf(patt, lastI)
+        if (i === -1) {
+            return false
+        }
+        if (wild === null) {
+            if (i > 0) {
+                return false
+            }
+            lastI = i + patt.length
+            continue
+        }
+        if (wild <= DOUBLE) {
+            lastI = i + patt.length
+            continue
+        }
+        const iSlash = url.indexOf('/', lastI)
+        if ((iSlash > lastI && iSlash < i) || iSlash === lastI) {
+            return false
+        }
+        lastI = i + patt.length
+    }
+    if (lastI === url.length) {
+        return (lastWild === null || lastWild === DOUBLE) && lastI > 0
+    }
+    if (lastWild === null) {
+        return false
+    }
+    return lastWild <= DOUBLE || url.indexOf('/', lastI) === -1
+}
