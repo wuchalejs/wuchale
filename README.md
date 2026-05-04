@@ -170,6 +170,7 @@ Special thanks to our supporters:
 [![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&s=48)](https://github.com/hayzamjs)
 [![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&s=48)](https://github.com/p-mercury)
 [![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&s=48)](https://github.com/perdix)
+[![ZerGo0](https://avatars.githubusercontent.com/u/18653821?v=4&s=48)](https://github.com/ZerGo0)
 
 And <!-- s:private -->one private donor 🙏.
 
