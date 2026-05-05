@@ -1,77 +1,78 @@
 // $ node --import ../testing/resolve.ts %f
 
-import { test } from 'node:test'
-import { compilePattern, matchPattern, URLMatcher } from './url.js'
+import { type TestContext, test } from 'node:test'
+import { compilePattern, matchPattern, stringifyPattern, URLMatcher } from './url.js'
 
 const cases = [
-    // Exact (no wildcards)
-    ['/foo/bar', '/foo/bar', true],
+    // Exact
+    ['/foo/bar', '/foo/bar', []],
     ['/foo/bar', '/foo/baz', false],
     ['/foo/bar', '/foo/bar/baz', false],
 
     // * within segment
-    ['/foo/*', '/foo/bar', true],
+    ['/foo/*', '/foo/bar', ['bar']],
     ['/foo/*', '/foo/', false],
     ['/foo/*', '/foo/bar/baz', false],
     ['/foo/*', '/foo', false],
 
     // * as partial segment
-    ['/foo-*/bar', '/foo-123/bar', true],
+    ['/foo-*/bar', '/foo-123/bar', ['123']],
     ['/foo-*/bar', '/foo-/bar', false],
-    ['/foo-*/bar', '/foo/bar', false],
     ['/foo-*/bar', '/fooX/bar', false],
-    ['/*-bar', '/foo-bar', true],
-    ['/*-bar', '/foo-baz', false],
-    ['/foo-*-baz', '/foo-bar-baz', true],
-    ['/foo-*-baz', '/foo-bar', false],
+    ['/foo-*-baz', '/foo-bar-baz', ['bar']],
 
-    // ** zero segments
-    ['/**/foo', '/foo', true],
-    ['/foo/**', '/foo', true],
-    ['/foo/**/bar', '/foo/bar', true],
-
-    // ** one or more segments
-    ['/foo/**', '/foo/bar', true],
-    ['/foo/**', '/foo/bar/baz', true],
-    ['/foo/**', '/foo/bar/baz/bee', true],
-    ['/**/foo', '/bar/foo', true],
-    ['/**/foo', '/bar/baz/foo', true],
+    // ** positions
+    ['/**/foo', '/foo', ['']],
+    ['/**/foo', '/bar/baz/foo', ['/bar/baz']],
     ['/**/foo', '/bar', false],
-
-    // ** in middle
-    ['/foo/**/bar', '/foo/x/bar', true],
-    ['/foo/**/bar', '/foo/x/y/z/bar', true],
+    ['/foo/**', '/foo', ['']],
+    ['/foo/**/bar', '/foo/x/y/z/bar', ['/x/y/z']],
     ['/foo/**/bar', '/foo/x/baz', false],
 
     // * and ** combined
-    ['/foo/*/**', '/foo/bar/baz', true],
-    ['/foo/*/**', '/foo/bar', true], // ** = zero
-    ['/foo/*/**', '/foo', false], // * requires something
-    ['/**/*', '/foo/bar', true],
-    ['/**/*', '/foo/bar/baz', true],
-    ['/**/*', '/foo', true],
+    ['/foo/*/**', '/foo/bar', ['bar']],
+    ['/foo/*/**', '/foo', false],
+    ['/**/*', '/foo', ['/foo']],
+    ['/**/*', '/', false],
 
-    // root and minimal paths
-    ['/', '/', true],
+    // root
+    ['/', '/', []],
     ['/', '/foo', false],
-    ['/**', '/', true],
-    ['/**', '/foo', true],
-    ['/**', '/foo/bar', true],
-    ['/*', '/', false],
+    ['/**', '/', ['/']],
     ['/**', '', false],
+    ['/*', '/', false],
 
-    // trailing and double slash handling
-    ['/foo/bar', '/foo/bar/', true],
-    ['/foo/bar/', '/foo/bar', true],
-    ['/foo/*', '/foo/bar/', true],
-    ['/foo/**/bar', '/foo//bar', true],
+    // trailing/double slash
+    ['/foo/bar', '/foo/bar/', []],
+    ['/foo/**/bar', '/foo//bar', ['/']],
+
+    // complex groups
+    ['/foo/*/**/*/bar', '/foo/a/b/bar', ['a/b']],
+    ['/foo/*/**/*/bar', '/foo/a/x/y/b/bar', ['a/x/y/b']],
+    ['/foo/*/**/*/bar', '/foo/a/bar', false],
+    ['/foo/*/**/*/*/bar/*', '/foo/a/x/y/z/b/c/bar/d', ['a/x/y/z/b/c', 'd']],
+    ['/foo/*/**/*/*/bar/*', '/foo/a/b/bar/d', false],
 ] as const
 
-test('URL pattern matcher', t => {
+test('URL pattern matcher', (t: TestContext) => {
     for (const [p, u, exp] of cases) {
-        const comp = compilePattern(p)
-        const res = matchPattern(comp, u)
-        t.assert.equal(res, exp, `Match failed: ${p} on ${u}`)
+        const compiled = compilePattern(p)
+        const res = matchPattern(compiled, u)
+        t.assert.deepStrictEqual(res, exp, `Match failed: ${p} on ${u}`)
+    }
+})
+
+test('URL pattern compile and stringify', (t: TestContext) => {
+    for (const [p, u, dyn] of cases) {
+        if (dyn === false) {
+            continue
+        }
+        const compiled = compilePattern(p)
+        let str = stringifyPattern(compiled, dyn)
+        if (str.length > 1 && u.endsWith('/')) {
+            str += '/'
+        }
+        t.assert.equal(str, u, `Compile stringify failed: ${p} on ${u} with ${JSON.stringify(dyn)}`)
     }
 })
 
