@@ -1,3 +1,5 @@
+// $ node --import ../testing/resolve.ts %n.test.ts
+
 import { compile, match } from 'path-to-regexp'
 
 export type URLLocalizer = (url: string, locale: string) => string
@@ -76,9 +78,10 @@ export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]
     }
 }
 
-const wilds = ['/*/**', '/**/*', '/**', '*'] as const
+const wilds = ['/**', '*'] as const // longer should be first
 
-const DOUBLE = 2 // index of /**
+const DOUBLE = 0 // index of **
+const SINGLE = 1 // index of *
 
 export type Pattern = (string | number)[]
 
@@ -87,6 +90,7 @@ export function compilePattern(pattern: string) {
     if (pattern.length > 1 && pattern.endsWith('/')) {
         pattern = pattern.slice(0, -1)
     }
+    let prevWildI = [-1, -1] as [number, number] // corresponsing to wilds
     for (let i = 0; i < pattern.length; i++) {
         let iWildInPatMin = -1
         let wildIdxMin: number | null = null
@@ -100,57 +104,122 @@ export function compilePattern(pattern: string) {
         }
         if (wildIdxMin === null) {
             parts.push(pattern.slice(i))
+            prevWildI = [-1, -1]
             break
         }
-        const wild = wilds[wildIdxMin]!
-        if (iWildInPatMin > 0) {
-            parts.push(pattern.slice(i, iWildInPatMin))
+        if (iWildInPatMin > 0 && iWildInPatMin > i) {
+            const slice = pattern.slice(i, iWildInPatMin)
+            if (slice !== '/' || i === 0) {
+                parts.push(slice)
+                prevWildI = [-1, -1]
+            }
         }
-        parts.push(wildIdxMin)
-        i = iWildInPatMin + wild.length - 1
+        if (wildIdxMin === DOUBLE) {
+            if (prevWildI[DOUBLE] === -1) {
+                prevWildI[DOUBLE] = parts.length
+                parts.push(wildIdxMin)
+            }
+        } else if (wildIdxMin === SINGLE) {
+            if (prevWildI[SINGLE] === -1) {
+                prevWildI[SINGLE] = parts.length
+                parts.push(1)
+            } else {
+                ;(parts[prevWildI[SINGLE]] as number)++
+            }
+        }
+        i = iWildInPatMin + wilds[wildIdxMin]!.length - 1
     }
     return parts
 }
 
+function countSlash(url: string, fromIdx: number, toIdx?: number) {
+    let count = 0
+    for (let i = url.indexOf('/', fromIdx); i !== -1 && i < (toIdx ?? url.length); i = url.indexOf('/', i + 1)) {
+        count++
+    }
+    return count
+}
+
+const slashCheckFails = (slashes: number, singles: number, double: boolean) =>
+    slashes < singles - 1 || (!double && slashes >= singles)
+
 export function matchPattern(pattern: Pattern, url: string) {
-    let lastWild: number | null = null
-    let lastI = 0
     if (url.length > 1 && url.endsWith('/')) {
         url = url.slice(0, -1)
     }
+    let hasDoubleLast = false
+    let singlesLast = 0
+    let lastI = 0
+    const dynamics: string[] = []
     for (const patt of pattern) {
         if (typeof patt === 'number') {
-            lastWild = patt
+            if (patt === 0) {
+                hasDoubleLast = true
+            } else {
+                singlesLast = patt
+            }
             continue
         }
-        const wild = lastWild
-        lastWild = null // reset
+        const singles = singlesLast
+        const hasDouble = hasDoubleLast
+        singlesLast = 0
+        hasDoubleLast = false
         const i = url.indexOf(patt, lastI)
+        const prevI = lastI
+        lastI = i + patt.length
         if (i === -1) {
             return false
         }
-        if (wild === null) {
+        if (singles === 0 && !hasDouble) {
             if (i > 0) {
                 return false
             }
-            lastI = i + patt.length
             continue
         }
-        if (wild <= DOUBLE) {
-            lastI = i + patt.length
-            continue
-        }
-        const iSlash = url.indexOf('/', lastI)
-        if ((iSlash > lastI && iSlash < i) || iSlash === lastI) {
+        if (singles > 0 && (i === prevI || slashCheckFails(countSlash(url, prevI, i), singles, hasDouble))) {
             return false
         }
-        lastI = i + patt.length
+        dynamics.push(url.slice(prevI, i))
     }
     if (lastI === url.length) {
-        return (lastWild === null || lastWild === DOUBLE) && lastI > 0
+        if (singlesLast > 0 || lastI === 0) {
+            return false
+        }
+        if (!hasDoubleLast) {
+            return dynamics
+        }
     }
-    if (lastWild === null) {
+    if (singlesLast > 0) {
+        const slashCount = countSlash(url, lastI)
+        if (slashCheckFails(slashCount, singlesLast, hasDoubleLast) || url.length === slashCount) {
+            return false
+        }
+    } else if (!hasDoubleLast) {
         return false
     }
-    return lastWild <= DOUBLE || url.indexOf('/', lastI) === -1
+    if (!hasDoubleLast && url.indexOf('/', lastI) !== -1) {
+        return false
+    }
+    dynamics.push(url.slice(lastI))
+    return dynamics
+}
+
+export function stringifyPattern(pattern: Pattern, dynamics: readonly string[]) {
+    let i = 0
+    let lastIsDynamic = false
+    const assembled: string[] = []
+    for (const p of pattern) {
+        if (typeof p === 'string') {
+            assembled.push(p)
+            lastIsDynamic = false
+            continue
+        }
+        if (lastIsDynamic) {
+            continue
+        }
+        assembled.push(dynamics[i]!)
+        i++
+        lastIsDynamic = true
+    }
+    return assembled.join('')
 }
