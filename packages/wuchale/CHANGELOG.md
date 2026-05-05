@@ -1,5 +1,47 @@
 # wuchale
 
+## 0.24.0
+
+### Minor Changes
+
+- ⚠️ BREAKING: reorganize loading config, use glob patterns and number load IDs ([#355](https://github.com/wuchalejs/wuchale/pull/355))
+
+  - `granularLoad` is now `loading.granular`
+  - `bundleLoad` is now `loading.direct`
+  - `generateLoadID` is replaced by a glob config at `loading.group`
+
+  Therefore if you use any of these, update your config like this:
+
+  ```diff
+  -import { defineConfig, defaultGenerateLoadID, pofile } from "wuchale"
+  +import { defineConfig, pofile } from "wuchale"
+  import { adapter as svelte } from '@wuchale/svelte'
+
+  export default defineConfig({
+      // ...
+      adapters: {
+          main: svelte({
+              // ...
+             bundleLoad: true,
+  -          granularLoad: true,
+  -          generateLoadID: filename => {
+  -              if (filename.includes('grouped')) {
+  -                  return 'grouped'
+  -              }
+  -              return defaultGenerateLoadID(filename)
+  -          },
+  +          loading: {
+  +              granular: true,
+  +              direct: true,
+  +              group: [
+  +                  '**/*grouped*',
+  +              ]
+  +          }
+         }),
+      }
+  })
+  ```
+
 ## 0.23.3
 
 ### Patch Changes
