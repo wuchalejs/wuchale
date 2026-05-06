@@ -1,45 +1,14 @@
-import {
-    compile as compileUrlPattern,
-    match as matchUrlPattern,
-    pathToRegexp,
-    stringify,
-    type Token,
-} from 'path-to-regexp'
-import { getKey, type URLConf } from '../adapters.js'
+import { isDeepStrictEqual } from 'node:util'
+import { getKey, type URLConf, type UrlMatcher } from '../adapters.js'
 import type AIQueue from '../ai/index.js'
-import { compileTranslation, type Mixed } from '../compile.js'
 import { type Catalog, type Item, newItem } from '../storage.js'
-import type { URLManifest } from '../url.js'
-
-export function patternFromTranslate(patternTranslated: string, keys: Token[]) {
-    const compiledTranslatedPatt = compileTranslation(patternTranslated, patternTranslated)
-    if (typeof compiledTranslatedPatt === 'string') {
-        return compiledTranslatedPatt
-    }
-    const urlTokens: Token[] = (compiledTranslatedPatt as Mixed).map(part => {
-        if (typeof part === 'number') {
-            return keys[part]!
-        }
-        return { type: 'text', value: part }
-    })
-    return stringify({ tokens: urlTokens })
-}
-
-export function patternToTranslate(pattern: string) {
-    const { keys } = pathToRegexp(pattern)
-    const compile = compileUrlPattern(pattern, { encode: false })
-    const paramsReplace: Record<string, string> = {}
-    for (const [i, { name }] of keys.entries()) {
-        paramsReplace[name] = `{${i}}`
-    }
-    return compile(paramsReplace)
-}
+import { compilePattern, matchPattern, type Pattern, stringifyPattern, type URLManifest } from '../url.js'
 
 export class URLHandler {
-    patternKeys: Map<string, string> = new Map()
-    locales: string[]
-    sourceLocale: string
-    patterns: string[] = []
+    readonly locales: string[]
+    readonly sourceLocale: string
+    readonly patterns: string[] = []
+    readonly compiledPatterns: Map<string, Pattern>[] = []
 
     constructor(locales: string[], sourceLocale: string, urlConf?: URLConf) {
         this.locales = locales
@@ -49,44 +18,34 @@ export class URLHandler {
         }
     }
 
-    buildManifest = (catalog: Catalog): URLManifest =>
+    buildManifest = (): URLManifest => {
         // order of catalogs should be based on locales
-        this.patterns.map(patt => {
-            const catalogPattKey = this.patternKeys.get(patt)!
-            const { keys } = pathToRegexp(patt)
-            const locPatterns: string[] = []
-            const item = catalog.get(catalogPattKey)
+        const manifest: URLManifest = []
+        for (let i = 0; i < this.patterns.length; i++) {
+            const locPatterns: Pattern[] = []
+            const compiledPatts = this.compiledPatterns[i]!
+            const compiledPattBase = compiledPatts.get(this.sourceLocale)!
             for (const loc of this.locales) {
-                let pattern = patt
-                const transl = item?.translations?.get(loc)
-                if (transl) {
-                    const patternTranslated = transl[0]! || item!.translations.get(this.sourceLocale)![0]!
-                    pattern = patternFromTranslate(patternTranslated, keys)
-                }
-                locPatterns.push(pattern)
+                const locCompiledPatt = compiledPatts.get(loc)!
+                locPatterns.push(locCompiledPatt)
             }
-            if (locPatterns.some(p => p !== patt)) {
-                return [patt, locPatterns]
-            }
-            return [patt]
-        })
+            const notAllSame = locPatterns.some(p => !isDeepStrictEqual(p, compiledPattBase))
+            manifest.push(notAllSame ? [compiledPattBase, locPatterns] : [compiledPattBase])
+        }
+        return manifest
+    }
 
     initPatterns = async (adapterKey: string, catalog: Catalog, aiQueue?: AIQueue): Promise<boolean> => {
-        const urlPatternsForTranslate = this.patterns.map(patternToTranslate)
         const urlPatternCatKeys: string[] = []
         const toTranslate: Item[] = []
         let needWriteCatalog = false
-        for (const [i, locPattern] of urlPatternsForTranslate.entries()) {
-            let context: string | undefined
-            if (locPattern !== this.patterns[i]) {
-                context = `original: ${this.patterns[i]}`
-            }
-            const key = getKey([locPattern], context)
+        const toCompile: Item[] = []
+        for (const [i, pattern] of this.patterns.entries()) {
+            const key = getKey([pattern])
             urlPatternCatKeys[i] = key
-            this.patternKeys.set(this.patterns[i]!, key) // save for href translate
             let item = catalog.get(key)
             if (!item) {
-                item = newItem({ id: [locPattern], context }, this.locales)
+                item = newItem({ id: [pattern] }, this.locales)
                 catalog.set(key, item)
                 needWriteCatalog = true
             }
@@ -94,11 +53,12 @@ export class URLHandler {
                 item.urlAdapters.push(adapterKey)
                 needWriteCatalog = true
             }
-            item.translations.set(this.sourceLocale, [locPattern])
-            if (locPattern.search(/\p{L}/u) === -1) {
+            item.translations.set(this.sourceLocale, [pattern])
+            toCompile.push(item)
+            if (pattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
                     if (loc !== this.sourceLocale) {
-                        item.translations.set(loc, [locPattern])
+                        item.translations.set(loc, [pattern])
                     }
                 }
                 continue
@@ -117,44 +77,39 @@ export class URLHandler {
             aiQueue.add(toTranslate)
             await aiQueue.running
         }
+        // for matching hrefs
+        for (const item of toCompile) {
+            const compiled = new Map<string, Pattern>()
+            for (const loc of this.locales) {
+                compiled.set(loc, compilePattern(item.translations.get(loc)![0]!))
+            }
+            this.compiledPatterns.push(compiled)
+        }
         return needWriteCatalog
     }
 
-    match = (url: string) => {
-        for (const pattern of this.patterns) {
-            if (matchUrlPattern(pattern, { decode: false })(url)) {
-                return pattern
+    match: UrlMatcher = (url: string) => {
+        for (const [i, pattern] of this.compiledPatterns.entries()) {
+            const dynamics = matchPattern(pattern.get(this.sourceLocale)!, url)
+            if (dynamics) {
+                return [i, dynamics] as const
             }
         }
         return null
     }
 
-    matchToCompile = (key: string, catalog: Catalog, locale: string) => {
+    matchToCompile = (key: string, locale: string) => {
         // e.g. key: /items/foo/{0}
         const toCompile = key
         const relevantPattern = this.match(key)
         if (relevantPattern == null) {
             return toCompile
         }
-        // e.g. relevantPattern: /items/:rest
-        const patternItem = catalog.get(this.patternKeys.get(relevantPattern)!)
-        if (!patternItem) {
-            return toCompile
-        }
-        // e.g. patternItem.id: /items/{0}
-        const matchedUrl = matchUrlPattern(relevantPattern, { decode: false })(key)
-        // e.g. matchUrl.params: {rest: 'foo/{0}'}
-        if (!matchedUrl) {
-            return toCompile
-        }
-        const translatedPattern =
-            patternItem.translations.get(locale)![0] || patternItem.translations.get(this.sourceLocale)![0]!
-        // e.g. translatedPattern: /elementos/{0}
-        const { keys } = pathToRegexp(relevantPattern)
-        const translatedPattUrl = patternFromTranslate(translatedPattern, keys)
-        // e.g. translatedPattUrl: /elementos/:rest
-        const compileTranslated = compileUrlPattern(translatedPattUrl, { encode: false })
-        return compileTranslated(matchedUrl.params)
-        // e.g. return /elementos/foo/{0}
+        // e.g. relevantPattern: [index of /items/**, [foo/{0}]]
+        const [i, dynamics] = relevantPattern
+        const translatedCompiled = this.compiledPatterns[i]!.get(locale)!
+        // e.g. translatedCompiled: [/elementos, 0]
+        return stringifyPattern(translatedCompiled, dynamics)
+        // e.g. /elementos/foo/{0}
     }
 }

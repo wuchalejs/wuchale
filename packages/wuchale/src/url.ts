@@ -1,83 +1,5 @@
 // $ node --import ../testing/resolve.ts %n.test.ts
 
-import { compile, match } from 'path-to-regexp'
-
-export type URLLocalizer = (url: string, locale: string) => string
-
-// public default, used when localized: true
-export const localizeDefault: URLLocalizer = (path, loc) => {
-    const localized = `/${loc}${path}`
-    if (!localized.endsWith('/')) {
-        return localized
-    }
-    return localized.slice(0, -1)
-}
-
-export const deLocalizeDefault = <L extends string>(path: string, locales: L[]): [string, L | null] => {
-    let iSecondSlash = path.indexOf('/', 2)
-    if (iSecondSlash === -1) {
-        iSecondSlash = path.length
-    }
-    const locale = path.slice(1, iSecondSlash) as L
-    if (!locales.includes(locale)) {
-        return [path, null]
-    }
-    const rest = path.slice(1 + locale.length)
-    return [rest || '/', locale]
-}
-
-type MatchParams = Partial<Record<string, string | string[]>>
-
-const getParams = (path: string, pattern: string): MatchParams | undefined => {
-    const matched = match(pattern, { decode: false })(path)
-    if (!matched) {
-        return
-    }
-    return matched.params
-}
-
-export const fillParams = (params: MatchParams, destPattern: string) => {
-    const compiled = compile(destPattern, { encode: false })
-    return compiled(params)
-}
-
-export type URLManifestItem =
-    | [
-          string, // /path
-          string[], // /path, /ruta
-      ]
-    | [string] // just /path
-
-export type URLManifest = URLManifestItem[]
-
-type MatchResult<L extends string> = {
-    path: string | null
-    params: MatchParams
-    altPatterns: Record<L, string>
-}
-
-const noMatchRes: MatchResult<string> = { path: null, altPatterns: {}, params: {} }
-
-export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]) {
-    const manifestWithLocales = manifest.map(([pattern, localized]) => {
-        localized ??= locales.map(_ => pattern)
-        const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, string])
-        return [pattern, Object.fromEntries(locAndLocalizeds)] as [string, Record<string, string>]
-    })
-    return (url: string, locale: L | null): MatchResult<L> => {
-        if (locale === null) {
-            return noMatchRes
-        }
-        for (const [pattern, altPatterns] of manifestWithLocales) {
-            const params = getParams(url, altPatterns[locale]!)
-            if (params) {
-                return { path: fillParams(params, pattern), params, altPatterns }
-            }
-        }
-        return noMatchRes
-    }
-}
-
 const wilds = ['/**', '*'] as const // longer should be first
 
 const DOUBLE = 0 // index of **
@@ -222,4 +144,65 @@ export function stringifyPattern(pattern: Pattern, dynamics: readonly string[]) 
         lastIsDynamic = true
     }
     return assembled.join('')
+}
+
+export type URLManifestItem =
+    | [
+          Pattern, // ['/path'] base pattern
+          Pattern[], // [['/path'], ['/ruta']] for en, es
+      ]
+    | [Pattern] // just ['/path'] for all
+
+export type URLManifest = URLManifestItem[]
+
+type MatchResult<L extends string> = {
+    path: string | null
+    params: string[]
+    altPatterns: Record<L, Pattern>
+}
+
+const noMatchRes: MatchResult<string> = { path: null, altPatterns: {}, params: [] }
+
+export function URLMatcher<L extends string>(manifest: URLManifest, locales: L[]) {
+    const manifestWithLocales = manifest.map(([pattern, localized]) => {
+        localized ??= locales.map(_ => pattern)
+        const locAndLocalizeds = locales.map((loc, i) => [loc, localized[i]] as [string, Pattern])
+        return [pattern, Object.fromEntries(locAndLocalizeds)] as [Pattern, Record<L, Pattern>]
+    })
+    return (url: string, locale: L | null): MatchResult<L> => {
+        if (locale === null) {
+            return noMatchRes
+        }
+        for (const [pattern, altPatterns] of manifestWithLocales) {
+            const params = matchPattern(altPatterns[locale]!, url)
+            if (params) {
+                return { path: stringifyPattern(pattern, params), params, altPatterns }
+            }
+        }
+        return noMatchRes
+    }
+}
+
+export type URLLocalizer = (url: string, locale: string) => string
+
+// public default, used when localized: true
+export const localizeDefault: URLLocalizer = (path, loc) => {
+    const localized = `/${loc}${path}`
+    if (!localized.endsWith('/')) {
+        return localized
+    }
+    return localized.slice(0, -1)
+}
+
+export const deLocalizeDefault = <L extends string>(path: string, locales: L[]): [string, L | null] => {
+    let iSecondSlash = path.indexOf('/', 2)
+    if (iSecondSlash === -1) {
+        iSecondSlash = path.length
+    }
+    const locale = path.slice(1, iSecondSlash) as L
+    if (!locales.includes(locale)) {
+        return [path, null]
+    }
+    const rest = path.slice(1 + locale.length)
+    return [rest || '/', locale]
 }

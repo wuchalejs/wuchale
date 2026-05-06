@@ -175,7 +175,7 @@ export type RuntimeExpr = {
     reactive: string
 }
 
-export type UrlMatcher = (url: string) => string | null | undefined
+export type UrlMatcher = (url: string) => readonly [number, string[]] | null
 
 type TransformCtx = {
     content: string
