@@ -55,6 +55,35 @@ test('React basic', async t => {
     )
 })
 
+test('React arrow function component', async t => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        const Foo = () => {
+            return <p>Hello</p>
+        }
+        const m = () => {
+            return <p data-novalue>Hello</p>
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+
+        const Foo = () => {
+            const _w_runtime_ = _w_load_rx_();
+            return <p>{_w_runtime_(0)}</p>
+        }
+
+        const m = () => {
+            const _w_runtime_ = _w_load_();
+            return <p data-novalue>{_w_runtime_(0)}</p>
+        }
+    `,
+        ['Hello', 'Hello'],
+    )
+})
+
 test('SolidJS basic', async t => {
     transformTest(
         t,

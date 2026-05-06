@@ -496,6 +496,12 @@ export class Transformer {
                 this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
             }
             delete this.heuristciDetails.leftSide
+            if (
+                node.id.type === 'Identifier' &&
+                (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression')
+            ) {
+                return [...msgs, ...this.visitFunctionBody(init.body, node.id.name, init.end)]
+            }
             return [...msgs, ...this.visit(node.init)]
         })
 
