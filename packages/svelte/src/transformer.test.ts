@@ -8,9 +8,10 @@ import { defaultArgs, svelteKitDefaultHeuristic } from './index.js'
 import { SvelteTransformer } from './transformer.js'
 
 const urlHandler = new URLHandler(['en'], 'en', {
-    patterns: ['/translated/*rest', '/'],
+    patterns: ['/translated/**', '/'],
     localize: true,
 })
+urlHandler.initPatterns('foo', new Map())
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 

@@ -120,7 +120,7 @@ export class AdapterHandler {
         }
         await handler.compile()
         await writeProxies(granularState.groupPatterns)
-        await files.writeUrlFiles(handler.url.buildManifest(sharedState.catalog), config.locales[0])
+        await files.writeUrlFiles(handler.url.buildManifest(), config.locales[0])
         return handler
     }
 
@@ -276,7 +276,7 @@ export class AdapterHandler {
                 } else {
                     let toCompile = transl[0]!
                     if (itemIsUrl(item)) {
-                        toCompile = this.url.matchToCompile(key, this.sharedState.catalog, loc)
+                        toCompile = this.url.matchToCompile(key, loc)
                     }
                     compiled = compileTranslation(toCompile, fallback)
                 }
@@ -463,7 +463,7 @@ export class AdapterHandler {
                     ;(err as any).id = filename
                     throw err
                 }
-                key = this.url.patternKeys.get(matched)! // ! because already checked at extraction
+                key = getKey([this.url.patterns[matched[0]]!])
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {

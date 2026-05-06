@@ -77,20 +77,33 @@ test('URL pattern compile and stringify', (t: TestContext) => {
 })
 
 test('URL matcher', t => {
-    const matcher = URLMatcher([['/'], ['/path', ['/path', '/ruta']], ['/*rest', ['/*rest', '/*rest']]], ['en', 'es'])
+    const matcher = URLMatcher(
+        [
+            [['/']],
+            [['/path'], [['/path'], ['/ruta']]],
+            [
+                ['/', 1],
+                [
+                    ['/', 1],
+                    ['/', 1],
+                ],
+            ],
+        ],
+        ['en', 'es'],
+    )
     t.assert.deepEqual(matcher('/', 'en'), {
         path: '/',
-        altPatterns: { en: '/', es: '/' },
-        params: {},
+        altPatterns: { en: ['/'], es: ['/'] },
+        params: [],
     })
     t.assert.deepEqual(matcher('/foo', 'es'), {
         path: '/foo',
-        altPatterns: { en: '/*rest', es: '/*rest' },
-        params: { rest: 'foo' },
+        altPatterns: { en: ['/', 1], es: ['/', 1] },
+        params: ['foo'],
     })
     t.assert.deepEqual(matcher('/ruta', 'es'), {
         path: '/path',
-        altPatterns: { en: '/path', es: '/ruta' },
-        params: {},
+        altPatterns: { en: ['/path'], es: ['/ruta'] },
+        params: [],
     })
 })
