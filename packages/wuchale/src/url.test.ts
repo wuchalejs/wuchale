@@ -10,7 +10,7 @@ const cases = [
     ['/foo/bar', '/foo/bar/baz', false],
 
     // * within segment
-    ['/foo/*', '/foo/bar', ['bar']],
+    ['/foo/*', '/foo/bar', ['/bar']],
     ['/foo/*', '/foo/', false],
     ['/foo/*', '/foo/bar/baz', false],
     ['/foo/*', '/foo', false],
@@ -20,6 +20,26 @@ const cases = [
     ['/foo-*/bar', '/foo-/bar', false],
     ['/foo-*/bar', '/fooX/bar', false],
     ['/foo-*-baz', '/foo-bar-baz', ['bar']],
+    ['/foo-?-baz', '/foo-bar-baz', ['bar']],
+    ['/foo-?-baz', '/foo--baz', ['']],
+
+    // basic optional segment
+    ['/foo/?/bar', '/foo/bar', ['']],
+    ['/foo/?/bar', '/foo/baz/bar', ['/baz']],
+    ['/foo/?/bar', '/foo/bar/baz', false],
+
+    // optional at start
+    ['/?/foo', '/foo', ['']],
+    ['/?/foo', '/bar/foo', ['/bar']],
+    ['/?/foo', '/bar/baz/foo', false],
+
+    // optional at end
+    ['/foo/?', '/foo', []],
+    ['/foo/?', '/foo/bar', ['/bar']],
+
+    // optional with other wildcards
+    ['/foo/?/**/bar', '/foo/bar', ['']],
+    ['/foo/?/**/bar', '/foo/baz/x/y/bar', ['/baz/x/y']],
 
     // ** positions
     ['/**/foo', '/foo', ['']],
@@ -30,7 +50,7 @@ const cases = [
     ['/foo/**/bar', '/foo/x/baz', false],
 
     // * and ** combined
-    ['/foo/*/**', '/foo/bar', ['bar']],
+    ['/foo/*/**', '/foo/bar', ['/bar']],
     ['/foo/*/**', '/foo', false],
     ['/**/*', '/foo', ['/foo']],
     ['/**/*', '/', false],
@@ -47,10 +67,10 @@ const cases = [
     ['/foo/**/bar', '/foo//bar', ['/']],
 
     // complex groups
-    ['/foo/*/**/*/bar', '/foo/a/b/bar', ['a/b']],
-    ['/foo/*/**/*/bar', '/foo/a/x/y/b/bar', ['a/x/y/b']],
+    ['/foo/*/**/*/bar', '/foo/a/b/bar', ['/a/b']],
+    ['/foo/*/**/*/bar', '/foo/a/x/y/b/bar', ['/a/x/y/b']],
     ['/foo/*/**/*/bar', '/foo/a/bar', false],
-    ['/foo/*/**/*/*/bar/*', '/foo/a/x/y/z/b/c/bar/d', ['a/x/y/z/b/c', 'd']],
+    ['/foo/*/**/*/*/bar/*', '/foo/a/x/y/z/b/c/bar/d', ['/a/x/y/z/b/c', '/d']],
     ['/foo/*/**/*/*/bar/*', '/foo/a/b/bar/d', false],
 ] as const
 

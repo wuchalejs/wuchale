@@ -1,9 +1,12 @@
+// $ node %f
 // $ node --import ../testing/resolve.ts %n.test.ts
 
-const wilds = ['/**', '*'] as const // longer should be first
-
-const DOUBLE = 0 // index of **
-const SINGLE = 1 // index of *
+const wilds = ['/**', '/*', '*', '/?', '?'] as const // longer should be first
+// corresponsing indices
+const [DOUBLE, SINGLESL, SINGLE, OPTIONALSL, OPTIONAL] = [0, 1, 2, 3, 4] as const
+// meanings
+const [HASDOUBLE, HASSINGLE, SINGLESMIN, OPTIONALMAX, HASOPTIONAL] = [0, 1, 2, -2, -1] as const
+const DEFAULT_PREV_WILD = [false, false, -1, -1, false] as [boolean, boolean, number, number, boolean]
 
 export type Pattern = (string | number)[]
 
@@ -12,7 +15,7 @@ export function compilePattern(pattern: string) {
     if (pattern.length > 1 && pattern.endsWith('/')) {
         pattern = pattern.slice(0, -1)
     }
-    let prevWildI = [-1, -1] as [number, number] // corresponsing to wilds
+    let [prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
     for (let i = 0; i < pattern.length; i++) {
         let iWildInPatMin = -1
         let wildIdxMin: number | null = null
@@ -26,27 +29,44 @@ export function compilePattern(pattern: string) {
         }
         if (wildIdxMin === null) {
             parts.push(pattern.slice(i))
-            prevWildI = [-1, -1]
+            ;[prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
             break
         }
         if (iWildInPatMin > 0 && iWildInPatMin > i) {
             const slice = pattern.slice(i, iWildInPatMin)
             if (slice !== '/' || i === 0) {
                 parts.push(slice)
-                prevWildI = [-1, -1]
+                ;[prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
             }
         }
         if (wildIdxMin === DOUBLE) {
-            if (prevWildI[DOUBLE] === -1) {
-                prevWildI[DOUBLE] = parts.length
-                parts.push(wildIdxMin)
+            if (!prevHasDouble) {
+                prevHasDouble = true
+                parts.push(HASDOUBLE)
+            }
+        } else if (wildIdxMin === OPTIONAL) {
+            if (!prevHasOptional) {
+                prevHasOptional = true
+                parts.push(HASOPTIONAL)
+            }
+        } else if (wildIdxMin === OPTIONALSL) {
+            if (prevOptionalsI === -1) {
+                prevOptionalsI = parts.length
+                parts.push(OPTIONALMAX)
+            } else {
+                ;(parts[prevOptionalsI] as number)--
             }
         } else if (wildIdxMin === SINGLE) {
-            if (prevWildI[SINGLE] === -1) {
-                prevWildI[SINGLE] = parts.length
-                parts.push(1)
+            if (!prevHasSingle) {
+                prevHasSingle = true
+                parts.push(HASSINGLE)
+            }
+        } else if (wildIdxMin === SINGLESL) {
+            if (prevSinglesI === -1) {
+                prevSinglesI = parts.length
+                parts.push(SINGLESMIN)
             } else {
-                ;(parts[prevWildI[SINGLE]] as number)++
+                ;(parts[prevSinglesI] as number)++
             }
         }
         i = iWildInPatMin + wilds[wildIdxMin]!.length - 1
@@ -54,16 +74,30 @@ export function compilePattern(pattern: string) {
     return parts
 }
 
-function countSlash(url: string, fromIdx: number, toIdx?: number) {
-    let count = 0
-    for (let i = url.indexOf('/', fromIdx); i !== -1 && i < (toIdx ?? url.length); i = url.indexOf('/', i + 1)) {
-        count++
+function slashCheckFails(
+    url: string,
+    fromI: number,
+    toI: number,
+    singles: number,
+    optionals: number,
+    double: boolean,
+    single: boolean,
+) {
+    if (fromI === toI) {
+        return singles > 0 || single
     }
-    return count
+    if (singles === 0 && optionals === 0) {
+        return false
+    }
+    let slashes = 0
+    for (let i = url.indexOf('/', fromI); i !== -1 && i < toI; i = url.indexOf('/', i + 1)) {
+        slashes++
+    }
+    if (url.length === slashes) {
+        return true
+    }
+    return slashes < singles || (!double && slashes - optionals > singles)
 }
-
-const slashCheckFails = (slashes: number, singles: number, double: boolean) =>
-    slashes < singles - 1 || (!double && slashes >= singles)
 
 export function matchPattern(pattern: Pattern, url: string) {
     if (url.length > 1 && url.endsWith('/')) {
@@ -71,34 +105,49 @@ export function matchPattern(pattern: Pattern, url: string) {
     }
     let hasDoubleLast = false
     let singlesLast = 0
+    let optionalsLast = 0
+    let hasSingleLast = false
+    let hasOptionalLast = false
     let lastI = 0
     const dynamics: string[] = []
     for (const patt of pattern) {
         if (typeof patt === 'number') {
-            if (patt === 0) {
+            if (patt === HASDOUBLE) {
                 hasDoubleLast = true
+            } else if (patt <= OPTIONALMAX) {
+                optionalsLast = OPTIONALMAX - patt + 1
+            } else if (patt === HASOPTIONAL) {
+                hasOptionalLast = true
+            } else if (patt === HASSINGLE) {
+                hasSingleLast = true
             } else {
-                singlesLast = patt
+                singlesLast = patt - SINGLESMIN + 1
             }
             continue
         }
         const singles = singlesLast
+        const optionals = optionalsLast
         const hasDouble = hasDoubleLast
+        const hasSingle = hasSingleLast
+        const hasOptional = hasOptionalLast
         singlesLast = 0
+        optionalsLast = 0
         hasDoubleLast = false
+        hasOptionalLast = false
+        hasSingleLast = false
         const i = url.indexOf(patt, lastI)
         const prevI = lastI
         lastI = i + patt.length
         if (i === -1) {
             return false
         }
-        if (singles === 0 && !hasDouble) {
+        if (singles === 0 && !hasDouble && optionals === 0 && !hasOptional && !hasSingle) {
             if (i > 0) {
                 return false
             }
             continue
         }
-        if (singles > 0 && (i === prevI || slashCheckFails(countSlash(url, prevI, i), singles, hasDouble))) {
+        if (slashCheckFails(url, prevI, i, singles, optionals, hasDouble, hasSingle)) {
             return false
         }
         dynamics.push(url.slice(prevI, i))
@@ -111,15 +160,10 @@ export function matchPattern(pattern: Pattern, url: string) {
             return dynamics
         }
     }
-    if (singlesLast > 0) {
-        const slashCount = countSlash(url, lastI)
-        if (slashCheckFails(slashCount, singlesLast, hasDoubleLast) || url.length === slashCount) {
-            return false
-        }
-    } else if (!hasDoubleLast) {
+    if (!hasDoubleLast && !hasOptionalLast && !hasSingleLast && singlesLast === 0 && optionalsLast === 0) {
         return false
     }
-    if (!hasDoubleLast && url.indexOf('/', lastI) !== -1) {
+    if (slashCheckFails(url, lastI, url.length, singlesLast, optionalsLast, hasDoubleLast, hasSingleLast)) {
         return false
     }
     dynamics.push(url.slice(lastI))
