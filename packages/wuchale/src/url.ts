@@ -1,4 +1,3 @@
-// $ node %f
 // $ node --import ../testing/resolve.ts %n.test.ts
 
 const wilds = ['/**', '/*', '*', '/?', '?'] as const // longer should be first
@@ -6,7 +5,7 @@ const wilds = ['/**', '/*', '*', '/?', '?'] as const // longer should be first
 const [DOUBLE, SINGLESL, SINGLE, OPTIONALSL, OPTIONAL] = [0, 1, 2, 3, 4] as const
 // meanings
 const [HASDOUBLE, HASSINGLE, SINGLESMIN, OPTIONALMAX, HASOPTIONAL] = [0, 1, 2, -2, -1] as const
-const DEFAULT_PREV_WILD = [false, false, -1, -1, false] as [boolean, boolean, number, number, boolean]
+const DEFAULT_PREV_WILD = [false, -1, false, -1, false] as [boolean, number, boolean, number, boolean]
 
 export type Pattern = (string | number)[]
 
@@ -15,12 +14,12 @@ export function compilePattern(pattern: string) {
     if (pattern.length > 1 && pattern.endsWith('/')) {
         pattern = pattern.slice(0, -1)
     }
-    let [prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
+    let prevProps = DEFAULT_PREV_WILD.slice() as typeof DEFAULT_PREV_WILD
     for (let i = 0; i < pattern.length; i++) {
         let iWildInPatMin = -1
         let wildIdxMin: number | null = null
-        for (const [wi, wild] of wilds.entries()) {
-            const iWildInPat = pattern.indexOf(wild, i)
+        for (let wi = 0; wi < wilds.length; wi++) {
+            const iWildInPat = pattern.indexOf(wilds[wi]!, i)
             if (iWildInPat === -1 || (iWildInPatMin !== -1 && iWildInPat >= iWildInPatMin)) {
                 continue
             }
@@ -29,44 +28,44 @@ export function compilePattern(pattern: string) {
         }
         if (wildIdxMin === null) {
             parts.push(pattern.slice(i))
-            ;[prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
+            prevProps = DEFAULT_PREV_WILD.slice() as typeof DEFAULT_PREV_WILD
             break
         }
-        if (iWildInPatMin > 0 && iWildInPatMin > i) {
+        if (iWildInPatMin > i) {
             const slice = pattern.slice(i, iWildInPatMin)
             if (slice !== '/' || i === 0) {
                 parts.push(slice)
-                ;[prevHasDouble, prevHasSingle, prevOptionalsI, prevSinglesI, prevHasOptional] = DEFAULT_PREV_WILD
+                prevProps = DEFAULT_PREV_WILD.slice() as typeof DEFAULT_PREV_WILD
             }
         }
         if (wildIdxMin === DOUBLE) {
-            if (!prevHasDouble) {
-                prevHasDouble = true
+            if (!prevProps[DOUBLE]) {
+                prevProps[DOUBLE] = true
                 parts.push(HASDOUBLE)
             }
         } else if (wildIdxMin === OPTIONAL) {
-            if (!prevHasOptional) {
-                prevHasOptional = true
+            if (!prevProps[OPTIONAL]) {
+                prevProps[OPTIONAL] = true
                 parts.push(HASOPTIONAL)
             }
         } else if (wildIdxMin === OPTIONALSL) {
-            if (prevOptionalsI === -1) {
-                prevOptionalsI = parts.length
+            if (prevProps[OPTIONALSL] === -1) {
+                prevProps[OPTIONALSL] = parts.length
                 parts.push(OPTIONALMAX)
             } else {
-                ;(parts[prevOptionalsI] as number)--
+                ;(parts[prevProps[OPTIONALSL]] as number)--
             }
         } else if (wildIdxMin === SINGLE) {
-            if (!prevHasSingle) {
-                prevHasSingle = true
+            if (!prevProps[SINGLE]) {
+                prevProps[SINGLE] = true
                 parts.push(HASSINGLE)
             }
         } else if (wildIdxMin === SINGLESL) {
-            if (prevSinglesI === -1) {
-                prevSinglesI = parts.length
+            if (prevProps[SINGLESL] === -1) {
+                prevProps[SINGLESL] = parts.length
                 parts.push(SINGLESMIN)
             } else {
-                ;(parts[prevSinglesI] as number)++
+                ;(parts[prevProps[SINGLESL]] as number)++
             }
         }
         i = iWildInPatMin + wilds[wildIdxMin]!.length - 1
@@ -93,15 +92,16 @@ function slashCheckFails(
     for (let i = url.indexOf('/', fromI); i !== -1 && i < toI; i = url.indexOf('/', i + 1)) {
         slashes++
     }
-    if (url.length === slashes) {
+    if (toI - fromI === slashes) {
         return true
     }
     return slashes < singles || (!double && slashes - optionals > singles)
 }
 
 export function matchPattern(pattern: Pattern, url: string) {
-    if (url.length > 1 && url.endsWith('/')) {
-        url = url.slice(0, -1)
+    let endI = url.length
+    if (endI > 1 && url.endsWith('/')) {
+        endI--
     }
     let hasDoubleLast = false
     let singlesLast = 0
@@ -141,7 +141,7 @@ export function matchPattern(pattern: Pattern, url: string) {
         if (i === -1) {
             return false
         }
-        if (singles === 0 && !hasDouble && optionals === 0 && !hasOptional && !hasSingle) {
+        if (!hasDouble && !hasOptional && !hasSingle && singles === 0 && optionals === 0) {
             if (i > 0) {
                 return false
             }
@@ -152,7 +152,7 @@ export function matchPattern(pattern: Pattern, url: string) {
         }
         dynamics.push(url.slice(prevI, i))
     }
-    if (lastI === url.length) {
+    if (lastI === endI) {
         if (singlesLast > 0 || lastI === 0) {
             return false
         }
@@ -163,31 +163,30 @@ export function matchPattern(pattern: Pattern, url: string) {
     if (!hasDoubleLast && !hasOptionalLast && !hasSingleLast && singlesLast === 0 && optionalsLast === 0) {
         return false
     }
-    if (slashCheckFails(url, lastI, url.length, singlesLast, optionalsLast, hasDoubleLast, hasSingleLast)) {
+    if (slashCheckFails(url, lastI, endI, singlesLast, optionalsLast, hasDoubleLast, hasSingleLast)) {
         return false
     }
-    dynamics.push(url.slice(lastI))
+    dynamics.push(url.slice(lastI, endI))
     return dynamics
 }
 
 export function stringifyPattern(pattern: Pattern, dynamics: readonly string[]) {
     let i = 0
     let lastIsDynamic = false
-    const assembled: string[] = []
+    let assembled = ''
     for (const p of pattern) {
         if (typeof p === 'string') {
-            assembled.push(p)
+            assembled += p
             lastIsDynamic = false
             continue
         }
         if (lastIsDynamic) {
             continue
         }
-        assembled.push(dynamics[i]!)
-        i++
+        assembled += dynamics[i++] ?? '' // undefined when optional and []
         lastIsDynamic = true
     }
-    return assembled.join('')
+    return assembled
 }
 
 export type URLManifestItem =
