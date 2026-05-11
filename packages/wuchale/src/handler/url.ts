@@ -55,7 +55,7 @@ export class URLHandler {
             }
             item.translations.set(this.sourceLocale, [pattern])
             toCompile.push(item)
-            if (pattern.search(/\p{L}/u) === -1) {
+            if (!aiQueue || pattern.search(/\p{L}/u) === -1) {
                 for (const loc of this.locales) {
                     if (loc !== this.sourceLocale) {
                         item.translations.set(loc, [pattern])
