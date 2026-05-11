@@ -11,7 +11,7 @@
         "check": "npm run typecheck && npm run test",
         "lintfmt": "npx @biomejs/biome check --write",
         "v": "npx changeset",
-        "postinstall": "ln -fs ../../scripts/pre-commit .git/hooks/pre-commit"
+        "postinstall": "node scripts/pre-commit-prep.ts"
     },
     "workspaces": [
         "packages/*"
