@@ -80,8 +80,9 @@ export class URLHandler {
         // for matching hrefs
         for (const item of toCompile) {
             const compiled = new Map<string, Pattern>()
+            const sourceTransl = item.translations.get(this.sourceLocale)![0]!
             for (const loc of this.locales) {
-                compiled.set(loc, compilePattern(item.translations.get(loc)![0]!))
+                compiled.set(loc, compilePattern(item.translations.get(loc)?.[0] || sourceTransl))
             }
             this.compiledPatterns.push(compiled)
         }
