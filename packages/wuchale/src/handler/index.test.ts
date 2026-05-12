@@ -9,7 +9,7 @@ import { type Adapter, newMessage } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
 import { generatedDir } from './files.js'
-import { AdapterHandler } from './index.js'
+import { AdapterHandler, getFallbackChains } from './index.js'
 import { SharedState } from './state.js'
 
 const defaultLoaderPath = '/loader/template/js'
@@ -130,4 +130,25 @@ test('Handler compiles only when necessary', async (t: TestContext) => {
     t.assert.strictEqual(updated2, true)
     t.assert.strictEqual(saveCalls, 2)
     t.assert.strictEqual(compileCalls, 1)
+})
+
+test('Fallback chains', (t: TestContext) => {
+    const chains = getFallbackChains(
+        {
+            'fr-ch': 'de-en',
+            de: 'fr',
+        },
+        ['fr-ch', 'de-en', 'de', 'fr', 'en'],
+        'en',
+    )
+    t.assert.deepStrictEqual(
+        chains,
+        new Map([
+            ['en', ['en']],
+            ['fr-ch', ['fr-ch', 'de-en', 'de', 'fr', 'en']],
+            ['de-en', ['de-en', 'de', 'fr', 'en']],
+            ['de', ['de', 'fr', 'en']],
+            ['fr', ['fr', 'en']],
+        ]),
+    )
 })

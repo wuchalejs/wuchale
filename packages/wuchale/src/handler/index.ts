@@ -54,6 +54,40 @@ export function getLoadIDs(adapter: Adapter, granularStates: Iterable<GranularSt
     return loadIDs
 }
 
+function getFallback(
+    fbConf: Record<string, string>,
+    loc: string,
+    sourceLocale: string,
+    locales: string[],
+    chain: string[],
+) {
+    let fallback = fbConf[loc]
+    if (!fallback) {
+        if (loc.includes('-')) {
+            fallback = new Intl.Locale(loc).language
+        }
+        if (!fallback || !locales.includes(fallback)) {
+            chain.push(sourceLocale)
+            return
+        }
+    }
+    chain.push(fallback)
+    getFallback(fbConf, fallback, sourceLocale, locales, chain)
+}
+
+export function getFallbackChains(fallbackConf: Record<string, string>, locales: string[], sourceLocale: string) {
+    const chains = new Map<string, string[]>([[sourceLocale, [sourceLocale]]])
+    for (const loc of locales) {
+        if (loc === sourceLocale) {
+            continue
+        }
+        const chain: string[] = [loc]
+        chains.set(loc, chain)
+        getFallback(fallbackConf, loc, sourceLocale, locales, chain)
+    }
+    return chains
+}
+
 type HandlerOptsCreate = FilesOptsCreatePass & {
     config: ConfigPartial
     mode: Mode
@@ -79,6 +113,7 @@ export class AdapterHandler {
     readonly url: URLHandler
     readonly aiQueue?: AIQueue
     onBeforeSave?: () => void
+    #fallbackChains: Map<string, string[]>
 
     private constructor(opts: HandlerOpts) {
         this.#opts = opts
@@ -90,6 +125,7 @@ export class AdapterHandler {
         this.fileMatches = pm(patterns, { ignore })
         this.sourceLocale = opts.sourceLocale
         this.url = new URLHandler(opts.config.locales, this.sourceLocale, opts.adapter.url)
+        this.#fallbackChains = getFallbackChains(opts.config.fallback, opts.config.locales, this.sourceLocale)
         this.files = opts.files
         if (opts.config.ai) {
             this.aiQueue = new AIQueue(
@@ -115,7 +151,7 @@ export class AdapterHandler {
         const granularState = new State(writeProxies, adapter.loading.group)
         const handler = new AdapterHandler({ ...opts, granularState, files })
         await handler.loadStorage()
-        if (await handler.url.initPatterns(key, sharedState.catalog, handler.aiQueue)) {
+        if (await handler.url.initPatterns(key, sharedState.catalog, handler.#fallbackChains, handler.aiQueue)) {
             await handler.saveStorage()
         }
         await handler.compile()
@@ -216,25 +252,12 @@ export class AdapterHandler {
         await Promise.all(promises)
     }
 
-    getCompiledFallback(index: number, loc: string) {
-        for (let _ = 0; _ < 100; _++) {
-            // just to be sure
-            let fallbackLoc = this.#opts.config.fallback[loc]
-            if (fallbackLoc == null) {
-                if (loc.includes('-')) {
-                    fallbackLoc = new Intl.Locale(loc).language
-                }
-                if (fallbackLoc == null || !this.#opts.config.locales.includes(fallbackLoc)) {
-                    fallbackLoc = this.sourceLocale
-                }
-            }
-            const catalog = this.sharedState.compiled.get(fallbackLoc)!.items!
-            const compiled = catalog[index]
-            if (compiled || fallbackLoc === this.sourceLocale) {
-                // last try
+    getCompiledFallback(index: number, locale: string) {
+        for (const loc of this.#fallbackChains.get(locale) ?? [locale, this.sourceLocale]) {
+            const compiled = this.sharedState.compiled.get(loc)!.items![index]
+            if (compiled || loc === this.sourceLocale) {
                 return compiled || ''
             }
-            loc = fallbackLoc
         }
         return ''
     }

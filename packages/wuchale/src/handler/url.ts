@@ -35,7 +35,12 @@ export class URLHandler {
         return manifest
     }
 
-    initPatterns = async (adapterKey: string, catalog: Catalog, aiQueue?: AIQueue): Promise<boolean> => {
+    initPatterns = async (
+        adapterKey: string,
+        catalog: Catalog,
+        fallbackChains: Map<string, string[]>,
+        aiQueue?: AIQueue,
+    ): Promise<boolean> => {
         const urlPatternCatKeys: string[] = []
         const toTranslate: Item[] = []
         let needWriteCatalog = false
@@ -80,9 +85,14 @@ export class URLHandler {
         // for matching hrefs
         for (const item of toCompile) {
             const compiled = new Map<string, Pattern>()
-            const sourceTransl = item.translations.get(this.sourceLocale)![0]!
-            for (const loc of this.locales) {
-                compiled.set(loc, compilePattern(item.translations.get(loc)?.[0] || sourceTransl))
+            for (const locale of this.locales) {
+                for (const loc of fallbackChains.get(locale) ?? [locale, this.sourceLocale]) {
+                    const pattern = item.translations.get(loc)?.[0]
+                    if (pattern) {
+                        compiled.set(locale, compilePattern(pattern))
+                        break
+                    }
+                }
             }
             this.compiledPatterns.push(compiled)
         }

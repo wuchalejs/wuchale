@@ -11,7 +11,7 @@ const urlHandler = new URLHandler(['en'], 'en', {
     patterns: ['/translated/**', '/'],
     localize: true,
 })
-urlHandler.initPatterns('foo', new Map())
+urlHandler.initPatterns('foo', new Map(), new Map())
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 

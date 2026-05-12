@@ -8,7 +8,7 @@ const handler = new URLHandler(['en', 'es'], 'en', {
 })
 
 test('URL correct init', async (t: TestContext) => {
-    await handler.initPatterns('foo', new Map())
+    await handler.initPatterns('foo', new Map(), new Map())
     t.assert.deepStrictEqual(handler.compiledPatterns[0]?.get('es'), ['/bar', 2])
 })
 
