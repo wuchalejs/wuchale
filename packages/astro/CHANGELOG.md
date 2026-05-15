@@ -1,5 +1,15 @@
 # @wuchale/astro
 
+## 0.3.3
+
+### Patch Changes
+
+- Fix `_w_runtime_ is not defined` crash when strings appear inside
+  `export const` declarations in frontmatter. Astro hoists exports to module
+  scope, but the runtime was initialized in component scope. Strings in
+  exports are now extracted for PO catalogs but the source code is left
+  unmutated, avoiding the dangling reference.
+
 ## 0.3.2
 
 ### Patch Changes

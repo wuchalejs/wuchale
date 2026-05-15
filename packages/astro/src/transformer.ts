@@ -51,6 +51,7 @@ export class AstroTransformer extends Transformer {
     // state
     currentElement?: string | undefined
     inCompoundText: boolean = false
+    inExportDecl: boolean = false
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitorAstro
@@ -299,6 +300,40 @@ export class AstroTransformer extends Transformer {
     }
 
     visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
+
+    // --- Overrides for export declarations ---
+    // Astro hoists "export const" to module scope, but _w_runtime_ lives in
+    // component scope. Extract strings for PO catalogs but leave the AST
+    // unmutated so we don't inject _w_runtime_ into module-scoped code.
+    override visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] => {
+        if (!node.declaration) {
+            return []
+        }
+        this.inExportDecl = true
+        const msgs = this.visit(node.declaration)
+        this.inExportDecl = false
+        return msgs
+    }
+
+    override visitExportDefaultDeclaration = this.visitExportNamedDeclaration
+
+    override visitLiteral = (node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] => {
+        if (typeof node.value !== 'string') {
+            return []
+        }
+        const { start, end } = node
+        const [pass, msgInfo] = this.checkHeuristic(node.value, heuristicDetailsBase ?? { scope: 'script' })
+        if (!pass) {
+            return []
+        }
+        // When inside an export declaration, extract for PO but do NOT mutate
+        // the export value — Astro hoists exports to module scope where
+        // _w_runtime_ is undefined.
+        if (!this.inExportDecl) {
+            this.mstr.update(start, end, this.literalRepl(msgInfo))
+        }
+        return [msgInfo]
+    }
 
     transformAs = async (): Promise<TransformOutput> => {
         const { ast } = await parse(this.content)

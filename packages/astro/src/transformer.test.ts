@@ -211,3 +211,28 @@ test('Nested and mixed', async t => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Export const declarations are not mutated (extract-only)', async t => {
+    // Bugfix: strings inside "export const" must be extracted for PO
+    // catalogs but the AST must NOT be mutated. Astro hoists exports to
+    // module scope where _w_runtime_ is undefined.
+    transformTest(
+        t,
+        await getOutput(astro`
+            ---
+            export const navigation = { title: 'Pricing' }
+            ---
+            <p>Hello</p>
+        `),
+        astro`
+            ---
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import _w_Tx_ from "@wuchale/astro/runtime.js"
+            const _w_runtime_ = _w_load_();
+            export const navigation = { title: 'Pricing' }
+            ---
+            <p>{_w_runtime_(0)}</p>
+        `,
+        ['Pricing', 'Hello'],
+    )
+})
