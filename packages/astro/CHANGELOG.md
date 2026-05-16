@@ -1,5 +1,11 @@
 # @wuchale/astro
 
+## 0.3.3
+
+### Patch Changes
+
+- Fix error on `export const ...` statements in frontmatter #372 ([`93bef85`](https://github.com/wuchalejs/wuchale/commit/93bef855c77180128df2371133c2fc4928ed985f))
+
 ## 0.3.2
 
 ### Patch Changes
