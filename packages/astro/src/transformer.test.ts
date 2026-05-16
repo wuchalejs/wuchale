@@ -112,11 +112,12 @@ test('Object attributes', async t => {
     )
 })
 
-test('Frontmatter return', async t => {
+test('Frontmatter return & export const', async t => {
     transformTest(
         t,
         await getOutput(astro`
             ---
+            export const foo = {bar: 'Bar'}
             return Astro.rewrite("/404");
             ---
     `),
