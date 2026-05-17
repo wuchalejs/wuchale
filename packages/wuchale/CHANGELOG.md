@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.23.4
+
+### Patch Changes
+
+- Extract strings in `export const` in Astro frontmatter only if they are inside functions and init runtime inside to prevent errors #372 ([`500616b`](https://github.com/wuchalejs/wuchale/commit/500616b9d9be1e78cd16ac29b9066b30c62914c2))
+
 ## 0.23.3
 
 ### Patch Changes
