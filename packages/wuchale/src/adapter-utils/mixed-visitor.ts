@@ -152,7 +152,7 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
         const childrenNestedRanges: NestedRanges = []
         let hasTextDescendants = false
         const msgs: Message[] = []
-        const placeholders: [number, string][] = []
+        const placeholders: [string, string][] = []
         for (const child of props.children) {
             if (this.#props.isComment(child)) {
                 continue
@@ -185,7 +185,10 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
                     continue
                 }
                 msgStr += `{${iArg}}`
-                placeholders.push([iArg, this.#props.mstr.original.slice(chRange.start + 1, chRange.end - 1)])
+                placeholders.push([
+                    iArg.toString(),
+                    this.#props.mstr.original.slice(chRange.start + 1, chRange.end - 1),
+                ])
                 let moveStart = chRange.start
                 if (iArg > 0) {
                     this.#props.mstr.update(chRange.start, chRange.start + 1, ', ')
@@ -210,6 +213,9 @@ export class MixedVisitor<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT
             for (const msgInfo of childMsgs) {
                 if (canHaveChildren && msgInfo.details.scope === props.scope) {
                     chTxt += msgInfo.msgStr[0]
+                    for (const [num, cont] of msgInfo.placeholders) {
+                        placeholders.push([`${iTag}.${num}`, cont])
+                    }
                     hasTextDescendants = true
                     nestedNeedsCtx = true
                 } else {

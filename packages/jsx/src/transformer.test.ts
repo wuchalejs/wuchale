@@ -1,6 +1,6 @@
 // $ node --import ../../wuchale/testing/resolve.ts %f
 
-import { test } from 'node:test'
+import { type TestContext, test } from 'node:test'
 import { IndexTracker, type RuntimeConf, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { transformTest, ts as tsx } from '../../wuchale/testing/utils.ts'
@@ -213,15 +213,18 @@ test('Plural', async t => {
     )
 })
 
-test('Nested and mixed', async t => {
+test('Nested and mixed', async (t: TestContext) => {
+    const out = getOutput(tsx`
+        function m() {
+            return <>
+                <p>Hello and <b>welcome to <i>the app {appName}</i></b>!</p>
+            </>
+        }
+    `)
+    t.assert.deepStrictEqual(out.msgs[0]?.placeholders, [['0.0.0', 'appName']])
     transformTest(
         t,
-        getOutput(tsx`
-            function m() {
-                return <>
-                    <p>Hello and <b>welcome to <i>the app {appName}</i></b>!</p>
-                </>
-            }`),
+        out,
         tsx`
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/jsx/runtime.jsx"

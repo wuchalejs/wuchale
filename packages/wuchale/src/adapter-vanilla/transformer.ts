@@ -359,7 +359,6 @@ export class Transformer {
                 details: this.fullHeuristicDetails({ scope: 'script' }),
                 context: this.commentDirectives.context,
             })
-            msgInfo.plural = true
             const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
             msgs.push(msgInfo)
             updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
@@ -701,12 +700,12 @@ export class Transformer {
     visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
         const msgs: Message[] = []
         let msgStr = node.quasis[0]!.value?.cooked ?? ''
-        const placeholders: [number, string][] = []
+        const placeholders: [string, string][] = []
         for (const [i, expr] of node.expressions.entries()) {
             msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]!
             msgStr += `{${i}}${quasi.value.cooked}`
-            placeholders.push([i, this.content.slice(expr.start, expr.end)])
+            placeholders.push([i.toString(), this.content.slice(expr.start, expr.end)])
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {

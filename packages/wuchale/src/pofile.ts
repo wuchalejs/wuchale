@@ -104,7 +104,7 @@ function poitemToItemCommons(poi: POItem): Item {
         }
         for (const c of commSp.slice(phStart)) {
             const [i, ph] = split(c, ': ', 2)
-            refEnt.placeholders.push([Number(i), ph!])
+            refEnt.placeholders.push([i!, ph!])
         }
         lastRef.refs.push(refEnt)
     }

@@ -84,7 +84,7 @@ export class JSONFile {
                     } else if ('refs' in ref) {
                         refs = ref.refs.map(r => ({
                             link: r.link,
-                            placeholders: Object.entries(r.placeholders).map(([i, v]) => [Number(i), v]),
+                            placeholders: Object.entries(r.placeholders).map(([i, v]) => [i, v]),
                         }))
                     } else {
                         refs = [null]

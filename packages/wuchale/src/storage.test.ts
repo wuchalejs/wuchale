@@ -14,7 +14,7 @@ const itemFull = newItem(
             },
             {
                 file: 'src/file2.ts',
-                refs: [{ placeholders: [[0, 'foo: bar;']] }, null],
+                refs: [{ placeholders: [['0', 'foo: bar;']] }, null],
             },
         ],
     },

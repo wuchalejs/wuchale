@@ -2,7 +2,7 @@ import type { FS } from './fs.js'
 
 export type FileRefEntry = {
     link?: string | undefined // for URLs
-    placeholders: [number, string][]
+    placeholders: [string, string][]
 }
 
 export type FileRef = {

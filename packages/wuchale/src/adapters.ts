@@ -32,9 +32,8 @@ export type MessageType = 'message' | 'url'
 
 export type Message = {
     msgStr: string[] // array for plurals
-    plural: boolean
     context?: string | undefined
-    placeholders: [number, string][]
+    placeholders: [string, string][]
     details: HeuristicDetails
     type: MessageType
 }
@@ -46,7 +45,6 @@ export function newMessage(init: Partial<Message>): Message {
     }
     return {
         msgStr: init.msgStr,
-        plural: init.plural ?? false,
         placeholders: init.placeholders ?? [],
         type: init.type ?? 'message',
         context: init.context,
