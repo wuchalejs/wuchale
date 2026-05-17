@@ -184,8 +184,6 @@ export class AstroTransformer extends Transformer {
         return msgs
     }
 
-    override visitExportNamedDeclaration = () => []
-
     visitexpression = (node: ExpressionNode): Message[] => {
         if (!node.children?.length) {
             // can be undefined!

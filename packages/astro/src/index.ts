@@ -22,7 +22,7 @@ export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (msg.details.scope !== 'script') {
             return defRes
         }
-        if (msg.details.call?.startsWith('Astro.')) {
+        if (msg.details.call?.startsWith('Astro.') || (msg.details.funcName == null && msg.details.exported)) {
             return false
         }
         return defRes
@@ -41,7 +41,7 @@ export type AstroArgs = Omit<
 
 export const defaultRuntime: RuntimeConf = {
     // Astro is SSR-only, so we use non-reactive runtime by default
-    initReactive: ({ funcName }) => (funcName == null ? false : null), // Only init in top-level functions
+    initReactive: ({ funcName, nested }) => (funcName == null || !nested ? false : null), // Only init in top-level and top-level functions
     // Astro is SSR - always use non-reactive
     useReactive: () => false,
     reactive: {

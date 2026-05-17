@@ -26,6 +26,8 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     topLevelCall?: string | undefined
     /** the name of the nearest call (for arguments) */
     call?: string | undefined
+    /** inside an export const ... etc */
+    exported?: boolean | undefined
 }
 
 export type MessageType = 'message' | 'url'
