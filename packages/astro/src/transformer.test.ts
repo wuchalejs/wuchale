@@ -117,12 +117,29 @@ test('Frontmatter return & export const', async t => {
         t,
         await getOutput(astro`
             ---
-            export const foo = {bar: 'Bar'}
+            export const foo = {
+                bar: 'Not extracted',
+                extract: () => 'Extracted',
+            }
             return Astro.rewrite("/404");
             ---
     `),
-        undefined,
-        [],
+        astro`
+            ---
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import _w_Tx_ from "@wuchale/astro/runtime.js"
+            const _w_runtime_ = _w_load_();
+            export const foo = {
+                bar: 'Not extracted',
+                extract: () => {
+                    const _w_runtime_ = _w_load_();
+                    return _w_runtime_(0)
+                },
+            }
+            return Astro.rewrite("/404");
+            ---
+    `,
+        ['Extracted'],
     )
 })
 

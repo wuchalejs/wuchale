@@ -522,8 +522,12 @@ export class Transformer {
     visitVariableDeclaration = (node: Estree.VariableDeclaration): Message[] =>
         node.declarations.flatMap(this.visitVariableDeclarator)
 
-    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] =>
-        node.declaration ? this.visit(node.declaration) : []
+    visitExportNamedDeclaration = (node: Estree.ExportNamedDeclaration): Message[] => {
+        this.heuristciDetails.exported = true
+        const msgs = node.declaration ? this.visit(node.declaration) : []
+        delete this.heuristciDetails.exported
+        return msgs
+    }
 
     visitExportDefaultDeclaration = this.visitExportNamedDeclaration
 
