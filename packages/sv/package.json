@@ -1,0 +1,42 @@
+{
+    "name": "@wuchale/sv",
+    "description": "sv add-on for @wuchale/sv",
+    "version": "0.0.1",
+    "type": "module",
+    "license": "MIT",
+    "scripts": {
+        "demo-create": "sv create demo --types ts --template minimal --no-add-ons --no-install",
+        "demo-add": "pnpm build && sv add file:../ --cwd demo --no-git-check --no-install",
+        "demo-add:ci": "pnpm build && sv add file:../=who:you --cwd demo --no-git-check --no-download-check --no-install",
+        "build": "tsdown",
+        "prepublishOnly": "npm run build",
+        "test": "vitest run"
+    },
+    "files": [
+        "dist"
+    ],
+    "exports": {
+        ".": {
+            "default": "./dist/index.mjs"
+        }
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "peerDependencies": {
+        "sv": "latest"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.59.1",
+        "@sveltejs/sv-utils": "latest",
+        "@types/node": "^25.5.2",
+        "sv": "latest",
+        "tsdown": "^0.21.7",
+        "vitest": "^4.1.3"
+    },
+    "keywords": [
+        "sv-add",
+        "svelte",
+        "sveltekit"
+    ]
+}
