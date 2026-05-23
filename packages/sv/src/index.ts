@@ -1,11 +1,13 @@
 import { defineAddon, defineAddonOptions } from 'sv'
 import { transforms } from './sv-utils.js'
+import wuchaleKitConfig from './templates/wuchaleKitConfig.js'
+import wuchalePlainConfig from './templates/wuchalePlainConfig.js'
 
 const options = defineAddonOptions()
     .add('languages', {
         question: 'Which languages do you want to support? (e.g. en,zh-TW)',
         type: 'string',
-        default: 'en',
+        default: 'en, es',
         validate: input => {
             if (!input) return
 
@@ -55,6 +57,22 @@ export default defineAddon({
                 const pluginName = 'wuchale'
                 js.imports.addDefault(ast, { as: pluginName, from: 'wuchale/vite' })
                 js.vite.addPlugin(ast, { code: `${pluginName}()`, mode: 'prepend' })
+            }),
+        )
+
+        sv.file(
+            'wuchale.config.js',
+            transforms.text(() => {
+                const { validTags } = parseLanguageInput(options.languages)
+                const locales = []
+
+                if (validTags.length === 0) {
+                    locales.push('en', 'es')
+                } else {
+                    validTags.map(x => locales.push(x))
+                }
+
+                return isKit ? wuchaleKitConfig(locales) : wuchalePlainConfig(locales)
             }),
         )
 
