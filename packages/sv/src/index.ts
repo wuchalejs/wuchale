@@ -40,7 +40,7 @@ export default defineAddon({
     homepage: 'https://wuchale.dev/',
     options,
 
-    run: ({ directory, sv, options, language, file, isKit }) => {
+    run: ({ sv, options, language, file, isKit }) => {
         sv.dependency('wuchale', 'latest')
         sv.dependency('@wuchale/svelte', 'latest')
 
@@ -48,7 +48,10 @@ export default defineAddon({
             file.viteConfig,
             transforms.script(({ ast, js }) => {
                 const pluginName = 'wuchale'
-                js.imports.addDefault(ast, { as: pluginName, from: 'wuchale/vite' })
+                js.imports.addNamed(ast, {
+                    imports: [pluginName],
+                    from: 'wuchale/vite',
+                })
                 js.vite.addPlugin(ast, { code: `${pluginName}()`, mode: 'prepend' })
             }),
         )
@@ -62,12 +65,116 @@ export default defineAddon({
                 if (validTags.length === 0) {
                     locales.push('en', 'es')
                 } else {
-                    validTags.map(x => locales.push(x))
+                    validTags.map(tag => locales.push(tag))
                 }
 
                 return isKit ? wuchaleKitConfig(locales) : wuchalePlainConfig(locales)
             }),
         )
+
+        if (options.generation) {
+            if (isKit) {
+                sv.file(
+                    `src/hooks.server.${language === 'ts' ? 'ts' : 'js'}`,
+                    transforms.script(({ ast, js }) => {
+                        js.imports.addDefault(ast, {
+                            as: '* as main',
+                            from: './locales/main.loader.server.svelte.js',
+                        })
+                        js.imports.addDefault(ast, {
+                            as: '* as js',
+                            from: './locales/js.loader.server.js',
+                        })
+                        js.imports.addNamed(ast, {
+                            from: 'wuchale/load-utils/server',
+                            imports: ['runWithLocale, loadLocales'],
+                        })
+                        js.imports.addNamed(ast, {
+                            imports: ['locales'],
+                            from: './locales/data.js',
+                        })
+
+                        js.common.appendFromString(ast, {
+                            code: 'loadLocales(main.key, main.loadIDs, main.loadCatalog, locales)',
+                        })
+                        js.common.appendFromString(ast, {
+                            code: 'loadLocales(js.key, js.loadIDs, js.loadCatalog, locales)',
+                        })
+
+                        js.common.appendFromString(ast, {
+                            code: `
+	      export const handle = async ({ event, resolve }) => {
+    		const locale = event.url.searchParams.get('locale') ?? 'en'
+    		return await runWithLocale(locale, () => resolve(event))
+	      }`,
+                        })
+                    }),
+                )
+
+                sv.file(
+                    `src/routes/+layout.${language === 'ts' ? 'ts' : 'js'}`,
+                    transforms.script(({ ast, js }) => {
+                        js.imports.addNamed(ast, {
+                            from: '../locales/data.js',
+                            imports: ['locales'],
+                        })
+                        js.imports.addNamed(ast, {
+                            from: '$app/environment',
+                            imports: ['browser'],
+                        })
+                        js.imports.addNamed(ast, {
+                            from: 'wuchale/load-utils',
+                            imports: ['loadLocale'],
+                        })
+                        js.imports.addEmpty(ast, {
+                            from: '../locales/main.loader.svelte.js',
+                        })
+                        js.imports.addEmpty(ast, {
+                            from: '../locales/js.loader.js',
+                        })
+
+                        js.common.appendFromString(ast, {
+                            code: `
+export const load = async ({url}) => {
+    const locale = url.searchParams.get('locale') ?? 'en'
+    if (browser && locales.includes(locale)) {
+        await loadLocale(locale)
+    }
+}
+		    `,
+                        })
+                    }),
+                )
+            } else {
+                sv.file(
+                    'src/App.svelte',
+                    transforms.svelteScript({ language }, ({ ast, svelte, js, content }) => {
+                        js.imports.addNamed(ast.instance.content, {
+                            from: 'wuchale/load-utils',
+                            imports: ['loadLocale'],
+                        })
+                        js.imports.addEmpty(ast.instance.content, {
+                            from: './locales/main.loader.svelte.js',
+                        })
+
+                        js.common.appendFromString(ast.instance.content, {
+                            code: "let locale = $state('en')",
+                        })
+
+                        svelte.addFragment(
+                            ast,
+                            `{#await loadLocale(locale)}
+    <!-- @wc-ignore -->
+    Loading translations...
+{:then}
+    <!-- Move your existing app content here -->
+{/await}`,
+                            { mode: 'prepend', language },
+                        )
+                    }),
+                )
+            }
+        }
     },
 })
 
