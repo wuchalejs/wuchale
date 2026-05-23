@@ -84,7 +84,7 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "@sveltejs/acorn-typescript": "^1.0.9",
+        "@sveltejs/acorn-typescript": "^1.0.10",
         "acorn": "^8.16.0",
         "chokidar": "^5.0.0",
         "magic-string": "^0.30.21",
