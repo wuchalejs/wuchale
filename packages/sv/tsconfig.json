@@ -4,6 +4,7 @@
         "skipLibCheck": true,
         "checkJs": true,
         "module": "NodeNext",
-        "moduleResolution": "NodeNext"
+        "moduleResolution": "NodeNext",
+        "lib": ["es2021"]
     }
 }
