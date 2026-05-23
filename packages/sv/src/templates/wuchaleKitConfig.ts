@@ -6,7 +6,7 @@ import { adapter as js } from "wuchale/adapter-vanilla";
 import { defineConfig } from "wuchale";
 
 export default defineConfig({
-  locales: ${locales},
+  locales: [${locales.map(locale => `"${locale}"`).join(', ')}],
   adapters: {
     main: svelte({ loader: "sveltekit" }),
     js: js({
