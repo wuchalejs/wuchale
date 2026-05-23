@@ -65,7 +65,7 @@ export default defineAddon({
                 if (validTags.length === 0) {
                     locales.push('en', 'es')
                 } else {
-                    validTags.map(tag => locales.push(tag))
+                    locales.push(...validTags)
                 }
 
                 return isKit ? wuchaleKitConfig(locales) : wuchalePlainConfig(locales)
@@ -75,7 +75,7 @@ export default defineAddon({
         if (options.generation) {
             if (isKit) {
                 sv.file(
-                    `src/hooks.server.${language === 'ts' ? 'ts' : 'js'}`,
+                    `src/hooks.server.${language}`,
                     transforms.script(({ ast, js }) => {
                         js.imports.addDefault(ast, {
                             as: '* as main',
@@ -87,7 +87,7 @@ export default defineAddon({
                         })
                         js.imports.addNamed(ast, {
                             from: 'wuchale/load-utils/server',
-                            imports: ['runWithLocale, loadLocales'],
+                            imports: ['runWithLocale', 'loadLocales'],
                         })
                         js.imports.addNamed(ast, {
                             imports: ['locales'],
@@ -112,7 +112,7 @@ export default defineAddon({
                 )
 
                 sv.file(
-                    `src/routes/+layout.${language === 'ts' ? 'ts' : 'js'}`,
+                    `src/routes/+layout.${language}`,
                     transforms.script(({ ast, js }) => {
                         js.imports.addNamed(ast, {
                             from: '../locales/data.js',
@@ -148,7 +148,7 @@ export const load = async ({url}) => {
             } else {
                 sv.file(
                     'src/App.svelte',
-                    transforms.svelteScript({ language }, ({ ast, svelte, js, content }) => {
+                    transforms.svelteScript({ language }, ({ ast, svelte, js }) => {
                         js.imports.addNamed(ast.instance.content, {
                             from: 'wuchale/load-utils',
                             imports: ['loadLocale'],
@@ -164,17 +164,27 @@ export const load = async ({url}) => {
                         svelte.addFragment(
                             ast,
                             `{#await loadLocale(locale)}
-    <!-- @wc-ignore -->
-    Loading translations...
-{:then}
-    <!-- Move your existing app content here -->
-{/await}`,
+    			<!-- @wc-ignore -->
+    			Loading translations...
+		 {:then}
+    			<!-- Move your existing app content here -->
+		 {/await}`,
                             { mode: 'prepend', language },
                         )
                     }),
                 )
             }
         }
+    },
+
+    nextSteps: () => {
+        const steps = [
+            "Run 'npx wuchale' to create initial scaffold and initial extract",
+            `Visit the wuchale docs at https://wuchale.dev/ for full configuration`,
+            `Optionally you can set up AI translation in wuchale.config.js`,
+        ]
+
+        return steps
     },
 })
 
