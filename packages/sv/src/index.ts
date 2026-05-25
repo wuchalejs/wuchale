@@ -1,5 +1,5 @@
 import { defineAddon, defineAddonOptions } from 'sv'
-import { transforms } from './sv-utils.js'
+import { color, transforms } from './sv-utils.js'
 import wuchaleKitConfig from './templates/wuchaleKitConfig.js'
 import wuchalePlainConfig from './templates/wuchalePlainConfig.js'
 
@@ -28,7 +28,7 @@ const options = defineAddonOptions()
         },
     })
     .add('generation', {
-        question: 'Generate example setup files? (loader, layout, hooks?)',
+        question: `Generate example setup files? (layout, hooks?)`,
         type: 'boolean',
         default: true,
     })
@@ -41,6 +41,14 @@ export default defineAddon({
     options,
 
     run: ({ sv, options, language, file, isKit }) => {
+        const { validTags } = parseLanguageInput(options.languages)
+        const locales: string[] = []
+
+        if (validTags.length === 0) {
+            locales.push('en', 'es')
+        } else {
+            locales.push(...validTags)
+        }
         sv.dependency('wuchale', 'latest')
         sv.dependency('@wuchale/svelte', 'latest')
 
@@ -58,15 +66,8 @@ export default defineAddon({
 
         sv.file(
             'wuchale.config.js',
-            transforms.text(() => {
-                const { validTags } = parseLanguageInput(options.languages)
-                const locales = []
-
-                if (validTags.length === 0) {
-                    locales.push('en', 'es')
-                } else {
-                    locales.push(...validTags)
-                }
+            transforms.text(({ content }) => {
+                if (content) return false
 
                 return isKit ? wuchaleKitConfig(locales) : wuchalePlainConfig(locales)
             }),
@@ -77,12 +78,12 @@ export default defineAddon({
                 sv.file(
                     `src/hooks.server.${language}`,
                     transforms.script(({ ast, js }) => {
-                        js.imports.addDefault(ast, {
-                            as: '* as main',
+                        js.imports.addNamespace(ast, {
+                            as: 'main',
                             from: './locales/main.loader.server.svelte.js',
                         })
-                        js.imports.addDefault(ast, {
-                            as: '* as js',
+                        js.imports.addNamespace(ast, {
+                            as: 'js',
                             from: './locales/js.loader.server.js',
                         })
                         js.imports.addNamed(ast, {
@@ -104,7 +105,7 @@ export default defineAddon({
                         js.common.appendFromString(ast, {
                             code: `
 	      export const handle = async ({ event, resolve }) => {
-    		const locale = event.url.searchParams.get('locale') ?? 'en'
+    		const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
     		return await runWithLocale(locale, () => resolve(event))
 	      }`,
                         })
@@ -136,7 +137,7 @@ export default defineAddon({
                         js.common.appendFromString(ast, {
                             code: `
 export const load = async ({url}) => {
-    const locale = url.searchParams.get('locale') ?? 'en'
+    const locale = url.searchParams.get('locale') ?? '${locales[0]}'
     if (browser && locales.includes(locale)) {
         await loadLocale(locale)
     }
@@ -158,7 +159,7 @@ export const load = async ({url}) => {
                         })
 
                         js.common.appendFromString(ast.instance.content, {
-                            code: "let locale = $state('en')",
+                            code: `let locale = $state('${locales[0]}')`,
                         })
 
                         svelte.addFragment(
@@ -175,14 +176,23 @@ export const load = async ({url}) => {
                 )
             }
         }
+        sv.execute(['npx', 'wuchale'], 'inherit')
     },
 
-    nextSteps: () => {
+    nextSteps: ({ isKit, options }) => {
         const steps = [
-            "Run 'npx wuchale' to create initial scaffold and initial extract",
-            `Visit the wuchale docs at https://wuchale.dev/ for full configuration`,
-            `Optionally you can set up AI translation in wuchale.config.js`,
+            `${color.success('Wuchale setup complete!')}`,
+            `Visit the wuchale docs at ${color.website('https://wuchale.dev/')} for full configuration`,
+            `Optionally you can set up AI translation in ${color.path('wuchale.config.js')}`,
         ]
+
+        if (!isKit && options.generation) {
+            steps.push(
+                color.optional(
+                    `In ${color.path('App.svelte')} file move your content into specified point or delete unnecessary.`,
+                ),
+            )
+        }
 
         return steps
     },
@@ -193,7 +203,7 @@ function isValidTag(tag: string): boolean {
 }
 
 function parseLanguageInput(input: string) {
-    const potencialTags = input
+    const potentialTags = input
         .replace(/[,\s]/g, ' ')
         .split(' ')
         .filter(Boolean)
@@ -202,7 +212,7 @@ function parseLanguageInput(input: string) {
     const validTags: string[] = []
     const invalidTags: string[] = []
 
-    for (const tag of potencialTags) {
+    for (const tag of potentialTags) {
         if (isValidTag(tag)) validTags.push(tag)
         else invalidTags.push(tag)
     }
