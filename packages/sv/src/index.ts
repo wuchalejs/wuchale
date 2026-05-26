@@ -82,6 +82,7 @@ export default defineAddon({
                     : existsSync(path.resolve('src/hooks.server.js'))
                       ? 'src/hooks.server.js'
                       : `src/hooks.server.${language}`
+                const isHooksFileTS = hooksFile.endsWith('ts')
                 sv.file(
                     hooksFile,
                     transforms.script(({ ast, js }) => {
@@ -109,9 +110,17 @@ export default defineAddon({
                             code: 'loadLocales(js.key, js.loadIDs, js.loadCatalog, locales)',
                         })
 
+                        if (isHooksFileTS) {
+                            js.imports.addNamed(ast, {
+                                imports: ['Handle'],
+                                from: '@sveltejs/kit',
+                                isType: true,
+                            })
+                        }
+
                         js.common.appendFromString(ast, {
                             code: `
-	      export const handle = async ({ event, resolve }) => {
+	      export const handle${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
     		const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
     		return await runWithLocale(locale, () => resolve(event))
 	      }`,
@@ -124,12 +133,17 @@ export default defineAddon({
                     : existsSync(path.resolve('src/routes/+layout.js'))
                       ? 'src/routes/+layout.js'
                       : `src/routes/+layout.${language}`
+                const isLayoutFileTS = layoutFile.endsWith('ts')
                 sv.file(
                     layoutFile,
                     transforms.script(({ ast, js }) => {
+                        const dataImports = ['locales']
+                        if (isLayoutFileTS) {
+                            dataImports.push('type Locale')
+                        }
                         js.imports.addNamed(ast, {
                             from: '../locales/data.js',
-                            imports: ['locales'],
+                            imports: dataImports,
                         })
                         js.imports.addNamed(ast, {
                             from: '$app/environment',
@@ -145,12 +159,19 @@ export default defineAddon({
                         js.imports.addEmpty(ast, {
                             from: '../locales/js.loader.js',
                         })
+                        if (isLayoutFileTS) {
+                            js.imports.addNamed(ast, {
+                                imports: ['LayoutLoad'],
+                                from: './$types',
+                                isType: true,
+                            })
+                        }
 
                         js.common.appendFromString(ast, {
                             code: `
-export const load = async ({url}) => {
+export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
     const locale = url.searchParams.get('locale') ?? '${locales[0]}'
-    if (browser && locales.includes(locale)) {
+    if (browser && locales.includes(locale ${isLayoutFileTS ? 'as Locale' : ''})) {
         await loadLocale(locale)
     }
 }
