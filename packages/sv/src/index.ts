@@ -161,7 +161,7 @@ export const load = async ({url}) => {
             } else {
                 sv.file(
                     'src/App.svelte',
-                    transforms.svelteScript({ language }, ({ ast, svelte, js }) => {
+                    transforms.svelteScript({ language }, ({ ast, js }) => {
                         js.imports.addNamed(ast.instance.content, {
                             from: 'wuchale/load-utils',
                             imports: ['loadLocale'],
@@ -173,17 +173,6 @@ export const load = async ({url}) => {
                         js.common.appendFromString(ast.instance.content, {
                             code: `let locale = $state('${locales[0]}')`,
                         })
-
-                        svelte.addFragment(
-                            ast,
-                            `{#await loadLocale(locale)}
-    				<!-- @wc-ignore -->
-    				Loading translations...
-		 	     {:then}
-    				<!-- Move your existing app content here -->
-		 	     {/await}`,
-                            { mode: 'prepend', language },
-                        )
                     }),
                 )
             }
@@ -211,9 +200,13 @@ export const load = async ({url}) => {
 
         if (!isKit && options.generation) {
             steps.push(
-                color.optional(
-                    `In ${color.path('App.svelte')} file move your content into specified point or delete unnecessary.`,
-                ),
+                `In ${color.path('App.svelte')} file move your content into like this: 
+				${color.dim(`
+	{#await loadLocale(locale)}
+    		Loading translations...
+	{:then}
+    		<!-- Move your existing app content here -->
+	{/await}`)}`,
             )
         }
 
