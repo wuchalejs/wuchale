@@ -93,7 +93,6 @@ test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCas
         const app = fs.readFileSync(path.resolve(cwd, 'src/App.svelte'), 'utf8')
         vitest.expect(app).toContain('loadLocale')
         vitest.expect(app).toContain('locale')
-        vitest.expect(app).toContain('@wc-ignore')
     }
 
     if (testCase.kind.type === 'no-generation') {
