@@ -1,49 +1,89 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect } from '@playwright/test'
-import addon from '../src/index.js'
-import { setupTest } from './setup/suite.js'
+import { createSetupTest } from 'sv/testing'
+import * as vitest from 'vitest'
+import addon from './../src/index.js'
 
-// set to true to enable browser testing
-const browser = false
-
-const { test, prepareServer, testCases } = setupTest(
+const { test, testCases } = createSetupTest(vitest)(
     { addon },
     {
-        kinds: [{ type: 'default', options: { [addon.id]: { who: 'you' } } }],
-        filter: testCase => testCase.variant.includes('kit'),
-        browser,
+        kinds: [
+            {
+                type: 'default',
+                options: {
+                    '@wuchale/sv': { languages: 'en, es', generation: true },
+                },
+            },
+            {
+                type: 'no-generation',
+                options: {
+                    '@wuchale/sv': { languages: 'en, es', generation: false },
+                },
+            },
+            {
+                type: 'single-language',
+                options: {
+                    '@wuchale/sv': { languages: 'en', generation: true },
+                },
+            },
+        ],
+        browser: false,
     },
 )
 
-test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCase, { page, ...ctx }) => {
+test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCase, ctx) => {
     const cwd = ctx.cwd(testCase)
+    const isKit = testCase.variant.includes('kit')
 
-    const msg = "Community Addon Template demo for the add-on: '@wuchale/sv'!"
+    const wuchaleConfigPath = path.resolve(cwd, 'wuchale.config.js')
+    vitest.expect(fs.existsSync(wuchaleConfigPath)).toBe(true)
+    const wuchaleConfig = fs.readFileSync(wuchaleConfigPath, 'utf8')
+    vitest.expect(wuchaleConfig).toContain('en')
 
-    const contentPath = path.resolve(cwd, `src/lib/@wuchale/sv/content.txt`)
-    const contentContent = fs.readFileSync(contentPath, 'utf8')
-    // Check if we have the imports
-    expect(contentContent).toContain(msg)
+    if (testCase.kind.type === 'default') {
+        vitest.expect(wuchaleConfig).toContain('es')
+    }
 
-    const helloPath = path.resolve(cwd, `src/lib/@wuchale/sv/HelloComponent.svelte`)
-    const helloContent = fs.readFileSync(helloPath, 'utf8')
-    // Check if we have the imports
-    expect(helloContent).toContain('you')
+    if (testCase.kind.type === 'single-language') {
+        vitest.expect(wuchaleConfig).toContain('"en"')
+        vitest.expect(wuchaleConfig).not.toContain('"es"')
+    }
+    const viteConfigPath = fs.existsSync(path.resolve(cwd, 'vite.config.ts'))
+        ? path.resolve(cwd, 'vite.config.ts')
+        : path.resolve(cwd, 'vite.config.js')
+    const viteConfig = fs.readFileSync(viteConfigPath, 'utf8')
+    vitest.expect(viteConfig).toContain('wuchale')
 
-    // For browser testing
-    if (browser) {
-        const { close } = await prepareServer({ cwd, page })
-        // kill server process when we're done
-        ctx.onTestFinished(async () => await close())
+    const gitignore = fs.readFileSync(path.resolve(cwd, '.gitignore'), 'utf8')
+    vitest.expect(gitignore).toContain('.wuchale')
 
-        // expectations
-        const textContent = await page.locator('p').last().textContent()
-        if (testCase.variant.includes('kit')) {
-            expect(textContent).toContain(msg)
-        } else {
-            // it's not a kit plugin!
-            expect(textContent).not.toContain(msg)
-        }
+    if (isKit && testCase.kind.type !== 'no-generation') {
+        const hooksPath = fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))
+            ? path.resolve(cwd, 'src/hooks.server.ts')
+            : path.resolve(cwd, 'src/hooks.server.js')
+        const hooks = fs.readFileSync(hooksPath, 'utf8')
+        vitest.expect(hooks).toContain('runWithLocale')
+        vitest.expect(hooks).toContain('loadLocales')
+        vitest.expect(hooks).toContain('handle')
+
+        const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
+            ? path.resolve(cwd, 'src/routes/+layout.ts')
+            : path.resolve(cwd, 'src/routes/+layout.js')
+        const layout = fs.readFileSync(layoutPath, 'utf8')
+        vitest.expect(layout).toContain('loadLocale')
+        vitest.expect(layout).toContain('browser')
+        vitest.expect(layout).toContain('load')
+    }
+
+    if (!isKit && testCase.kind.type !== 'no-generation') {
+        const app = fs.readFileSync(path.resolve(cwd, 'src/App.svelte'), 'utf8')
+        vitest.expect(app).toContain('loadLocale')
+        vitest.expect(app).toContain('locale')
+        vitest.expect(app).toContain('@wc-ignore')
+    }
+
+    if (testCase.kind.type === 'no-generation') {
+        vitest.expect(fs.existsSync(path.resolve(cwd, 'src/hooks.server.js'))).toBe(false)
+        vitest.expect(fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))).toBe(false)
     }
 })
