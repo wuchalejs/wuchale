@@ -26,6 +26,15 @@ const { test, testCases } = createSetupTest(vitest)(
                     '@wuchale/sv': { languages: 'en', generation: true },
                 },
             },
+            {
+                type: 'wrong-locale',
+                options: {
+                    '@wuchale/sv': {
+                        languages: 'en, dasodksaodkasokdoaskdos, es, wrong',
+                        generation: false,
+                    },
+                },
+            },
         ],
         browser: false,
     },
@@ -48,6 +57,11 @@ test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCas
         vitest.expect(wuchaleConfig).toContain('"en"')
         vitest.expect(wuchaleConfig).not.toContain('"es"')
     }
+
+    if (testCase.kind.type === 'wrong-locale') {
+        vitest.expect(wuchaleConfig).toContain('"es"')
+        vitest.expect(wuchaleConfig).not.toContain('"wrong"')
+    }
     const viteConfigPath = fs.existsSync(path.resolve(cwd, 'vite.config.ts'))
         ? path.resolve(cwd, 'vite.config.ts')
         : path.resolve(cwd, 'vite.config.js')
@@ -57,7 +71,7 @@ test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCas
     const gitignore = fs.readFileSync(path.resolve(cwd, '.gitignore'), 'utf8')
     vitest.expect(gitignore).toContain('.wuchale')
 
-    if (isKit && testCase.kind.type !== 'no-generation') {
+    if (isKit && testCase.kind.type !== 'no-generation' && testCase.kind.type !== 'wrong-locale') {
         const hooksPath = fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))
             ? path.resolve(cwd, 'src/hooks.server.ts')
             : path.resolve(cwd, 'src/hooks.server.js')
@@ -75,7 +89,7 @@ test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCas
         vitest.expect(layout).toContain('load')
     }
 
-    if (!isKit && testCase.kind.type !== 'no-generation') {
+    if (!isKit && testCase.kind.type !== 'no-generation' && testCase.kind.type !== 'wrong-locale') {
         const app = fs.readFileSync(path.resolve(cwd, 'src/App.svelte'), 'utf8')
         vitest.expect(app).toContain('loadLocale')
         vitest.expect(app).toContain('locale')

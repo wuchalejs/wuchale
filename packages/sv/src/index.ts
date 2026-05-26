@@ -177,11 +177,11 @@ export const load = async ({url}) => {
                         svelte.addFragment(
                             ast,
                             `{#await loadLocale(locale)}
-    			<!-- @wc-ignore -->
-    			Loading translations...
-		 {:then}
-    			<!-- Move your existing app content here -->
-		 {/await}`,
+    				<!-- @wc-ignore -->
+    				Loading translations...
+		 	     {:then}
+    				<!-- Move your existing app content here -->
+		 	     {/await}`,
                             { mode: 'prepend', language },
                         )
                     }),
@@ -222,15 +222,13 @@ export const load = async ({url}) => {
 })
 
 function isValidTag(tag: string): boolean {
-    return RegExp(/^[a-zA-Z]{2,3}(-[-a-zA-Z0-9]{2,8})*$/).test(tag)
+    return /^((?<grandfathered>(en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)|(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|zh-min|zh-min-nan|zh-xiang))|((?<language>([A-Za-z]{2,3}(-(?<extlang>[A-Za-z]{3}(-[A-Za-z]{3}){0,2}))?))(-(?<script>[A-Za-z]{4}))?(-(?<region>[A-Za-z]{2}|[0-9]{3}))?(-(?<variant>[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*))$/.test(
+        tag,
+    )
 }
 
 function parseLanguageInput(input: string) {
-    const potentialTags = input
-        .replace(/[,\s]/g, ' ')
-        .split(' ')
-        .filter(Boolean)
-        .map(tag => tag.toLowerCase())
+    const potentialTags = input.replace(/[,\s]/g, ' ').split(' ').filter(Boolean)
 
     const validTags: string[] = []
     const invalidTags: string[] = []
