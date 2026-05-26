@@ -30,7 +30,7 @@ const { test, testCases } = createSetupTest(vitest)(
                 type: 'wrong-locale',
                 options: {
                     '@wuchale/sv': {
-                        languages: 'en, dasodksaodkasokdoaskdos, es, wrong',
+                        languages: 'en, dasodksaodkasokdoaskdos, es',
                         generation: false,
                     },
                 },
