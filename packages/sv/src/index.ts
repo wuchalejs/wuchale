@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { defineAddon, defineAddonOptions } from 'sv'
 import { color, transforms } from './sv-utils.js'
 import wuchaleKitConfig from './templates/wuchaleKitConfig.js'
@@ -28,7 +30,7 @@ const options = defineAddonOptions()
         },
     })
     .add('generation', {
-        question: `Generate example setup files? (layout, hooks?)`,
+        question: `Generate and inject example setup files? (layout, hooks.server?)`,
         type: 'boolean',
         default: true,
     })
@@ -75,8 +77,13 @@ export default defineAddon({
 
         if (options.generation) {
             if (isKit) {
+                const hooksFile = existsSync(path.resolve('src/hooks.server.ts'))
+                    ? 'src/hooks.server.ts'
+                    : existsSync('src/hooks.server.js')
+                      ? 'src/hooks.server.js'
+                      : `src/hooks.server.${language}`
                 sv.file(
-                    `src/hooks.server.${language}`,
+                    hooksFile,
                     transforms.script(({ ast, js }) => {
                         js.imports.addNamespace(ast, {
                             as: 'main',
@@ -112,8 +119,13 @@ export default defineAddon({
                     }),
                 )
 
+                const layoutFile = existsSync(path.resolve('src/routes/+layout.ts'))
+                    ? 'src/routes/+layout.ts'
+                    : existsSync('src/routes/+layout.js')
+                      ? 'src/routes/+layout.js'
+                      : `src/routes/+layout.${language}`
                 sv.file(
-                    `src/routes/+layout.${language}`,
+                    layoutFile,
                     transforms.script(({ ast, js }) => {
                         js.imports.addNamed(ast, {
                             from: '../locales/data.js',
