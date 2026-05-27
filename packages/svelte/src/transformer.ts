@@ -33,7 +33,10 @@ const snipPrefix = '_w_snippet_'
 const rtModuleVar = `${varNames.rt}mod_`
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.SvelteElement | AST.Block | AST.Comment
-type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AST.Text, AST.Comment, AST.ExpressionTag>
+type AddCtx = {
+    currentSnippet: number
+}
+type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AddCtx, AST.Text, AST.Comment, AST.ExpressionTag>
 
 // for use before actually parsing the code,
 // to remove the contents of e.g. <style lang="scss"> which can cause parse errors
@@ -51,7 +54,7 @@ export class SvelteTransformer extends Transformer {
     // state
     currentElement?: string | undefined
     inCompoundText: boolean = false
-    currentSnippet: number = 0
+    addCtx: AddCtx = { currentSnippet: 0 }
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
 
     mixedVisitor: MixedVisitorSvelte
@@ -110,8 +113,8 @@ export class SvelteTransformer extends Transformer {
 
     initMixedVisitor = (): MixedVisitorSvelte =>
         new MixedVisitor({
-            mstr: this.mstr,
             vars: this.vars,
+            content: this.content,
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
             isComment: node => node.type === 'Comment',
@@ -120,24 +123,16 @@ export class SvelteTransformer extends Transformer {
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: (child, inCompoundText) => {
-                const inCompoundTextPrev = this.inCompoundText
-                this.inCompoundText = inCompoundText
-                const childTxts = this.visitSv(child)
-                this.inCompoundText = inCompoundTextPrev // restore
-                return childTxts
-            },
-            visitExpressionTag: this.visitExpressionTag,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitSv),
             fullHeuristicDetails: this.fullHeuristicDetails,
             checkHeuristic: this.getHeuristicMessageType,
-            index: this.index,
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
                 // create and reference snippets
                 for (const [childStart, childEnd, haveCtx] of nestedRanges) {
-                    const snippetName = `${snipPrefix}${this.currentSnippet}`
+                    const snippetName = `${snipPrefix}${this.addCtx.currentSnippet}`
                     snippets.push(snippetName)
-                    this.currentSnippet++
+                    this.addCtx.currentSnippet++
                     const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
                     this.mstr.appendRight(childStart, snippetBegin)
                     this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
@@ -165,6 +160,9 @@ export class SvelteTransformer extends Transformer {
 
     visitFragment = (node: AST.Fragment): Message[] =>
         this.mixedVisitor.visit({
+            mstr: this.mstr,
+            index: this.index,
+            addCtx: this.addCtx,
             children: node.nodes,
             commentDirectives: this.commentDirectives,
             inCompoundText: this.inCompoundText,
@@ -214,6 +212,9 @@ export class SvelteTransformer extends Transformer {
         }
         if (values.length > 1) {
             return this.mixedVisitor.visit({
+                mstr: this.mstr,
+                index: this.index,
+                addCtx: this.addCtx,
                 children: values,
                 commentDirectives: this.commentDirectives,
                 inCompoundText: false,

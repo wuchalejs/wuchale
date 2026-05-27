@@ -44,7 +44,7 @@ const rtRenderFunc = '_w_Tx_'
 
 const u8decoder = new TextDecoder()
 
-type MixedVisitorAstro = MixedVisitor<Node, TextNode, CommentNode, ExpressionNode>
+type MixedVisitorAstro = MixedVisitor<Node, object, TextNode, CommentNode, ExpressionNode>
 
 export class AstroTransformer extends Transformer {
     byteArray: Uint8Array
@@ -54,6 +54,7 @@ export class AstroTransformer extends Transformer {
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitorAstro
+    addCtx = {}
 
     // astro's compiler gives wrong offsets for expressions
     correctedExprRanges: WeakMap<Node | AttributeNode, { start: number; end: number }> = new WeakMap()
@@ -124,8 +125,8 @@ export class AstroTransformer extends Transformer {
 
     initMixedVisitor = (): MixedVisitorAstro =>
         new MixedVisitor({
-            mstr: this.mstr,
             vars: this.vars,
+            content: this.content,
             getRange: this.getRange,
             isText: node => node.type === 'text',
             isComment: node => node.type === 'comment',
@@ -134,17 +135,9 @@ export class AstroTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: (child, inCompoundText) => {
-                const inCompoundTextPrev = this.inCompoundText
-                this.inCompoundText = inCompoundText
-                const childTxts = this.visitAs(child)
-                this.inCompoundText = inCompoundTextPrev // restore
-                return childTxts
-            },
-            visitExpressionTag: this.visitexpression,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitAs),
             fullHeuristicDetails: this.fullHeuristicDetails,
             checkHeuristic: this.getHeuristicMessageType,
-            index: this.index,
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `{${rtRenderFunc}({\nx: `
                 if (this.inCompoundText) {
@@ -209,6 +202,9 @@ export class AstroTransformer extends Transformer {
 
     _visitChildren = (nodes: Node[]): Message[] =>
         this.mixedVisitor.visit({
+            mstr: this.mstr,
+            index: this.index,
+            addCtx: this.addCtx,
             children: nodes,
             commentDirectives: this.commentDirectives,
             inCompoundText: this.inCompoundText,
