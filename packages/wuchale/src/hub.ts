@@ -20,9 +20,7 @@ const confUpdateName = 'confUpdate.json'
 const logPrefix = `[${color.magenta(pluginName)}]:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
-type ConfUpdate = {
-    hmr: boolean
-}
+type ConfUpdate = Pick<Config, 'dev'>
 
 type ConfigLoader = () => Config | Promise<Config>
 
@@ -245,12 +243,12 @@ export class Hub {
             const updateTxt = await read()
             const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
             this.#opts.log.info(`${logPrefix} config update received: ${color.cyan(updateTxt)}`)
-            if (update.hmr !== undefined) {
-                this.#opts.config.hmr = update.hmr
+            if (update.dev !== undefined) {
+                this.#opts.config.dev = update.dev
             }
             return ignoreChange
         }
-        if (!this.#opts.config.hmr) {
+        if (!this.#opts.config.dev) {
             return
         }
         // This is mainly to make sure that catalog file changes result in a page reload with new catalogs
@@ -295,7 +293,7 @@ export class Hub {
     }
 
     transform = async (code: string, filePath: string, forServer = false): ReturnType<AdapterHandler['transform']> => {
-        if (this.#opts.mode === 'dev' && !this.#opts.config.hmr) {
+        if (this.#opts.mode === 'dev' && !this.#opts.config.dev) {
             return [{}, false]
         }
         const filename = normalizeSep(relative(this.#opts.root, filePath))
