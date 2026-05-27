@@ -27,7 +27,16 @@ const nodesWithChildren = ['JSXElement']
 const rtComponent = 'W_tx_'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
-type MixedVisitorJSX = MixedVisitor<MixedNodesTypes, JX.JSXText, JX.JSXExpressionContainer, JX.JSXExpressionContainer>
+type AddCtx = {
+    currentJsxKey?: number
+}
+type MixedVisitorJSX = MixedVisitor<
+    MixedNodesTypes,
+    AddCtx,
+    JX.JSXText,
+    JX.JSXExpressionContainer,
+    JX.JSXExpressionContainer
+>
 
 export type JSXLib = 'default' | 'solidjs'
 
@@ -36,7 +45,7 @@ export class JSXTransformer extends Transformer {
     currentElement?: string | undefined
     inCompoundText: boolean = false
     lastVisitIsComment: boolean = false
-    currentJsxKey?: number
+    addCtx: AddCtx = {}
 
     mixedVisitor: MixedVisitorJSX
 
@@ -56,8 +65,8 @@ export class JSXTransformer extends Transformer {
 
     initMixedVisitor = (): MixedVisitorJSX =>
         new MixedVisitor({
-            mstr: this.mstr,
             vars: this.vars,
+            content: this.content,
             getRange: node => ({
                 start: node.start,
                 end: node.end,
@@ -72,17 +81,9 @@ export class JSXTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: (child, inCompoundText) => {
-                const inCompoundTextPrev = this.inCompoundText
-                this.inCompoundText = inCompoundText
-                const childTxts = this.visitJx(child)
-                this.inCompoundText = inCompoundTextPrev // restore
-                return childTxts
-            },
-            visitExpressionTag: this.visitJSXExpressionContainer,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitJx),
             fullHeuristicDetails: this.fullHeuristicDetails,
             checkHeuristic: this.getHeuristicMessageType,
-            index: this.index,
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `<${rtComponent}`
                 if (nestedRanges.length > 0) {
@@ -118,6 +119,9 @@ export class JSXTransformer extends Transformer {
         const prevInsideProg = this.heuristciDetails.insideProgram
         this.heuristciDetails.insideProgram = false
         const msg = this.mixedVisitor.visit({
+            mstr: this.mstr,
+            index: this.index,
+            addCtx: this.addCtx,
             children: node.children,
             commentDirectives: this.commentDirectives,
             inCompoundText: this.inCompoundText,
@@ -149,13 +153,13 @@ export class JSXTransformer extends Transformer {
         for (const attr of node.openingElement.attributes) {
             msgs.push(...this.visitJx(attr))
         }
-        if (this.inCompoundText && this.currentJsxKey != null) {
+        if (this.inCompoundText && this.addCtx.currentJsxKey != null) {
             const key = node.openingElement.attributes.find(
                 attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
             )
             if (!key) {
-                this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.currentJsxKey}"`)
-                this.currentJsxKey++
+                this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.addCtx.currentJsxKey}"`)
+                this.addCtx.currentJsxKey++
             }
         }
         this.currentElement = currentElement
@@ -239,7 +243,7 @@ export class JSXTransformer extends Transformer {
         )
         this.comments = comments
         if (lib === 'default') {
-            this.currentJsxKey = 0
+            this.addCtx.currentJsxKey = 0
         }
         const msgs = this.visitJx(ast)
         const header = [
