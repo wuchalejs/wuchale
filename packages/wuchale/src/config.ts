@@ -14,7 +14,7 @@ export type ConfigPartial = {
 
 export type Config = ConfigPartial & {
     adapters: Record<string, Adapter>
-    hmr: boolean
+    dev: 'full' | 'read' | false
 }
 
 export type DeepPartial<T> = {
@@ -34,7 +34,7 @@ export const defaultConfig: Config = {
     fallback: {},
     localesDir: 'src/locales',
     adapters: {},
-    hmr: true,
+    dev: 'full',
     ai: defaultGemini,
     logLevel: 'info',
 }
