@@ -685,31 +685,19 @@ export class Transformer {
         return msgs
     }
 
-    checkHeuristicTemplateLiteral = (
-        node: Estree.TemplateLiteral,
-        heurDetails?: HeuristicDetailsBase,
-    ): HeuristicResultChecked => {
-        let heurTxt = ''
-        for (const quasi of node.quasis) {
-            heurTxt += quasi.value.cooked ?? ''
-            if (!quasi.tail) {
-                heurTxt += '#'
-            }
-        }
-        heurTxt = heurTxt.trim()
-        const [pass] = this.checkHeuristic(heurTxt, heurDetails ?? { scope: 'script' })
-        return pass
-    }
-
-    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, msgTyp: MessageType): [number, Message[]] => {
+    visitTemplateLiteralQuasis = (node: Estree.TemplateLiteral, forHeuristic = false): [Message, number, Message[]] => {
         const msgs: Message[] = []
         let msgStr = node.quasis[0]!.value?.cooked ?? ''
         const placeholders: [string, string][] = []
         for (const [i, expr] of node.expressions.entries()) {
-            msgs.push(...this.visit(expr))
             const quasi = node.quasis[i + 1]!
             msgStr += `{${i}}${quasi.value.cooked}`
             placeholders.push([i.toString(), this.content.slice(expr.start, expr.end)])
+            if (forHeuristic) {
+                // skip modifications and sub visits
+                continue
+            }
+            msgs.push(...this.visit(expr))
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
@@ -721,12 +709,10 @@ export class Transformer {
             msgStr: [msgStr],
             details: this.fullHeuristicDetails({ scope: 'script' }),
             context: this.commentDirectives.context,
+            placeholders,
         })
-        msgInfo.type = msgTyp
-        msgInfo.placeholders = placeholders
-        const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
         msgs.push(msgInfo)
-        return [index, msgs]
+        return [msgInfo, forHeuristic ? 0 : this.index.get(getKey(msgInfo.msgStr, msgInfo.context)), msgs]
     }
 
     visitTemplateLiteral = (
@@ -734,17 +720,20 @@ export class Transformer {
         heurDetails: HeuristicDetailsBase | boolean = false,
     ): Message[] => {
         let msgTyp: MessageType = 'message'
-        if (heurDetails !== true) {
-            const heuRes = this.checkHeuristicTemplateLiteral(
-                node,
-                typeof heurDetails === 'boolean' ? undefined : heurDetails,
-            )
+        let visitRes: [Message, number, Message[]]
+        if (heurDetails === true) {
+            visitRes = this.visitTemplateLiteralQuasis(node)
+        } else {
+            const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node, true)
+            const [heuRes] = this.checkHeuristic(msgInfoHeu.msgStr[0]!, heurDetails || { scope: 'script' })
             if (!heuRes) {
                 return node.expressions.flatMap(this.visit)
             }
             msgTyp = heuRes
+            visitRes = this.visitTemplateLiteralQuasis(node)
         }
-        const [index, msgs] = this.visitTemplateLiteralQuasis(node, msgTyp)
+        const [msgInfo, index, msgs] = visitRes
+        msgInfo.type = msgTyp
         const { start: start0, end: end0 } = node.quasis[0]!
         let begin = `${this.vars().rtTrans}(${index}`
         let end = ')'
@@ -767,9 +756,11 @@ export class Transformer {
         const prevCall = this.heuristciDetails.call
         this.heuristciDetails.call = this.getCalleeName(node.tag)
         let msgs: Message[] = []
-        const heuRes = this.checkHeuristicTemplateLiteral(node.quasi)
+        const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node.quasi, true)
+        const [heuRes] = this.checkHeuristic(msgInfoHeu.msgStr[0]!, { scope: 'script' })
         if (heuRes) {
-            const [index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi, heuRes)
+            const [msgInfo, index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
+            msgInfo.type = heuRes
             msgs = msgsNew
             this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
             const { start, end, expressions } = node.quasi
