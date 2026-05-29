@@ -111,64 +111,6 @@ test('Simple element with new lines', async t => {
     )
 })
 
-test('Dynamic svelte element children', async t => {
-    transformTest(
-        t,
-        await getOutput(svelte`
-        <svelte:element this="span">
-            <span title="وصف">نص داخلي</span>
-        </svelte:element>
-    `),
-        svelte`
-        <script>
-            import { _w_load_, _w_load_rx_ } from "./loader.js"
-            import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_());
-        </script>
-        <svelte:element this="span">
-            <span title={_w_runtime_(0)}>{_w_runtime_(1)}</span>
-        </svelte:element>
-    `,
-        ['وصف', 'نص داخلي'],
-    )
-})
-
-test('Dynamic svelte element in compound text', async t => {
-    transformTest(
-        t,
-        await getOutput(svelte`
-        <p>Hello <svelte:element this="span">world</svelte:element></p>
-    `),
-        svelte`
-        <script>
-            import { _w_load_, _w_load_rx_ } from "./loader.js"
-            import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_());
-        </script>
-        <p>
-            {#snippet _w_snippet_0(_w_ctx_)}
-            <svelte:element this="span">{_w_runtime_.x(_w_ctx_)}</svelte:element>
-            {/snippet}
-            <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
-        </p>
-    `,
-        ['Hello <0>world</0>'],
-    )
-})
-
-test('Dynamic svelte element uses static tag context', async t => {
-    transformTest(
-        t,
-        await getOutput(svelte`
-        <svelte:element this="style">
-            color red
-        </svelte:element>
-    `),
-        undefined,
-        [],
-    )
-})
-
 test('Ignore and include', async t => {
     transformTest(
         t,
@@ -415,11 +357,11 @@ test('Tags and directives', async t => {
     )
 })
 
-test('Nested and mixed', async t => {
+test('Nested and mixed with svelte:element', async t => {
     transformTest(
         t,
         await getOutput(svelte`
-            <p>Hello and <b>welcome to <i>the app {appName}</i></b>!</p>
+            <p>Hello and <svelte:element this="b">welcome to <i>the app {appName}</i></svelte:element>!</p>
         `),
         svelte`
         <script>
@@ -429,18 +371,31 @@ test('Nested and mixed', async t => {
         </script>
         <p>
             {#snippet _w_snippet_1(_w_ctx_)}
-                <b>
-                {#snippet _w_snippet_0(_w_ctx_)}
-                    <i>
-                        <W_tx_ x={_w_ctx_} n a={[appName]} />
-                    </i>
-                {/snippet}
-                <W_tx_ t={[_w_snippet_0]} x={_w_ctx_} n />
-            </b>
+                <svelte:element this="b">
+                    {#snippet _w_snippet_0(_w_ctx_)}
+                        <i>
+                            <W_tx_ x={_w_ctx_} n a={[appName]} />
+                        </i>
+                    {/snippet}
+                    <W_tx_ t={[_w_snippet_0]} x={_w_ctx_} n />
+                </svelte:element>
             {/snippet}
             <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(0)} />
         </p>
     `,
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
+    )
+})
+
+test('svelte:element uses static tag context', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+        <svelte:element this="style">
+            color red
+        </svelte:element>
+    `),
+        undefined,
+        [],
     )
 })

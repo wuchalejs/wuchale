@@ -329,16 +329,13 @@ export class SvelteTransformer extends Transformer {
 
     visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.flatMap(this.visitSv)
 
-    getSvelteElementName = (node: AST.SvelteElement): string => {
-        if (node.tag.type === 'Literal' && typeof node.tag.value === 'string') {
-            return node.tag.value
-        }
-        return 'svelte:element'
-    }
-
     visitSvelteElement = (node: AST.SvelteElement): Message[] => {
         const currentElement = this.currentElement
-        this.currentElement = this.getSvelteElementName(node)
+        if (node.tag.type === 'Literal' && typeof node.tag.value === 'string') {
+            this.currentElement = node.tag.value
+        } else {
+            this.currentElement = 'svelte:element'
+        }
         const msgs = [...node.attributes.flatMap(this.visitSv), ...this.visitFragment(node.fragment)]
         this.currentElement = currentElement
         return msgs
