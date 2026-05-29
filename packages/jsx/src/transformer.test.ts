@@ -15,7 +15,7 @@ const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs'
         {
             content,
             filename: 'test.tsx',
-            index: new IndexTracker(),
+            index: new IndexTracker(true),
             expr: catalogExpr,
             matchUrl: urlHandler.match,
         },

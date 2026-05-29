@@ -109,7 +109,7 @@ async function getSharedState(
     })
     let sharedState = sharedStates.get(storage.key)
     if (sharedState == null) {
-        sharedState = new SharedState(storage, key, sourceLocale)
+        sharedState = new SharedState(storage, key, sourceLocale, config.dev === 'full')
         sharedStates.set(storage.key, sharedState)
     } else {
         if (sharedState.sourceLocale !== sourceLocale) {
@@ -223,6 +223,7 @@ export class Hub {
                 key,
                 sourceLocale,
                 sharedState: await getSharedState(sharedStates, config, fs, root, adapter, key, sourceLocale),
+                fullDevMode: config.dev === 'full',
             })
             handlers.set(key, handler)
         }

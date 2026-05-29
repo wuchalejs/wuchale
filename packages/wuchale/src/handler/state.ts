@@ -36,17 +36,18 @@ export class SharedState {
     ownerKey: string
     sourceLocale: string
     compiled: CompiledCatalogs = new Map()
-    indexTracker = new IndexTracker()
+    indexTracker: IndexTracker
 
     // storage
     storage: CatalogStorage
     catalog: Catalog = new Map()
     pluralRules: PluralRules = new Map()
 
-    constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string) {
+    constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string, fullDevMode: boolean) {
         this.ownerKey = ownerKey
         this.sourceLocale = sourceLocale
         this.storage = storage
+        this.indexTracker = new IndexTracker(fullDevMode)
     }
 
     async load(locales: string[]) {
@@ -116,7 +117,7 @@ export class State {
         return id + 1 // not to start from 0 which is reserved for the shared
     }
 
-    async byFileCreate(filename: string, locales: string[]): Promise<GranularState> {
+    async byFileCreate(filename: string, locales: string[], fullDevMode: boolean): Promise<GranularState> {
         let state = this.#byFile.get(filename)
         if (state != null) {
             return state
@@ -127,7 +128,7 @@ export class State {
             state = {
                 id,
                 compiled: new Map(),
-                indexTracker: new IndexTracker(),
+                indexTracker: new IndexTracker(fullDevMode),
             }
             for (const loc of locales) {
                 state.compiled.set(loc, { hasPlurals: false, items: [] })

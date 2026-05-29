@@ -12,9 +12,9 @@ const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 const filename = 'test.ts'
 const urlHandler = new URLHandler([], 'en')
 
-const makeCtx = (content: string) => ({
+const makeCtx = (content: string, index = new IndexTracker(true)) => ({
     content,
-    index: new IndexTracker(),
+    index,
     filename,
     expr: catalogExpr,
     matchUrl: urlHandler.match,
@@ -256,5 +256,36 @@ test('Plural and patterns', t => {
             }
     `,
         [{ msgStr: ['One item', '# items'] }],
+    )
+})
+
+test('Partial on read dev mode', t => {
+    const index = new IndexTracker(false)
+    t.assert.equal(index.get('Hello'), 0) // first registered
+    transformTest(
+        t,
+        new Transformer(
+            makeCtx(
+                ts`
+                function foo(): string {
+                    const varName = 'Hello'
+                    return varName + 'There!'
+                }
+            `,
+                index,
+            ),
+            defaultArgs.heuristic,
+            defaultArgs.patterns,
+            defaultArgs.runtime,
+        ).transform(),
+        ts`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            function foo(): string {
+                const _w_runtime_ = _w_load_();
+                const varName = _w_runtime_(0)
+                return varName + 'There!'
+            }
+        `,
+        ['Hello'], // no There! as it is new
     )
 })

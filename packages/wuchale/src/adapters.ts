@@ -147,19 +147,28 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
 }
 
 export class IndexTracker {
-    indices: Map<string, number> = new Map()
-    nextIndex: number = 0
+    #indices: Map<string, number> = new Map()
+    #nextIndex: number = 0
+    #bypassHas: boolean
+
+    constructor(bypassHas: boolean) {
+        this.#bypassHas = bypassHas
+    }
 
     get = (msgStr: string) => {
-        let index = this.indices.get(msgStr)
+        let index = this.#indices.get(msgStr)
         if (index != null) {
             return index
         }
-        index = this.nextIndex
-        this.indices.set(msgStr, index)
-        this.nextIndex++
+        index = this.#nextIndex
+        this.#indices.set(msgStr, index)
+        this.#nextIndex++
         return index
     }
+
+    has = (msgStr: string) => this.#bypassHas || this.#indices.has(msgStr)
+
+    getAll = () => this.#indices.entries()
 }
 
 export type GlobConf =
