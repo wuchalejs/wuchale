@@ -2,16 +2,7 @@ import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
-import type {
-    CatalogExpr,
-    CodePattern,
-    HeuristicFunc,
-    IndexTracker,
-    Message,
-    RuntimeConf,
-    TransformOutput,
-    UrlMatcher,
-} from 'wuchale'
+import type { CodePattern, HeuristicFunc, Message, RuntimeConf, TransformCtx, TransformOutput } from 'wuchale'
 import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
@@ -49,17 +40,8 @@ export class JSXTransformer extends Transformer {
 
     mixedVisitor: MixedVisitorJSX
 
-    constructor(
-        content: string,
-        filename: string,
-        index: IndexTracker,
-        heuristic: HeuristicFunc,
-        patterns: CodePattern[],
-        catalogExpr: CatalogExpr,
-        rtConf: RuntimeConf,
-        matchUrl: UrlMatcher,
-    ) {
-        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
+    constructor(ctx: TransformCtx, heuristic: HeuristicFunc, patterns: CodePattern[], rtConf: RuntimeConf) {
+        super(ctx, heuristic, patterns, rtConf)
         this.mixedVisitor = this.initMixedVisitor()
     }
 

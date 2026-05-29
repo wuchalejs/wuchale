@@ -21,7 +21,7 @@ import type {
     IndexTracker,
     MessageType,
     RuntimeConf,
-    RuntimeExpr,
+    TransformCtx,
     TransformOutput,
     UrlMatcher,
 } from '../adapters.js'
@@ -95,30 +95,26 @@ export class Transformer {
     runtimeCtx = {}
 
     constructor(
-        content: string,
-        filename: string,
-        index: IndexTracker,
+        ctx: TransformCtx,
         heuristic: HeuristicFunc,
         patterns: CodePattern[],
-        catalogExpr: RuntimeExpr,
         rtConf: RuntimeConf,
-        matchUrl: UrlMatcher,
         rtBaseVars = [varNames.rt],
     ) {
-        this.index = index
+        this.index = ctx.index
+        this.content = ctx.content
+        this.matchUrl = ctx.matchUrl
+        this.heuristciDetails.file = ctx.filename
         this.heuristic = heuristic
         this.patterns = patterns
-        this.content = content
         this.mstr = new MagicString(this.content)
-        this.heuristciDetails.file = filename
-        this.matchUrl = matchUrl
         const topLevelUseReactive =
             typeof rtConf.useReactive === 'boolean'
                 ? rtConf.useReactive
                 : (rtConf.useReactive({
                       funcName: undefined,
                       nested: false,
-                      file: filename,
+                      file: ctx.filename,
                       ctx: this.runtimeCtx,
                   }) ?? false)
 
@@ -138,7 +134,7 @@ export class Transformer {
                     : (rtConf.useReactive({
                           funcName: this.heuristciDetails.funcName ?? undefined,
                           nested: this.heuristciDetails.funcIsNested ?? false,
-                          file: filename,
+                          file: ctx.filename,
                           ctx: this.runtimeCtx,
                       }) ?? topLevelUseReactive)
             const currentVars = vars[this.currentRtVar]!
@@ -148,7 +144,7 @@ export class Transformer {
             let initReactive = rtConf.initReactive({
                 funcName,
                 nested: parentFunc != null,
-                file: filename,
+                file: ctx.filename,
                 ctx: this.runtimeCtx,
             })
             if (initReactive == null) {
@@ -158,7 +154,7 @@ export class Transformer {
                 initReactive = rtConf.useReactive // should be consistent
             }
             const wrapInit = initReactive ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
-            const expr = initReactive ? catalogExpr.reactive : catalogExpr.plain
+            const expr = initReactive ? ctx.expr.reactive : ctx.expr.plain
             return `\nconst ${this.currentRtVar} = ${wrapInit(expr)};\n`
         }
     }

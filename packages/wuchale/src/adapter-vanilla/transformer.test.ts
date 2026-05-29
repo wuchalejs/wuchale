@@ -12,17 +12,16 @@ const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 const filename = 'test.ts'
 const urlHandler = new URLHandler([], 'en')
 
+const makeCtx = (content: string) => ({
+    content,
+    index: new IndexTracker(),
+    filename,
+    expr: catalogExpr,
+    matchUrl: urlHandler.match,
+})
+
 const getOutput = (content: string, patterns = defaultArgs.patterns) =>
-    new Transformer(
-        content,
-        filename,
-        new IndexTracker(),
-        defaultArgs.heuristic,
-        patterns,
-        catalogExpr,
-        defaultArgs.runtime as RuntimeConf,
-        urlHandler.match,
-    ).transform()
+    new Transformer(makeCtx(content), defaultArgs.heuristic, patterns, defaultArgs.runtime).transform()
 
 test('Simple expression and assignment', t => {
     transformTest(
@@ -179,16 +178,15 @@ test('useReactive nullish fallback stays boolean', t => {
     transformTest(
         t,
         new Transformer(
-            ts`
-            function foo() {
-                return 'Hello'
-            }
-        `,
-            filename,
-            new IndexTracker(),
+            makeCtx(
+                ts`
+                function foo() {
+                    return 'Hello'
+                }
+            `,
+            ),
             defaultArgs.heuristic,
             defaultArgs.patterns,
-            catalogExpr,
             {
                 initReactive: () => false,
                 useReactive: ({ funcName }) => (funcName == null ? false : undefined),
@@ -201,7 +199,6 @@ test('useReactive nullish fallback stays boolean', t => {
                     wrapUse: expr => `reactiveUse(${expr})`,
                 },
             } as RuntimeConf,
-            urlHandler.match,
         ).transform(),
         ts`
         import { _w_load_, _w_load_rx_ } from "./loader.js"

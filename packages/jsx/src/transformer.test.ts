@@ -1,7 +1,7 @@
 // $ node --import ../../wuchale/testing/resolve.ts %f
 
 import { type TestContext, test } from 'node:test'
-import { IndexTracker, type RuntimeConf, URLHandler } from 'wuchale'
+import { IndexTracker, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { transformTest, ts as tsx } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './index.js'
@@ -12,14 +12,16 @@ const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs') =>
     new JSXTransformer(
-        content,
-        'test.tsx',
-        new IndexTracker(),
+        {
+            content,
+            filename: 'test.tsx',
+            index: new IndexTracker(),
+            expr: catalogExpr,
+            matchUrl: urlHandler.match,
+        },
         defaultArgs.heuristic,
         defaultArgs.patterns,
-        catalogExpr,
-        defaultArgs.runtime as RuntimeConf,
-        urlHandler.match,
+        defaultArgs.runtime,
     ).transformJx(variant)
 
 test('React basic', async t => {

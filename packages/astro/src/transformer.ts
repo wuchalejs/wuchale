@@ -16,15 +16,13 @@ import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type {
-    CatalogExpr,
     CodePattern,
     HeuristicDetailsBase,
     HeuristicFunc,
-    IndexTracker,
     Message,
     RuntimeConf,
+    TransformCtx,
     TransformOutput,
-    UrlMatcher,
 } from 'wuchale'
 import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
@@ -59,18 +57,10 @@ export class AstroTransformer extends Transformer {
     // astro's compiler gives wrong offsets for expressions
     correctedExprRanges: WeakMap<Node | AttributeNode, { start: number; end: number }> = new WeakMap()
 
-    constructor(
-        content: string,
-        filename: string,
-        index: IndexTracker,
-        heuristic: HeuristicFunc,
-        patterns: CodePattern[],
-        catalogExpr: CatalogExpr,
-        rtConf: RuntimeConf,
-        matchUrl: UrlMatcher,
-    ) {
+    constructor(ctx: TransformCtx, heuristic: HeuristicFunc, patterns: CodePattern[], rtConf: RuntimeConf) {
         // trim() is VERY important, without it offset positions become wrong due to astro's parser
-        super(content.trim(), filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl)
+        ctx.content = ctx.content.trim()
+        super(ctx, heuristic, patterns, rtConf)
         this.byteArray = new Uint8Array(Buffer.from(this.content))
         this.heuristciDetails.insideProgram = false
         this.mixedVisitor = this.initMixedVisitor()

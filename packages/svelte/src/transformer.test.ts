@@ -1,7 +1,7 @@
 // $ node --import ../../wuchale/testing/resolve.ts %f
 
 import { test } from 'node:test'
-import { IndexTracker, type RuntimeConf, URLHandler } from 'wuchale'
+import { IndexTracker, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { ts as svelte, transformTest, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs, svelteKitDefaultHeuristic } from './index.js'
@@ -17,14 +17,16 @@ const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, filename = 'test.svelte') =>
     new SvelteTransformer(
-        content,
-        filename,
-        new IndexTracker(),
+        {
+            content,
+            filename,
+            index: new IndexTracker(),
+            expr: catalogExpr,
+            matchUrl: urlHandler.match,
+        },
         svelteKitDefaultHeuristic,
         defaultArgs.patterns,
-        catalogExpr,
-        defaultArgs.runtime as RuntimeConf,
-        urlHandler.match,
+        defaultArgs.runtime,
     ).transformSv()
 
 test('Simple text and props destruct', async t => {

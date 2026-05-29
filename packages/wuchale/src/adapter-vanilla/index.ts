@@ -1,7 +1,7 @@
 // $$ cd .. && npm run test
 
 import { loaderPathResolver } from '../adapter-utils/index.js'
-import type { Adapter, AdapterArgs, CodePattern, LoaderChoice, RuntimeConf } from '../adapters.js'
+import type { Adapter, AdapterArgs, CodePattern, LoaderChoice } from '../adapters.js'
 import { defaultHeuristicFuncOnly } from '../adapters.js'
 import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
@@ -65,17 +65,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 export const adapter = (args: DeepPartial<VanillaArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr, matchUrl }) =>
-            new Transformer(
-                content,
-                filename,
-                index,
-                heuristic,
-                patterns,
-                expr,
-                runtime as RuntimeConf,
-                matchUrl,
-            ).transform(),
+        transform: ctx => new Transformer(ctx, heuristic, patterns, runtime).transform(),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,
