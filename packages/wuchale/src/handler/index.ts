@@ -94,6 +94,7 @@ type HandlerOptsCreate = FilesOptsCreatePass & {
     log: Logger
     sourceLocale: string
     sharedState: SharedState
+    fullDevMode: boolean
 }
 
 type HandlerOpts = HandlerOptsCreate & {
@@ -178,7 +179,7 @@ export class AdapterHandler {
         await this.#writeManifests()
     }
 
-    #buildManifest = (indices: Map<string, number>): ManifestEntry[] => {
+    #buildManifest = (indices: Iterable<[string, number]>): ManifestEntry[] => {
         const manifest: ManifestEntry[] = []
         for (const [key, index] of indices) {
             const item = this.sharedState.catalog.get(key)
@@ -205,10 +206,10 @@ export class AdapterHandler {
     }
 
     #writeManifests = async () => {
-        const promises = [this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.indices), null)]
+        const promises = [this.files.writeManifest(this.#buildManifest(this.sharedState.indexTracker.getAll()), null)]
         if (this.adapter.loading.granular) {
             for (const state of this.granularState.byID.values()) {
-                promises.push(this.files.writeManifest(this.#buildManifest(state.indexTracker.indices), state.id))
+                promises.push(this.files.writeManifest(this.#buildManifest(state.indexTracker.getAll()), state.id))
             }
         }
         await Promise.all(promises)
@@ -308,7 +309,11 @@ export class AdapterHandler {
                     continue
                 }
                 for (const ref of item.references) {
-                    const state = await this.granularState.byFileCreate(ref.file, this.#opts.config.locales)
+                    const state = await this.granularState.byFileCreate(
+                        ref.file,
+                        this.#opts.config.locales,
+                        this.#opts.fullDevMode,
+                    )
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
                     compiledLoc.items[state.indexTracker.get(key)] = compiled
@@ -553,7 +558,11 @@ export class AdapterHandler {
         let loadID = defaultLoadID
         let compiled = this.sharedState.compiled
         if (this.adapter.loading.granular) {
-            const state = await this.granularState.byFileCreate(filename, this.#opts.config.locales)
+            const state = await this.granularState.byFileCreate(
+                filename,
+                this.#opts.config.locales,
+                this.#opts.fullDevMode,
+            )
             indexTracker = state.indexTracker
             loadID = state.id
             compiled = state.compiled

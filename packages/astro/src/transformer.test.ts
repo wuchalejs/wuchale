@@ -15,7 +15,7 @@ const getOutput = (content: string, filename = 'test.astro') =>
         {
             content,
             filename,
-            index: new IndexTracker(),
+            index: new IndexTracker(true),
             expr: catalogExpr,
             matchUrl: urlHandler.match,
         },

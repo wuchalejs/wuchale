@@ -20,7 +20,7 @@ import {
     varNames,
 } from './index.js'
 
-const noopIndex = new IndexTracker()
+const noopIndex = new IndexTracker(true)
 
 const noopMstr = new Proxy(new MagicString(''), {
     get: (target, p: keyof MagicString) => {

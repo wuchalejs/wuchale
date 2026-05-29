@@ -20,7 +20,7 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         {
             content,
             filename,
-            index: new IndexTracker(),
+            index: new IndexTracker(true),
             expr: catalogExpr,
             matchUrl: urlHandler.match,
         },

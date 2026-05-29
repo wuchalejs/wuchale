@@ -43,7 +43,8 @@ async function makeHandler() {
         root: import.meta.dirname,
         log: new Logger('error'),
         sourceLocale: 'en',
-        sharedState: new SharedState(storage, 'test', 'en'),
+        sharedState: new SharedState(storage, 'test', 'en', true),
+        fullDevMode: true,
     })
 }
 

@@ -191,7 +191,8 @@ export class Transformer {
             context: this.commentDirectives.context,
         })
         const heuRes = this.getHeuristicMessageType(msg)
-        if (!heuRes) {
+        // not allowed here, or msg is new but new msgs are not allowed
+        if (!heuRes || !this.index.has(getKey(msg.msgStr, msg.context))) {
             return [false, null]
         }
         msg.type = heuRes
