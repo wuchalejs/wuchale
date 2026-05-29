@@ -106,18 +106,7 @@ export const adapter = (args: DeepPartial<JSXArgs> = defaultArgs): Adapter => {
         runtime = defaultRuntimeSolid
     }
     return {
-        transform: ({ content, filename, index, expr, matchUrl }) => {
-            return new JSXTransformer(
-                content,
-                filename,
-                index,
-                heuristic,
-                patterns,
-                expr,
-                runtime as RuntimeConf,
-                matchUrl,
-            ).transformJx(variant)
-        },
+        transform: ctx => new JSXTransformer(ctx, heuristic, patterns, runtime).transformJx(variant),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,

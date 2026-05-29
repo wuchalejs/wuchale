@@ -10,15 +10,13 @@ import type {
 } from 'acorn'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
 import type {
-    CatalogExpr,
     CodePattern,
     HeuristicDetailsBase,
     HeuristicFunc,
-    IndexTracker,
     Message,
     RuntimeConf,
+    TransformCtx,
     TransformOutput,
-    UrlMatcher,
 } from 'wuchale'
 import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils'
@@ -59,17 +57,8 @@ export class SvelteTransformer extends Transformer {
 
     mixedVisitor: MixedVisitorSvelte
 
-    constructor(
-        content: string,
-        filename: string,
-        index: IndexTracker,
-        heuristic: HeuristicFunc,
-        patterns: CodePattern[],
-        catalogExpr: CatalogExpr,
-        rtConf: RuntimeConf,
-        matchUrl: UrlMatcher,
-    ) {
-        super(content, filename, index, heuristic, patterns, catalogExpr, rtConf, matchUrl, [varNames.rt, rtModuleVar])
+    constructor(ctx: TransformCtx, heuristic: HeuristicFunc, patterns: CodePattern[], rtConf: RuntimeConf) {
+        super(ctx, heuristic, patterns, rtConf, [varNames.rt, rtModuleVar])
         this.heuristciDetails.insideProgram = false
         this.mixedVisitor = this.initMixedVisitor()
     }

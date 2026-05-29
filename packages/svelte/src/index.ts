@@ -6,7 +6,6 @@ import type {
     DeepPartial,
     HeuristicFunc,
     LoaderChoice,
-    RuntimeConf,
 } from 'wuchale'
 import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { loaderPathResolver } from 'wuchale/adapter-utils'
@@ -118,18 +117,7 @@ export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter =>
     }
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
-        transform: ({ content, filename, index, expr, matchUrl }) => {
-            return new SvelteTransformer(
-                content,
-                filename,
-                index,
-                heuristic,
-                patterns,
-                expr,
-                runtime as RuntimeConf,
-                matchUrl,
-            ).transformSv()
-        },
+        transform: ctx => new SvelteTransformer(ctx, heuristic, patterns, runtime).transformSv(),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,

@@ -12,14 +12,16 @@ const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
 const getOutput = (content: string, filename = 'test.astro') =>
     new AstroTransformer(
-        content,
-        filename,
-        new IndexTracker(),
+        {
+            content,
+            filename,
+            index: new IndexTracker(),
+            expr: catalogExpr,
+            matchUrl: urlHandler.match,
+        },
         defaultArgs.heuristic,
         defaultArgs.patterns,
-        catalogExpr,
         defaultRuntime,
-        urlHandler.match,
     ).transformAs()
 
 test('Basic markup with unicode', async t => {

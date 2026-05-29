@@ -72,18 +72,7 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>): st
 export const adapter = (args: DeepPartial<AstroArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, loader, ...rest } = fillDefaults(args, defaultArgs)
     return {
-        transform: async ({ content, filename, index, expr, matchUrl }) => {
-            return new AstroTransformer(
-                content,
-                filename,
-                index,
-                heuristic,
-                patterns,
-                expr,
-                defaultRuntime,
-                matchUrl,
-            ).transformAs()
-        },
+        transform: ctx => new AstroTransformer(ctx, heuristic, patterns, defaultRuntime).transformAs(),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader),
         loading: {

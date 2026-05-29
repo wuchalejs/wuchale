@@ -177,7 +177,7 @@ export type RuntimeExpr = {
 
 export type UrlMatcher = (url: string) => readonly [number, string[]] | null
 
-type TransformCtx = {
+export type TransformCtx = {
     content: string
     filename: string
     index: IndexTracker
