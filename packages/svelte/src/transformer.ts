@@ -24,7 +24,7 @@ import { getKey } from 'wuchale'
 import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
-const nodesWithChildren = ['RegularElement', 'Component']
+const nodesWithChildren = ['RegularElement', 'Component', 'SvelteElement']
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
@@ -32,7 +32,7 @@ const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"
 const snipPrefix = '_w_snippet_'
 const rtModuleVar = `${varNames.rt}mod_`
 
-type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.Block | AST.Comment
+type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.SvelteElement | AST.Block | AST.Comment
 type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AST.Text, AST.Comment, AST.ExpressionTag>
 
 // for use before actually parsing the code,
@@ -329,7 +329,17 @@ export class SvelteTransformer extends Transformer {
 
     visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.flatMap(this.visitSv)
 
-    visitSvelteElement = (node: AST.SvelteElement): Message[] => node.attributes.flatMap(this.visitSv)
+    visitSvelteElement = (node: AST.SvelteElement): Message[] => {
+        const currentElement = this.currentElement
+        if (node.tag.type === 'Literal' && typeof node.tag.value === 'string') {
+            this.currentElement = node.tag.value
+        } else {
+            this.currentElement = 'svelte:element'
+        }
+        const msgs = [...node.attributes.flatMap(this.visitSv), ...this.visitFragment(node.fragment)]
+        this.currentElement = currentElement
+        return msgs
+    }
 
     visitSvelteBoundary = (node: AST.SvelteBoundary): Message[] => [
         ...node.attributes.flatMap(this.visitSv),
