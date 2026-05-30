@@ -60,7 +60,7 @@ test.concurrent.for(testCases)('@wuchale/sv $kind.type $variant', async (testCas
 
     if (testCase.kind.type === 'wrong-locale') {
         vitest.expect(wuchaleConfig).toContain('"es"')
-        vitest.expect(wuchaleConfig).not.toContain('"wrong"')
+        vitest.expect(wuchaleConfig).not.toContain('"dasodksaodkasokdoaskdos"')
     }
     const viteConfigPath = fs.existsSync(path.resolve(cwd, 'vite.config.ts'))
         ? path.resolve(cwd, 'vite.config.ts')
