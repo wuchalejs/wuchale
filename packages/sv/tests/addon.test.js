@@ -11,25 +11,25 @@ const { test, testCases } = createSetupTest(vitest)(
             {
                 type: 'default',
                 options: {
-                    '@wuchale/sv': { languages: 'en, es', generation: true },
+                    wuchale: { languages: 'en, es', generation: true },
                 },
             },
             {
                 type: 'no-generation',
                 options: {
-                    '@wuchale/sv': { languages: 'en, es', generation: false },
+                    wuchale: { languages: 'en, es', generation: false },
                 },
             },
             {
                 type: 'single-language',
                 options: {
-                    '@wuchale/sv': { languages: 'en', generation: true },
+                    wuchale: { languages: 'en', generation: true },
                 },
             },
             {
                 type: 'wrong-locale',
                 options: {
-                    '@wuchale/sv': {
+                    wuchale: {
                         languages: 'en, dasodksaodkasokdoaskdos, es',
                         generation: false,
                     },
