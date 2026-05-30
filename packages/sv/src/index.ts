@@ -41,7 +41,7 @@ let hooksFileExisted = true
 let layoutFileExisted = true
 
 export default defineAddon({
-    id: '@wuchale/sv',
+    id: 'wuchale',
     shortDescription: 'i18n',
     homepage: 'https://wuchale.dev/',
     options,
