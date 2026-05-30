@@ -71,7 +71,7 @@ export default defineAddon({
         )
 
         sv.file(
-            'wuchale.config.s',
+            'wuchale.config.js',
             transforms.text(({ content }) => {
                 if (content) return false
 
