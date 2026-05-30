@@ -94,7 +94,7 @@ type HandlerOptsCreate = FilesOptsCreatePass & {
     log: Logger
     sourceLocale: string
     sharedState: SharedState
-    fullDevMode: boolean
+    modifyCatalogs: boolean
 }
 
 type HandlerOpts = HandlerOptsCreate & {
@@ -312,7 +312,7 @@ export class AdapterHandler {
                     const state = await this.granularState.byFileCreate(
                         ref.file,
                         this.#opts.config.locales,
-                        this.#opts.fullDevMode,
+                        this.#opts.modifyCatalogs,
                     )
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
@@ -537,9 +537,9 @@ export class AdapterHandler {
         if (cleanedUrls) {
             compileUpdated = true
         }
+        // cli saves and compiles at the end
         if (storageUpdated && this.#opts.mode !== 'cli') {
-            // cli saves and compiles at the end
-            await this.saveStorage()
+            this.#opts.modifyCatalogs && (await this.saveStorage())
             if (compileUpdated) {
                 await this.compile()
             }
@@ -561,7 +561,7 @@ export class AdapterHandler {
             const state = await this.granularState.byFileCreate(
                 filename,
                 this.#opts.config.locales,
-                this.#opts.fullDevMode,
+                this.#opts.modifyCatalogs,
             )
             indexTracker = state.indexTracker
             loadID = state.id
