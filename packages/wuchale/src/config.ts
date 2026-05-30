@@ -42,7 +42,7 @@ export const defaultConfig: Config = {
 function deepFill(target: any, defaults: any) {
     for (const [key, def] of Object.entries(defaults)) {
         const value = target[key]
-        if (Array.isArray(value)) {
+        if (value !== undefined && (typeof value !== 'object' || Array.isArray(value))) {
             continue
         }
         if (!def || Array.isArray(def) || typeof def !== 'object') {
