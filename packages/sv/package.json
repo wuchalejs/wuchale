@@ -6,8 +6,8 @@
     "license": "MIT",
     "scripts": {
         "demo-create": "sv create demo --types ts --template minimal --no-add-ons --no-install",
-        "demo-add": "pnpm build && sv add file:../ --cwd demo --no-git-check --no-install",
-        "demo-add:ci": "pnpm build && sv add file:../=who:you --cwd demo --no-git-check --no-download-check --no-install",
+        "demo-add": "npm run build && sv add file:../ --cwd demo --no-git-check --no-install",
+        "demo-add:ci": "npm run build && sv add file:../=languages:en,es+generation:true --cwd demo --no-git-check --no-download-check --no-install",
         "build": "tsdown",
         "prepublishOnly": "npm run build",
         "test": "vitest run"
@@ -37,6 +37,17 @@
     "keywords": [
         "sv-add",
         "svelte",
-        "sveltekit"
-    ]
+        "sveltekit",
+        "i18n",
+        "internationalization",
+        "wuchale"
+    ],
+    "homepage": "https://wuchale.dev/",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "bugs": {
+        "url": "https://github.com/wuchalejs/wuchale/issues"
+    }
 }
