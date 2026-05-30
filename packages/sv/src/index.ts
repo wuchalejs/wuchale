@@ -129,10 +129,10 @@ export default defineAddon({
 
                         js.common.appendFromString(ast, {
                             code: `
-	      export const handle${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
-    		const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
-    		return await runWithLocale(locale, () => resolve(event))
-	      }`,
+export const handle${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
+    const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
+    return await runWithLocale(locale, () => resolve(event))
+}`,
                         })
                     }),
                 )
