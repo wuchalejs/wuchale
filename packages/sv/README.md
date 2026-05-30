@@ -1,4 +1,4 @@
-# [sv](https://svelte.dev/docs/cli/overview) community add-on: [@wuchale/sv](https://github.com/@wuchale/sv)
+# [sv](https://svelte.dev/docs/cli/overview) community add-on: [wuchale](https://github.com/@wuchale/sv)
 
 > [!IMPORTANT]
 > Svelte maintainers have not reviewed community add-ons for malicious code. Use at your discretion
