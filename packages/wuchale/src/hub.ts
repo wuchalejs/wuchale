@@ -98,6 +98,7 @@ async function getSharedState(
     adapter: Adapter,
     key: string,
     sourceLocale: string,
+    modifyCatalogs: boolean,
 ): Promise<SharedState> {
     const storage = await adapter.storage({
         locales: config.locales,
@@ -109,7 +110,7 @@ async function getSharedState(
     })
     let sharedState = sharedStates.get(storage.key)
     if (sharedState == null) {
-        sharedState = new SharedState(storage, key, sourceLocale, config.dev === 'full')
+        sharedState = new SharedState(storage, key, sourceLocale, modifyCatalogs)
         sharedStates.set(storage.key, sharedState)
     } else {
         if (sharedState.sourceLocale !== sourceLocale) {
@@ -215,6 +216,7 @@ export class Hub {
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
+        const modifyCatalogs = mode !== 'dev' || config.dev === 'full'
         for (const [key, adapter] of adaptersData) {
             const sourceLocale = adapter.sourceLocale ?? config.locales[0]
             const handler = await AdapterHandler.create({
@@ -222,8 +224,17 @@ export class Hub {
                 adapter,
                 key,
                 sourceLocale,
-                sharedState: await getSharedState(sharedStates, config, fs, root, adapter, key, sourceLocale),
-                fullDevMode: config.dev === 'full',
+                sharedState: await getSharedState(
+                    sharedStates,
+                    config,
+                    fs,
+                    root,
+                    adapter,
+                    key,
+                    sourceLocale,
+                    modifyCatalogs,
+                ),
+                modifyCatalogs,
             })
             handlers.set(key, handler)
         }
