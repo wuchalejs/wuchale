@@ -41,7 +41,7 @@ type GeminiOpts = Partial<
 
 export function gemini({
     apiKey = 'env',
-    model = 'gemini-2.5-flash',
+    model = 'gemini-3.5-flash',
     group = {},
     batchSize = 50,
     think = false,
