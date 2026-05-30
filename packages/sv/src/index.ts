@@ -193,6 +193,8 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                     }),
                 )
             } else {
+                hooksFileExisted = false
+                layoutFileExisted = false
                 sv.file(
                     'src/App.svelte',
                     transforms.svelteScript({ language }, ({ ast, js }) => {
