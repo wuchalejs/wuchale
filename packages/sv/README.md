@@ -1,4 +1,4 @@
-# [sv](https://svelte.dev/docs/cli/overview) community add-on: [wuchale](https://github.com/@wuchale/sv)
+# [sv](https://svelte.dev/docs/cli/overview) community add-on: [@wuchale/sv](https://github.com/wuchalejs/wuchale/tree/main/packages/sv)
 
 > [!IMPORTANT]
 > Svelte maintainers have not reviewed community add-ons for malicious code. Use at your discretion
@@ -8,7 +8,7 @@
 To install the add-on, run:
 
 ```shell
-npx sv add wuchale
+npx sv add @wuchale/sv
 ```
 
 ## What you get
@@ -29,7 +29,7 @@ A comma-separated list of [BCP 47](https://www.ietf.org/rfc/bcp/bcp47.txt) langu
 Default: `en, es`
 
 ```shell
-npx sv add wuchale="languages:en,zh-TW,fr"
+npx sv add @wuchale/sv="languages:en,zh-TW,fr"
 ```
 
 ### `generation`
@@ -39,5 +39,5 @@ Whether to generate and inject example setup files (`hooks.server`, `+layout` fo
 Default: `true`
 
 ```shell
-npx sv add wuchale="generation:false"
+npx sv add @wuchale/sv="generation:false"
 ```
