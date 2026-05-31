@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
@@ -95,6 +96,7 @@ type HandlerOptsCreate = FilesOptsCreatePass & {
     sourceLocale: string
     sharedState: SharedState
     modifyCatalogs: boolean
+    modifyInplace: boolean
 }
 
 type HandlerOpts = HandlerOptsCreate & {
@@ -122,7 +124,7 @@ export class AdapterHandler {
         this.adapter = opts.adapter
         this.granularState = opts.granularState
         this.sharedState = opts.sharedState
-        const [patterns, ignore] = globConfToArgs(opts.adapter.files, opts.config.localesDir, opts.adapter.outDir)
+        const [patterns, ignore] = globConfToArgs(opts.adapter.files, opts.config.localesDir)
         this.fileMatches = pm(patterns, { ignore })
         this.sourceLocale = opts.sourceLocale
         this.url = new URLHandler(opts.config.locales, this.sourceLocale, opts.adapter.url)
@@ -369,11 +371,7 @@ export class AdapterHandler {
                 this.#hmrUpdateFunc(getRuntimeVars.reactive, getRuntimeReactive),
             )
         }
-        let loaderRelTo = filename
-        if (this.adapter.outDir) {
-            loaderRelTo = resolve(`${this.adapter.outDir}/${filename}`)
-        }
-        const loaderPath = this.files.getImportLoaderPath(forServer, loaderRelTo)
+        const loaderPath = this.files.getImportLoaderPath(forServer, filename)
         const importsFuncs = [
             `${loaderImportGetRuntime} as ${getRuntimePlain}`,
             `${loaderImportGetRuntimeRx} as ${getRuntimeReactive}`,
@@ -386,7 +384,7 @@ export class AdapterHandler {
         const objElms: string[] = []
         for (const [i, loc] of this.#opts.config.locales.entries()) {
             const locKW = `_w_c_${i}_`
-            const importFrom = this.files.getImportPath(this.files.getCompiledFilePath(loc, loadID), loaderRelTo)
+            const importFrom = this.files.getImportPath(this.files.getCompiledFilePath(loc, loadID), filename)
             imports.push(`import * as ${locKW} from '${importFrom}'`)
             objElms.push(`${objKeyLocale(loc)}: ${locKW}`)
         }
@@ -612,7 +610,9 @@ export class AdapterHandler {
                 ),
             )
         }
-        await this.files.writeTransformed(filename, output.code ?? content)
+        if (this.#opts.modifyInplace && output.code) {
+            await writeFile(filename, output.code)
+        }
         return [output, updated]
     }
 }

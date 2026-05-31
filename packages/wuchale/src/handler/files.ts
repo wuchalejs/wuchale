@@ -42,13 +42,10 @@ export function normalizeSep(path: string) {
     return path.replaceAll('\\', '/')
 }
 
-export function globConfToArgs(conf: GlobConf, localesDir: string, outDir?: string): [string[], string[]] {
+export function globConfToArgs(conf: GlobConf, localesDir: string): [string[], string[]] {
     let patterns: string[] = []
     // ignore generated files
     const ignore = [`${localesDir}/**/*`]
-    if (outDir) {
-        ignore.push(outDir)
-    }
     if (typeof conf === 'string') {
         patterns = [conf]
     } else if (Array.isArray(conf)) {
@@ -303,15 +300,6 @@ export class Files {
             `
         }
         await this.#opts.fs.write(this.getCompiledFilePath(locale, loadID), module)
-    }
-
-    writeTransformed = async (filename: string, content: string) => {
-        if (!this.#opts.adapter.outDir) {
-            return
-        }
-        const fname = resolve(`${this.#opts.adapter.outDir}/${filename}`)
-        await this.#opts.fs.mkdir(dirname(fname))
-        await this.#opts.fs.write(fname, content)
     }
 
     getImportLoaderPath(forServer: boolean, relativeTo: string) {

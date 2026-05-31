@@ -202,6 +202,7 @@ export class Hub {
         mode: Mode,
         loadConfig: ConfigLoader,
         root: string,
+        modifyAdapters: string[] = [],
         hmrDelayThreshold = 1000,
         fs = defaultFS,
         formatTransformErr: TransformErrFormatter = e => e,
@@ -235,6 +236,7 @@ export class Hub {
                     modifyCatalogs,
                 ),
                 modifyCatalogs,
+                modifyInplace: modifyAdapters.includes(key),
             })
             handlers.set(key, handler)
         }
@@ -342,11 +344,7 @@ export class Hub {
         sync: boolean,
         existingFilesByOwner: Map<string, Set<string>>,
     ): Promise<boolean> {
-        const [patterns, ignore] = globConfToArgs(
-            handler.adapter.files,
-            this.#opts.config.localesDir,
-            handler.adapter.outDir,
-        )
+        const [patterns, ignore] = globConfToArgs(handler.adapter.files, this.#opts.config.localesDir)
         const filePaths = await glob(patterns, { ignore, cwd: this.#opts.root })
         let existingFiles = existingFilesByOwner.get(handler.sharedState.ownerKey)
         if (existingFiles) {

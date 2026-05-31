@@ -45,6 +45,7 @@ async function makeHandler() {
         sourceLocale: 'en',
         sharedState: new SharedState(storage, 'test', 'en', true),
         modifyCatalogs: true,
+        modifyInplace: false,
     })
 }
 

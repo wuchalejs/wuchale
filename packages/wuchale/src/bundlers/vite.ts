@@ -78,6 +78,7 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
                 config.env.DEV ? 'dev' : 'build',
                 () => getConfig(configPath),
                 dirname(configPath ?? '.'),
+                [],
                 hmrDelayThreshold,
                 undefined,
                 toViteError,

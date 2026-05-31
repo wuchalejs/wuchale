@@ -40,6 +40,9 @@ const { positionals, values } = parseArgs({
             short: 'l',
             default: 'info',
         },
+        modify: {
+            type: 'string',
+        },
         help: {
             type: 'boolean',
             short: 'h',
@@ -61,10 +64,11 @@ Commands:
     ${color.cyan('check')}   Check for errors
 
 Options:
-    ${color.cyan('--config')}         use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
-    ${color.cyan('--clean')}, ${color.cyan('-c')}      remove unused messages from catalogs
-    ${color.cyan('--watch')}, ${color.cyan('-w')}      continuously watch for file changes
-    ${color.cyan('--sync')}           extract sequentially instead of in parallel
+    ${color.cyan('--config')}         Use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
+    ${color.cyan('--clean')}, ${color.cyan('-c')}      Remove unused messages from catalogs
+    ${color.cyan('--watch')}, ${color.cyan('-w')}      Continuously watch for file changes
+    ${color.cyan('--sync')}           Extract sequentially instead of in parallel
+    ${color.cyan('--modify a1,a2')}   Modify files in place for adapters ${color.cyan('a1')}, ${color.cyan('a2')}, etc.
     ${color.cyan('--log-level')}, ${color.cyan('-l')}  {${Object.keys(logLevels).map(color.cyan)}} (only when no commands) set log level
     ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
 
@@ -97,7 +101,15 @@ if (cmd === 'status') {
     console.log(help.trimEnd())
 } else if (cmd == null) {
     const [config, root] = await configRootLocales()
-    const hub = await Hub.create('cli', () => config, root)
+    const hub = await Hub.create(
+        'cli',
+        () => config,
+        root,
+        values.modify
+            ?.split(',')
+            ?.map(a => a.trim())
+            ?.filter(a => a) ?? [],
+    )
     await hub.directVisit(values.clean, values.watch, values.sync)
 } else {
     console.warn(`${color.yellow('Unknown command')}: ${cmd}`)

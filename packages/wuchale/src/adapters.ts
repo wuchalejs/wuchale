@@ -247,8 +247,6 @@ export type AdapterPassThruOpts = {
     sourceLocale?: string
     files: GlobConf
     storage: StorageFactory
-    /** if writing transformed code to a directory is desired, specify this */
-    outDir?: string
     loading: {
         direct: boolean
         granular: boolean
