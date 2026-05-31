@@ -66,7 +66,7 @@ export class AstroTransformer extends Transformer {
         this.mixedVisitor = this.initMixedVisitor()
     }
 
-    _byteOffsetToIndex = (offset?: number) => {
+    _byteOffsetToIndex(offset?: number) {
         // this is necessary because offsets come from astro's go parser, which works with bytes
         // and that can cause misalignments when there are unicode characters
         if (offset === undefined) {
@@ -75,7 +75,7 @@ export class AstroTransformer extends Transformer {
         return u8decoder.decode(this.byteArray.slice(0, offset)).length
     }
 
-    _saveCorrectedRanges = (nodes: Node[], containerEnd: number) => {
+    _saveCorrectedRanges(nodes: Node[], containerEnd: number) {
         for (const [i, child] of nodes.entries()) {
             const isExpr = child.type === 'expression'
             const isTag = tagNodes.includes(child.type)
@@ -101,7 +101,7 @@ export class AstroTransformer extends Transformer {
         }
     }
 
-    getRange = (node: Node | AttributeNode) => {
+    getRange(node: Node | AttributeNode) {
         const corrected = this.correctedExprRanges.get(node)
         if (corrected) {
             return corrected
@@ -113,11 +113,11 @@ export class AstroTransformer extends Transformer {
         }
     }
 
-    initMixedVisitor = (): MixedVisitorAstro =>
-        new MixedVisitor({
-            vars: this.vars,
+    initMixedVisitor(): MixedVisitorAstro {
+        return new MixedVisitor({
+            vars: this.vars.bind(this),
             content: this.content,
-            getRange: this.getRange,
+            getRange: this.getRange.bind(this),
             isText: node => node.type === 'text',
             isComment: node => node.type === 'comment',
             leaveInPlace: node => [''].includes(node.type),
@@ -125,9 +125,9 @@ export class AstroTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitAs),
-            fullHeuristicDetails: this.fullHeuristicDetails,
-            checkHeuristic: this.getHeuristicMessageType,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitAs.bind(this)),
+            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
+            checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `{${rtRenderFunc}({\nx: `
                 if (this.inCompoundText) {
@@ -157,8 +157,9 @@ export class AstroTransformer extends Transformer {
                 this.mstr.appendRight(lastChildEnd, end)
             },
         })
+    }
 
-    _parseAndVisitExpr = (expr: string, startOffset: number, asScript = false): Message[] => {
+    _parseAndVisitExpr(expr: string, startOffset: number, asScript = false): Message[] {
         const [ast, comments] = (asScript ? parseScript : parseExpr)(expr)
         this.comments = comments
         this.mstr.offset = startOffset
@@ -167,7 +168,7 @@ export class AstroTransformer extends Transformer {
         return msgs
     }
 
-    visitexpression = (node: ExpressionNode): Message[] => {
+    visitexpression(node: ExpressionNode): Message[] {
         if (!node.children?.length) {
             // can be undefined!
             return []
@@ -203,9 +204,11 @@ export class AstroTransformer extends Transformer {
             useComponent: this.currentElement !== 'title',
         })
 
-    visitFragmentNode = (node: FragmentNode): Message[] => this._visitChildren(node.children)
+    visitFragmentNode(node: FragmentNode): Message[] {
+        return this._visitChildren(node.children)
+    }
 
-    visitelement = (node: ElementNode): Message[] => {
+    visitelement(node: ElementNode): Message[] {
         const currentElement = this.currentElement
         this.currentElement = node.name
         const msgs: Message[] = []
@@ -219,11 +222,15 @@ export class AstroTransformer extends Transformer {
         return msgs
     }
 
-    visitcomponent = (node: ComponentNode): Message[] => this.visitelement(node as unknown as ElementNode)
+    visitcomponent(node: ComponentNode): Message[] {
+        return this.visitelement(node as unknown as ElementNode)
+    }
 
-    'visitcustom-element' = (node: CustomElementNode): Message[] => this.visitelement(node as unknown as ElementNode)
+    'visitcustom-element'(node: CustomElementNode): Message[] {
+        return this.visitelement(node as unknown as ElementNode)
+    }
 
-    visitattribute = (node: AttributeNode): Message[] => {
+    visitattribute(node: AttributeNode): Message[] {
         const heurBase: HeuristicDetailsBase = {
             scope: 'attribute',
             element: this.currentElement,
@@ -257,7 +264,7 @@ export class AstroTransformer extends Transformer {
         return []
     }
 
-    visittext = (node: TextNode): Message[] => {
+    visittext(node: TextNode): Message[] {
         const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
         const [pass, msgInfo] = this.checkHeuristic(trimmed, {
             scope: 'markup',
@@ -271,22 +278,24 @@ export class AstroTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitfrontmatter = (node: FrontmatterNode): Message[] => {
+    visitfrontmatter(node: FrontmatterNode): Message[] {
         const { start } = this.getRange(node)
         this.frontMatterStart = this.content.indexOf('---', start) + 3
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
-    visitroot = (node: RootNode): Message[] => {
+    visitroot(node: RootNode): Message[] {
         // node.children can be undefined!
         const children = node.children ?? []
         this._saveCorrectedRanges(children, this.content.length)
         return this._visitChildren(children)
     }
 
-    visitAs = (node: Node | AttributeNode | Estree.AnyNode): Message[] => this.visit(node as Estree.AnyNode)
+    visitAs(node: Node | AttributeNode | Estree.AnyNode): Message[] {
+        return this.visit(node as Estree.AnyNode)
+    }
 
-    transformAs = async (): Promise<TransformOutput> => {
+    async transformAs(): Promise<TransformOutput> {
         const { ast } = await parse(this.content)
         const msgs = this.visitAs(ast)
         if (this.frontMatterStart == null) {

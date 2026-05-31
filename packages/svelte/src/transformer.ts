@@ -63,10 +63,12 @@ export class SvelteTransformer extends Transformer {
         this.mixedVisitor = this.initMixedVisitor()
     }
 
-    visitExpressionTag = (node: AST.ExpressionTag): Message[] => this.visit(node.expression as AnyNode)
+    visitExpressionTag(node: AST.ExpressionTag): Message[] {
+        return this.visit(node.expression as AnyNode)
+    }
 
-    override visitVariableDeclarator = (node: VariableDeclarator): Message[] => {
-        const msgs = this.defaultVisitVariableDeclarator(node)
+    override visitVariableDeclarator(node: VariableDeclarator): Message[] {
+        const msgs = super.visitVariableDeclarator(node)
         const init = node.init
         if (
             !msgs.length ||
@@ -100,9 +102,9 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    initMixedVisitor = (): MixedVisitorSvelte =>
-        new MixedVisitor({
-            vars: this.vars,
+    initMixedVisitor(): MixedVisitorSvelte {
+        return new MixedVisitor({
+            vars: this.vars.bind(this),
             content: this.content,
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
@@ -112,9 +114,9 @@ export class SvelteTransformer extends Transformer {
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitSv),
-            fullHeuristicDetails: this.fullHeuristicDetails,
-            checkHeuristic: this.getHeuristicMessageType,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitSv.bind(this)),
+            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
+            checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
                 // create and reference snippets
@@ -146,9 +148,10 @@ export class SvelteTransformer extends Transformer {
                 this.mstr.appendRight(lastChildEnd, end)
             },
         })
+    }
 
-    visitFragment = (node: AST.Fragment): Message[] =>
-        this.mixedVisitor.visit({
+    visitFragment(node: AST.Fragment): Message[] {
+        return this.mixedVisitor.visit({
             mstr: this.mstr,
             index: this.index,
             addCtx: this.addCtx,
@@ -159,8 +162,9 @@ export class SvelteTransformer extends Transformer {
             element: this.currentElement as string,
             useComponent: this.currentElement !== 'title',
         })
+    }
 
-    visitRegularElement = (node: AST.ElementLike): Message[] => {
+    visitRegularElement(node: AST.ElementLike): Message[] {
         const currentElement = this.currentElement
         this.currentElement = node.name
         const msgs: Message[] = []
@@ -172,9 +176,11 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitComponent = this.visitRegularElement
+    visitComponent(node: AST.Component) {
+        return this.visitRegularElement(node)
+    }
 
-    visitText = (node: AST.Text): Message[] => {
+    visitText(node: AST.Text): Message[] {
         const [startWh, trimmed, endWh] = nonWhitespaceText(node.data)
         const [pass, msgInfo] = this.checkHeuristic(trimmed, {
             scope: 'markup',
@@ -187,9 +193,11 @@ export class SvelteTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitSpreadAttribute = (node: AST.SpreadAttribute): Message[] => this.visit(node.expression as AnyNode)
+    visitSpreadAttribute(node: AST.SpreadAttribute): Message[] {
+        return this.visit(node.expression as AnyNode)
+    }
 
-    visitAttribute = (node: AST.Attribute): Message[] => {
+    visitAttribute(node: AST.Attribute): Message[] {
         if (node.value === true) {
             return []
         }
@@ -242,18 +250,24 @@ export class SvelteTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitConstTag = (node: AST.ConstTag): Message[] => {
+    visitConstTag(node: AST.ConstTag): Message[] {
         // @ts-expect-error
         return this.visitVariableDeclaration(node.declaration)
     }
 
-    visitRenderTag = (node: AST.RenderTag): Message[] => this.visit(node.expression as Expression)
+    visitRenderTag(node: AST.RenderTag): Message[] {
+        return this.visit(node.expression as Expression)
+    }
 
-    visitHtmlTag = (node: AST.HtmlTag): Message[] => this.visit(node.expression as Expression)
+    visitHtmlTag(node: AST.HtmlTag): Message[] {
+        return this.visit(node.expression as Expression)
+    }
 
-    visitOnDirective = (node: AST.OnDirective): Message[] => this.visit(node.expression as Expression)
+    visitOnDirective(node: AST.OnDirective): Message[] {
+        return this.visit(node.expression as Expression)
+    }
 
-    hasIdentifier = (node: AnyNode | AnyNode[], name: string): boolean => {
+    hasIdentifier(node: AnyNode | AnyNode[], name: string): boolean {
         if (!node || typeof node !== 'object') {
             return false
         }
@@ -266,7 +280,7 @@ export class SvelteTransformer extends Transformer {
         return Object.values(node).some(value => this.hasIdentifier(value, name))
     }
 
-    visitSnippetBlock = (node: AST.SnippetBlock): Message[] => {
+    visitSnippetBlock(node: AST.SnippetBlock): Message[] {
         // use module runtime var because the snippet may be exported from the module
         const prevRtVar = this.currentRtVar
         if (this.hasIdentifier(this.moduleExportExprs, node.expression.name)) {
@@ -277,7 +291,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitIfBlock = (node: AST.IfBlock): Message[] => {
+    visitIfBlock(node: AST.IfBlock): Message[] {
         const msgs = this.visit(node.test as AnyNode)
         msgs.push(...this.visitSv(node.consequent))
         if (node.alternate) {
@@ -286,7 +300,7 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitEachBlock = (node: AST.EachBlock): Message[] => {
+    visitEachBlock(node: AST.EachBlock): Message[] {
         const msgs = [...this.visit(node.expression as AnyNode), ...this.visitSv(node.body)]
         if (node.key) {
             msgs.push(...this.visit(node.key as AnyNode))
@@ -297,11 +311,11 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitKeyBlock = (node: AST.KeyBlock): Message[] => {
+    visitKeyBlock(node: AST.KeyBlock): Message[] {
         return [...this.visit(node.expression as AnyNode), ...this.visitSv(node.fragment)]
     }
 
-    visitAwaitBlock = (node: AST.AwaitBlock): Message[] => {
+    visitAwaitBlock(node: AST.AwaitBlock): Message[] {
         const msgs = this.visit(node.expression as AnyNode)
         if (node.then) {
             msgs.push(...this.visitFragment(node.then))
@@ -315,34 +329,43 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitSvelteBody = (node: AST.SvelteBody): Message[] => node.attributes.flatMap(this.visitSv)
+    visitSvelteBody(node: AST.SvelteBody): Message[] {
+        return node.attributes.flatMap(n => this.visitSv(n))
+    }
 
-    visitSvelteDocument = (node: AST.SvelteDocument): Message[] => node.attributes.flatMap(this.visitSv)
+    visitSvelteDocument(node: AST.SvelteDocument): Message[] {
+        return node.attributes.flatMap(n => this.visitSv(n))
+    }
 
-    visitSvelteElement = (node: AST.SvelteElement): Message[] => {
+    visitSvelteElement(node: AST.SvelteElement): Message[] {
         const currentElement = this.currentElement
         if (node.tag.type === 'Literal' && typeof node.tag.value === 'string') {
             this.currentElement = node.tag.value
         } else {
             this.currentElement = 'svelte:element'
         }
-        const msgs = [...node.attributes.flatMap(this.visitSv), ...this.visitFragment(node.fragment)]
+        const msgs = [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitFragment(node.fragment)]
         this.currentElement = currentElement
         return msgs
     }
 
-    visitSvelteBoundary = (node: AST.SvelteBoundary): Message[] => [
-        ...node.attributes.flatMap(this.visitSv),
-        ...this.visitSv(node.fragment),
-    ]
+    visitSvelteBoundary(node: AST.SvelteBoundary): Message[] {
+        return [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitSv(node.fragment)]
+    }
 
-    visitSvelteHead = (node: AST.SvelteHead): Message[] => this.visitSv(node.fragment)
+    visitSvelteHead(node: AST.SvelteHead): Message[] {
+        return this.visitSv(node.fragment)
+    }
 
-    visitTitleElement = (node: AST.TitleElement): Message[] => this.visitRegularElement(node)
+    visitTitleElement(node: AST.TitleElement): Message[] {
+        return this.visitRegularElement(node)
+    }
 
-    visitSvelteWindow = (node: AST.SvelteWindow): Message[] => node.attributes.flatMap(this.visitSv)
+    visitSvelteWindow(node: AST.SvelteWindow): Message[] {
+        return node.attributes.flatMap(n => this.visitSv(n))
+    }
 
-    visitRoot = (node: AST.Root): Message[] => {
+    visitRoot(node: AST.Root): Message[] {
         const msgs: Message[] = []
         if (node.module) {
             const prevRtVar = this.currentRtVar
@@ -370,10 +393,12 @@ export class SvelteTransformer extends Transformer {
         return msgs
     }
 
-    visitSv = (node: AST.SvelteNode | AnyNode): Message[] => this.visit(node as AnyNode)
+    visitSv(node: AST.SvelteNode | AnyNode): Message[] {
+        return this.visit(node as AnyNode)
+    }
 
     /** collects the ranges that will be checked if a snippet identifier is exported using RegExp test to simplify */
-    collectModuleExportExprs = (script: AST.Script) => {
+    collectModuleExportExprs(script: AST.Script) {
         for (const stmt of script.content.body) {
             if (stmt.type !== 'ExportNamedDeclaration') {
                 continue
@@ -401,7 +426,7 @@ export class SvelteTransformer extends Transformer {
         }
     }
 
-    transformSv = async (): Promise<TransformOutput> => {
+    async transformSv(): Promise<TransformOutput> {
         const isComponent = this.heuristciDetails.file.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {

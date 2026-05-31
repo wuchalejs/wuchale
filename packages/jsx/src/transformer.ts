@@ -45,9 +45,9 @@ export class JSXTransformer extends Transformer {
         this.mixedVisitor = this.initMixedVisitor()
     }
 
-    initMixedVisitor = (): MixedVisitorJSX =>
-        new MixedVisitor({
-            vars: this.vars,
+    initMixedVisitor(): MixedVisitorJSX {
+        return new MixedVisitor({
+            vars: this.vars.bind(this),
             content: this.content,
             getRange: node => ({
                 start: node.start,
@@ -63,9 +63,9 @@ export class JSXTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitJx),
-            fullHeuristicDetails: this.fullHeuristicDetails,
-            checkHeuristic: this.getHeuristicMessageType,
+            visitFunc: MixedVisitor.withCtxRestore(this, this.visitJx.bind(this)),
+            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
+            checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `<${rtComponent}`
                 if (nestedRanges.length > 0) {
@@ -96,8 +96,9 @@ export class JSXTransformer extends Transformer {
                 this.mstr.appendRight(lastChildEnd, end)
             },
         })
+    }
 
-    visitChildrenJ = (node: JX.JSXElement | JX.JSXFragment): Message[] => {
+    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment): Message[] {
         const prevInsideProg = this.heuristciDetails.insideProgram
         this.heuristciDetails.insideProgram = false
         const msg = this.mixedVisitor.visit({
@@ -114,21 +115,23 @@ export class JSXTransformer extends Transformer {
         return msg
     }
 
-    visitNameJSXNamespacedName = (node: JX.JSXNamespacedName): string => {
+    visitNameJSXNamespacedName(node: JX.JSXNamespacedName): string {
         return `${this.visitName(node.namespace)}:${this.visitName(node.name)}`
     }
 
-    visitNameJSXMemberExpression = (node: JX.JSXMemberExpression): string => {
+    visitNameJSXMemberExpression(node: JX.JSXMemberExpression): string {
         return `${this.visitName(node.object)}.${this.visitName(node.property)}`
     }
 
-    visitNameJSXIdentifier = (node: JX.JSXIdentifier): string => node.name
+    visitNameJSXIdentifier(node: JX.JSXIdentifier): string {
+        return node.name
+    }
 
-    visitName = (node: JX.JSXIdentifier | JX.JSXMemberExpression | JX.JSXNamespacedName): string => {
+    visitName(node: JX.JSXIdentifier | JX.JSXMemberExpression | JX.JSXNamespacedName): string {
         return this[`visitName${node.type}` as `visitName${typeof node.type}`](node as any)
     }
 
-    visitJSXElement = (node: JX.JSXElement): Message[] => {
+    visitJSXElement(node: JX.JSXElement): Message[] {
         const currentElement = this.currentElement
         this.currentElement = this.visitName(node.openingElement.name)
         const msgs = this.visitChildrenJ(node)
@@ -148,7 +151,7 @@ export class JSXTransformer extends Transformer {
         return msgs
     }
 
-    visitJSXText = (node: JX.JSXText): Message[] => {
+    visitJSXText(node: JX.JSXText): Message[] {
         const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
         const [pass, msgInfo] = this.checkHeuristic(trimmed, {
             scope: 'markup',
@@ -161,9 +164,11 @@ export class JSXTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitJSXFragment = (node: JX.JSXFragment): Message[] => this.visitChildrenJ(node)
+    visitJSXFragment(node: JX.JSXFragment): Message[] {
+        return this.visitChildrenJ(node)
+    }
 
-    getMarkupCommentBody = (node: JX.JSXEmptyExpression): string => {
+    getMarkupCommentBody(node: JX.JSXEmptyExpression): string {
         const comment = this.content.slice(node.start, node.end).trim()
         if (!comment) {
             return ''
@@ -171,10 +176,11 @@ export class JSXTransformer extends Transformer {
         return comment.slice(2, -2).trim()
     }
 
-    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] =>
-        this.visit(node.expression as Estree.Expression)
+    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => {
+        return this.visit(node.expression as Estree.Expression)
+    }
 
-    visitJSXAttribute = (node: JX.JSXAttribute): Message[] => {
+    visitJSXAttribute(node: JX.JSXAttribute): Message[] {
         if (node.value == null) {
             return []
         }
@@ -214,11 +220,15 @@ export class JSXTransformer extends Transformer {
         return [msgInfo]
     }
 
-    visitJSXSpreadAttribute = (node: JX.JSXSpreadAttribute): Message[] => this.visit(node.argument as Estree.Expression)
+    visitJSXSpreadAttribute(node: JX.JSXSpreadAttribute): Message[] {
+        return this.visit(node.argument as Estree.Expression)
+    }
 
-    visitJx = (node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] => this.visit(node as Estree.AnyNode)
+    visitJx(node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] {
+        return this.visit(node as Estree.AnyNode)
+    }
 
-    transformJx = (lib: JSXLib): TransformOutput => {
+    transformJx(lib: JSXLib): TransformOutput {
         // jsx vs type casting is not ambiguous in all files except .ts files
         const [ast, comments] = (this.heuristciDetails.file.endsWith('.ts') ? parseScript : parseScriptJSX)(
             this.content,
