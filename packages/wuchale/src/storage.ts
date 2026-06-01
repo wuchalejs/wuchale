@@ -115,3 +115,83 @@ export function migrateStorage(fromStorages: StorageFactory[], toStorage: Storag
         }
     }
 }
+
+type ItemType = 'message' | 'url'
+
+function filesAndLoad(storages: CatalogStorage[]) {
+    return {
+        files: storages.flatMap(s => s.files),
+        load: async () => {
+            const loadeds = await Promise.all(storages.map(st => st.load()))
+            return {
+                pluralRules: loadeds.find(l => l.pluralRules)?.pluralRules,
+                items: loadeds.flatMap(l => l.items),
+            }
+        },
+    }
+}
+
+export function storageByType(storages: Record<ItemType, StorageFactory>): StorageFactory {
+    return async opts => {
+        const promises: (CatalogStorage | Promise<CatalogStorage>)[] = []
+        const types: ItemType[] = []
+        for (const [typ, storage] of Object.entries(storages)) {
+            types.push(typ as ItemType)
+            promises.push(storage(opts))
+        }
+        const AllStorages = await Promise.all(promises)
+        const byType = new Map<ItemType, CatalogStorage>(types.map((t, i) => [t, AllStorages[i]!]))
+        return {
+            key: byType.get('message')!.key,
+            ...filesAndLoad(AllStorages),
+            save: async ({ items, pluralRules }) => {
+                const urls: Item[] = []
+                const msgs: Item[] = []
+                for (const item of items) {
+                    ;(itemIsUrl(item) ? urls : msgs).push(item)
+                }
+                const promises: (void | Promise<void>)[] = []
+                if (urls.length) {
+                    promises.push(byType.get('url')!.save({ items: urls, pluralRules }))
+                }
+                if (msgs.length) {
+                    promises.push(byType.get('message')!.save({ items: msgs, pluralRules }))
+                }
+                await Promise.all(promises)
+            },
+        }
+    }
+}
+
+export function storageByLocale(
+    storages: [string[], StorageFactory][],
+    defaultStorage: StorageFactory,
+): StorageFactory {
+    return async opts => {
+        const promises: (CatalogStorage | Promise<CatalogStorage>)[] = []
+        for (const [locales, storage] of storages) {
+            promises.push(storage({ ...opts, locales }))
+        }
+        const localesLeft = new Set(opts.locales)
+        const storagByLoc = new Map<string, CatalogStorage>()
+        const ready = await Promise.all(promises)
+        for (const [i, [locales]] of storages.entries()) {
+            for (const loc of locales) {
+                localesLeft.delete(loc)
+                storagByLoc.set(loc, ready[i]!)
+            }
+        }
+        const defaultStor = await defaultStorage({ ...opts, locales: Array.from(localesLeft) })
+        let allStorages = ready
+        if (localesLeft.size) {
+            allStorages = [defaultStor, ...ready]
+        }
+        return {
+            key: defaultStor.key,
+            ...filesAndLoad(allStorages),
+            save: async data => {
+                await Promise.all(allStorages.map(s => s.save(data)))
+            },
+        }
+    }
+}
