@@ -29,7 +29,6 @@ async function makeHandler() {
         locales: ['en'],
         root: import.meta.dirname,
         sourceLocale: 'en',
-        haveUrl: false,
         localesDir: 'src/locales',
         fs: inMemFS,
     })

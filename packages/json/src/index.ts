@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import {
     type FileRefEntry,
     fillDefaults,
@@ -35,8 +35,8 @@ type SaveDataCustom = {
 }
 
 type JSONOpts = {
-    dir: string
-    extension: string
+    /** can include `{locale}` when used for specific locales */
+    location: string
     mergeSameRegionals: boolean
     removePlaceholders: boolean
     flattenTranslations: boolean
@@ -46,8 +46,7 @@ type JSONOpts = {
 }
 
 const defaultOpts: JSONOpts = {
-    dir: 'src/locales',
-    extension: 'json',
+    location: 'src/locales/catalog.json',
     mergeSameRegionals: false,
     removePlaceholders: false,
     flattenTranslations: false,
@@ -58,17 +57,14 @@ const defaultOpts: JSONOpts = {
 
 export class JSONFile {
     key: string
-    files: [string, string]
+    files: [string]
     #opts: StorageFactoryOpts & JSONOpts
 
     constructor(opts: StorageFactoryOpts & JSONOpts) {
-        opts.dir = resolve(opts.root, opts.dir)
-        this.key = opts.dir
+        opts.location = resolve(opts.root, opts.location)
+        this.key = opts.location
         this.#opts = opts
-        this.files = [
-            resolve(opts.dir, `catalog.${opts.extension}`),
-            resolve(opts.dir, `catalog.url.${opts.extension}`),
-        ]
+        this.files = [opts.location]
     }
 
     fromSaveItem = (sitem: SaveItem) => {
@@ -132,13 +128,8 @@ export class JSONFile {
     }
 
     load = async () => {
-        let { items, pluralRules } = await this.loadRaw(this.files[0])
-        if (this.#opts.haveUrl) {
-            items = [...((await this.loadRaw(this.files[1])).items ?? []), ...(items ?? [])]
-        } else {
-            items = items ?? []
-        }
-        return { items, pluralRules }
+        const { items, pluralRules } = await this.loadRaw(this.files[0])
+        return { items: items ?? [], pluralRules }
     }
 
     saveRaw = async (filename: string, items: SaveItem[], pluralRules: PluralRules) => {
@@ -151,7 +142,10 @@ export class JSONFile {
     }
 
     toSaveItem = (item: Item): SaveItem => {
-        let translations: [string, string | string[]][] = Array.from(item.translations)
+        let translations: [string, string | string[]][] = []
+        for (const loc of this.#opts.locales) {
+            translations.push([loc, item.translations.get(loc)!])
+        }
         if (this.#opts.stringForSingle) {
             translations = translations.map(([k, t]) => [k, t.length === 1 ? t[0]! : t])
         }
@@ -227,18 +221,14 @@ export class JSONFile {
             items.filter(i => !(i.urlAdapters as string[])?.length),
             data.pluralRules,
         )
-        await this.saveRaw(
-            this.files[1],
-            items.filter(i => (i.urlAdapters as string[])?.length),
-            data.pluralRules,
-        )
     }
 }
 
 export function json(jsonOpts: Partial<JSONOpts> = {}): StorageFactory {
     return async opts => {
-        const fullOpts = fillDefaults(jsonOpts, { ...defaultOpts, dir: opts.localesDir })
-        await opts.fs.mkdir(resolve(opts.root, fullOpts.dir)) // create once
+        const defaultLocation = resolve(opts.root, opts.localesDir, 'catalog.json')
+        const fullOpts = fillDefaults(jsonOpts, { ...defaultOpts, location: defaultLocation })
+        await opts.fs.mkdir(dirname(resolve(opts.root, fullOpts.location))) // create once
         return new JSONFile({ ...opts, ...fullOpts })
     }
 }
