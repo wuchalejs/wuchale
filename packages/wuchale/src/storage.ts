@@ -91,8 +91,6 @@ export type StorageFactoryOpts = {
     root: string
     /** shared locale artifacts directory from the top-level config */
     localesDir: string
-    /** whether the url is configured, can use to load separate url files */
-    haveUrl: boolean
     sourceLocale: string
     fs: FS
 }

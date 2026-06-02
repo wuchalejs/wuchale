@@ -105,7 +105,6 @@ async function getSharedState(
         root,
         localesDir: config.localesDir,
         sourceLocale: sourceLocale,
-        haveUrl: adapter.url != null,
         fs,
     })
     let sharedState = sharedStates.get(storage.key)

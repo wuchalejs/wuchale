@@ -52,7 +52,6 @@ test('Migrate storage works', async (t: TestContext) => {
         locales: ['en', 'es'],
         root: '/proj',
         localesDir: '/proj/locales',
-        haveUrl: true,
         sourceLocale: 'en',
         fs: inMemFS,
     })

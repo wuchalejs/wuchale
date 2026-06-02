@@ -40,7 +40,7 @@ itemFull.translations.set('es', ['Hola'])
 
 const itemMin: Item = { ...itemFull, references: itemFull.references.map(r => ({ ...r, refs: [null] })) }
 
-export function testStorage(storage: CatalogStorage, name: string, urlFile: string, minimal = false) {
+export function testStorage(storage: CatalogStorage, name: string, minimal = false) {
     const item = minimal ? itemMin : itemFull
 
     test(`${name} round-trips reference metadata`, async (t: TestContext) => {
@@ -57,26 +57,16 @@ export function testStorage(storage: CatalogStorage, name: string, urlFile: stri
         t.assert.deepStrictEqual(loaded.items[0]!.translations.get('es'), ['Hola'])
     })
 
-    test(`${name} removes stale url catalogs`, async (t: TestContext) => {
-        const item = newItem(
-            {
-                urlAdapters: ['test'],
-            },
-            ['en', 'es'],
-        )
-        item.translations.set('en', ['/items/{0}'])
-        item.translations.set('es', ['/elementos/{0}'])
-        await storage.save(makeSaveData([item]))
-        const urlPath = resolve(root, urlFile)
-        t.assert.strictEqual(await inMemFS.exists(urlPath), true)
+    test(`${name} removes stale catalogs`, async (t: TestContext) => {
         await storage.save(makeSaveData([]))
-        t.assert.strictEqual(await inMemFS.exists(urlPath), false)
+        const catPath = resolve(root, 'src/locales/en.po')
+        t.assert.strictEqual(await inMemFS.exists(catPath), false)
     })
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const pofileOpts = {
-        dir: 'src/locales',
+        location: 'src/locales/{locale}.po',
         separateUrls: true,
         locales: ['en', 'es'],
         root,
@@ -87,7 +77,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
     const po = new POFile(pofileOpts)
 
-    testStorage(po, 'POFile', 'src/locales/es.url.po')
+    testStorage(po, 'POFile')
 
     test('POFile skips unlinking non existent catalogs', async (t: TestContext) => {
         let unlinkCalls = 0
@@ -112,14 +102,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             locales: ['en'],
             root,
             localesDir: 'custom/locales',
-            haveUrl: false,
             sourceLocale: 'en',
             fs: inMemFS,
         })
-        t.assert.strictEqual(storage.key, resolve(root, 'custom/locales'))
-        t.assert.deepStrictEqual(storage.files, [
-            resolve(root, 'custom/locales/en.po'),
-            resolve(root, 'custom/locales/en.url.po'),
-        ])
+        t.assert.strictEqual(storage.key, resolve(root, 'custom/locales/{locale}.po'))
+        t.assert.deepStrictEqual(storage.files, [resolve(root, 'custom/locales/en.po')])
     })
 }

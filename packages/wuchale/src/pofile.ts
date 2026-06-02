@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
 import { fillDefaults } from './config.js'
@@ -7,7 +7,6 @@ import {
     type FileRefEntry,
     type Item,
     itemIsObsolete,
-    itemIsUrl,
     type PluralRule,
     type PluralRules,
     type SaveData,
@@ -152,13 +151,12 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
 }
 
 export type POFileOptions = {
-    dir: string
-    separateUrls: boolean
+    /** in the form like 'path/to/dir/{locale}.po' */
+    location: string
 }
 
 export const defaultOpts: POFileOptions = {
-    dir: 'src/locales',
-    separateUrls: true,
+    location: 'src/locales/{locale}.po',
 }
 
 type POHeaders = Record<string, string | undefined>
@@ -166,26 +164,23 @@ type POHeaders = Record<string, string | undefined>
 export class POFile {
     key: string
     opts: StorageFactoryOpts & POFileOptions
-    filesByLoc: Map<string, [string, string]> = new Map() // main and url
+    filesByLoc: Map<string, string> = new Map() // main and url
     files: string[] = []
     fileExistsCache: Map<string, boolean> = new Map()
 
     constructor(opts: StorageFactoryOpts & POFileOptions) {
         this.opts = opts
-        opts.dir = resolve(opts.root, opts.dir)
-        this.key = opts.dir
+        opts.location = resolve(opts.root, opts.location)
+        this.key = opts.location
         for (const locale of opts.locales) {
-            const locFiles = [resolve(opts.dir, `${locale}.po`), resolve(opts.dir, `${locale}.url.po`)] as [
-                string,
-                string,
-            ]
-            this.filesByLoc.set(locale, locFiles)
-            this.files.push(...locFiles)
+            const location = opts.location.replace('{locale}', locale)
+            this.filesByLoc.set(locale, location)
+            this.files.push(location)
         }
     }
 
-    async loadRaw(locale: string, url: boolean): Promise<PO | null> {
-        const filename = this.filesByLoc.get(locale)![Number(url)]!
+    async loadRaw(locale: string): Promise<PO | null> {
+        const filename = this.filesByLoc.get(locale)!
         const content = await this.opts.fs.read(filename)
         this.fileExistsCache.set(filename, content != null)
         return content == null ? null : PO.parse(content)
@@ -197,7 +192,7 @@ export class POFile {
         const poItems: Map<string, Map<string, POItem>> = new Map()
         // first, group by key
         for (const locale of this.opts.locales) {
-            const po = await this.loadRaw(locale, false)
+            const po = await this.loadRaw(locale)
             if (po == null) {
                 continue
             }
@@ -206,10 +201,6 @@ export class POFile {
                 const pluralRule = PO.parsePluralForms(pluralHeader) as unknown as PluralRule
                 pluralRule.nplurals = Number(pluralRule.nplurals)
                 pluralRules.set(locale, pluralRule)
-            }
-            if (this.opts.separateUrls && this.opts.haveUrl) {
-                const poUrl = await this.loadRaw(locale, true)
-                poUrl && po.items.push(...poUrl.items)
             }
             for (const poItem of po.items) {
                 const key = getKey(getItemId(poItem), poItem.msgctxt)
@@ -225,8 +216,8 @@ export class POFile {
         }
     }
 
-    async saveRaw(items: POItem[], headers: POHeaders, locale: string, url: boolean) {
-        const filename = this.filesByLoc.get(locale)![Number(url)]!
+    async saveRaw(items: POItem[], headers: POHeaders, locale: string) {
+        const filename = this.filesByLoc.get(locale)!
         if (items.length === 0) {
             if (this.fileExistsCache.get(filename) === false) {
                 return
@@ -243,25 +234,15 @@ export class POFile {
     }
 
     async save(data: SaveData) {
-        const useSeparateUrls = this.opts.separateUrls && this.opts.haveUrl
         await Promise.all(
-            this.opts.locales.flatMap(locale => {
+            this.opts.locales.map(locale => {
                 const poItems: POItem[] = []
-                const poItemsUrl: POItem[] = []
                 for (const item of data.items) {
                     const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
-                    if (itemIsUrl(item) && useSeparateUrls) {
-                        poItemsUrl.push(poItem)
-                    } else {
-                        poItems.push(poItem)
-                    }
+                    poItems.push(poItem)
                 }
                 const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
-                const saveJobs = [this.saveRaw(poItems, headers, locale, false)]
-                if (useSeparateUrls) {
-                    saveJobs.push(this.saveRaw(poItemsUrl, headers, locale, true))
-                }
-                return saveJobs
+                return this.saveRaw(poItems, headers, locale)
             }),
         )
     }
@@ -285,8 +266,12 @@ export class POFile {
 
 export function pofile(pofOpts: Partial<POFileOptions> = {}): StorageFactory {
     return async opts => {
-        const fullOpts = fillDefaults(pofOpts, { ...defaultOpts, dir: opts.localesDir })
-        await opts.fs.mkdir(resolve(opts.root, fullOpts.dir)) // create once
+        const defaultLocation = resolve(opts.root, opts.localesDir, '{locale}.po')
+        const fullOpts = fillDefaults(pofOpts, { ...defaultOpts, location: defaultLocation })
+        await opts.fs.mkdir(dirname(resolve(opts.root, fullOpts.location))) // create once
+        if (!fullOpts.location.includes('{locale}')) {
+            throw new Error('PO file `location` config has to include `{locale}`')
+        }
         return new POFile({ ...opts, ...fullOpts })
     }
 }
