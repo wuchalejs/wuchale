@@ -122,7 +122,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         // be extracted.  e.g. `${name} was deleted!` becomes `{0} was deleted!`
         // — the leading `{0}` is not a letter, but the string is clearly
         // translatable user-facing content.
-        const startsWithPlaceholderPhrase = /^\{\d+\}(?:\s|'s[\s,!.])/.test(msgStr)
+        const startsWithPlaceholderPhrase = /^\{\d+\}(?:\s|'s\s)/.test(msgStr)
         if (!startsWithPlaceholderPhrase && (!/\p{L}/u.test(msgStr[0]!) || /[a-z]/.test(msgStr[0]!) || /^([A-Z]|\P{L})+$/u.test(msgStr))) {
             return false
         }

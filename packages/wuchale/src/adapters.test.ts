@@ -22,7 +22,7 @@ test('heuristic: template literal starting with placeholder + space is extracted
     t.assert.equal(heuristic(scriptMsg('{0} was successfully deleted!')), 'message')
 })
 
-test("heuristic: template literal starting with placeholder + 's is extracted", t => {
+test("heuristic: template literal starting with placeholder + 's<space> is extracted", t => {
     // `${user.email}'s role was updated` → wuchale msgStr: `{0}'s role was updated`
     t.assert.equal(heuristic(scriptMsg("{0}'s role was updated to administrator.")), 'message')
 })
