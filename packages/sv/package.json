@@ -8,16 +8,15 @@
         "demo-create": "sv create demo --types ts --template minimal --no-add-ons --no-install",
         "demo-add": "npm run build && sv add file:../ --cwd demo --no-git-check --no-install",
         "demo-add:ci": "npm run build && sv add file:../=languages:en,es+generation:true --cwd demo --no-git-check --no-download-check --no-install",
-        "build": "tsdown",
-        "prepublishOnly": "npm run build",
-        "test": "vitest run"
+        "build": "tsc",
+        "prepublishOnly": "npm run build"
     },
     "files": [
         "dist"
     ],
     "exports": {
         ".": {
-            "default": "./dist/index.mjs"
+            "default": "./dist/index.js"
         }
     },
     "publishConfig": {
@@ -27,12 +26,10 @@
         "sv": "^0.15.3"
     },
     "devDependencies": {
-        "@playwright/test": "^1.59.1",
         "@sveltejs/sv-utils": "latest",
         "@types/node": "^25.5.2",
         "sv": "^0.15.3",
-        "tsdown": "^0.21.7",
-        "vitest": "^4.1.3"
+        "typescript": "^6.0.3"
     },
     "keywords": [
         "sv-add",

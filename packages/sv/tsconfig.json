@@ -1,10 +1,10 @@
 {
+    "extends": "../../tsconfig-base.json",
     "compilerOptions": {
         "strict": true,
-        "skipLibCheck": true,
-        "checkJs": true,
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
-        "lib": ["es2021"]
-    }
+        "rootDir": "src",
+        "outDir": "dist"
+    },
+    "include": ["src"],
+    "exclude": ["dist", "node_modules", "demo"]
 }
