@@ -65,13 +65,11 @@ for (const kind of kinds) {
 
             if (kind.type === 'single-language') {
                 assert.match(wuchaleConfig, /"en"/)
-
                 assert.doesNotMatch(wuchaleConfig, /"es"/)
             }
 
             if (kind.type === 'wrong-locale') {
                 assert.match(wuchaleConfig, /"es"/)
-
                 assert.doesNotMatch(wuchaleConfig, /"dasodksaodkasokdoaskdos"/)
             }
 
@@ -83,11 +81,7 @@ for (const kind of kinds) {
 
             assert.match(viteConfig, /wuchale/)
 
-            const gitignore = fs.readFileSync(
-                path.resolve(cwd, '.gitignore'),
-
-                'utf8',
-            )
+            const gitignore = fs.readFileSync(path.resolve(cwd, '.gitignore'), 'utf8')
 
             assert.match(gitignore, /\.wuchale/)
 
@@ -99,9 +93,7 @@ for (const kind of kinds) {
                 const hooks = fs.readFileSync(hooksPath, 'utf8')
 
                 assert.match(hooks, /runWithLocale/)
-
                 assert.match(hooks, /loadLocales/)
-
                 assert.match(hooks, /handle/)
 
                 const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
@@ -111,27 +103,18 @@ for (const kind of kinds) {
                 const layout = fs.readFileSync(layoutPath, 'utf8')
 
                 assert.match(layout, /loadLocale/)
-
                 assert.match(layout, /browser/)
-
                 assert.match(layout, /load/)
             }
 
             if (!isKit && kind.type !== 'no-generation' && kind.type !== 'wrong-locale') {
-                const app = fs.readFileSync(
-                    path.resolve(cwd, 'src/App.svelte'),
-
-                    'utf8',
-                )
-
+                const app = fs.readFileSync(path.resolve(cwd, 'src/App.svelte'), 'utf8')
                 assert.match(app, /loadLocale/)
-
                 assert.match(app, /locale/)
             }
 
             if (kind.type === 'no-generation') {
                 assert.equal(fs.existsSync(path.resolve(cwd, 'src/hooks.server.js')), false)
-
                 assert.equal(fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts')), false)
             }
         })
