@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { color, transforms } from '@sveltejs/sv-utils'
 import { defineAddon, defineAddonOptions } from 'sv'
-import { color, transforms } from './sv-utils.js'
 import wuchaleKitConfig from './templates/wuchaleKitConfig.js'
 import wuchalePlainConfig from './templates/wuchalePlainConfig.js'
 
