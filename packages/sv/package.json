@@ -7,7 +7,7 @@
     "scripts": {
         "demo-create": "sv create demo --types ts --template minimal --no-add-ons --no-install",
         "demo-add": "npm run build && sv add file:../ --cwd demo --no-git-check --no-install",
-        "demo-add:ci": "npm run build && sv add file:../=languages:en,es+generation:true --cwd demo --no-git-check --no-download-check --no-install",
+        "demo-add:ci": "npm run build && sv add 'file:../=languages:en,es+generation:yes' --cwd demo --no-git-check --no-download-check --no-install",
         "build": "tsc",
         "prepublishOnly": "npm run build",
         "test": "node --import ../wuchale/testing/resolve.ts --test"
