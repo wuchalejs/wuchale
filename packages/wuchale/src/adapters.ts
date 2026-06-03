@@ -112,18 +112,18 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             return 'message'
         }
         // script and attribute
-        // ignore:
-        //  non-letter beginnings
-        //  lower-case English letter beginnings
-        //  containing only upper-case English and non-letters
-        //
-        // Exception: template literals that begin with a placeholder expression
-        // followed by a space or "'s " are natural language strings and should
-        // be extracted.  e.g. `${name} was deleted!` becomes `{0} was deleted!`
-        // — the leading `{0}` is not a letter, but the string is clearly
-        // translatable user-facing content.
-        const startsWithPlaceholderPhrase = /^\{\d+\}(?:\s|'s\s)/.test(msgStr)
-        if (!startsWithPlaceholderPhrase && (!/\p{L}/u.test(msgStr[0]!) || /[a-z]/.test(msgStr[0]!) || /^([A-Z]|\P{L})+$/u.test(msgStr))) {
+        if (/^([A-Z]|\P{L})+$/u.test(msgStr)) {
+            // only upper-case English and non-letters
+            return false
+        }
+        if (/^\{\d+\}/.test(msgStr)) {
+            // template literals that begin with a placeholder expression
+            if (!/\s\p{L}/u.test(msgStr)) {
+                // should contain spaces and letters
+                return false
+            }
+        } else if (/[a-z]|\P{L}/u.test(msgStr[0]!)) {
+            // ignore non-letter and lower-case English beginnings
             return false
         }
         if (msg.details.scope === 'attribute') {
