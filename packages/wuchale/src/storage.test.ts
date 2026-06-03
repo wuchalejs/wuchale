@@ -3,10 +3,22 @@
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { inMemFS } from '../testing/utils.ts'
-import { type Item, migrateStorage, newItem, type StorageFactory } from './storage.js'
+import {
+    type Item,
+    migrateStorage,
+    newItem,
+    type StorageFactory,
+    type StorageFactoryOpts,
+    storageByLocale,
+    storageByType,
+} from './storage.js'
 
 const itemFull = newItem(
     {
+        translations: new Map([
+            ['en', ['Hello']],
+            ['es', ['Hola']],
+        ]),
         references: [
             {
                 file: 'src/file1.ts',
@@ -14,50 +26,100 @@ const itemFull = newItem(
             },
             {
                 file: 'src/file2.ts',
-                refs: [{ placeholders: [['0', 'foo: bar;']] }, null],
+                refs: [{ placeholders: [['0', 'name']] }, null],
             },
         ],
     },
     ['en', 'es'],
 )
-itemFull.translations.set('en', ['Hello'])
-itemFull.translations.set('es', ['Hola'])
 
-let storedItems: Item[] = []
+let stor1Items: Item[] = [itemFull]
 
-const storageFrom: StorageFactory = () => ({
-    key: 'foo',
+const stor1: StorageFactory = ({ locales }) => ({
+    key: 'stor1',
     load: () => ({
-        items: [itemFull],
-    }),
-    save: () => {}, // not saving
-    files: ['/foo'],
-})
-
-const storageTo: StorageFactory = () => ({
-    key: 'bar',
-    load: () => ({
-        items: [], // new, doesn't have anything saved
+        items: stor1Items,
     }),
     save: data => {
-        storedItems = data.items
+        stor1Items = data.items.filter(i => locales.some(l => i.translations.has(l)))
     },
-    files: [],
+    files: ['/stor1'],
 })
 
-const migratorSt = migrateStorage([storageFrom], storageTo)
+let stor2Items: Item[] = []
+
+const stor2: StorageFactory = ({ locales }) => ({
+    key: 'stor2',
+    load: () => ({
+        items: stor2Items,
+    }),
+    save: data => {
+        stor2Items = data.items.filter(i => locales.some(l => i.translations.has(l)))
+    },
+    files: ['/stor2'],
+})
+
+const storageOpts: StorageFactoryOpts = {
+    locales: ['en', 'es'],
+    root: '/proj',
+    localesDir: '/proj/locales',
+    sourceLocale: 'en',
+    fs: inMemFS,
+}
 
 test('Migrate storage works', async (t: TestContext) => {
-    const storage = await migratorSt({
-        locales: ['en', 'es'],
-        root: '/proj',
-        localesDir: '/proj/locales',
-        sourceLocale: 'en',
-        fs: inMemFS,
-    })
-    t.assert.strictEqual(storage.key, 'bar')
-    t.assert.deepStrictEqual(storage.files, ['/foo'])
+    const storage = await migrateStorage([stor1], stor2)(storageOpts)
+    t.assert.strictEqual(storage.key, 'stor2')
+    t.assert.deepStrictEqual(storage.files, ['/stor1'])
     t.assert.deepStrictEqual((await storage.load()).items, [itemFull])
     await storage.save({ pluralRules: new Map(), items: [itemFull] })
-    t.assert.deepStrictEqual(storedItems, [itemFull])
+    t.assert.deepStrictEqual(stor2Items, [itemFull])
+})
+
+const itemFullUrl = newItem(
+    {
+        translations: new Map([
+            ['en', ['/foo/*']],
+            ['es', ['/bar/*']],
+        ]),
+        references: [
+            {
+                file: 'src/file2.ts',
+                refs: [{ placeholders: [['0', 'itemId']], link: '/foo/{0}' }],
+            },
+        ],
+        urlAdapters: ['main', 'js'],
+    },
+    ['en', 'es'],
+)
+
+test('Storage by type works', async (t: TestContext) => {
+    stor1Items = []
+    stor2Items = []
+    const storage = await storageByType({ message: stor1, url: stor2 })(storageOpts)
+    t.assert.strictEqual(storage.key, 'stor1,stor2')
+    t.assert.deepStrictEqual(storage.files, ['/stor1', '/stor2'])
+    await storage.save({ pluralRules: new Map(), items: [itemFull, itemFullUrl] })
+    t.assert.deepStrictEqual(stor1Items, [itemFull])
+    t.assert.deepStrictEqual(stor2Items, [itemFullUrl])
+    t.assert.deepStrictEqual((await storage.load()).items, [itemFull, itemFullUrl])
+})
+
+test('Storage by locale works', async (t: TestContext) => {
+    stor1Items = []
+    stor2Items = []
+    const storage = await storageByLocale(
+        [
+            [['en'], stor1],
+            [['es'], stor2],
+        ],
+        stor1,
+    )(storageOpts)
+    t.assert.strictEqual(storage.key, 'stor1,stor2')
+    t.assert.deepStrictEqual(storage.files, ['/stor1', '/stor2'])
+    const enItem: Item = { ...itemFull, translations: new Map([['en', itemFull.translations.get('en')!]]) }
+    await storage.save({ pluralRules: new Map(), items: [enItem] })
+    t.assert.deepStrictEqual(stor1Items, [enItem])
+    t.assert.deepStrictEqual(stor2Items, [])
+    t.assert.deepStrictEqual((await storage.load()).items, [enItem])
 })

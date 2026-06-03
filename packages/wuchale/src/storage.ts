@@ -118,6 +118,7 @@ type ItemType = 'message' | 'url'
 
 function filesAndLoad(storages: CatalogStorage[]) {
     return {
+        key: storages.map(s => s.key).join(),
         files: storages.flatMap(s => s.files),
         load: async () => {
             const loadeds = await Promise.all(storages.map(st => st.load()))
@@ -140,7 +141,6 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
         const AllStorages = await Promise.all(promises)
         const byType = new Map<ItemType, CatalogStorage>(types.map((t, i) => [t, AllStorages[i]!]))
         return {
-            key: byType.get('message')!.key,
             ...filesAndLoad(AllStorages),
             save: async ({ items, pluralRules }) => {
                 const urls: Item[] = []
@@ -185,7 +185,6 @@ export function storageByLocale(
             allStorages = [defaultStor, ...ready]
         }
         return {
-            key: defaultStor.key,
             ...filesAndLoad(allStorages),
             save: async data => {
                 await Promise.all(allStorages.map(s => s.save(data)))
