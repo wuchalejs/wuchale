@@ -36,10 +36,6 @@ const options = defineAddonOptions()
     })
     .build()
 
-// conditions for warnings in nextSteps
-let hooksFileExisted = true
-let layoutFileExisted = true
-
 export default defineAddon({
     id: 'wuchale',
     shortDescription: 'i18n',
@@ -89,7 +85,6 @@ export default defineAddon({
                     hooksFile = 'src/hooks.server.js'
                 } else {
                     hooksFile = `src/hooks.server.${language}`
-                    hooksFileExisted = false
                 }
                 const isHooksFileTS = hooksFile.endsWith('ts')
                 sv.file(
@@ -230,9 +225,9 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                     layoutFile = 'src/routes/+layout.js'
                 } else {
                     layoutFile = `src/routes/+layout.${language}`
-                    layoutFileExisted = false
                 }
                 const isLayoutFileTS = layoutFile.endsWith('ts')
+
                 sv.file(
                     layoutFile,
                     transforms.script(({ ast, js }) => {
@@ -266,8 +261,19 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                             })
                         }
 
-                        js.common.appendFromString(ast, {
-                            code: `
+                        const loadNode = ast.body.find(node => {
+                            if (node.type !== 'ExportNamedDeclaration') return undefined
+
+                            if (node.declaration?.type === 'VariableDeclaration') {
+                                return node.declaration.declarations.some((d: any) => d.id?.name === 'load')
+                            }
+
+                            return undefined
+                        }) as any
+
+                        if (!loadNode) {
+                            js.common.appendFromString(ast, {
+                                code: `
 export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
     const locale = url.searchParams.get('locale') ?? '${locales[0]}'
     if (browser && locales.includes(locale ${isLayoutFileTS ? 'as Locale' : ''})) {
@@ -275,12 +281,57 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
     }
 }
 		    `,
-                        })
+                            })
+                        } else {
+                            const loadDeclaration = loadNode.declaration.declarations.find((node: any) => {
+                                if (node.id.name === 'load') return node
+                                return undefined
+                            })
+
+                            const loadParameters = loadDeclaration.init.params
+
+                            if (!loadParameters || loadParameters.length === 0) {
+                                loadParameters.push({
+                                    type: 'ObjectPattern',
+                                    properties: [],
+                                })
+                            }
+
+                            let hasUrl: boolean = false
+                            for (const param of loadParameters) {
+                                for (const prop of param.properties) {
+                                    if (prop.key.name === 'url') {
+                                        hasUrl = true
+                                        break
+                                    }
+                                }
+                                if (hasUrl) break
+                            }
+                            const objectParameter = loadParameters.find((node: any) => {
+                                if (node.type === 'ObjectPattern') return node
+                                return undefined
+                            })
+                            if (!hasUrl) {
+                                objectParameter.properties.push({
+                                    type: 'Property',
+                                    method: false,
+                                    shorthand: true,
+                                    computed: false,
+                                    key: {
+                                        type: 'Identifier',
+                                        name: 'url',
+                                    },
+                                    value: {
+                                        type: 'Identifier',
+                                        name: 'url',
+                                    },
+                                    kind: 'init',
+                                })
+                            }
+                        }
                     }),
                 )
             } else {
-                hooksFileExisted = false
-                layoutFileExisted = false
                 sv.file(
                     'src/App.svelte',
                     transforms.svelteScript({ language }, ({ ast, js, svelte, content }) => {
@@ -332,34 +383,12 @@ ${existingHtml
         )
     },
 
-    nextSteps: ({ options }) => {
+    nextSteps: () => {
         const steps = [
             `${color.success('Wuchale setup complete!')}`,
             `Run ${color.command('npx wuchale')} for initial extract`,
             `Visit the wuchale docs at ${color.website('https://wuchale.dev/')} for full configuration`,
         ]
-
-        if (hooksFileExisted && options.generation) {
-            steps.push(
-                color.warning(
-                    `WARNING! File ${color.path(
-                        'hooks.server',
-                    )} existed before, so you might need to fix your handlers using ${color.command(
-                        'sequence',
-                    )} (${color.website('https://svelte.dev/docs/kit/@sveltejs-kit-hooks#sequence')})`,
-                ),
-            )
-        }
-
-        if (layoutFileExisted && options.generation) {
-            steps.push(
-                color.warning(
-                    `WARNING! File ${color.path('+layout')} existed before, so you might need to fix ${color.command(
-                        'load',
-                    )} function by moving its content`,
-                ),
-            )
-        }
 
         return steps
     },
