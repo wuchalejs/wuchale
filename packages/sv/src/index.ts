@@ -162,7 +162,37 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
     return await runWithLocale(locale, () => resolve(event))
 }`,
                         })
+                        if (!hasSequence) {
+                            js.imports.addNamed(ast, {
+                                from: '@sveltejs/kit/hooks',
+                                imports: ['sequence'],
+                            })
 
+                            js.common.appendFromString(ast, {
+                                code: 'export const handle = sequence(handler, i18n)',
+                            })
+                        } else {
+                            const sequenceNode = (
+                                ast.body.find(node => {
+                                    if (node.type !== 'ExportNamedDeclaration') return false
+                                    if (node.declaration?.type === 'VariableDeclaration') {
+                                        return node.declaration?.declarations.some(
+                                            (d: any) =>
+                                                d.id?.name === 'handle' &&
+                                                d.init?.type === 'CallExpression' &&
+                                                d.init?.callee?.name === 'sequence',
+                                        )
+                                    }
+                                    return false
+                                }) as any
+                            )?.declaration?.declarations?.[0]?.init
+                            sequenceNode.arguments.push({
+                                type: 'Identifier',
+                                name: 'i18n',
+                                start: 0,
+                                end: 0,
+                            })
+                        }
                         if (hasHandle) {
                             const handleNode = ast.body.find(node => {
                                 if (node.type !== 'ExportNamedDeclaration') return false
@@ -187,14 +217,6 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                                 handleNode.type = handleNode.declaration.type
                                 Object.assign(handleNode, handleNode.declaration)
                             }
-                            js.imports.addNamed(ast, {
-                                from: '@sveltejs/kit/hooks',
-                                imports: ['sequence'],
-                            })
-
-                            js.common.appendFromString(ast, {
-                                code: 'export const handle = sequence(handler, i18n)',
-                            })
                         }
                     }),
                 )
