@@ -142,19 +142,19 @@ export default defineAddon({
                         })
 
                         const handleName = hasHandle ? 'i18n' : 'handle'
-                        const hasSequence = ast.body.some(
-                            node =>
-                                node.type === 'ExportNamedDeclaration' &&
-                                node.declaration?.type === 'VariableDeclaration' &&
-                                node.declaration.declarations.some(
-                                    (dec: any) =>
-                                        dec.id?.name === 'handle' &&
-                                        dec.init?.type === 'CallExpression' &&
-                                        dec.init?.callee?.name === 'sequence',
-                                ),
-                        )
-                        console.log(`handle: ${hasHandle}`)
-                        console.log(`sequence: ${hasSequence}`)
+                        const hasSequence = ast.body.some(node => {
+                            if (node.type !== 'ExportNamedDeclaration') return false
+                            if (node.declaration?.type === 'VariableDeclaration') {
+                                return node.declaration.declarations.some(
+                                    (d: any) =>
+                                        d.id.name === 'handler' &&
+                                        d.init?.type === 'CallExpression' &&
+                                        d.init?.callee?.name === 'sequence',
+                                )
+                            }
+                            return false
+                        })
+
                         js.common.appendFromString(ast, {
                             code: `
 export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
@@ -162,7 +162,7 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
     return await runWithLocale(locale, () => resolve(event))
 }`,
                         })
-                        if (!hasSequence) {
+                        if (!hasSequence && hasHandle) {
                             js.imports.addNamed(ast, {
                                 from: '@sveltejs/kit/hooks',
                                 imports: ['sequence'],
@@ -171,7 +171,9 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                             js.common.appendFromString(ast, {
                                 code: 'export const handle = sequence(handler, i18n)',
                             })
-                        } else {
+                        }
+
+                        if (hasSequence) {
                             const sequenceNode = (
                                 ast.body.find(node => {
                                     if (node.type !== 'ExportNamedDeclaration') return false
