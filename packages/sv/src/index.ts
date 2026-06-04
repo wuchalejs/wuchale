@@ -197,7 +197,7 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                 layoutFileExisted = false
                 sv.file(
                     'src/App.svelte',
-                    transforms.svelteScript({ language }, ({ ast, js }) => {
+                    transforms.svelteScript({ language }, ({ ast, js, svelte, content }) => {
                         js.imports.addNamed(ast.instance.content, {
                             from: 'wuchale/load-utils',
                             imports: ['loadLocale'],
@@ -209,6 +209,28 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                         js.common.appendFromString(ast.instance.content, {
                             code: `let locale = $state('${locales[0]}')`,
                         })
+
+                        const nodes = ast.fragment.nodes
+
+                        const existingHtml: string[] = []
+                        for (const node of nodes) {
+                            const element = content.slice(node.start, node.end)
+                            existingHtml.push(element)
+                        }
+                        ast.fragment.nodes = []
+                        svelte.addFragment(
+                            ast,
+                            `
+{#await loadLocale(locale)}
+	Loading translations...
+{:then}
+${existingHtml
+    .join('')
+    .split('\n')
+    .map(line => `\t${line}`)
+    .join('\n')}
+{/await}`,
+                        )
                     }),
                 )
             }
@@ -224,7 +246,7 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
         )
     },
 
-    nextSteps: ({ isKit, options }) => {
+    nextSteps: ({ options }) => {
         const steps = [
             `${color.success('Wuchale setup complete!')}`,
             `Run ${color.command('npx wuchale')} for initial extract`,
@@ -250,17 +272,6 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                         'load',
                     )} function by moving its content`,
                 ),
-            )
-        }
-        if (!isKit && options.generation) {
-            steps.push(
-                `In ${color.path('App.svelte')} file move your content into like this: 
-				${color.dim(`
-	{#await loadLocale(locale)}
-    		Loading translations...
-	{:then}
-    		<!-- Move your existing app content here -->
-	{/await}`)}`,
             )
         }
 
