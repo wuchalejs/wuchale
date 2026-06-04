@@ -328,6 +328,136 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                     kind: 'init',
                                 })
                             }
+                            const localeArg = isLayoutFileTS
+                                ? {
+                                      type: 'TSAsExpression',
+                                      expression: {
+                                          type: 'Identifier',
+                                          name: 'locale',
+                                      },
+                                      typeAnnotation: {
+                                          type: 'TSTypeReference',
+                                          typeName: {
+                                              type: 'Identifier',
+                                              name: 'Locale',
+                                          },
+                                      },
+                                  }
+                                : {
+                                      type: 'Identifier',
+                                      name: 'locale',
+                                  }
+                            const block = loadDeclaration.init.body
+                            block.body.push({
+                                type: 'VariableDeclaration',
+                                kind: 'const',
+                                declarations: [
+                                    {
+                                        type: 'VariableDeclarator',
+                                        id: {
+                                            type: 'Identifier',
+                                            name: 'locale',
+                                        },
+                                        init: {
+                                            type: 'LogicalExpression',
+                                            operator: '??',
+                                            left: {
+                                                type: 'CallExpression',
+                                                callee: {
+                                                    type: 'MemberExpression',
+                                                    object: {
+                                                        type: 'MemberExpression',
+                                                        object: {
+                                                            type: 'Identifier',
+                                                            name: 'url',
+                                                        },
+                                                        property: {
+                                                            type: 'Identifier',
+                                                            name: 'searchParams',
+                                                        },
+                                                        computed: false,
+                                                        optional: false,
+                                                    },
+                                                    property: {
+                                                        type: 'Identifier',
+                                                        name: 'get',
+                                                    },
+                                                    computed: false,
+                                                    optional: false,
+                                                },
+                                                arguments: [
+                                                    {
+                                                        type: 'Literal',
+                                                        value: 'locale',
+                                                        raw: "'locale'",
+                                                    },
+                                                ],
+                                                optional: false,
+                                            },
+                                            right: {
+                                                type: 'Literal',
+                                                value: 'en',
+                                                raw: "'en'",
+                                            },
+                                        },
+                                    },
+                                ],
+                            })
+                            block.body.push({
+                                type: 'IfStatement',
+                                test: {
+                                    type: 'LogicalExpression',
+                                    operator: '&&',
+                                    left: {
+                                        type: 'Identifier',
+                                        name: 'browser',
+                                    },
+                                    right: {
+                                        type: 'CallExpression',
+                                        callee: {
+                                            type: 'MemberExpression',
+                                            object: {
+                                                type: 'Identifier',
+                                                name: 'locales',
+                                            },
+                                            property: {
+                                                type: 'Identifier',
+                                                name: 'includes',
+                                            },
+                                            computed: false,
+                                            optional: false,
+                                        },
+                                        arguments: [localeArg],
+                                        optional: false,
+                                    },
+                                },
+                                consequent: {
+                                    type: 'BlockStatement',
+                                    body: [
+                                        {
+                                            type: 'ExpressionStatement',
+                                            expression: {
+                                                type: 'AwaitExpression',
+                                                argument: {
+                                                    type: 'CallExpression',
+                                                    callee: {
+                                                        type: 'Identifier',
+                                                        name: 'loadLocale',
+                                                    },
+                                                    arguments: [
+                                                        {
+                                                            type: 'Identifier',
+                                                            name: 'locale',
+                                                        },
+                                                    ],
+                                                    optional: false,
+                                                },
+                                            },
+                                        },
+                                    ],
+                                },
+                                alternate: null,
+                            })
                         }
                     }),
                 )
