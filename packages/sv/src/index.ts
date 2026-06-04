@@ -127,13 +127,75 @@ export default defineAddon({
                             })
                         }
 
+                        const hasHandle = ast.body.some(node => {
+                            if (node.type !== 'ExportNamedDeclaration') return false
+
+                            if (node.declaration?.type === 'VariableDeclaration') {
+                                return node.declaration.declarations.some((d: any) => d.id?.name === 'handle')
+                            }
+
+                            if (node.declaration?.type === 'FunctionDeclaration') {
+                                return node.declaration.id.name === 'handle'
+                            }
+
+                            return false
+                        })
+
+                        const handleName = hasHandle ? 'i18n' : 'handle'
+                        const hasSequence = ast.body.some(
+                            node =>
+                                node.type === 'ExportNamedDeclaration' &&
+                                node.declaration?.type === 'VariableDeclaration' &&
+                                node.declaration.declarations.some(
+                                    (dec: any) =>
+                                        dec.id?.name === 'handle' &&
+                                        dec.init?.type === 'CallExpression' &&
+                                        dec.init?.callee?.name === 'sequence',
+                                ),
+                        )
+                        console.log(`handle: ${hasHandle}`)
+                        console.log(`sequence: ${hasSequence}`)
                         js.common.appendFromString(ast, {
                             code: `
-export const handle${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
+export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
     const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
     return await runWithLocale(locale, () => resolve(event))
 }`,
                         })
+
+                        if (hasHandle) {
+                            const handleNode = ast.body.find(node => {
+                                if (node.type !== 'ExportNamedDeclaration') return false
+
+                                if (node.declaration?.type === 'VariableDeclaration') {
+                                    return node.declaration.declarations.some((d: any) => d.id?.name === 'handle')
+                                }
+
+                                if (node.declaration?.type === 'FunctionDeclaration') {
+                                    return node.declaration.id.name === 'handle'
+                                }
+
+                                return false
+                            }) as any
+                            if (handleNode) {
+                                if (handleNode.declaration?.type === 'VariableDeclaration') {
+                                    handleNode.declaration.declarations[0].id.name = 'handler'
+                                } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
+                                    handleNode.declaration.id.name = 'handler'
+                                }
+
+                                handleNode.type = handleNode.declaration.type
+                                Object.assign(handleNode, handleNode.declaration)
+                            }
+                            js.imports.addNamed(ast, {
+                                from: '@sveltejs/kit/hooks',
+                                imports: ['sequence'],
+                            })
+
+                            js.common.appendFromString(ast, {
+                                code: 'export const handle = sequence(handler, i18n)',
+                            })
+                        }
                     }),
                 )
                 let layoutFile = ''
