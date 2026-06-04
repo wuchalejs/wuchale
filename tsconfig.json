@@ -10,6 +10,7 @@
         { "path": "./packages/svelte/tsconfig.dev.json" },
         { "path": "./packages/jsx/tsconfig.dev.json" },
         { "path": "./packages/astro/tsconfig.dev.json" },
-        { "path": "./packages/json/tsconfig.dev.json" }
+        { "path": "./packages/json/tsconfig.dev.json" },
+        { "path": "./packages/sv/tsconfig.dev.json" }
     ]
 }

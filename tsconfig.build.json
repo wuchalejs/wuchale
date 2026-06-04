@@ -7,6 +7,7 @@
         { "path": "./packages/svelte/tsconfig.build.json" },
         { "path": "./packages/jsx/tsconfig.build.json" },
         { "path": "./packages/astro/tsconfig.build.json" },
-        { "path": "./packages/json/tsconfig.build.json" }
+        { "path": "./packages/json/tsconfig.build.json" },
+        { "path": "./packages/sv/tsconfig.build.json" }
     ]
 }
