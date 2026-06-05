@@ -89,7 +89,7 @@ export default defineAddon({
                 const isHooksFileTS = hooksFile.endsWith('ts')
                 sv.file(
                     hooksFile,
-                    transforms.script(({ ast, js }) => {
+                    transforms.script(({ ast, js, content }) => {
                         js.imports.addNamespace(ast, {
                             as: 'main',
                             from: './locales/main.loader.server.svelte.js',
@@ -107,12 +107,16 @@ export default defineAddon({
                             from: './locales/data.js',
                         })
 
-                        js.common.appendFromString(ast, {
-                            code: 'loadLocales(main.key, main.loadIDs, main.loadCatalog, locales)',
-                        })
-                        js.common.appendFromString(ast, {
-                            code: 'loadLocales(js.key, js.loadIDs, js.loadCatalog, locales)',
-                        })
+                        if (!content?.includes('loadLocales(main.key')) {
+                            js.common.appendFromString(ast, {
+                                code: 'loadLocales(main.key, main.loadIDs, main.loadCatalog, locales)',
+                            })
+                        }
+                        if (!content?.includes('loadLocales(js.key')) {
+                            js.common.appendFromString(ast, {
+                                code: 'loadLocales(js.key, js.loadIDs, js.loadCatalog, locales)',
+                            })
+                        }
 
                         if (isHooksFileTS) {
                             js.imports.addNamed(ast, {
@@ -122,11 +126,13 @@ export default defineAddon({
                             })
                         }
 
-                        const handleNode = ast.body.some(node => {
+                        const handleNode = ast.body.find(node => {
                             if (node.type !== 'ExportNamedDeclaration') return undefined
 
                             if (node.declaration?.type === 'VariableDeclaration') {
-                                return node.declaration.declarations.find((d: any) => d.id?.name === 'handle')
+                                return node.declaration.declarations.find(
+                                    (d: any) => d.id?.name === 'handle' && d.init?.callee?.name !== 'sequence',
+                                )
                             }
 
                             if (node.declaration?.type === 'FunctionDeclaration') {
@@ -136,7 +142,6 @@ export default defineAddon({
                             return undefined
                         }) as any
 
-                        const handleName = handleNode ? 'i18n' : 'handle'
                         const sequenceNode = ast.body.find(node => {
                             if (node.type !== 'ExportNamedDeclaration') return false
                             if (node.declaration?.type === 'VariableDeclaration') {
@@ -149,14 +154,18 @@ export default defineAddon({
                             }
                             return false
                         }) as any
-                        js.common.appendFromString(ast, {
-                            code: `
+                        const handleName = handleNode || sequenceNode ? 'i18n' : 'handle'
+
+                        if (!content.includes('runWithLocale') && !content.includes('export const i18n')) {
+                            js.common.appendFromString(ast, {
+                                code: `
 export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
     const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
     return await runWithLocale(locale, () => resolve(event))
 }`,
-                        })
-                        if (!sequenceNode && handleNode) {
+                            })
+                        }
+                        if (!sequenceNode && handleNode && !content.includes('sequence(handler')) {
                             js.imports.addNamed(ast, {
                                 from: '@sveltejs/kit/hooks',
                                 imports: ['sequence'],
@@ -169,12 +178,17 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
 
                         if (sequenceNode) {
                             const sequenceArgs = sequenceNode.declaration?.declarations?.[0]?.init.arguments
-                            sequenceArgs.push({
-                                type: 'Identifier',
-                                name: 'i18n',
-                                start: 0,
-                                end: 0,
-                            })
+                            const hasI18nArg = sequenceArgs.some(
+                                (arg: any) => arg.type === 'Identifier' && arg.name === 'i18n',
+                            )
+                            if (!hasI18nArg) {
+                                sequenceArgs.push({
+                                    type: 'Identifier',
+                                    name: 'i18n',
+                                    start: 0,
+                                    end: 0,
+                                })
+                            }
                         }
                         if (handleNode) {
                             if (handleNode.declaration?.type === 'VariableDeclaration') {
@@ -201,9 +215,9 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
 
                 sv.file(
                     layoutFile,
-                    transforms.script(({ ast, js }) => {
+                    transforms.script(({ ast, js, content }) => {
                         const dataImports = ['locales']
-                        if (isLayoutFileTS) {
+                        if (isLayoutFileTS && !content.includes('type Locale')) {
                             dataImports.push('type Locale')
                         }
                         js.imports.addNamed(ast, {
@@ -301,13 +315,21 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                             }
 
                             const block = loadDeclaration.init.body
-                            js.common.appendFromString(block, {
-                                code: `const locale = url.searchParams.get('locale') ?? '${locales[0]}'
-    if (browser && locales.includes(locale ${isLayoutFileTS ? 'as Locale' : ''})) {
-        await loadLocale(locale)
-    }
-`,
-                            })
+                            if (!content.includes("const locale = url.searchParams.get('locale') ??")) {
+                                const localeDecl = js.common.parseStatement(
+                                    `const locale = url.searchParams.get('locale') ?? '${locales[0]}';`,
+                                )
+
+                                const ifStatement = js.common.parseStatement(
+                                    `if (browser && locales.includes(locale ${
+                                        isLayoutFileTS ? 'as Locale' : ''
+                                    })) { await loadLocale(locale); }`,
+                                )
+
+                                if (!content.includes(".searchParams.get('locale')")) {
+                                    block.body.unshift(localeDecl, ifStatement)
+                                }
+                            }
                         }
                     }),
                 )
@@ -322,22 +344,24 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                         js.imports.addEmpty(ast.instance.content, {
                             from: './locales/main.loader.svelte.js',
                         })
-
-                        js.common.appendFromString(ast.instance.content, {
-                            code: `let locale = $state('${locales[0]}')`,
-                        })
-
-                        const nodes = ast.fragment.nodes
-
-                        const existingHtml: string[] = []
-                        for (const node of nodes) {
-                            const element = content.slice(node.start, node.end)
-                            existingHtml.push(element)
+                        if (!content?.includes('let locale = $state')) {
+                            js.common.appendFromString(ast.instance.content, {
+                                code: `let locale = $state('${locales[0]}')`,
+                            })
                         }
-                        ast.fragment.nodes = []
-                        svelte.addFragment(
-                            ast,
-                            `
+
+                        if (!content?.includes('#await loadLocale')) {
+                            const nodes = ast.fragment.nodes
+
+                            const existingHtml: string[] = []
+                            for (const node of nodes) {
+                                const element = content.slice(node.start, node.end)
+                                existingHtml.push(element)
+                            }
+                            ast.fragment.nodes = []
+                            svelte.addFragment(
+                                ast,
+                                `
 {#await loadLocale(locale)}
 	Loading translations...
 {:then}
@@ -347,7 +371,8 @@ ${existingHtml
     .map(line => `\t${line}`)
     .join('\n')}
 {/await}`,
-                        )
+                            )
+                        }
                     }),
                 )
             }
