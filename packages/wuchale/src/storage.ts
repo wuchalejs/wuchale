@@ -1,3 +1,4 @@
+import { getKey } from './adapters.js'
 import type { FS } from './fs.js'
 
 export type FileRefEntry = {
@@ -116,19 +117,10 @@ export function migrateStorage(fromStorages: StorageFactory[], toStorage: Storag
 
 type ItemType = 'message' | 'url'
 
-function filesAndLoad(storages: CatalogStorage[]) {
-    return {
-        key: storages.map(s => s.key).join(),
-        files: storages.flatMap(s => s.files),
-        load: async () => {
-            const loadeds = await Promise.all(storages.map(st => st.load()))
-            return {
-                pluralRules: loadeds.find(l => l.pluralRules)?.pluralRules,
-                items: loadeds.flatMap(l => l.items),
-            }
-        },
-    }
-}
+const keyAndFiles = (storages: CatalogStorage[]) => ({
+    key: storages.map(s => s.key).join(),
+    files: storages.flatMap(s => s.files),
+})
 
 export function storageByType(storages: Record<ItemType, StorageFactory>): StorageFactory {
     return async opts => {
@@ -138,10 +130,17 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
             types.push(typ as ItemType)
             promises.push(storage(opts))
         }
-        const AllStorages = await Promise.all(promises)
-        const byType = new Map<ItemType, CatalogStorage>(types.map((t, i) => [t, AllStorages[i]!]))
+        const all = await Promise.all(promises)
+        const byType = new Map<ItemType, CatalogStorage>(types.map((t, i) => [t, all[i]!]))
         return {
-            ...filesAndLoad(AllStorages),
+            ...keyAndFiles(all),
+            load: async () => {
+                const loadeds = await Promise.all(all.map(st => st.load()))
+                return {
+                    pluralRules: loadeds.find(l => l.pluralRules)?.pluralRules,
+                    items: loadeds.flatMap(l => l.items),
+                }
+            },
             save: async ({ items, pluralRules }) => {
                 const urls: Item[] = []
                 const msgs: Item[] = []
@@ -161,33 +160,52 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
     }
 }
 
-export function storageByLocale(
-    storages: [string[], StorageFactory][],
-    defaultStorage: StorageFactory,
-): StorageFactory {
+export function storageByLocale(storages: [string[], StorageFactory][]): StorageFactory {
     return async opts => {
         const promises: (CatalogStorage | Promise<CatalogStorage>)[] = []
         for (const [locales, storage] of storages) {
             promises.push(storage({ ...opts, locales }))
         }
         const localesLeft = new Set(opts.locales)
-        const storagByLoc = new Map<string, CatalogStorage>()
-        const ready = await Promise.all(promises)
-        for (const [i, [locales]] of storages.entries()) {
+        const all = await Promise.all(promises)
+        for (const [locales] of storages) {
             for (const loc of locales) {
                 localesLeft.delete(loc)
-                storagByLoc.set(loc, ready[i]!)
             }
         }
-        const defaultStor = await defaultStorage({ ...opts, locales: Array.from(localesLeft) })
-        let allStorages = ready
-        if (localesLeft.size) {
-            allStorages = [defaultStor, ...ready]
-        }
         return {
-            ...filesAndLoad(allStorages),
+            ...keyAndFiles(all),
+            load: async () => {
+                const items = new Map<string, Item>() // to merge by key
+                let pluralRules: PluralRules | undefined
+                for (const loaded of await Promise.all(all.map(st => st.load()))) {
+                    if (!pluralRules) {
+                        pluralRules = loaded.pluralRules
+                    }
+                    for (const item of loaded.items) {
+                        const sourceTransl = item.translations.get(opts.sourceLocale)
+                        if (!sourceTransl) {
+                            throw new Error(
+                                `Source translation not found for in ${JSON.stringify(Array.from(item.translations.entries()))}`,
+                            )
+                        }
+                        const key = getKey(sourceTransl, item.context)
+                        const itemFull = items.get(key)
+                        if (!itemFull) {
+                            items.set(key, item)
+                            continue
+                        }
+                        for (const [locale, transl] of item.translations) {
+                            if (transl && !itemFull.translations.get(locale)) {
+                                itemFull.translations.set(locale, transl)
+                            }
+                        }
+                    }
+                }
+                return { pluralRules, items: Array.from(items.values()) }
+            },
             save: async data => {
-                await Promise.all(allStorages.map(s => s.save(data)))
+                await Promise.all(all.map(s => s.save(data)))
             },
         }
     }
