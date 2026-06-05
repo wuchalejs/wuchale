@@ -64,4 +64,4 @@ export type {
     StorageFactory,
     StorageFactoryOpts,
 } from './storage.js'
-export { defaultPluralRule, migrateStorage, storageByLocale, storageByType } from './storage.js'
+export { defaultPluralRule, mergeItemsByKey, migrateStorage, storageByLocale, storageByType } from './storage.js'
