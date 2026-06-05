@@ -122,34 +122,33 @@ export default defineAddon({
                             })
                         }
 
-                        const hasHandle = ast.body.some(node => {
-                            if (node.type !== 'ExportNamedDeclaration') return false
+                        const handleNode = ast.body.some(node => {
+                            if (node.type !== 'ExportNamedDeclaration') return undefined
 
                             if (node.declaration?.type === 'VariableDeclaration') {
-                                return node.declaration.declarations.some((d: any) => d.id?.name === 'handle')
+                                return node.declaration.declarations.find((d: any) => d.id?.name === 'handle')
                             }
 
                             if (node.declaration?.type === 'FunctionDeclaration') {
                                 return node.declaration.id.name === 'handle'
                             }
 
-                            return false
-                        })
+                            return undefined
+                        }) as any
 
-                        const handleName = hasHandle ? 'i18n' : 'handle'
-                        const hasSequence = ast.body.some(node => {
+                        const handleName = handleNode ? 'i18n' : 'handle'
+                        const sequenceNode = ast.body.find(node => {
                             if (node.type !== 'ExportNamedDeclaration') return false
                             if (node.declaration?.type === 'VariableDeclaration') {
-                                return node.declaration.declarations.some(
+                                return node.declaration?.declarations.some(
                                     (d: any) =>
-                                        d.id.name === 'handler' &&
+                                        d.id?.name === 'handle' &&
                                         d.init?.type === 'CallExpression' &&
                                         d.init?.callee?.name === 'sequence',
                                 )
                             }
                             return false
-                        })
-
+                        }) as any
                         js.common.appendFromString(ast, {
                             code: `
 export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
@@ -157,7 +156,7 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
     return await runWithLocale(locale, () => resolve(event))
 }`,
                         })
-                        if (!hasSequence && hasHandle) {
+                        if (!sequenceNode && handleNode) {
                             js.imports.addNamed(ast, {
                                 from: '@sveltejs/kit/hooks',
                                 imports: ['sequence'],
@@ -168,52 +167,24 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                             })
                         }
 
-                        if (hasSequence) {
-                            const sequenceNode = (
-                                ast.body.find(node => {
-                                    if (node.type !== 'ExportNamedDeclaration') return false
-                                    if (node.declaration?.type === 'VariableDeclaration') {
-                                        return node.declaration?.declarations.some(
-                                            (d: any) =>
-                                                d.id?.name === 'handle' &&
-                                                d.init?.type === 'CallExpression' &&
-                                                d.init?.callee?.name === 'sequence',
-                                        )
-                                    }
-                                    return false
-                                }) as any
-                            )?.declaration?.declarations?.[0]?.init
-                            sequenceNode.arguments.push({
+                        if (sequenceNode) {
+                            const sequenceArgs = sequenceNode.declaration?.declarations?.[0]?.init.arguments
+                            sequenceArgs.push({
                                 type: 'Identifier',
                                 name: 'i18n',
                                 start: 0,
                                 end: 0,
                             })
                         }
-                        if (hasHandle) {
-                            const handleNode = ast.body.find(node => {
-                                if (node.type !== 'ExportNamedDeclaration') return false
-
-                                if (node.declaration?.type === 'VariableDeclaration') {
-                                    return node.declaration.declarations.some((d: any) => d.id?.name === 'handle')
-                                }
-
-                                if (node.declaration?.type === 'FunctionDeclaration') {
-                                    return node.declaration.id.name === 'handle'
-                                }
-
-                                return false
-                            }) as any
-                            if (handleNode) {
-                                if (handleNode.declaration?.type === 'VariableDeclaration') {
-                                    handleNode.declaration.declarations[0].id.name = 'handler'
-                                } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
-                                    handleNode.declaration.id.name = 'handler'
-                                }
-
-                                handleNode.type = handleNode.declaration.type
-                                Object.assign(handleNode, handleNode.declaration)
+                        if (handleNode) {
+                            if (handleNode.declaration?.type === 'VariableDeclaration') {
+                                handleNode.declaration.declarations[0].id.name = 'handler'
+                            } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
+                                handleNode.declaration.id.name = 'handler'
                             }
+
+                            handleNode.type = handleNode.declaration.type
+                            Object.assign(handleNode, handleNode.declaration)
                         }
                     }),
                 )
@@ -328,135 +299,14 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                     kind: 'init',
                                 })
                             }
-                            const localeArg = isLayoutFileTS
-                                ? {
-                                      type: 'TSAsExpression',
-                                      expression: {
-                                          type: 'Identifier',
-                                          name: 'locale',
-                                      },
-                                      typeAnnotation: {
-                                          type: 'TSTypeReference',
-                                          typeName: {
-                                              type: 'Identifier',
-                                              name: 'Locale',
-                                          },
-                                      },
-                                  }
-                                : {
-                                      type: 'Identifier',
-                                      name: 'locale',
-                                  }
+
                             const block = loadDeclaration.init.body
-                            block.body.push({
-                                type: 'VariableDeclaration',
-                                kind: 'const',
-                                declarations: [
-                                    {
-                                        type: 'VariableDeclarator',
-                                        id: {
-                                            type: 'Identifier',
-                                            name: 'locale',
-                                        },
-                                        init: {
-                                            type: 'LogicalExpression',
-                                            operator: '??',
-                                            left: {
-                                                type: 'CallExpression',
-                                                callee: {
-                                                    type: 'MemberExpression',
-                                                    object: {
-                                                        type: 'MemberExpression',
-                                                        object: {
-                                                            type: 'Identifier',
-                                                            name: 'url',
-                                                        },
-                                                        property: {
-                                                            type: 'Identifier',
-                                                            name: 'searchParams',
-                                                        },
-                                                        computed: false,
-                                                        optional: false,
-                                                    },
-                                                    property: {
-                                                        type: 'Identifier',
-                                                        name: 'get',
-                                                    },
-                                                    computed: false,
-                                                    optional: false,
-                                                },
-                                                arguments: [
-                                                    {
-                                                        type: 'Literal',
-                                                        value: 'locale',
-                                                        raw: "'locale'",
-                                                    },
-                                                ],
-                                                optional: false,
-                                            },
-                                            right: {
-                                                type: 'Literal',
-                                                value: 'en',
-                                                raw: "'en'",
-                                            },
-                                        },
-                                    },
-                                ],
-                            })
-                            block.body.push({
-                                type: 'IfStatement',
-                                test: {
-                                    type: 'LogicalExpression',
-                                    operator: '&&',
-                                    left: {
-                                        type: 'Identifier',
-                                        name: 'browser',
-                                    },
-                                    right: {
-                                        type: 'CallExpression',
-                                        callee: {
-                                            type: 'MemberExpression',
-                                            object: {
-                                                type: 'Identifier',
-                                                name: 'locales',
-                                            },
-                                            property: {
-                                                type: 'Identifier',
-                                                name: 'includes',
-                                            },
-                                            computed: false,
-                                            optional: false,
-                                        },
-                                        arguments: [localeArg],
-                                        optional: false,
-                                    },
-                                },
-                                consequent: {
-                                    type: 'BlockStatement',
-                                    body: [
-                                        {
-                                            type: 'ExpressionStatement',
-                                            expression: {
-                                                type: 'AwaitExpression',
-                                                argument: {
-                                                    type: 'CallExpression',
-                                                    callee: {
-                                                        type: 'Identifier',
-                                                        name: 'loadLocale',
-                                                    },
-                                                    arguments: [
-                                                        {
-                                                            type: 'Identifier',
-                                                            name: 'locale',
-                                                        },
-                                                    ],
-                                                    optional: false,
-                                                },
-                                            },
-                                        },
-                                    ],
-                                },
-                                alternate: null,
+                            js.common.appendFromString(block, {
+                                code: `const locale = url.searchParams.get('locale') ?? '${locales[0]}'
+    if (browser && locales.includes(locale ${isLayoutFileTS ? 'as Locale' : ''})) {
+        await loadLocale(locale)
+    }
+`,
                             })
                         }
                     }),
