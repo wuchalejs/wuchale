@@ -156,7 +156,7 @@ export default defineAddon({
                         }) as any
                         const handleName = handleNode || sequenceNode ? 'i18n' : 'handle'
 
-                        if (!content.includes('runWithLocale') && !content.includes('export const i18n')) {
+                        if (!content.includes('export const i18n')) {
                             js.common.appendFromString(ast, {
                                 code: `
 export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
@@ -315,7 +315,7 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                             }
 
                             const block = loadDeclaration.init.body
-                            if (!content.includes("const locale = url.searchParams.get('locale') ??")) {
+                            if (!content.includes('const locale = url.searchParams.get')) {
                                 const localeDecl = js.common.parseStatement(
                                     `const locale = url.searchParams.get('locale') ?? '${locales[0]}';`,
                                 )
