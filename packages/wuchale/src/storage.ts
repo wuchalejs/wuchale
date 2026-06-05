@@ -160,6 +160,32 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
     }
 }
 
+export function mergeItemsByKey(allItems: Item[][], sourceLocale: string): Item[] {
+    const items = new Map<string, Item>()
+    for (const allItms of allItems) {
+        for (const item of allItms) {
+            const sourceTransl = item.translations.get(sourceLocale)
+            if (!sourceTransl) {
+                throw new Error(
+                    `Source translation not found for in ${JSON.stringify(Array.from(item.translations.entries()))}`,
+                )
+            }
+            const key = getKey(sourceTransl, item.context)
+            const itemFull = items.get(key)
+            if (!itemFull) {
+                items.set(key, item)
+                continue
+            }
+            for (const [locale, transl] of item.translations) {
+                if (transl && !itemFull.translations.get(locale)) {
+                    itemFull.translations.set(locale, transl)
+                }
+            }
+        }
+    }
+    return Array.from(items.values())
+}
+
 export function storageByLocale(storages: [string[], StorageFactory][]): StorageFactory {
     return async opts => {
         const promises: (CatalogStorage | Promise<CatalogStorage>)[] = []
@@ -176,33 +202,15 @@ export function storageByLocale(storages: [string[], StorageFactory][]): Storage
         return {
             ...keyAndFiles(all),
             load: async () => {
-                const items = new Map<string, Item>() // to merge by key
                 let pluralRules: PluralRules | undefined
+                const itemsToMerge: Item[][] = []
                 for (const loaded of await Promise.all(all.map(st => st.load()))) {
                     if (!pluralRules) {
                         pluralRules = loaded.pluralRules
                     }
-                    for (const item of loaded.items) {
-                        const sourceTransl = item.translations.get(opts.sourceLocale)
-                        if (!sourceTransl) {
-                            throw new Error(
-                                `Source translation not found for in ${JSON.stringify(Array.from(item.translations.entries()))}`,
-                            )
-                        }
-                        const key = getKey(sourceTransl, item.context)
-                        const itemFull = items.get(key)
-                        if (!itemFull) {
-                            items.set(key, item)
-                            continue
-                        }
-                        for (const [locale, transl] of item.translations) {
-                            if (transl && !itemFull.translations.get(locale)) {
-                                itemFull.translations.set(locale, transl)
-                            }
-                        }
-                    }
+                    itemsToMerge.push(loaded.items)
                 }
-                return { pluralRules, items: Array.from(items.values()) }
+                return { pluralRules, items: mergeItemsByKey(itemsToMerge, opts.sourceLocale) }
             },
             save: async data => {
                 await Promise.all(all.map(s => s.save(data)))
