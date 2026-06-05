@@ -42,7 +42,7 @@ export default defineAddon({
     homepage: 'https://wuchale.dev/',
     options,
 
-    run: ({ sv, options, language, file, isKit }) => {
+    run: ({ sv, options, language, file, isKit, dependencyVersion }) => {
         const { validTags } = parseLanguageInput(options.languages)
         const locales: string[] = []
 
@@ -361,6 +361,23 @@ ${existingHtml
                 return text.upsert(content, '.wuchale')
             }),
         )
+
+        const tailwindInstalled = Boolean(dependencyVersion('tailwindcss'))
+
+        if (tailwindInstalled) {
+            sv.file(
+                file.stylesheet,
+                transforms.css(({ ast, content, css }) => {
+                    if (!content.includes(`@source not "../locales/";`)) {
+                        css.addAtRule(ast, {
+                            name: 'source',
+                            params: 'not "../locales/"',
+                            append: true,
+                        })
+                    }
+                }),
+            )
+        }
     },
 
     nextSteps: () => {
