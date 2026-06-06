@@ -84,6 +84,7 @@ export const handle = sequence(first, second)\n`,
         },
     },
 ]
+
 const variants = ['svelte', 'svelte-kit']
 
 for (const kind of kinds) {
@@ -117,57 +118,35 @@ for (const kind of kinds) {
                 packageManager: 'npm',
             })
 
-            const wuchaleConfigPath = path.resolve(cwd, 'wuchale.config.js')
-
-            assert.equal(fs.existsSync(wuchaleConfigPath), true)
-
-            const wuchaleConfig = fs.readFileSync(wuchaleConfigPath, 'utf8')
-
+            assert.equal(fs.existsSync(path.resolve(cwd, 'wuchale.config.js')), true)
+            const wuchaleConfig = fs.readFileSync(path.resolve(cwd, 'wuchale.config.js'), 'utf8')
             assert.match(wuchaleConfig, /en/)
 
             if (kind.type === 'default') {
                 assert.match(wuchaleConfig, /es/)
             }
-
             if (kind.type === 'single-language') {
                 assert.match(wuchaleConfig, /"en"/)
                 assert.doesNotMatch(wuchaleConfig, /"es"/)
             }
-
             if (kind.type === 'wrong-locale') {
                 assert.match(wuchaleConfig, /"es"/)
                 assert.doesNotMatch(wuchaleConfig, /"dasodksaodkasokdoaskdos"/)
             }
 
-            const viteConfigPath = fs.existsSync(path.resolve(cwd, 'vite.config.ts'))
-                ? path.resolve(cwd, 'vite.config.ts')
-                : path.resolve(cwd, 'vite.config.js')
-
-            const viteConfig = fs.readFileSync(viteConfigPath, 'utf8')
-
+            const viteConfig = fs.readFileSync(path.resolve(cwd, 'vite.config.ts'), 'utf8')
             assert.match(viteConfig, /wuchale/)
 
             const gitignore = fs.readFileSync(path.resolve(cwd, '.gitignore'), 'utf8')
-
             assert.match(gitignore, /\.wuchale/)
 
             if (isKit && kind.type !== 'no-generation' && kind.type !== 'wrong-locale') {
-                const hooksPath = fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))
-                    ? path.resolve(cwd, 'src/hooks.server.ts')
-                    : path.resolve(cwd, 'src/hooks.server.js')
-
-                const hooks = fs.readFileSync(hooksPath, 'utf8')
-
+                const hooks = fs.readFileSync(path.resolve(cwd, 'src/hooks.server.ts'), 'utf8')
                 assert.match(hooks, /runWithLocale/)
                 assert.match(hooks, /loadLocales/)
                 assert.match(hooks, /handle/)
 
-                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
-                    ? path.resolve(cwd, 'src/routes/+layout.ts')
-                    : path.resolve(cwd, 'src/routes/+layout.js')
-
-                const layout = fs.readFileSync(layoutPath, 'utf8')
-
+                const layout = fs.readFileSync(path.resolve(cwd, 'src/routes/+layout.ts'), 'utf8')
                 assert.match(layout, /loadLocale/)
                 assert.match(layout, /browser/)
                 assert.match(layout, /load/)
@@ -185,10 +164,7 @@ for (const kind of kinds) {
             }
 
             if (isKit && kind.type === 'existing-layout-no-url') {
-                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
-                    ? path.resolve(cwd, 'src/routes/+layout.ts')
-                    : path.resolve(cwd, 'src/routes/+layout.js')
-                const layout = fs.readFileSync(layoutPath, 'utf8')
+                const layout = fs.readFileSync(path.resolve(cwd, 'src/routes/+layout.ts'), 'utf8')
                 assert.match(layout, /url/)
                 assert.match(layout, /searchParams/)
                 assert.match(layout, /loadLocale/)
@@ -197,10 +173,7 @@ for (const kind of kinds) {
             }
 
             if (isKit && kind.type === 'existing-layout-with-url') {
-                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
-                    ? path.resolve(cwd, 'src/routes/+layout.ts')
-                    : path.resolve(cwd, 'src/routes/+layout.js')
-                const layout = fs.readFileSync(layoutPath, 'utf8')
+                const layout = fs.readFileSync(path.resolve(cwd, 'src/routes/+layout.ts'), 'utf8')
                 assert.match(layout, /url/)
                 assert.match(layout, /searchParams/)
                 assert.match(layout, /cookies/)
@@ -209,10 +182,7 @@ for (const kind of kinds) {
             }
 
             if (isKit && kind.type === 'existing-layout-empty-params') {
-                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
-                    ? path.resolve(cwd, 'src/routes/+layout.ts')
-                    : path.resolve(cwd, 'src/routes/+layout.js')
-                const layout = fs.readFileSync(layoutPath, 'utf8')
+                const layout = fs.readFileSync(path.resolve(cwd, 'src/routes/+layout.ts'), 'utf8')
                 assert.match(layout, /url/)
                 assert.match(layout, /searchParams/)
                 assert.match(layout, /loadLocale/)
@@ -220,10 +190,7 @@ for (const kind of kinds) {
             }
 
             if (isKit && kind.type === 'existing-hooks-sequence') {
-                const hooksPath = fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))
-                    ? path.resolve(cwd, 'src/hooks.server.ts')
-                    : path.resolve(cwd, 'src/hooks.server.js')
-                const hooks = fs.readFileSync(hooksPath, 'utf8')
+                const hooks = fs.readFileSync(path.resolve(cwd, 'src/hooks.server.ts'), 'utf8')
                 assert.match(hooks, /sequence/)
                 assert.match(hooks, /i18n/)
                 assert.match(hooks, /first/)
@@ -233,10 +200,7 @@ for (const kind of kinds) {
             }
 
             if (isKit && kind.type === 'existing-layout-with-content') {
-                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
-                    ? path.resolve(cwd, 'src/routes/+layout.ts')
-                    : path.resolve(cwd, 'src/routes/+layout.js')
-                const layout = fs.readFileSync(layoutPath, 'utf8')
+                const layout = fs.readFileSync(path.resolve(cwd, 'src/routes/+layout.ts'), 'utf8')
                 assert.match(layout, /theme/)
                 assert.match(layout, /light/)
                 assert.match(layout, /loadLocale/)

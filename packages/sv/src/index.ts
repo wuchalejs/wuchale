@@ -44,13 +44,8 @@ export default defineAddon({
 
     run: ({ sv, options, language, file, isKit, dependencyVersion }) => {
         const { validTags } = parseLanguageInput(options.languages)
-        const locales: string[] = []
+        const locales: string[] = validTags.length === 0 ? ['en', 'es'] : validTags
 
-        if (validTags.length === 0) {
-            locales.push('en', 'es')
-        } else {
-            locales.push(...validTags)
-        }
         sv.dependency('wuchale', 'latest')
         sv.dependency('@wuchale/svelte', 'latest')
 
@@ -77,16 +72,8 @@ export default defineAddon({
 
         if (options.generation) {
             if (isKit) {
-                let hooksFile = ''
+                const { file: hooksFile, isTs: isHooksFileTS } = resolveFile('src/hooks.server', language)
 
-                if (existsSync(path.resolve('src/hooks.server.ts'))) {
-                    hooksFile = 'src/hooks.server.ts'
-                } else if (existsSync(path.resolve('src/hooks.server.js'))) {
-                    hooksFile = 'src/hooks.server.js'
-                } else {
-                    hooksFile = `src/hooks.server.${language}`
-                }
-                const isHooksFileTS = hooksFile.endsWith('ts')
                 sv.file(
                     hooksFile,
                     transforms.script(({ ast, js, content }) => {
@@ -126,34 +113,8 @@ export default defineAddon({
                             })
                         }
 
-                        const handleNode = ast.body.find(node => {
-                            if (node.type !== 'ExportNamedDeclaration') return undefined
-
-                            if (node.declaration?.type === 'VariableDeclaration') {
-                                return node.declaration.declarations.find(
-                                    (d: any) => d.id?.name === 'handle' && d.init?.callee?.name !== 'sequence',
-                                )
-                            }
-
-                            if (node.declaration?.type === 'FunctionDeclaration') {
-                                return node.declaration.id.name === 'handle'
-                            }
-
-                            return undefined
-                        }) as any
-
-                        const sequenceNode = ast.body.find(node => {
-                            if (node.type !== 'ExportNamedDeclaration') return false
-                            if (node.declaration?.type === 'VariableDeclaration') {
-                                return node.declaration?.declarations.some(
-                                    (d: any) =>
-                                        d.id?.name === 'handle' &&
-                                        d.init?.type === 'CallExpression' &&
-                                        d.init?.callee?.name === 'sequence',
-                                )
-                            }
-                            return false
-                        }) as any
+                        const handleNode = findHandleNode(ast)
+                        const sequenceNode = findSequenceNode(ast)
                         const handleName = handleNode || sequenceNode ? 'i18n' : 'handle'
                         if (handleNode && !content.includes('await runWithLocale')) {
                             if (handleNode.declaration?.type === 'VariableDeclaration') {
@@ -216,16 +177,8 @@ ${handleNode ? '' : 'export'} const ${handleName}${isHooksFileTS ? ': Handle' : 
                         }
                     }),
                 )
-                let layoutFile = ''
 
-                if (existsSync(path.resolve('src/routes/+layout.ts'))) {
-                    layoutFile = 'src/routes/+layout.ts'
-                } else if (existsSync(path.resolve('src/routes/+layout.js'))) {
-                    layoutFile = 'src/routes/+layout.js'
-                } else {
-                    layoutFile = `src/routes/+layout.${language}`
-                }
-                const isLayoutFileTS = layoutFile.endsWith('ts')
+                const { file: layoutFile, isTs: isLayoutFileTS } = resolveFile('src/routes/+layout', language)
 
                 sv.file(
                     layoutFile,
@@ -312,11 +265,12 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                 }
                                 if (hasUrl) break
                             }
-                            const objectParameter = loadParameters.find((node: any) => {
-                                if (node.type === 'ObjectPattern') return node
-                                return undefined
-                            })
                             if (!hasUrl) {
+                                const objectParameter = loadParameters.find((node: any) => {
+                                    if (node.type === 'ObjectPattern') return node
+                                    return undefined
+                                })
+
                                 objectParameter.properties.push({
                                     type: 'Property',
                                     method: false,
@@ -426,15 +380,54 @@ ${existingHtml
     },
 
     nextSteps: () => {
-        const steps = [
+        return [
             `${color.success('Wuchale setup complete!')}`,
             `Run ${color.command('npx wuchale')} for initial extract`,
             `Visit the wuchale docs at ${color.website('https://wuchale.dev/')} for full configuration`,
         ]
-
-        return steps
     },
 })
+
+function resolveFile(file: string, language: string) {
+    if (existsSync(path.resolve(`${file}.ts`))) {
+        return { file: `${file}.ts`, isTs: true }
+    } else if (existsSync(path.resolve(`${file}.js`))) {
+        return { file: `${file}.js`, isTs: false }
+    } else {
+        return { file: `${file}.${language}`, isTs: language === 'ts' }
+    }
+}
+
+function findHandleNode(ast: any) {
+    return ast.body.find((node: any) => {
+        if (node.type !== 'ExportNamedDeclaration') return undefined
+
+        if (node.declaration?.type === 'VariableDeclaration') {
+            return node.declaration.declarations.find(
+                (d: any) => d.id?.name === 'handle' && d.init?.callee?.name !== 'sequence',
+            )
+        }
+
+        if (node.declaration?.type === 'FunctionDeclaration') {
+            return node.declaration.id.name === 'handle'
+        }
+
+        return undefined
+    }) as any
+}
+
+function findSequenceNode(ast: any) {
+    return ast.body.find((node: any) => {
+        if (node.type !== 'ExportNamedDeclaration') return false
+        if (node.declaration?.type === 'VariableDeclaration') {
+            return node.declaration?.declarations.some(
+                (d: any) =>
+                    d.id?.name === 'handle' && d.init?.type === 'CallExpression' && d.init?.callee?.name === 'sequence',
+            )
+        }
+        return false
+    }) as any
+}
 
 const displayName = new Intl.DisplayNames(['en'], { type: 'language' })
 

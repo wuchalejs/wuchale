@@ -1,6 +1,5 @@
 export default function wuchaleKitConfig(locales: string[]) {
-    return `
-// @ts-check
+    return `// @ts-check
 import { adapter as svelte } from "@wuchale/svelte";
 import { adapter as js } from "wuchale/adapter-vanilla";
 import { defineConfig } from "wuchale";

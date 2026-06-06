@@ -1,6 +1,5 @@
 export default function wuchalePlainConfig(locales: string[]) {
-    return `
-// @ts-check
+    return `// @ts-check
 import { adapter as svelte } from "@wuchale/svelte";
 import { defineConfig } from "wuchale";
 
