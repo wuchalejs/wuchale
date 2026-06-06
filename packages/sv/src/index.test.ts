@@ -101,7 +101,7 @@ for (const kind of kinds) {
 
             create({
                 cwd,
-                name: kind.type + '-' + variant,
+                name: `${kind.type}-${variant}`,
                 types: 'typescript',
                 template: isKit ? 'minimal' : 'svelte',
             })

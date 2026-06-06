@@ -155,6 +155,16 @@ export default defineAddon({
                             return false
                         }) as any
                         const handleName = handleNode || sequenceNode ? 'i18n' : 'handle'
+                        if (handleNode && !content.includes('await runWithLocale')) {
+                            if (handleNode.declaration?.type === 'VariableDeclaration') {
+                                handleNode.declaration.declarations[0].id.name = 'handler'
+                            } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
+                                handleNode.declaration.id.name = 'handler'
+                            }
+
+                            handleNode.type = handleNode.declaration.type
+                            Object.assign(handleNode, handleNode.declaration)
+                        }
 
                         if (!content.includes('export const i18n') && !content.includes('await runWithLocale')) {
                             js.common.appendFromString(ast, {
@@ -194,16 +204,15 @@ ${handleNode ? '' : 'export'} const ${handleName}${isHooksFileTS ? ': Handle' : 
                                     end: 0,
                                 })
                             }
-                        }
-                        if (handleNode && !content.includes('await runWithLocale')) {
-                            if (handleNode.declaration?.type === 'VariableDeclaration') {
-                                handleNode.declaration.declarations[0].id.name = 'handler'
-                            } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
-                                handleNode.declaration.id.name = 'handler'
-                            }
 
-                            handleNode.type = handleNode.declaration.type
-                            Object.assign(handleNode, handleNode.declaration)
+                            const argNames = sequenceArgs.map((arg: any) => arg.name).join(', ')
+
+                            const index = ast.body.indexOf(sequenceNode)
+                            ast.body.splice(index, 1)
+
+                            js.common.appendFromString(ast, {
+                                code: `export const handle = sequence(${argNames})`,
+                            })
                         }
                     }),
                 )
@@ -277,6 +286,12 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                 if (node.id.name === 'load') return node
                                 return undefined
                             })
+
+                            if (isLayoutFileTS && !content.includes(': LayoutLoad')) {
+                                js.variables.typeAnnotateDeclarator(loadDeclaration, {
+                                    typeName: 'LayoutLoad',
+                                })
+                            }
 
                             const loadParameters = loadDeclaration.init.params
 
