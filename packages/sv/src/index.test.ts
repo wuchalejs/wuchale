@@ -1,33 +1,96 @@
 import assert from 'node:assert/strict'
-import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
+import { add, create } from 'sv'
+import addon from './index.js'
 
 const kinds = [
     {
         type: 'default',
-        addArgs: 'languages:en,es,pl+generation:yes',
+        options: { languages: 'en, es, pl', generation: true },
     },
     {
         type: 'no-generation',
-        addArgs: 'languages:en,es+generation:no',
+        options: { languages: 'en, es', generation: false },
     },
     {
         type: 'single-language',
-        addArgs: 'languages:en+generation:yes',
+        options: { languages: 'en', generation: true },
     },
     {
         type: 'wrong-locale',
-        addArgs: 'languages:en,dasodksaodkasokdoaskdos,es+generation:no',
+        options: { languages: 'en, dasodksaodkasokdoaskdos, es', generation: false },
+    },
+    {
+        type: 'existing-layout-no-url',
+        options: { languages: 'en, es', generation: true },
+        kitOnly: true,
+        setup: (cwd: string) => {
+            fs.writeFileSync(
+                path.resolve(cwd, 'src/routes/+layout.ts'),
+                `export const load = async ({ cookies }) => { return {} }\n`,
+            )
+        },
+    },
+    {
+        type: 'existing-layout-with-url',
+        options: { languages: 'en, es', generation: true },
+        kitOnly: true,
+        setup: (cwd: string) => {
+            fs.writeFileSync(
+                path.resolve(cwd, 'src/routes/+layout.ts'),
+                `export const load = async ({ url, cookies }) => { return {} }\n`,
+            )
+        },
+    },
+    {
+        type: 'existing-layout-empty-params',
+        options: { languages: 'en, es', generation: true },
+        kitOnly: true,
+        setup: (cwd: string) => {
+            fs.writeFileSync(
+                path.resolve(cwd, 'src/routes/+layout.ts'),
+                `export const load = async ({}) => { return {} }\n`,
+            )
+        },
+    },
+    {
+        type: 'existing-hooks-sequence',
+        options: { languages: 'en, es', generation: true },
+        kitOnly: true,
+        setup: (cwd: string) => {
+            fs.writeFileSync(
+                path.resolve(cwd, 'src/hooks.server.ts'),
+                `import { sequence } from '@sveltejs/kit/hooks'
+const first = async ({ event, resolve }) => resolve(event)
+const second = async ({ event, resolve }) => resolve(event)
+export const handle = sequence(first, second)\n`,
+            )
+        },
+    },
+    {
+        type: 'existing-layout-with-content',
+        options: { languages: 'en, es', generation: true },
+        kitOnly: true,
+        setup: (cwd: string) => {
+            fs.writeFileSync(
+                path.resolve(cwd, 'src/routes/+layout.ts'),
+                `export const load = async ({ url }) => {
+    const theme = url.searchParams.get('theme') ?? 'light'
+    return { theme }
+}\n`,
+            )
+        },
     },
 ]
-
 const variants = ['svelte', 'svelte-kit']
 
 for (const kind of kinds) {
     for (const variant of variants) {
         const isKit = variant.includes('kit')
+
+        if (kind.kitOnly && !isKit) continue
 
         const testName = `@wuchale/sv ${kind.type} ${variant}`
 
@@ -36,20 +99,23 @@ for (const kind of kinds) {
 
             fs.mkdirSync(cwd, { recursive: true })
 
-            const createCommand = isKit
-                ? `npx sv create ${cwd} --types ts --template minimal --no-add-ons --no-install`
-                : `npx create-vite@latest ./tmp/${kind.type}-${variant} --template svelte`
+            create({
+                cwd,
+                name: kind.type + '-' + variant,
+                types: 'typescript',
+                template: isKit ? 'minimal' : 'svelte',
+            })
 
-            execSync(createCommand, { stdio: 'ignore' })
-            execSync(
-                `npx sv add "file:${process.cwd()}=${
-                    kind.addArgs
-                }" --cwd ${cwd} --no-git-check --no-install --no-download-check`,
-                {
-                    cwd,
-                    stdio: 'ignore',
-                },
-            )
+            if (kind.setup) {
+                kind.setup(cwd)
+            }
+
+            await add({
+                addons: { wuchale: addon },
+                cwd,
+                options: { wuchale: kind.options },
+                packageManager: 'npm',
+            })
 
             const wuchaleConfigPath = path.resolve(cwd, 'wuchale.config.js')
 
@@ -116,6 +182,66 @@ for (const kind of kinds) {
             if (kind.type === 'no-generation') {
                 assert.equal(fs.existsSync(path.resolve(cwd, 'src/hooks.server.js')), false)
                 assert.equal(fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts')), false)
+            }
+
+            if (isKit && kind.type === 'existing-layout-no-url') {
+                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
+                    ? path.resolve(cwd, 'src/routes/+layout.ts')
+                    : path.resolve(cwd, 'src/routes/+layout.js')
+                const layout = fs.readFileSync(layoutPath, 'utf8')
+                assert.match(layout, /url/)
+                assert.match(layout, /searchParams/)
+                assert.match(layout, /loadLocale/)
+                assert.match(layout, /cookies/)
+                assert.match(layout, /load:\s*LayoutLoad/)
+            }
+
+            if (isKit && kind.type === 'existing-layout-with-url') {
+                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
+                    ? path.resolve(cwd, 'src/routes/+layout.ts')
+                    : path.resolve(cwd, 'src/routes/+layout.js')
+                const layout = fs.readFileSync(layoutPath, 'utf8')
+                assert.match(layout, /url/)
+                assert.match(layout, /searchParams/)
+                assert.match(layout, /cookies/)
+                assert.match(layout, /load:\s*LayoutLoad/)
+                assert.equal((layout.match(/\burl\b/g) ?? []).length <= 3, true)
+            }
+
+            if (isKit && kind.type === 'existing-layout-empty-params') {
+                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
+                    ? path.resolve(cwd, 'src/routes/+layout.ts')
+                    : path.resolve(cwd, 'src/routes/+layout.js')
+                const layout = fs.readFileSync(layoutPath, 'utf8')
+                assert.match(layout, /url/)
+                assert.match(layout, /searchParams/)
+                assert.match(layout, /loadLocale/)
+                assert.match(layout, /load:\s*LayoutLoad/)
+            }
+
+            if (isKit && kind.type === 'existing-hooks-sequence') {
+                const hooksPath = fs.existsSync(path.resolve(cwd, 'src/hooks.server.ts'))
+                    ? path.resolve(cwd, 'src/hooks.server.ts')
+                    : path.resolve(cwd, 'src/hooks.server.js')
+                const hooks = fs.readFileSync(hooksPath, 'utf8')
+                assert.match(hooks, /sequence/)
+                assert.match(hooks, /i18n/)
+                assert.match(hooks, /first/)
+                assert.match(hooks, /second/)
+                assert.equal((hooks.match(/sequence/g) ?? []).length, 2)
+                assert.ok(hooks.indexOf('i18n') < hooks.indexOf('sequence('))
+            }
+
+            if (isKit && kind.type === 'existing-layout-with-content') {
+                const layoutPath = fs.existsSync(path.resolve(cwd, 'src/routes/+layout.ts'))
+                    ? path.resolve(cwd, 'src/routes/+layout.ts')
+                    : path.resolve(cwd, 'src/routes/+layout.js')
+                const layout = fs.readFileSync(layoutPath, 'utf8')
+                assert.match(layout, /theme/)
+                assert.match(layout, /light/)
+                assert.match(layout, /loadLocale/)
+                assert.match(layout, /searchParams/)
+                assert.match(layout, /load:\s*LayoutLoad/)
             }
         })
     }
