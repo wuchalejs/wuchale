@@ -74,6 +74,13 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 
 type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
+const extendPropDownTypes: Estree.Property['value']['type'][] = [
+    'Literal',
+    'TemplateLiteral',
+    'TaggedTemplateExpression',
+    'ObjectExpression',
+]
+
 export class Transformer extends InertVisitors {
     index: IndexTracker
     heuristic: HeuristicFunc
@@ -246,11 +253,27 @@ export class Transformer extends InertVisitors {
 
     visitProperty(node: Estree.Property): Message[] {
         const msgs = this.visit(node.key)
-        if (msgs.length && node.key.type === 'Literal' && typeof node.key.value === 'string' && !node.computed) {
+        let keyName = '[]'
+        let keyIsLiteral = false
+        if (node.key.type === 'Identifier') {
+            keyName = node.key.name
+        } else if (node.key.type === 'Literal' && typeof node.key.value === 'string') {
+            keyIsLiteral = true
+            keyName = node.key.value
+        }
+        if (msgs.length && keyIsLiteral && !node.computed) {
             this.mstr.appendRight(node.key.start, '[')
             this.mstr.appendLeft(node.key.end, ']')
         }
+        const extendPropDown = extendPropDownTypes.includes(node.value.type)
+        const prevProp = this.heuristciDetails.property
+        if (extendPropDown) {
+            this.heuristciDetails.property = prevProp ? `${prevProp}.${keyName}` : keyName
+        }
         msgs.push(...this.visit(node.value))
+        if (extendPropDown) {
+            this.heuristciDetails.property = prevProp // restore
+        }
         return msgs
     }
 

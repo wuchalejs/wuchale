@@ -28,6 +28,8 @@ export type HeuristicDetails = HeuristicDetailsBase & {
     call?: string | undefined
     /** inside an export const ... etc */
     exported?: boolean | undefined
+    /** object property path */
+    property?: string | undefined
 }
 
 export type MessageType = 'message' | 'url'
@@ -71,6 +73,7 @@ export const defaultHeuristicOpts = {
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
     urlCalls: [] as string[],
+    urlProps: ['href', 'link', 'url'],
 }
 
 export type CreateHeuristicOpts = typeof defaultHeuristicOpts
@@ -93,6 +96,13 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             if (msg.details.call) {
                 for (const call of opts.urlCalls) {
                     if (msg.details.call === call) {
+                        return 'url'
+                    }
+                }
+            }
+            if (msg.details.property) {
+                for (const prop of opts.urlProps) {
+                    if (msg.details.property === prop || msg.details.property?.endsWith(`.${prop}`)) {
                         return 'url'
                     }
                 }

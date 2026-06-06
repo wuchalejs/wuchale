@@ -202,7 +202,10 @@ test('URLs', async t => {
             goto(\`/translated/\${44}\`)
             const url = {
                 // @wc-url
-                something: [\`/translated/somewhere/\${45}\`]
+                something: [\`/translated/somewhere/\${45}\`],
+                foo: {
+                    href: \`/translated/propertyhref\`,
+                }
             }
         </script>
         <a href="/translated/hello">Hello</a>
@@ -220,19 +223,23 @@ test('URLs', async t => {
             goto(_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l))
             const url = $derived({
                 // @wc-url
-                something: [_w_localize_(_w_runtime_(1, [45]), _w_runtime_.l)]
+                something: [_w_localize_(_w_runtime_(1, [45]), _w_runtime_.l)],
+                foo: {
+                    href: _w_localize_(_w_runtime_(2), _w_runtime_.l),
+                }
             })
         </script>
-        <a href={_w_localize_(_w_runtime_(2), _w_runtime_.l)}>{_w_runtime_(3)}</a>
-        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(3)}</a>
-        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(3)}</a>
-        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(3)}</a>
-        <a href="/notinpattern">{_w_runtime_(3)}</a>
-        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(3)}</a>
+        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(4)}</a>
+        <a href={_w_localize_(_w_runtime_(5), _w_runtime_.l)}>{_w_runtime_(4)}</a>
+        <a href={_w_localize_(_w_runtime_(6, [44]), _w_runtime_.l)}>{_w_runtime_(4)}</a>
+        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(4)}</a>
+        <a href="/notinpattern">{_w_runtime_(4)}</a>
+        <a href={_w_localize_(_w_runtime_(7), _w_runtime_.l)}>{_w_runtime_(4)}</a>
     `,
         [
             { msgStr: ['/translated/{0}'], type: 'url' },
             { msgStr: ['/translated/somewhere/{0}'], type: 'url' },
+            { msgStr: ['/translated/propertyhref'], type: 'url' },
             { msgStr: ['/translated/hello'], type: 'url' },
             'Hello',
             { msgStr: ['/translated/hello/there'], type: 'url' },
