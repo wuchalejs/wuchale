@@ -156,16 +156,21 @@ export default defineAddon({
                         }) as any
                         const handleName = handleNode || sequenceNode ? 'i18n' : 'handle'
 
-                        if (!content.includes('export const i18n')) {
+                        if (!content.includes('export const i18n') && !content.includes('await runWithLocale')) {
                             js.common.appendFromString(ast, {
                                 code: `
-export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
+${handleNode ? '' : 'export'} const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, resolve }) => {
     const locale = event.url.searchParams.get('locale') ?? '${locales[0]}'
     return await runWithLocale(locale, () => resolve(event))
 }`,
                             })
                         }
-                        if (!sequenceNode && handleNode && !content.includes('sequence(handler')) {
+                        if (
+                            !sequenceNode &&
+                            handleNode &&
+                            !content.includes('sequence(handler') &&
+                            !content.includes('await runWithLocale')
+                        ) {
                             js.imports.addNamed(ast, {
                                 from: '@sveltejs/kit/hooks',
                                 imports: ['sequence'],
@@ -190,7 +195,7 @@ export const ${handleName}${isHooksFileTS ? ': Handle' : ''} = async ({ event, r
                                 })
                             }
                         }
-                        if (handleNode) {
+                        if (handleNode && !content.includes('await runWithLocale')) {
                             if (handleNode.declaration?.type === 'VariableDeclaration') {
                                 handleNode.declaration.declarations[0].id.name = 'handler'
                             } else if (handleNode.declaration?.type === 'FunctionDeclaration') {
@@ -326,9 +331,7 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                     })) { await loadLocale(locale); }`,
                                 )
 
-                                if (!content.includes(".searchParams.get('locale')")) {
-                                    block.body.unshift(localeDecl, ifStatement)
-                                }
+                                block.body.unshift(localeDecl, ifStatement)
                             }
                         }
                     }),
@@ -337,10 +340,12 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                 sv.file(
                     'src/App.svelte',
                     transforms.svelteScript({ language }, ({ ast, js, svelte, content }) => {
-                        js.imports.addNamed(ast.instance.content, {
-                            from: 'wuchale/load-utils',
-                            imports: ['loadLocale'],
-                        })
+                        if (!content.includes('wuchale/load-utils')) {
+                            js.imports.addNamed(ast.instance.content, {
+                                from: 'wuchale/load-utils',
+                                imports: ['loadLocale'],
+                            })
+                        }
                         js.imports.addEmpty(ast.instance.content, {
                             from: './locales/main.loader.svelte.js',
                         })
