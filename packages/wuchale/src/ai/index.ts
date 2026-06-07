@@ -77,7 +77,9 @@ Respond with a JSON array matching the order of the input items. Each element is
 Output schema:
 ${JSON.stringify(outputSchema)}
 
-Respond ONLY with raw compact JSON. Do not wrap it in markdown code fences or add any other text.
+CRITICAL!:
+- ALWAYS Respond with a raw compact JSON array even if there is only one item.
+- NEVER wrap it in markdown code fences or any other surrounding text.
 `.trim()
 
 // implements a queue for a sequential translation useful for vite's transform during dev
