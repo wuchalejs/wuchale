@@ -120,18 +120,18 @@ for (const kind of kinds) {
 
             assert.equal(fs.existsSync(path.resolve(cwd, 'wuchale.config.js')), true)
             const wuchaleConfig = fs.readFileSync(path.resolve(cwd, 'wuchale.config.js'), 'utf8')
-            assert.match(wuchaleConfig, /en/)
+            assert.match(wuchaleConfig, /\ben\b/)
 
             if (kind.type === 'default') {
-                assert.match(wuchaleConfig, /es/)
+                assert.match(wuchaleConfig, /\bes\b/)
             }
             if (kind.type === 'single-language') {
-                assert.match(wuchaleConfig, /"en"/)
-                assert.doesNotMatch(wuchaleConfig, /"es"/)
+                assert.match(wuchaleConfig, /\ben\b/)
+                assert.doesNotMatch(wuchaleConfig, /\bes\b/)
             }
             if (kind.type === 'wrong-locale') {
-                assert.match(wuchaleConfig, /"es"/)
-                assert.doesNotMatch(wuchaleConfig, /"dasodksaodkasokdoaskdos"/)
+                assert.match(wuchaleConfig, /\bes\b/)
+                assert.doesNotMatch(wuchaleConfig, /\bdasodksaodkasokdoaskdos\b/)
             }
 
             const viteConfig = fs.readFileSync(path.resolve(cwd, 'vite.config.ts'), 'utf8')

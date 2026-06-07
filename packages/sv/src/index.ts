@@ -337,6 +337,8 @@ export const load${isLayoutFileTS ? ': LayoutLoad' : ''} = async ({url}) => {
                                 ast,
                                 `
 {#await loadLocale(locale)}
+    	<!-- Ignored because it is rendered before the catalog is loaded -->
+    	<!-- @wc-ignore -->
 	Loading translations...
 {:then}
 ${existingHtml
