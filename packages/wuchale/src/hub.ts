@@ -10,7 +10,7 @@ import { compileTranslation, isEquivalent } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
 import { dataFileName, generatedDir, getLoaderPath, globConfToArgs, normalizeSep } from './handler/files.js'
-import { AdapterHandler, getLoadIDs, type Mode } from './handler/index.js'
+import { AdapterHandler, getLoadIDs, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
@@ -98,7 +98,7 @@ async function getSharedState(
     adapter: Adapter,
     key: string,
     sourceLocale: string,
-    modifyCatalogs: boolean,
+    allowNewItems: boolean,
 ): Promise<SharedState> {
     const storage = await adapter.storage({
         locales: config.locales,
@@ -109,7 +109,7 @@ async function getSharedState(
     })
     let sharedState = sharedStates.get(storage.key)
     if (sharedState == null) {
-        sharedState = new SharedState(storage, key, sourceLocale, modifyCatalogs)
+        sharedState = new SharedState(storage, key, sourceLocale, allowNewItems)
         sharedStates.set(storage.key, sharedState)
     } else {
         if (sharedState.sourceLocale !== sourceLocale) {
@@ -216,7 +216,6 @@ export class Hub {
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
-        const modifyCatalogs = mode !== 'dev' || config.dev === 'full'
         for (const [key, adapter] of adaptersData) {
             const sourceLocale = adapter.sourceLocale ?? config.locales[0]
             const handler = await AdapterHandler.create({
@@ -232,9 +231,9 @@ export class Hub {
                     adapter,
                     key,
                     sourceLocale,
-                    modifyCatalogs,
+                    newItemsAllowed(config.dev),
                 ),
-                modifyCatalogs,
+                devMode: config.dev,
                 modifyInplace: modifyAdapters.includes(key),
             })
             handlers.set(key, handler)

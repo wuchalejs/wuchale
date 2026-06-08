@@ -43,7 +43,7 @@ async function makeHandler() {
         log: new Logger('error'),
         sourceLocale: 'en',
         sharedState: new SharedState(storage, 'test', 'en', true),
-        modifyCatalogs: true,
+        devMode: 'refs',
         modifyInplace: false,
     })
 }
