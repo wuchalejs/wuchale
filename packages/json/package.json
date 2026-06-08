@@ -37,7 +37,7 @@
     },
     "devDependencies": {
         "typescript": "^6.0.3",
-        "@types/node": "~24.12.4"
+        "@types/node": "~24.13.1"
     },
     "type": "module"
 }
