@@ -7,7 +7,7 @@ import type { Adapter, Message, RuntimeExpr, TransformOutputCode } from '../adap
 import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
-import type { ConfigPartial } from '../config.js'
+import type { ConfigPartial, DevMode } from '../config.js'
 import type { Logger } from '../log.js'
 import type { HMRData } from '../runtime.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
@@ -55,6 +55,8 @@ export function getLoadIDs(adapter: Adapter, granularStates: Iterable<GranularSt
     return loadIDs
 }
 
+export const newItemsAllowed = (devMode: DevMode) => devMode === 'add' || devMode === 'refs' || devMode === 'clean'
+
 function getFallback(
     fbConf: Record<string, string>,
     loc: string,
@@ -95,7 +97,7 @@ type HandlerOptsCreate = FilesOptsCreatePass & {
     log: Logger
     sourceLocale: string
     sharedState: SharedState
-    modifyCatalogs: boolean
+    devMode: DevMode
     modifyInplace: boolean
 }
 
@@ -117,6 +119,7 @@ export class AdapterHandler {
     readonly aiQueue?: AIQueue
     onBeforeSave?: () => void
     #fallbackChains: Map<string, string[]>
+    #newKeys = new Set<string>() // keys added during dev
 
     private constructor(opts: HandlerOpts) {
         this.#opts = opts
@@ -171,7 +174,7 @@ export class AdapterHandler {
 
     saveStorage = async () => {
         this.onBeforeSave?.()
-        await this.sharedState.save()
+        await this.sharedState.save(this.#opts.mode === 'dev' && this.#opts.devMode === 'clean')
     }
 
     compile = async (hmrVersion = -1) => {
@@ -314,7 +317,7 @@ export class AdapterHandler {
                     const state = await this.granularState.byFileCreate(
                         ref.file,
                         this.#opts.config.locales,
-                        this.#opts.modifyCatalogs,
+                        newItemsAllowed(this.#opts.devMode),
                     )
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
@@ -479,6 +482,8 @@ export class AdapterHandler {
         let compileUpdated = false
         const hmrKeys: string[] = []
         const toTranslate: Item[] = []
+        const modifyExistingRefs =
+            this.#opts.mode !== 'dev' || this.#opts.devMode === 'refs' || this.#opts.devMode === 'clean'
         for (const msgInfo of msgs) {
             let key = getKey(msgInfo.msgStr, msgInfo.context)
             hmrKeys.push(key)
@@ -495,10 +500,12 @@ export class AdapterHandler {
             if (!item) {
                 item = newItem({ id: msgInfo.msgStr }, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
+                this.#newKeys.add(key)
                 storageUpdated = true
                 compileUpdated = true
             }
-            if (this.updateRef(item, key, filename, msgInfo, previousReferences)) {
+            const modifyRefs = modifyExistingRefs || (this.#opts.devMode === 'add' && this.#newKeys.has(key))
+            if (modifyRefs && this.updateRef(item, key, filename, msgInfo, previousReferences)) {
                 storageUpdated = true
                 if (msgInfo.type === 'url') {
                     compileUpdated = true
@@ -528,16 +535,18 @@ export class AdapterHandler {
             this.aiQueue.add(toTranslate)
             await this.aiQueue.running
         }
-        const { cleaned, cleanedUrls } = this.cleanTrackedRefs(previousReferences)
-        if (cleaned) {
-            storageUpdated = true
-        }
-        if (cleanedUrls) {
-            compileUpdated = true
+        if (modifyExistingRefs) {
+            const { cleaned, cleanedUrls } = this.cleanTrackedRefs(previousReferences)
+            if (cleaned) {
+                storageUpdated = true
+            }
+            if (cleanedUrls) {
+                compileUpdated = true
+            }
         }
         // cli saves and compiles at the end
         if (storageUpdated && this.#opts.mode !== 'cli') {
-            this.#opts.modifyCatalogs && (await this.saveStorage())
+            this.#opts.devMode && (await this.saveStorage())
             if (compileUpdated) {
                 await this.compile()
             }
@@ -559,7 +568,7 @@ export class AdapterHandler {
             const state = await this.granularState.byFileCreate(
                 filename,
                 this.#opts.config.locales,
-                this.#opts.modifyCatalogs,
+                newItemsAllowed(this.#opts.devMode),
             )
             indexTracker = state.indexTracker
             loadID = state.id

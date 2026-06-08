@@ -1,7 +1,14 @@
 import pm from 'picomatch'
 import { getKey, IndexTracker, type LoadGroupPatt } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
-import { type Catalog, type CatalogStorage, defaultPluralRule, fillTranslations, type PluralRules } from '../storage.js'
+import {
+    type Catalog,
+    type CatalogStorage,
+    defaultPluralRule,
+    fillTranslations,
+    itemIsObsolete,
+    type PluralRules,
+} from '../storage.js'
 
 export type Compiled = {
     hasPlurals: boolean
@@ -43,11 +50,11 @@ export class SharedState {
     catalog: Catalog = new Map()
     pluralRules: PluralRules = new Map()
 
-    constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string, modifyCatalogs: boolean) {
+    constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string, allowNewItems: boolean) {
         this.ownerKey = ownerKey
         this.sourceLocale = sourceLocale
         this.storage = storage
-        this.indexTracker = new IndexTracker(modifyCatalogs)
+        this.indexTracker = new IndexTracker(allowNewItems)
     }
 
     async load(locales: string[]) {
@@ -70,11 +77,11 @@ export class SharedState {
         }
     }
 
-    async save() {
+    async save(onlyReferenced: boolean) {
+        const items = Array.from(this.catalog.values())
         await this.storage.save({
             pluralRules: this.pluralRules,
-            // Array important, cannot loop over map values multiple times!
-            items: Array.from(this.catalog.values()),
+            items: onlyReferenced ? items.filter(i => !itemIsObsolete(i)) : items,
         })
     }
 }
@@ -117,7 +124,7 @@ export class State {
         return id + 1 // not to start from 0 which is reserved for the shared
     }
 
-    async byFileCreate(filename: string, locales: string[], modifyCatalogs: boolean): Promise<GranularState> {
+    async byFileCreate(filename: string, locales: string[], allowNewItems: boolean): Promise<GranularState> {
         let state = this.#byFile.get(filename)
         if (state != null) {
             return state
@@ -128,7 +135,7 @@ export class State {
             state = {
                 id,
                 compiled: new Map(),
-                indexTracker: new IndexTracker(modifyCatalogs),
+                indexTracker: new IndexTracker(allowNewItems),
             }
             for (const loc of locales) {
                 state.compiled.set(loc, { hasPlurals: false, items: [] })

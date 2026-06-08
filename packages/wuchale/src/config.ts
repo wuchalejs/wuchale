@@ -12,9 +12,11 @@ export type ConfigPartial = {
     logLevel: LogLevel
 }
 
+export type DevMode = false | 'read' | 'add' | 'refs' | 'clean'
+
 export type Config = ConfigPartial & {
     adapters: Record<string, Adapter>
-    dev: 'full' | 'read' | false
+    dev: DevMode
 }
 
 export type DeepPartial<T> = {
@@ -34,7 +36,7 @@ export const defaultConfig: Config = {
     fallback: {},
     localesDir: 'src/locales',
     adapters: {},
-    dev: 'full',
+    dev: 'refs',
     ai: defaultGemini,
     logLevel: 'info',
 }
