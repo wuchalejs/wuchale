@@ -50,13 +50,15 @@
     "bugs": "https://github.com/wuchalejs/wuchale/issues",
     "author": "K1DV5",
     "license": "MIT",
+    "peerDependencies": {
+        "svelte": "^5"
+    },
     "dependencies": {
-        "magic-string": "^0.30.21",
-        "svelte": "^5",
         "wuchale": "^0.23.0"
     },
     "devDependencies": {
         "@types/node": "~24.13.1",
+        "svelte": "^5.56.3",
         "acorn": "^8.16.0",
         "typescript": "^6.0.3"
     },

@@ -2,10 +2,11 @@
 
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
-import { type Config, defaultConfig, generatedDir, normalizeSep } from 'wuchale'
-import { defaultArgs } from 'wuchale/adapter-vanilla'
 // @ts-expect-error
 import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
+import { defaultArgs } from './adapter-vanilla/index.js'
+import { type Config, defaultConfig } from './config.js'
+import { generatedDir, normalizeSep } from './handler/files.js'
 import { Hub } from './hub.js'
 
 const file = resolve(import.meta.dirname, 'src/foo.js') // needs to match files, relative to root

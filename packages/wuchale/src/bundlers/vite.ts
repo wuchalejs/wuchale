@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { getConfig } from 'wuchale'
+import { getConfig } from '../config.js'
 import { Hub, pluginName } from '../hub.js'
 
 export function toViteError(err: any, adapterKey: string, filename: string): Error {
