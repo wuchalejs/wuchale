@@ -72,9 +72,10 @@ export class SvelteTransformer extends Transformer {
         const init = node.init
         if (
             !msgs.length ||
-            this.heuristciDetails.declaring != null ||
+            (this.heuristciDetails.declaring != null && this.heuristciDetails.declaring !== 'variable') ||
             init == null ||
-            ['ArrowFunctionExpression', 'FunctionExpression'].includes(init.type)
+            init.type === 'ArrowFunctionExpression' ||
+            init.type === 'FunctionExpression'
         ) {
             return msgs
         }
@@ -253,6 +254,15 @@ export class SvelteTransformer extends Transformer {
     visitConstTag(node: AST.ConstTag): Message[] {
         // @ts-expect-error
         return this.visitVariableDeclaration(node.declaration)
+    }
+
+    visitDeclarationTag(node: AST.DeclarationTag): Message[] {
+        const prevDeclaring = this.heuristciDetails.declaring
+        this.heuristciDetails.declaring = 'variable'
+        // @ts-expect-error
+        const msgs = this.visitVariableDeclaration(node.declaration)
+        this.heuristciDetails.declaring = prevDeclaring
+        return msgs
     }
 
     visitRenderTag(node: AST.RenderTag): Message[] {
