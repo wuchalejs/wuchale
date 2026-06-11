@@ -90,6 +90,7 @@ export class Transformer extends InertVisitors {
     mstr: MagicString
     patterns: CodePattern[]
     matchUrl: UrlMatcher
+    initReactive: (...a: Parameters<InitRuntimeFunc>) => ReturnType<RuntimeConf['initReactive']>
     initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
@@ -149,13 +150,15 @@ export class Transformer extends InertVisitors {
             const currentVars = vars[this.currentRtVar]!
             return useReactive ? currentVars.reactive : currentVars.plain
         }
-        this.initRuntime = (funcName, parentFunc) => {
-            let initReactive = rtConf.initReactive({
+        this.initReactive = (funcName, parentFunc) =>
+            rtConf.initReactive({
                 funcName,
                 nested: parentFunc != null,
                 file: ctx.filename,
                 ctx: this.runtimeCtx,
             })
+        this.initRuntime = (funcName, parentFunc) => {
+            let initReactive = this.initReactive(funcName, parentFunc)
             if (initReactive == null) {
                 return
             }

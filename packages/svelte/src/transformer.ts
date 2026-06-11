@@ -96,7 +96,7 @@ export class SvelteTransformer extends Transformer {
             return msgs
         }
         const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
-        if (!isExported) {
+        if (!isExported && this.initReactive()) {
             this.mstr.appendLeft(init.start, '$derived(')
             this.mstr.appendRight(init.end, ')')
         }
