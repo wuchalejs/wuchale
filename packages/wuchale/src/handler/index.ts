@@ -55,7 +55,8 @@ export function getLoadIDs(adapter: Adapter, granularStates: Iterable<GranularSt
     return loadIDs
 }
 
-export const newItemsAllowed = (devMode: DevMode) => devMode === 'add' || devMode === 'refs' || devMode === 'clean'
+export const newItemsAllowed = (mode: Mode, devMode: DevMode) =>
+    mode !== 'dev' || devMode === 'add' || devMode === 'refs' || devMode === 'clean'
 
 function getFallback(
     fbConf: Record<string, string>,
@@ -317,7 +318,7 @@ export class AdapterHandler {
                     const state = await this.granularState.byFileCreate(
                         ref.file,
                         this.#opts.config.locales,
-                        newItemsAllowed(this.#opts.devMode),
+                        newItemsAllowed(this.#opts.mode, this.#opts.devMode),
                     )
                     const compiledLoc = state.compiled.get(loc)!
                     compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
@@ -568,7 +569,7 @@ export class AdapterHandler {
             const state = await this.granularState.byFileCreate(
                 filename,
                 this.#opts.config.locales,
-                newItemsAllowed(this.#opts.devMode),
+                newItemsAllowed(this.#opts.mode, this.#opts.devMode),
             )
             indexTracker = state.indexTracker
             loadID = state.id

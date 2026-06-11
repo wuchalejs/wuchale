@@ -231,7 +231,7 @@ export class Hub {
                     adapter,
                     key,
                     sourceLocale,
-                    newItemsAllowed(config.dev),
+                    newItemsAllowed(mode, config.dev),
                 ),
                 devMode: config.dev,
                 modifyInplace: modifyAdapters.includes(key),
