@@ -5,7 +5,7 @@ import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './adapter-vanilla/index.js'
-import { type Config, defaultConfig } from './config.js'
+import { type Config, type DevMode, defaultConfig } from './config.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
 import { Hub } from './hub.js'
 
@@ -17,10 +17,17 @@ const code = ts`
     }
 `
 
+const transformedCodeDefault = ts`
+    import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.js"
+    _w_load_()(0)
+`
+
 const defaultLoaderPath = {
     client: '/loaders/loader.js',
     server: '/loaders/loader.server.js',
 }
+
+let devMode: DevMode = 'refs'
 
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
@@ -33,6 +40,7 @@ const loadConfig = async (): Promise<Config> => ({
             defaultLoaderPath,
         },
     },
+    dev: devMode,
 })
 
 inMemFS.write(defaultLoaderPath.client, '')
@@ -41,13 +49,7 @@ const hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMe
 
 test('hub transform basic', async (t: TestContext) => {
     const [output] = await hub.transform(code, file)
-    t.assert.strictEqual(
-        trimLines(output.code),
-        trimLines(ts`
-            import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./locales/main.loader.js"
-            _w_load_()(0)
-        `),
-    )
+    t.assert.strictEqual(trimLines(output.code), trimLines(transformedCodeDefault))
 })
 
 test('hub transform ssr', async (t: TestContext) => {
@@ -96,4 +98,50 @@ test('hub transform with hmr', async (t: TestContext) => {
         _w_load_()(0)
     `),
     )
+})
+
+test('different dev modes', async (t: TestContext) => {
+    const po = resolve(import.meta.dirname, 'src/locales/en.po')
+
+    await inMemFS.unlink(po)
+    devMode = false
+    let hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+    const [output] = await hub.transform(code, file)
+    t.assert.strictEqual(await inMemFS.read(po), null)
+    t.assert.deepStrictEqual(output, {})
+
+    // existing po
+    devMode = 'add'
+    hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+    await hub.transform(code, file)
+    await hub.transform(ts`const x = () => 'Hello1'`, file)
+    let poContent = (await inMemFS.read(po)) ?? ''
+    t.assert.match(poContent, /\nmsgid "Hello"/)
+    t.assert.match(poContent, /\nmsgid "Hello1"/)
+
+    // existing po
+    devMode = 'read'
+    hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+    await hub.transform(ts`const x = () => 'Hello2'`, file)
+    poContent = (await inMemFS.read(po)) ?? ''
+    t.assert.match(poContent, /"Hello"/)
+    t.assert.match(poContent, /"Hello1"/)
+    t.assert.doesNotMatch(poContent, /"Hello2"/)
+
+    await inMemFS.unlink(po)
+    devMode = 'refs'
+    hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+    await hub.transform(code, file)
+    await hub.transform(ts`const x = () => 'Hello1'`, file)
+    poContent = (await inMemFS.read(po)) ?? ''
+    t.assert.match(poContent, /\n#~ msgid "Hello"/) // obsolete
+    t.assert.match(poContent, /\nmsgid "Hello1"/) // new
+
+    // existing po
+    devMode = 'clean'
+    hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+    await hub.transform(code, file)
+    poContent = (await inMemFS.read(po)) ?? ''
+    t.assert.match(poContent, /"Hello"/)
+    t.assert.doesNotMatch(poContent, /"Hello1"/)
 })

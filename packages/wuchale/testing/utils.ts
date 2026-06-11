@@ -1,7 +1,7 @@
 import { statfs } from 'node:fs/promises'
 import type { TestContext } from 'node:test'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
-import { type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
+import { getKey, type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 import type { FS } from '../src/fs.js'
 import type { SaveData, StorageFactory } from '../src/storage.js'
 
@@ -75,10 +75,18 @@ export const testLoadersExist = async (loaders: string[], getLoaderPath = getDef
 }
 
 export const dummyTransform: TransformFunc = ctx => {
-    const msg = 'Hello'
-    const out = `${ctx.expr.plain}(${ctx.index.get(msg)})`
+    const msgs: Message[] = []
+    let out = ''
+    for (const m of ctx.content.matchAll(/'\w+'/g)) {
+        const msg = m[0].slice(1, -1)
+        if (!ctx.index.has(getKey([msg]))) {
+            continue
+        }
+        out += `${ctx.expr.plain}(${ctx.index.get(msg)})\n`
+        msgs.push(newMessage({ msgStr: [msg] }))
+    }
     return {
-        msgs: [newMessage({ msgStr: [msg] })],
+        msgs,
         output: header => ({
             code: `${header}\n${out}`,
             map: [],
