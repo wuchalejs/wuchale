@@ -1,5 +1,71 @@
 # @wuchale/jsx
 
+## 0.12.0
+
+### Minor Changes
+
+- ⚠️ BREAKING: reorganize loading config, use glob patterns and number load IDs ([#355](https://github.com/wuchalejs/wuchale/pull/355))
+
+  - `granularLoad` is now `loading.granular`
+  - `bundleLoad` is now `loading.direct`
+  - `generateLoadID` is replaced by a glob config at `loading.group`
+
+  Therefore if you use any of these, update your config like this:
+
+  ```diff
+  -import { defineConfig, defaultGenerateLoadID, pofile } from "wuchale"
+  +import { defineConfig, pofile } from "wuchale"
+  import { adapter as svelte } from '@wuchale/svelte'
+
+  export default defineConfig({
+      // ...
+      adapters: {
+          main: svelte({
+              // ...
+             bundleLoad: true,
+  -          granularLoad: true,
+  -          generateLoadID: filename => {
+  -              if (filename.includes('grouped')) {
+  -                  return 'grouped'
+  -              }
+  -              return defaultGenerateLoadID(filename)
+  -          },
+  +          loading: {
+  +              granular: true,
+  +              direct: true,
+  +              group: [
+  +                  '**/*grouped*',
+  +              ]
+  +          }
+         }),
+      }
+  })
+  ```
+
+### Patch Changes
+
+- Include placeholders in nested messages also indicating nesting like `0.0.1` ([`2005ea1`](https://github.com/wuchalejs/wuchale/commit/2005ea1968291fb4a3f72af098ff72d31baa9ab6))
+
+- ⚠️ BREAKING: proxies now export `loadCount` instead of `loadIDs` after #355 ([`f903655`](https://github.com/wuchalejs/wuchale/commit/f9036553d60577d5a7875f517ec3a59cca888dd8))
+
+  The default loaders have been updated to match but if you use `loadLocales` in SvelteKit hooks or Astro middlewares, you should update them like:
+
+  ```diff
+  -await loadLocales(main.key, main.loadIDs, main.loadCatalog, locales)
+  +await loadLocales(main.key, main.loadCount, main.loadCatalog, locales)
+  ```
+
+- ⚠️ BREAKING: Rename config `hmr` to `dev` with the following options to control behavior during dev: ([#377](https://github.com/wuchalejs/wuchale/pull/377))
+
+  - `false`: Same behavior as the previous `hmr: false`
+  - `'read'`: Only uses existing translations and doesn't add newly detected messages during dev
+  - `'add'`: Adds newly detected messages and updates their refs as they get referenced, but doesn't touch existing messages
+  - `'refs'`: Same behavior as the previous `hmr: true`, adds new messages, updates refs and marks obsoletes
+  - `'clean'`: Full behavior same as `npx wuchale --clean`, deletes unused messages
+
+- Updated dependencies [[`2005ea1`](https://github.com/wuchalejs/wuchale/commit/2005ea1968291fb4a3f72af098ff72d31baa9ab6), [`89b650b`](https://github.com/wuchalejs/wuchale/commit/89b650b49b3cb8f12cb631ce0b7a79c84bc5e548), [`94ce7fc`](https://github.com/wuchalejs/wuchale/commit/94ce7fcaa173c7dcdfe742ee332b0f6ab242673f), [`4899ae6`](https://github.com/wuchalejs/wuchale/commit/4899ae6242b96161ce8f6a8db46a11de8ad1f698), [`f903655`](https://github.com/wuchalejs/wuchale/commit/f9036553d60577d5a7875f517ec3a59cca888dd8), [`4bbbbae`](https://github.com/wuchalejs/wuchale/commit/4bbbbae9adcc9dffbd43f3f76a02c63b882d3b22), [`589fbca`](https://github.com/wuchalejs/wuchale/commit/589fbca44fcfd4253e8077d1f2b6b3469d4629cc), [`4922b03`](https://github.com/wuchalejs/wuchale/commit/4922b0372d230d76e9e1777380d5d0ba55a536f9), [`3567c7f`](https://github.com/wuchalejs/wuchale/commit/3567c7ffb4df43f070e065f52318f6cf86e0ebc0), [`2521033`](https://github.com/wuchalejs/wuchale/commit/25210330c22b22e12a2984a9b6fa7dcba4a657d7), [`5063533`](https://github.com/wuchalejs/wuchale/commit/5063533dbe518e0ffb3b105e035253801625d19e), [`6d5e244`](https://github.com/wuchalejs/wuchale/commit/6d5e244d9d0744d600d8e15933381934688eaf42)]:
+  - wuchale@0.24.0
+
 ## 0.11.3
 
 ### Patch Changes
