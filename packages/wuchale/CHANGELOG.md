@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.24.1
+
+### Patch Changes
+
+- Fix Vite build error when using granular group patterns with multiple adapters ([`b3d54ef`](https://github.com/wuchalejs/wuchale/commit/b3d54ef9892b993ca260173eaa2709c7d1329b25))
+
 ## 0.24.0
 
 ### Minor Changes
