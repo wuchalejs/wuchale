@@ -47,9 +47,10 @@ function deepFill(target: any, defaults: any) {
         if (value !== undefined && (typeof value !== 'object' || Array.isArray(value))) {
             continue
         }
-        if (!def || Array.isArray(def) || typeof def !== 'object') {
+        const isArray = Array.isArray(def)
+        if (!def || isArray || typeof def !== 'object') {
             if (value === undefined) {
-                target[key] = def
+                target[key] = isArray ? [...def] : def
             }
             continue
         }
