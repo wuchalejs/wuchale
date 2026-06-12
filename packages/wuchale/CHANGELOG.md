@@ -1,5 +1,152 @@
 # wuchale
 
+## 0.24.0
+
+### Minor Changes
+
+- Include placeholders in nested messages also indicating nesting like `0.0.1` ([`2005ea1`](https://github.com/wuchalejs/wuchale/commit/2005ea1968291fb4a3f72af098ff72d31baa9ab6))
+
+- ⚠️ BREAKING: Replace `outDir` config on adapters with CLI flag `--modify` ([`89b650b`](https://github.com/wuchalejs/wuchale/commit/89b650b49b3cb8f12cb631ce0b7a79c84bc5e548))
+
+  If you want to write the transformed files back to disk, you can specify the
+  flag in the CLI, `npx wuchale --modify {adapter1},{adapter2},...` and the files
+  for those adapters will be modified in-place. This OVERWRITES the files,
+  therefore only use it when you are certain, and have Git already setup and in a
+  clean state, so that you can restore them. Normally you should use it only to
+  when you use an unsupported bundler and in that case you should only run it in
+  CI just before deployment. Or you can use it for debugging (and restore with
+  Git.)
+
+- Add `property` in heuristic details and use it to detect URLs from property names if it's `href`, `url` or `link` ([`94ce7fc`](https://github.com/wuchalejs/wuchale/commit/94ce7fcaa173c7dcdfe742ee332b0f6ab242673f))
+
+- Extract template literals that start with a placeholder expression followed by natural language content. ([#381](https://github.com/wuchalejs/wuchale/pull/381))
+
+  Messages like `{0} was successfully deleted!` were previously ignored because
+  the first character `{` is not a letter. They are now
+  extracted when the leading placeholder is followed by spaces and letters.
+
+- ⚠️ BREAKING: proxies now export `loadCount` instead of `loadIDs` after #355 ([`f903655`](https://github.com/wuchalejs/wuchale/commit/f9036553d60577d5a7875f517ec3a59cca888dd8))
+
+  The default loaders have been updated to match but if you use `loadLocales` in SvelteKit hooks or Astro middlewares, you should update them like:
+
+  ```diff
+  -await loadLocales(main.key, main.loadIDs, main.loadCatalog, locales)
+  +await loadLocales(main.key, main.loadCount, main.loadCatalog, locales)
+  ```
+
+- ⚠️ BREAKING: Composable storage: `dir` config in `pofile` and `json` storage changed to `location`, `separateUrls` removed. ([#382](https://github.com/wuchalejs/wuchale/pull/382))
+
+  The `dir` config which was used to set the directory under which to save
+  catalog storages is now replaced by `location` which gives more control. In
+  `pofile` it should be a file path pattern with `{locale}` as a placeholder. If
+  you use `separateUrls` (which was `true` by default), you should now use the
+  new `storageByType` layer:
+
+  ```diff
+  -import { pofile } from 'wuchale'
+  +import { pofile, storageByType } from 'wuchale'
+
+  export default {
+      // ...
+      adapters: {
+          main: svelte({
+              // ...
+  -            storage: pofile({dir: 'src/locales'}),
+  +            storage: storageByType({
+  +                message: pofile({location: 'src/locales/{locale}.po'}),
+  +                url: pofile({location: 'src/locales/{locale}.url.po'})
+  +            }),
+          }),
+      }
+  }
+  ```
+
+  `storageByType` returns a storage itself, but if you don't need to separate the
+  items, you can opt not to use it. But it also opens the possibility of storing
+  URL translations in another format for example.
+
+- Update default Gemini model to 3.5 flash ([`589fbca`](https://github.com/wuchalejs/wuchale/commit/589fbca44fcfd4253e8077d1f2b6b3469d4629cc))
+
+- ⚠️ BREAKING: Rename config `hmr` to `dev` with the following options to control behavior during dev: ([#377](https://github.com/wuchalejs/wuchale/pull/377))
+
+  - `false`: Same behavior as the previous `hmr: false`
+  - `'read'`: Only uses existing translations and doesn't add newly detected messages during dev
+  - `'add'`: Adds newly detected messages and updates their refs as they get referenced, but doesn't touch existing messages
+  - `'refs'`: Same behavior as the previous `hmr: true`, adds new messages, updates refs and marks obsoletes
+  - `'clean'`: Full behavior same as `npx wuchale --clean`, deletes unused messages
+
+- ⚠️ BREAKING: Built-in URL matcher ([#363](https://github.com/wuchalejs/wuchale/pull/363))
+
+  A small purpose-built no-RegExp URL matcher is now included and the glob-like syntax it accepts is different from/simpler than that of `path-to-regexp`.
+
+  - `*` for required segments like `/foo-*` matches `/foo-bar`
+  - `?` for optional segments like `/foo/?` matches `/foo` and `/foo/bar`
+  - `**` for nested like `/foo/**` matches `/foo`, `/foo/bar` and `/foo/1/bar`
+
+  If you use URL patterns, you have to adjust your config accordingly:
+
+  ```diff
+  export default {
+      // ...
+      adapters: {
+          main: svelte({
+              // ...
+              url: {
+                  // ...
+                  patterns: [
+  -                   'foo/*rest',
+  +                   'foo/**',
+                  ]
+              },
+          }),
+      }
+  }
+  ```
+
+- ⚠️ BREAKING: reorganize loading config, use glob patterns and number load IDs ([#355](https://github.com/wuchalejs/wuchale/pull/355))
+
+  - `granularLoad` is now `loading.granular`
+  - `bundleLoad` is now `loading.direct`
+  - `generateLoadID` is replaced by a glob config at `loading.group`
+
+  Therefore if you use any of these, update your config like this:
+
+  ```diff
+  -import { defineConfig, defaultGenerateLoadID, pofile } from "wuchale"
+  +import { defineConfig, pofile } from "wuchale"
+  import { adapter as svelte } from '@wuchale/svelte'
+
+  export default defineConfig({
+      // ...
+      adapters: {
+          main: svelte({
+              // ...
+             bundleLoad: true,
+  -          granularLoad: true,
+  -          generateLoadID: filename => {
+  -              if (filename.includes('grouped')) {
+  -                  return 'grouped'
+  -              }
+  -              return defaultGenerateLoadID(filename)
+  -          },
+  +          loading: {
+  +              granular: true,
+  +              direct: true,
+  +              group: [
+  +                  '**/*grouped*',
+  +              ]
+  +          }
+         }),
+      }
+  })
+  ```
+
+### Patch Changes
+
+- Fix `files` adapter config not respected when it's a bare string ([`3567c7f`](https://github.com/wuchalejs/wuchale/commit/3567c7ffb4df43f070e065f52318f6cf86e0ebc0))
+
+- Use the same fallback chains for URL translations ([`2521033`](https://github.com/wuchalejs/wuchale/commit/25210330c22b22e12a2984a9b6fa7dcba4a657d7))
+
 ## 0.23.4
 
 ### Patch Changes
