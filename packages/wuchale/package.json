@@ -85,7 +85,7 @@
     "license": "MIT",
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.10",
-        "acorn": "^8.16.0",
+        "acorn": "^8.17.0",
         "chokidar": "^5.0.0",
         "magic-string": "^0.30.21",
         "picomatch": "^4.0.4",

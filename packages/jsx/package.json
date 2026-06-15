@@ -71,7 +71,7 @@
     },
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.10",
-        "acorn": "^8.16.0",
+        "acorn": "^8.17.0",
         "wuchale": "^0.24.0"
     },
     "devDependencies": {
