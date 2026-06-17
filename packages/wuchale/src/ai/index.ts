@@ -198,19 +198,23 @@ export default class AIQueue {
 
     groupItemsByLocales = (items: Item[]) => {
         const itemsByLocales = new Map<GroupKey, Item[]>()
+        const group = this.ai.group[this.sourceLocale]
+        const groups = new Set<string | string[]>()
         for (const item of items) {
+            groups.clear()
             for (const [loc, transl] of item.translations.entries()) {
                 if (loc === this.sourceLocale || transl[0]) {
                     continue
                 }
-                const group = this.ai.group[this.sourceLocale]?.find(g => g.includes(loc))
-                const groupKey = group ?? loc
-                const groupItems = itemsByLocales.get(groupKey)
+                groups.add(group?.find(g => g.includes(loc)) ?? loc)
+            }
+            for (const groupKey of groups) {
+                let groupItems = itemsByLocales.get(groupKey)
                 if (groupItems == null) {
-                    itemsByLocales.set(groupKey, [item])
-                } else {
-                    groupItems.push(item)
+                    groupItems = []
+                    itemsByLocales.set(groupKey, groupItems)
                 }
+                groupItems.push(item)
             }
         }
         return itemsByLocales

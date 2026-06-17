@@ -5,14 +5,18 @@ import { Logger } from '../log.js'
 import type { Item } from '../storage.js'
 import AIQueue, { type AI } from './index.js'
 
+const deamGroup = ['de', 'am']
+
 const ai: AI = {
     name: 'test',
     batchSize: 4,
     parallel: 2,
-    group: {},
+    group: {
+        en: [deamGroup],
+    },
     async translate() {
         return JSON.stringify([
-            { en: ['Welcome'], es: ['Bienvenido'] }, // omit de interntionally
+            { en: ['Welcome'], es: ['Bienvenido'] }, // omit others interntionally
             { en: ['Welcome'], es: ['Bienvenido'] }, // return more than asked
         ])
     },
@@ -26,6 +30,7 @@ const item: Item = {
         ['en', ['Welcome']],
         ['es', []],
         ['de', []],
+        ['am', []],
     ]),
     references: [
         {
@@ -50,7 +55,11 @@ test('Group and prep items', async (t: TestContext) => {
         .map(_ => structuredClone(item))
     const groupedItems = queue.groupItemsByLocales(items)
     t.assert.equal(groupedItems.get('es')?.length, 30)
-    t.assert.equal(groupedItems.get('de')?.length, 30)
+    t.assert.equal(groupedItems.get(deamGroup)?.length, 30)
     const opInfo = queue.prepItemsInBatches(groupedItems)
-    t.assert.equal(opInfo.length, 16) // 7 * 4 + 1 * 2 = 30 for es and de
+    // batchSize 4
+    // for group in [es, de&am]
+    //  batchSize msg * 7 batch + 2 msg * 1 batch = 30
+    //  batch msgs = 7 + 1 = 8
+    t.assert.equal(opInfo.length, 16)
 })
