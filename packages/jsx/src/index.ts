@@ -60,7 +60,7 @@ const defaultRuntime: RuntimeConf = {
     },
 }
 
-const defaultRuntimeSolid: RuntimeConf = {
+export const defaultRuntimeSolid: RuntimeConf = {
     ...defaultRuntime,
     initReactive: ({ funcName }) => (funcName == null ? true : null), // init only in top level
     useReactive: true, // always reactive, because solidjs doesn't have a problem with it
@@ -101,8 +101,9 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>, bun
 }
 
 export const adapter = (args: DeepPartial<JSXArgs> = defaultArgs): Adapter => {
+    const runtimeNotGiven = args.runtime == null // before fillDefaults
     let { heuristic, patterns, variant, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
-    if (variant === 'solidjs' && args.runtime == null) {
+    if (variant === 'solidjs' && runtimeNotGiven) {
         runtime = defaultRuntimeSolid
     }
     return {

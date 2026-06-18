@@ -4,7 +4,7 @@ import { type TestContext, test } from 'node:test'
 import { IndexTracker, URLHandler } from 'wuchale'
 // @ts-expect-error
 import { transformTest, ts as tsx } from '../../wuchale/testing/utils.ts'
-import { defaultArgs } from './index.js'
+import { defaultArgs, defaultRuntimeSolid } from './index.js'
 import { JSXTransformer } from './transformer.js'
 
 const urlHandler = new URLHandler([], 'en')
@@ -21,7 +21,7 @@ const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs'
         },
         defaultArgs.heuristic,
         defaultArgs.patterns,
-        defaultArgs.runtime,
+        variant === 'default' ? defaultArgs.runtime : defaultRuntimeSolid,
     ).transformJx(variant)
 
 test('React basic', async t => {
@@ -101,9 +101,9 @@ test('SolidJS basic', async t => {
         import { _w_load_, _w_load_rx_ } from "./loader.js"
         import W_tx_ from "@wuchale/jsx/runtime.solid.jsx"
 
+        const _w_runtime_ = () => _w_load_rx_();
         function Foo(): Component {
-            const _w_runtime_ = _w_load_rx_();
-            return <p>{_w_runtime_(0)}</p>
+            return <p>{_w_runtime_()(0)}</p>
         }
     `,
         ['Hello'],
