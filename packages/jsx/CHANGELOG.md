@@ -1,5 +1,14 @@
 # @wuchale/jsx
 
+## 0.12.1
+
+### Patch Changes
+
+- JSX: Fix SolidJS files not correctly transformed, sometimes resulting in i18n:404 ([`a890303`](https://github.com/wuchalejs/wuchale/commit/a890303600398c725ca2a888badfa2163c356db7))
+
+- Updated dependencies [[`ff749d6`](https://github.com/wuchalejs/wuchale/commit/ff749d61c44d93c804fc41eac572d7ca64343785), [`d4682fa`](https://github.com/wuchalejs/wuchale/commit/d4682fa13c64e2e41ba221cc7cdd99b60b9d8f1a)]:
+  - wuchale@0.24.2
+
 ## 0.12.0
 
 ### Minor Changes
