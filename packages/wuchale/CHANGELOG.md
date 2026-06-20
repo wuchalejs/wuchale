@@ -1,5 +1,13 @@
 # wuchale
 
+## 0.24.2
+
+### Patch Changes
+
+- Fix repeated messages when grouping locales for AI translate ([`ff749d6`](https://github.com/wuchalejs/wuchale/commit/ff749d61c44d93c804fc41eac572d7ca64343785))
+
+- Fix long build times caused by wuchale #391 ([`d4682fa`](https://github.com/wuchalejs/wuchale/commit/d4682fa13c64e2e41ba221cc7cdd99b60b9d8f1a))
+
 ## 0.24.1
 
 ### Patch Changes
