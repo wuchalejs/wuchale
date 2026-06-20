@@ -82,13 +82,14 @@ type VisitProps<NodeT, AddCtx> = VisitVolatileCtx<AddCtx> & {
 }
 
 export class MixedVisitor<
-    MixNodeT,
+    MixNodeT extends object,
     AddCtx extends object,
     TxtT extends MixNodeT,
     ComT extends MixNodeT,
     ExprT extends MixNodeT,
 > {
     #props: InitProps<MixNodeT, AddCtx, TxtT, ComT, ExprT>
+    #scouted = new WeakMap<MixNodeT, [boolean | null, boolean | null]>()
 
     constructor(props: InitProps<MixNodeT, AddCtx, TxtT, ComT, ExprT>) {
         this.#props = props
@@ -290,7 +291,16 @@ export class MixedVisitor<
         if (props.children.length === 0) {
             return []
         }
-        if (!this.visitNested(props, { mstr: noopMstr, index: noopIndex, addCtx: { ...props.addCtx } }, false)) {
+        const scouKey = props.children[0]!
+        const scoutedBoth = this.#scouted.get(scouKey) ?? [null, null]
+        const scouKeyI = props.commentDirectives.unit ? 1 : 0
+        let scouted = scoutedBoth[scouKeyI]
+        if (scouted == null) {
+            scouted = this.visitNested(props, { mstr: noopMstr, index: noopIndex, addCtx: { ...props.addCtx } }, false)
+            scoutedBoth[scouKeyI] = scouted
+            this.#scouted.set(scouKey, scoutedBoth)
+        }
+        if (!scouted) {
             return this.separatelyVisitChildren(props)
         }
         return this.visitNested(props, { mstr: props.mstr, index: props.index, addCtx: props.addCtx }, true) // really modify
