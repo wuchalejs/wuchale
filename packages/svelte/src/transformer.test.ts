@@ -36,7 +36,9 @@ test('Simple text and props destruct', async t => {
         <script>
             let { label = 'Hello' } = $props()
         </script>
-        Hello
+        <div>
+            Hello
+        </div>
         `),
         svelte`
         <script>
@@ -45,7 +47,9 @@ test('Simple text and props destruct', async t => {
             const _w_runtime_ = $derived(_w_load_rx_());
             let { label = _w_runtime_(0) } = $props()
         </script>
-        {_w_runtime_(0)}
+        <div>
+            {_w_runtime_(0)}
+        </div>
     `,
         ['Hello', 'Hello'],
     )
@@ -229,27 +233,27 @@ test('URLs', async t => {
                 }
             })
         </script>
-        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(4)}</a>
-        <a href={_w_localize_(_w_runtime_(5), _w_runtime_.l)}>{_w_runtime_(4)}</a>
-        <a href={_w_localize_(_w_runtime_(6, [44]), _w_runtime_.l)}>{_w_runtime_(4)}</a>
-        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(4)}</a>
-        <a href="/notinpattern">{_w_runtime_(4)}</a>
-        <a href={_w_localize_(_w_runtime_(7), _w_runtime_.l)}>{_w_runtime_(4)}</a>
+        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href="/notinpattern">{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(7)}</a>
     `,
         [
             { msgStr: ['/translated/{0}'], type: 'url' },
             { msgStr: ['/translated/somewhere/{0}'], type: 'url' },
             { msgStr: ['/translated/propertyhref'], type: 'url' },
             { msgStr: ['/translated/hello'], type: 'url' },
-            'Hello',
             { msgStr: ['/translated/hello/there'], type: 'url' },
-            'Hello',
             { msgStr: ['/translated/very/deep/link/{0}'], type: 'url' },
-            'Hello',
             { msgStr: ['/translated/{0}'], type: 'url' },
-            'Hello',
-            'Hello',
             { msgStr: ['/'], type: 'url' },
+            'Hello',
+            'Hello',
+            'Hello',
+            'Hello',
+            'Hello',
             'Hello',
         ],
     )
@@ -322,10 +326,10 @@ test('Context', async t => {
         await getOutput(svelte`
             <p>{/* @wc-context: music */ 'String'}</p>
             <p>{/* @wc-context: programming */ 'String'}</p>
-            <!-- @wc-context: door -->
-            <p>Close</p>
             <!-- @wc-context: distance -->
             <p>Close</p>
+            <!-- @wc-context: door -->
+            Close
         `),
         svelte`
             <script>
@@ -335,12 +339,17 @@ test('Context', async t => {
             </script>
             <p>{/* @wc-context: music */ _w_runtime_(0)}</p>
             <p>{/* @wc-context: programming */ _w_runtime_(1)}</p>
-            <!-- @wc-context: door -->
-            <p>{_w_runtime_(2)}</p>
             <!-- @wc-context: distance -->
             <p>{_w_runtime_(3)}</p>
+            <!-- @wc-context: door -->
+            {_w_runtime_(2)}
     `,
-        ['String', 'String', 'Close', 'Close'],
+        [
+            { msgStr: ['String'], context: 'music' },
+            { msgStr: ['String'], context: 'programming' },
+            { msgStr: ['Close'], context: 'door' },
+            { msgStr: ['Close'], context: 'distance' },
+        ],
     )
 })
 
@@ -381,17 +390,17 @@ test('Nested and mixed with svelte:element', async t => {
             const _w_runtime_ = $derived(_w_load_rx_());
         </script>
         <p>
-            {#snippet _w_snippet_1(_w_ctx_)}
+            {#snippet _w_snippet_0(_w_ctx_)}
                 <svelte:element this="b">
-                    {#snippet _w_snippet_0(_w_ctx_)}
+                    {#snippet _w_snippet_1(_w_ctx_)}
                         <i>
                             <W_tx_ x={_w_ctx_} n a={[appName]} />
                         </i>
                     {/snippet}
-                    <W_tx_ t={[_w_snippet_0]} x={_w_ctx_} n />
+                    <W_tx_ t={[_w_snippet_1]} x={_w_ctx_} n />
                 </svelte:element>
             {/snippet}
-            <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(0)} />
+            <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
         </p>
     `,
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],

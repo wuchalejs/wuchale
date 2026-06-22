@@ -1,4 +1,4 @@
-export { MixedVisitor } from './mixed-visitor.js'
+export { MixedVisitor, type ModFunc } from './mixed-visitor.js'
 
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,14 +25,6 @@ export function runtimeVars(wrapFunc: (expr: string) => string, base = varNames.
 }
 
 export type RuntimeVars = ReturnType<typeof runtimeVars>
-
-export function nonWhitespaceText(msgStr: string): [number, string, number] {
-    const trimmedS = msgStr.trimStart()
-    const startWh = msgStr.length - trimmedS.length
-    const trimmed = trimmedS.trimEnd()
-    const endWh = trimmedS.length - trimmed.length
-    return [startWh, trimmed, endWh]
-}
 
 export function loaderPathResolver(importMetaUrl: string, baseDir: string, ext: string) {
     const dir = dirname(fileURLToPath(importMetaUrl))

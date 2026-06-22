@@ -184,7 +184,7 @@ export class Transformer extends InertVisitors {
             // nothing to ask
             return false
         }
-        if (this.commentDirectives.forceType === false) {
+        if (this.commentDirectives.forceType === false || !this.index.has(getKey(msg.msgStr, msg.context))) {
             return false
         }
         const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
@@ -206,7 +206,7 @@ export class Transformer extends InertVisitors {
         })
         const heuRes = this.getHeuristicMessageType(msg)
         // not allowed here, or msg is new but new msgs are not allowed
-        if (!heuRes || !this.index.has(getKey(msg.msgStr, msg.context))) {
+        if (!heuRes) {
             return [false, null]
         }
         msg.type = heuRes
@@ -214,11 +214,13 @@ export class Transformer extends InertVisitors {
     }
 
     literalRepl(msgInfo: Message) {
-        const repl = `${this.vars().rtTrans}(${this.index.get(getKey(msgInfo.msgStr, msgInfo.context))})`
+        const vars = this.vars()
+        const indexKey = getKey(msgInfo.msgStr, msgInfo.context)
+        const repl = `${vars.rtTrans}(${this.index.get(indexKey)})`
         if (msgInfo.type !== 'url') {
             return repl
         }
-        return `${varNames.urlLocalize}(${repl}, ${this.vars().rtLocale})`
+        return `${varNames.urlLocalize}(${repl}, ${vars.rtLocale})`
     }
 
     visitLiteral(node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] {
