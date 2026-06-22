@@ -233,7 +233,7 @@ test('Nested and mixed', async (t: TestContext) => {
             function m() {
                 const _w_runtime_ = _w_load_();
                 return <>
-                    <p><W_tx_ t={[_w_ctx_ => <b key="_1"><W_tx_ t={[_w_ctx_ => <i key="_0"><W_tx_ x={_w_ctx_} n a={[appName]} /></i>]} x={_w_ctx_} n /></b>]} x={_w_runtime_.c(0)} /></p>
+                    <p><W_tx_ t={[_w_ctx_ => <b key="_0"><W_tx_ t={[_w_ctx_ => <i key="_1"><W_tx_ x={_w_ctx_} n a={[appName]} /></i>]} x={_w_ctx_} n /></b>]} x={_w_runtime_.c(0)} /></p>
                 </>
             }
     `,

@@ -1,58 +1,35 @@
 // Shared logic between adapters for handling nested / mixed elements within elements / fragments
 
-import MagicString from 'magic-string'
+import type MagicString from 'magic-string'
 import {
     getKey,
     type HeuristicDetails,
     type HeuristicDetailsBase,
     type HeuristicFunc,
-    IndexTracker,
+    type IndexTracker,
     type Message,
     newMessage,
 } from '../adapters.js'
 import {
     type CommentDirectives,
     commentPrefix,
-    nonWhitespaceText,
     type RuntimeVars,
     restoreCommentDirectives,
     updateCommentDirectives,
     varNames,
 } from './index.js'
 
-const noopIndex = new IndexTracker(true)
-
-const noopMstr = new Proxy(new MagicString(''), {
-    get: (target, p: keyof MagicString) => {
-        if (typeof target[p] === 'function') {
-            return () => {}
-        }
-        return target[p]
-    },
-})
-
 type NestedRanges = [number, number, boolean][]
 
-type VisitVolatileCtx<A> = {
+type WrapNestedArgs = [msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number]
+
+export type ModFunc = (nested: boolean, siblings: number) => void
+
+type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> = {
     mstr: MagicString
     index: IndexTracker
-    inCompoundText: boolean
-    addCtx: A
-}
-
-type VisitNestedCtx<A> = Omit<VisitVolatileCtx<A>, 'inCompoundText'>
-
-type VisitFunc<MixNodeT, AddCtx> = (node: MixNodeT, ctx: VisitVolatileCtx<AddCtx>) => Message[]
-
-type InitProps<
-    MixNodeT,
-    AddCtx extends object,
-    TxtT extends MixNodeT,
-    ComT extends MixNodeT,
-    ExprT extends MixNodeT,
-> = {
-    vars: () => RuntimeVars
     content: string
+    vars: () => RuntimeVars
     getRange: (node: MixNodeT) => { start: number; end: number }
     isText: (node: MixNodeT) => node is TxtT
     isExpression: (node: MixNodeT) => node is ExprT
@@ -61,15 +38,46 @@ type InitProps<
     canHaveChildren: (node: MixNodeT) => boolean
     getTextContent: (node: TxtT) => string
     getCommentData: (node: ComT) => string
-    visitFunc: VisitFunc<MixNodeT, AddCtx>
+    visitFunc: (node: MixNodeT) => Message[]
     fullHeuristicDetails: (details: HeuristicDetailsBase) => HeuristicDetails
     checkHeuristic: HeuristicFunc
-    wrapNested: (msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
+    wrapNested: (inNested: boolean, ...args: WrapNestedArgs) => void
 }
 
 export type MixedScope = 'markup' | 'attribute'
 
-type VisitProps<NodeT, AddCtx> = VisitVolatileCtx<AddCtx> & {
+type LevelMod = {
+    msg: Message | null
+    txts: [Message, () => void][]
+    unit: boolean
+    pending: boolean
+    building: boolean
+    siblings: number
+    funcs: ModFunc[]
+    children: LevelMod[]
+}
+
+const newMod = (building = false, unit = false): LevelMod => ({
+    msg: null,
+    txts: [],
+    building,
+    unit,
+    pending: true,
+    siblings: 0,
+    funcs: [],
+    children: [],
+})
+
+/** trims from end first */
+export function nonWhitespaceText(msgStr: string): [number, string, number] {
+    const trimmedE = msgStr.trimEnd()
+    const endWh = msgStr.length - trimmedE.length
+    const trimmed = trimmedE.trimStart()
+    const startWh = trimmedE.length - trimmed.length
+    return [startWh, trimmed, endWh]
+}
+
+type VisitProps<NodeT> = {
     children: NodeT[]
     commentDirectives: CommentDirectives
     scope: MixedScope
@@ -79,154 +87,217 @@ type VisitProps<NodeT, AddCtx> = VisitVolatileCtx<AddCtx> & {
      * set to true when variables can be objects that cannot be converted to strings like
      * e.g. components in jsx to prevent `[object Object]` being rendered. */
     useComponent?: boolean
+    /** additional modify func to call */
+    addMod?: ModFunc | undefined
 }
 
 export class MixedVisitor<
     MixNodeT extends object,
-    AddCtx extends object,
     TxtT extends MixNodeT,
     ComT extends MixNodeT,
     ExprT extends MixNodeT,
 > {
-    #props: InitProps<MixNodeT, AddCtx, TxtT, ComT, ExprT>
-    #scouted = new WeakMap<MixNodeT, [boolean | null, boolean | null]>()
+    #props: InitProps<MixNodeT, TxtT, ComT, ExprT>
+    #mod = { markup: newMod(), attribute: newMod() }
 
-    constructor(props: InitProps<MixNodeT, AddCtx, TxtT, ComT, ExprT>) {
+    constructor(props: InitProps<MixNodeT, TxtT, ComT, ExprT>) {
         this.#props = props
     }
 
-    separatelyVisitChildren = (props: VisitProps<MixNodeT, AddCtx>) => {
+    /** apply pending nested message edits */
+    #applyMod(mod: LevelMod, depth = 0) {
+        if (!mod.pending) {
+            return []
+        }
         const msgs: Message[] = []
-        if (props.scope !== 'markup') {
-            return msgs
+        const nested = depth > 0
+        let modify = nested
+        if (!nested) {
+            if (mod.msg) {
+                if (mod.unit) {
+                    mod.msg.type = 'message'
+                    modify = true
+                } else if (mod.building) {
+                    const heurMsgType = this.#props.checkHeuristic(mod.msg)
+                    if (heurMsgType) {
+                        mod.msg.type = heurMsgType
+                        modify = true
+                    } else {
+                        modify = false
+                    }
+                }
+                modify && msgs.push(mod.msg)
+            } else {
+                for (const [msg, func] of mod.txts) {
+                    const heurMsgType = this.#props.checkHeuristic(msg)
+                    if (!heurMsgType) {
+                        continue
+                    }
+                    msg.type = heurMsgType
+                    msgs.push(msg)
+                    func()
+                }
+            }
         }
-        const commentDirectivesOrig: CommentDirectives = { ...props.commentDirectives }
-        let lastVisitIsComment = false
-        for (const child of props.children) {
-            if (this.#props.isComment(child)) {
-                updateCommentDirectives(this.#props.getCommentData(child), props.commentDirectives)
-                lastVisitIsComment = true
-                continue
+        if (modify) {
+            for (const func of mod.funcs) {
+                func(nested, mod.siblings)
             }
-            if (this.#props.isText(child) && !this.#props.getTextContent(child).trim()) {
-                continue
-            }
-            if (props.commentDirectives.ignoreFile) {
-                break
-            }
-            if (props.commentDirectives.forceType !== false) {
-                msgs.push(
-                    ...this.#props.visitFunc(child, {
-                        mstr: props.mstr,
-                        index: props.index,
-                        addCtx: props.addCtx,
-                        inCompoundText: false,
-                    }),
-                )
-            }
-            if (!lastVisitIsComment) {
-                continue
-            }
-            restoreCommentDirectives(props.commentDirectives, commentDirectivesOrig)
-            lastVisitIsComment = false
         }
+        for (const childMod of mod.children) {
+            msgs.push(...this.#applyMod(childMod, depth + (modify ? 1 : 0)))
+        }
+        mod.pending = false
         return msgs
     }
 
-    visitNested(props: VisitProps<MixNodeT, AddCtx>, ctx: VisitNestedCtx<AddCtx>, asCompound: true): Message[]
-    visitNested(props: VisitProps<MixNodeT, AddCtx>, ctx: VisitNestedCtx<AddCtx>, asCompound: false): boolean
-    visitNested(props: VisitProps<MixNodeT, AddCtx>, ctx: VisitNestedCtx<AddCtx>, asCompound: boolean) {
-        let hasTextChild = false
-        let hasNonTextChild = false
+    applyMod(scope: MixedScope = 'markup') {
+        const mod = this.#mod[scope]
+        const msgs = this.#applyMod(mod)
+        this.#mod[scope] = newMod() // in addition to pending for when called for last cleanup
+        return msgs
+    }
+
+    getLastChildEnd(children: MixNodeT[]): number {
+        const lastChild = children.slice(-1)[0]!
+        const lastChildEnd = this.#props.getRange(lastChild).end
+        if (this.#props.isText(lastChild)) {
+            const [, , endWh] = nonWhitespaceText(this.#props.getTextContent(lastChild))
+            return lastChildEnd - endWh
+        }
+        return lastChildEnd
+    }
+
+    visit(props: VisitProps<MixNodeT>) {
+        if (props.children.length === 0) {
+            return []
+        }
         let hasCommentDirectives = false
-        let hasTextDescendants = false
         let msgStr = ''
         let iArg = 0
         let iTag = 0
-        const lastChildEnd = this.#props.getRange(props.children.slice(-1)[0]!).end
+        const commentDirectivesOrig: CommentDirectives = { ...props.commentDirectives }
+        let lastVisitIsComment = false
+        const lastChildEnd = this.getLastChildEnd(props.children)
         const childrenNestedRanges: NestedRanges = []
         const msgs: Message[] = []
         const placeholders: [string, string][] = []
+        const vars = this.#props.vars()
+        const alreadyInsideUnit = props.commentDirectives.unit ?? false
+        const mod = this.#mod[props.scope]
+        mod.siblings = props.children.length
+        mod.building ||=
+            alreadyInsideUnit ||
+            props.children.find(c => this.#props.isText(c) && this.#props.getTextContent(c).trim()) != null
+        if (props.addMod) {
+            mod.funcs.push(props.addMod)
+        }
         for (const child of props.children) {
             if (this.#props.isComment(child)) {
-                if (this.#props.getCommentData(child).trim().startsWith(commentPrefix)) {
+                const data = this.#props.getCommentData(child)
+                if (data.trim().startsWith(commentPrefix)) {
+                    updateCommentDirectives(data, props.commentDirectives)
                     hasCommentDirectives = true
                 }
+                lastVisitIsComment = true
                 continue
+            }
+            if (props.commentDirectives.ignoreFile) {
+                return []
             }
             const chRange = this.#props.getRange(child)
             if (this.#props.isText(child)) {
                 const [startWh, trimmed, endWh] = nonWhitespaceText(this.#props.getTextContent(child))
-                const msgInfo = newMessage({
-                    msgStr: [trimmed],
-                    details: this.#props.fullHeuristicDetails({ scope: props.scope }),
-                    context: props.commentDirectives.context,
-                })
-                if (startWh && !msgStr.endsWith(' ')) {
+                if ((startWh || trimmed === '') && !msgStr.endsWith(' ')) {
                     msgStr += ' '
                 }
                 if (!trimmed) {
                     // whitespace
                     continue
                 }
-                hasTextChild = true
-                msgStr += msgInfo.msgStr
-                if (endWh) {
-                    msgStr += ' '
+                if (props.commentDirectives.forceType !== false) {
+                    msgStr += trimmed
+                    if (endWh) {
+                        msgStr += ' '
+                    }
+                    let start = chRange.start
+                    let end = chRange.end
+                    const msg = newMessage({
+                        msgStr: [trimmed],
+                        details: this.#props.fullHeuristicDetails({
+                            scope: props.scope,
+                            element: props.element,
+                            attribute: props.attribute,
+                        }),
+                        context: props.commentDirectives.context,
+                    })
+                    mod.txts.push([
+                        msg,
+                        () => {
+                            const index = this.#props.index.get(getKey(msg.msgStr, msg.context))
+                            this.#props.mstr.update(start + startWh, end - endWh, `{${vars.rtTrans}(${index})}`)
+                        },
+                    ])
+                    mod.funcs.push((nested, siblings) => {
+                        if (!nested && siblings === 1) {
+                            start += startWh
+                            end -= endWh
+                        }
+                        this.#props.mstr.remove(start, end)
+                    })
                 }
-                ctx.mstr.remove(chRange.start, chRange.end)
-                continue
-            }
-            if (this.#props.leaveInPlace(child)) {
-                msgs.push(
-                    ...this.#props.visitFunc(child, { ...ctx, inCompoundText: this.#props.canHaveChildren(child) }),
-                )
-                continue
-            }
-            hasNonTextChild = true
-            if (this.#props.isExpression(child)) {
-                msgs.push(...this.#props.visitFunc(child, { ...ctx, inCompoundText: props.inCompoundText }))
-                msgStr += `{${iArg}}`
-                placeholders.push([iArg.toString(), this.#props.content.slice(chRange.start + 1, chRange.end - 1)])
-                let moveStart = chRange.start
-                if (iArg > 0) {
-                    ctx.mstr.update(chRange.start, chRange.start + 1, ', ')
-                } else {
-                    moveStart++
-                    ctx.mstr.remove(chRange.start, chRange.start + 1)
+            } else if (props.commentDirectives.forceType !== false) {
+                if (this.#props.leaveInPlace(child)) {
+                    msgs.push(...this.#props.visitFunc(child))
+                    continue
                 }
-                ctx.mstr.move(moveStart, chRange.end - 1, lastChildEnd)
-                ctx.mstr.remove(chRange.end - 1, chRange.end)
-                iArg++
-                continue
-            }
-            // elements, components and other things as well
-            const canHaveChildren = this.#props.canHaveChildren(child)
-            const childMsgs = this.#props.visitFunc(child, { ...ctx, inCompoundText: asCompound })
-            let nestedNeedsCtx = false
-            let chTxt = ''
-            for (const msgInfo of childMsgs) {
-                if (canHaveChildren && msgInfo.details.scope === props.scope) {
-                    chTxt += msgInfo.msgStr[0]
-                    for (const [num, cont] of msgInfo.placeholders) {
+                if (this.#props.isExpression(child)) {
+                    msgs.push(...this.#props.visitFunc(child))
+                    msgStr += `{${iArg}}`
+                    const start = chRange.start + 1
+                    const end = chRange.end - 1
+                    placeholders.push([iArg.toString(), this.#props.content.slice(start, end)])
+                    const firstOne = iArg === 0
+                    mod.funcs.push(() => {
+                        let moveStart = chRange.start
+                        if (firstOne) {
+                            moveStart++
+                            this.#props.mstr.remove(chRange.start, start)
+                        } else {
+                            this.#props.mstr.update(chRange.start, start, ', ')
+                        }
+                        this.#props.mstr.move(moveStart, end, lastChildEnd)
+                        this.#props.mstr.remove(end, chRange.end)
+                    })
+                    iArg++
+                    continue
+                }
+                // elements, components and other things as well
+                const childMod: LevelMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
+                this.#mod[props.scope] = childMod
+                const childMsgs = this.#props.visitFunc(child)
+                this.#mod[props.scope] = mod
+                mod.children.push(childMod)
+                msgs.push(...childMsgs)
+                let nestedNeedsCtx = false
+                let chTxt = `<${iTag}/>`
+                const canHaveChildren = this.#props.canHaveChildren(child)
+                if (canHaveChildren && childMod.msg) {
+                    chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
+                    for (const [num, cont] of childMod.msg.placeholders) {
                         placeholders.push([`${iTag}.${num}`, cont])
                     }
-                    hasTextDescendants = true
                     nestedNeedsCtx = true
-                } else {
-                    // attributes, blocks
-                    msgs.push(msgInfo)
                 }
+                childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
+                msgStr += chTxt
+                iTag++
             }
-            childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
-            if (canHaveChildren && chTxt) {
-                chTxt = `<${iTag}>${chTxt}</${iTag}>`
-            } else {
-                // childless elements and everything else
-                chTxt = `<${iTag}/>`
+            if (!lastVisitIsComment) {
+                continue
             }
-            iTag++
-            msgStr += chTxt
+            restoreCommentDirectives(props.commentDirectives, commentDirectivesOrig)
+            lastVisitIsComment = false
         }
         const msgInfo = newMessage({
             msgStr: [msgStr.trim()],
@@ -238,90 +309,48 @@ export class MixedVisitor<
             context: props.commentDirectives.context,
             placeholders,
         })
-        const heurMsgType = this.#props.checkHeuristic(msgInfo)
-        msgInfo.type = heurMsgType || 'message'
-        const canBeCompound =
-            props.inCompoundText ||
-            props.commentDirectives.unit ||
-            (hasTextChild && hasNonTextChild && !hasCommentDirectives)
-        const allChecksPassed = props.commentDirectives.unit || (canBeCompound && heurMsgType)
-        if (!asCompound) {
-            return allChecksPassed
+        if (!hasCommentDirectives) {
+            // can be taken together
+            mod.msg = msgInfo
+            mod.txts = []
         }
-        if (!allChecksPassed) {
-            return msgs
-        }
-        if (hasTextChild || hasTextDescendants) {
-            msgs.push(msgInfo)
-        } else {
-            return msgs
-        }
-        if (((props.useComponent ?? true) && props.scope === 'markup' && iArg > 0) || childrenNestedRanges.length > 0) {
-            this.#props.wrapNested(msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
-            return msgs
-        }
-        // no need for component use
-        let begin = '{'
-        let end = ')}'
-        if (props.inCompoundText) {
-            begin += `${this.#props.vars().rtTransCtx}(${this.#props.vars().nestCtx}`
-        } else {
-            if (msgInfo.type === 'url') {
-                begin += `${varNames.urlLocalize}(`
-                end = `), ${this.#props.vars().rtLocale}${end}`
+        mod.funcs.push(nested => {
+            if (
+                ((props.useComponent ?? true) && props.scope === 'markup' && iArg > 0) ||
+                childrenNestedRanges.length > 0
+            ) {
+                this.#props.wrapNested(nested, msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
+                return
             }
-            begin += `${this.#props.vars().rtTrans}(${props.index.get(getKey(msgInfo.msgStr, msgInfo.context))}`
+            // no need for component use
+            let begin = '{'
+            let end = ')}'
+            if (nested) {
+                begin += `${vars.rtTransCtx}(${vars.nestCtx}`
+            } else {
+                if (msgInfo.type === 'url') {
+                    begin += `${varNames.urlLocalize}(`
+                    end = `), ${vars.rtLocale}${end}`
+                }
+                const index = this.#props.index.get(getKey(msgInfo.msgStr, msgInfo.context))
+                begin += `${vars.rtTrans}(${index}`
+            }
+            if (iArg > 0) {
+                begin += ', ['
+                end = `]${end}`
+            }
+            if (props.scope === 'attribute' && `'"`.includes(this.#props.content[lastChildEnd]!)) {
+                const firstChild = props.children[0]!
+                const { start } = this.#props.getRange(firstChild)
+                this.#props.mstr.remove(start - 1, start)
+                this.#props.mstr.remove(lastChildEnd, lastChildEnd + 1)
+            }
+            this.#props.mstr.appendLeft(lastChildEnd, begin)
+            this.#props.mstr.appendRight(lastChildEnd, end)
+        })
+        if (mod.unit || !mod.building || hasCommentDirectives) {
+            msgs.push(...this.applyMod(props.scope))
         }
-        if (iArg > 0) {
-            begin += ', ['
-            end = `]${end}`
-        }
-        if (props.scope === 'attribute' && `'"`.includes(this.#props.content[lastChildEnd]!)) {
-            const firstChild = props.children[0]!
-            const { start } = this.#props.getRange(firstChild)
-            ctx.mstr.remove(start - 1, start)
-            ctx.mstr.remove(lastChildEnd, lastChildEnd + 1)
-        }
-        ctx.mstr.appendLeft(lastChildEnd, begin)
-        ctx.mstr.appendRight(lastChildEnd, end)
         return msgs
-    }
-
-    visit = (props: VisitProps<MixNodeT, AddCtx>): Message[] => {
-        if (props.children.length === 0) {
-            return []
-        }
-        const scouKey = props.children[0]!
-        const scoutedBoth = this.#scouted.get(scouKey) ?? [null, null]
-        const scouKeyI = props.commentDirectives.unit ? 1 : 0
-        let scouted = scoutedBoth[scouKeyI]
-        if (scouted == null) {
-            scouted = this.visitNested(props, { mstr: noopMstr, index: noopIndex, addCtx: { ...props.addCtx } }, false)
-            scoutedBoth[scouKeyI] = scouted
-            this.#scouted.set(scouKey, scoutedBoth)
-        }
-        if (!scouted) {
-            return this.separatelyVisitChildren(props)
-        }
-        return this.visitNested(props, { mstr: props.mstr, index: props.index, addCtx: props.addCtx }, true) // really modify
-    }
-
-    static withCtxRestore<MixNodeT, AddCtx>(
-        transformer: VisitVolatileCtx<AddCtx>,
-        visitChild: (child: MixNodeT) => Message[],
-    ): VisitFunc<MixNodeT, AddCtx> {
-        return (child, ctx) => {
-            const prevCtx: VisitVolatileCtx<AddCtx> = {
-                inCompoundText: transformer.inCompoundText,
-                mstr: transformer.mstr,
-                index: transformer.index,
-                addCtx: transformer.addCtx,
-            }
-            Object.assign(transformer, ctx)
-            const msgs = visitChild(child)
-            // restore
-            Object.assign(transformer, prevCtx)
-            return msgs
-        }
     }
 }

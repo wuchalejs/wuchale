@@ -4,7 +4,7 @@ import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
 import type { CodePattern, HeuristicFunc, Message, RuntimeConf, TransformCtx, TransformOutput } from 'wuchale'
 import { getKey } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
+import { MixedVisitor, type ModFunc } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
 const JsxParser = Parser.extend(tsPlugin({ jsx: true }))
@@ -18,25 +18,16 @@ const nodesWithChildren = ['JSXElement']
 const rtComponent = 'W_tx_'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
-type AddCtx = {
-    currentJsxKey?: number
-}
-type MixedVisitorJSX = MixedVisitor<
-    MixedNodesTypes,
-    AddCtx,
-    JX.JSXText,
-    JX.JSXExpressionContainer,
-    JX.JSXExpressionContainer
->
+
+type MixedVisitorJSX = MixedVisitor<MixedNodesTypes, JX.JSXText, JX.JSXExpressionContainer, JX.JSXExpressionContainer>
 
 export type JSXLib = 'default' | 'solidjs'
 
 export class JSXTransformer extends Transformer {
     // state
     currentElement?: string | undefined
-    inCompoundText: boolean = false
     lastVisitIsComment: boolean = false
-    addCtx: AddCtx = {}
+    currentJsxKey?: number
 
     mixedVisitor: MixedVisitorJSX
 
@@ -47,8 +38,10 @@ export class JSXTransformer extends Transformer {
 
     initMixedVisitor(): MixedVisitorJSX {
         return new MixedVisitor({
-            vars: this.vars.bind(this),
+            mstr: this.mstr,
+            index: this.index,
             content: this.content,
+            vars: this.vars.bind(this),
             getRange: node => ({
                 start: node.start,
                 end: node.end,
@@ -63,10 +56,10 @@ export class JSXTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitJx.bind(this)),
+            visitFunc: this.visitJx.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `<${rtComponent}`
                 if (nestedRanges.length > 0) {
                     for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
@@ -81,7 +74,7 @@ export class JSXTransformer extends Transformer {
                     begin = `]}`
                 }
                 begin += ' x='
-                if (this.inCompoundText) {
+                if (inNested) {
                     begin += `{${this.vars().nestCtx}} n`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
@@ -98,21 +91,21 @@ export class JSXTransformer extends Transformer {
         })
     }
 
-    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment): Message[] {
+    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment, addMod?: ModFunc): Message[] {
         const prevInsideProg = this.heuristciDetails.insideProgram
         this.heuristciDetails.insideProgram = false
-        const msg = this.mixedVisitor.visit({
-            mstr: this.mstr,
-            index: this.index,
-            addCtx: this.addCtx,
+        const msgs = this.mixedVisitor.visit({
             children: node.children,
             commentDirectives: this.commentDirectives,
-            inCompoundText: this.inCompoundText,
             scope: 'markup',
             element: this.currentElement as string,
+            addMod,
         })
+        if (prevInsideProg) {
+            msgs.push(...this.mixedVisitor.applyMod('markup'))
+        }
         this.heuristciDetails.insideProgram = prevInsideProg // restore
-        return msg
+        return msgs
     }
 
     visitNameJSXNamespacedName(node: JX.JSXNamespacedName): string {
@@ -134,38 +127,33 @@ export class JSXTransformer extends Transformer {
     visitJSXElement(node: JX.JSXElement): Message[] {
         const currentElement = this.currentElement
         this.currentElement = this.visitName(node.openingElement.name)
-        const msgs = this.visitChildrenJ(node)
+        let addMod: ModFunc | undefined
+        const key = node.openingElement.attributes.find(
+            attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
+        )
+        if (!key) {
+            addMod = nested => {
+                if (!nested || this.currentJsxKey == null) {
+                    return
+                }
+                this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.currentJsxKey}"`)
+                this.currentJsxKey++
+            }
+        }
+        const msgs = this.visitChildrenJ(node, addMod)
         for (const attr of node.openingElement.attributes) {
             msgs.push(...this.visitJx(attr))
-        }
-        if (this.inCompoundText && this.addCtx.currentJsxKey != null) {
-            const key = node.openingElement.attributes.find(
-                attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
-            )
-            if (!key) {
-                this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.addCtx.currentJsxKey}"`)
-                this.addCtx.currentJsxKey++
-            }
         }
         this.currentElement = currentElement
         return msgs
     }
 
-    visitJSXText(node: JX.JSXText): Message[] {
-        const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
-        const [pass, msgInfo] = this.checkHeuristic(trimmed, {
-            scope: 'markup',
-            element: this.currentElement,
-        })
-        if (!pass) {
-            return []
-        }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.literalRepl(msgInfo)}}`)
-        return [msgInfo]
-    }
-
     visitJSXFragment(node: JX.JSXFragment): Message[] {
-        return this.visitChildrenJ(node)
+        const currentElement = this.currentElement
+        this.currentElement = ''
+        const msgs = this.visitChildrenJ(node)
+        this.currentElement = currentElement
+        return msgs
     }
 
     getMarkupCommentBody(node: JX.JSXEmptyExpression): string {
@@ -235,7 +223,7 @@ export class JSXTransformer extends Transformer {
         )
         this.comments = comments
         if (lib === 'default') {
-            this.addCtx.currentJsxKey = 0
+            this.currentJsxKey = 0
         }
         const msgs = this.visitJx(ast)
         const header = [

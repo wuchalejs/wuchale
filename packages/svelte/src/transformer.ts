@@ -19,7 +19,7 @@ import type {
     TransformOutput,
 } from 'wuchale'
 import { getKey } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText, varNames } from 'wuchale/adapter-utils'
+import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 const nodesWithChildren = ['RegularElement', 'Component', 'SvelteElement']
@@ -31,10 +31,7 @@ const snipPrefix = '_w_snippet_'
 const rtModuleVar = `${varNames.rt}mod_`
 
 type MixedNodesTypes = AST.Text | AST.Tag | AST.ElementLike | AST.SvelteElement | AST.Block | AST.Comment
-type AddCtx = {
-    currentSnippet: number
-}
-type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AddCtx, AST.Text, AST.Comment, AST.ExpressionTag>
+type MixedVisitorSvelte = MixedVisitor<MixedNodesTypes, AST.Text, AST.Comment, AST.ExpressionTag>
 
 // for use before actually parsing the code,
 // to remove the contents of e.g. <style lang="scss"> which can cause parse errors
@@ -51,8 +48,7 @@ export type RuntimeCtxSv = {
 export class SvelteTransformer extends Transformer {
     // state
     currentElement?: string | undefined
-    inCompoundText: boolean = false
-    addCtx: AddCtx = { currentSnippet: 0 }
+    currentSnippet = 0
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
 
     mixedVisitor: MixedVisitorSvelte
@@ -105,8 +101,10 @@ export class SvelteTransformer extends Transformer {
 
     initMixedVisitor(): MixedVisitorSvelte {
         return new MixedVisitor({
-            vars: this.vars.bind(this),
+            mstr: this.mstr,
+            index: this.index,
             content: this.content,
+            vars: this.vars.bind(this),
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
             isComment: node => node.type === 'Comment',
@@ -115,16 +113,16 @@ export class SvelteTransformer extends Transformer {
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitSv.bind(this)),
+            visitFunc: this.visitSv.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
                 // create and reference snippets
                 for (const [childStart, childEnd, haveCtx] of nestedRanges) {
-                    const snippetName = `${snipPrefix}${this.addCtx.currentSnippet}`
+                    const snippetName = `${snipPrefix}${this.currentSnippet}`
                     snippets.push(snippetName)
-                    this.addCtx.currentSnippet++
+                    this.currentSnippet++
                     const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
                     this.mstr.appendRight(childStart, snippetBegin)
                     this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
@@ -134,7 +132,7 @@ export class SvelteTransformer extends Transformer {
                     begin += ` t={[${snippets.join(', ')}]}`
                 }
                 begin += ' x='
-                if (this.inCompoundText) {
+                if (inNested) {
                     begin += `{${this.vars().nestCtx}} n`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
@@ -153,12 +151,8 @@ export class SvelteTransformer extends Transformer {
 
     visitFragment(node: AST.Fragment): Message[] {
         return this.mixedVisitor.visit({
-            mstr: this.mstr,
-            index: this.index,
-            addCtx: this.addCtx,
             children: node.nodes,
             commentDirectives: this.commentDirectives,
-            inCompoundText: this.inCompoundText,
             scope: 'markup',
             element: this.currentElement as string,
             useComponent: this.currentElement !== 'title',
@@ -181,19 +175,6 @@ export class SvelteTransformer extends Transformer {
         return this.visitRegularElement(node)
     }
 
-    visitText(node: AST.Text): Message[] {
-        const [startWh, trimmed, endWh] = nonWhitespaceText(node.data)
-        const [pass, msgInfo] = this.checkHeuristic(trimmed, {
-            scope: 'markup',
-            element: this.currentElement,
-        })
-        if (!pass) {
-            return []
-        }
-        this.mstr.update(node.start + startWh, node.end - endWh, `{${this.literalRepl(msgInfo)}}`)
-        return [msgInfo]
-    }
-
     visitSpreadAttribute(node: AST.SpreadAttribute): Message[] {
         return this.visit(node.expression as AnyNode)
     }
@@ -209,17 +190,15 @@ export class SvelteTransformer extends Transformer {
             values = [node.value]
         }
         if (values.length > 1) {
-            return this.mixedVisitor.visit({
-                mstr: this.mstr,
-                index: this.index,
-                addCtx: this.addCtx,
+            const msgs = this.mixedVisitor.visit({
                 children: values,
                 commentDirectives: this.commentDirectives,
-                inCompoundText: false,
                 scope: 'attribute',
                 element: this.currentElement as string,
                 attribute: node.name,
             })
+            msgs.push(...this.mixedVisitor.applyMod('attribute'))
+            return msgs
         }
         const value = values[0]!
         const heuDetails: HeuristicDetailsBase = {
@@ -399,7 +378,7 @@ export class SvelteTransformer extends Transformer {
             this.commentDirectives = {} // reset
             msgs.push(...this.visitProgram(node.instance.content as Program))
         }
-        msgs.push(...this.visitFragment(node.fragment))
+        msgs.push(...this.visitFragment(node.fragment), ...this.mixedVisitor.applyMod())
         return msgs
     }
 

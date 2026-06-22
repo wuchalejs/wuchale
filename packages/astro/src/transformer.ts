@@ -25,7 +25,7 @@ import type {
     TransformOutput,
 } from 'wuchale'
 import { getKey } from 'wuchale'
-import { MixedVisitor, nonWhitespaceText } from 'wuchale/adapter-utils'
+import { MixedVisitor } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
 const ExprParser = Parser.extend(tsPlugin())
@@ -42,17 +42,15 @@ const rtRenderFunc = '_w_Tx_'
 
 const u8decoder = new TextDecoder()
 
-type MixedVisitorAstro = MixedVisitor<Node, object, TextNode, CommentNode, ExpressionNode>
+type MixedVisitorAstro = MixedVisitor<Node, TextNode, CommentNode, ExpressionNode>
 
 export class AstroTransformer extends Transformer {
     byteArray: Uint8Array
     // state
     currentElement?: string | undefined
-    inCompoundText: boolean = false
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitorAstro
-    addCtx = {}
 
     // astro's compiler gives wrong offsets for expressions
     correctedExprRanges: WeakMap<Node | AttributeNode, { start: number; end: number }> = new WeakMap()
@@ -115,8 +113,10 @@ export class AstroTransformer extends Transformer {
 
     initMixedVisitor(): MixedVisitorAstro {
         return new MixedVisitor({
-            vars: this.vars.bind(this),
+            mstr: this.mstr,
+            index: this.index,
             content: this.content,
+            vars: this.vars.bind(this),
             getRange: this.getRange.bind(this),
             isText: node => node.type === 'text',
             isComment: node => node.type === 'comment',
@@ -125,12 +125,12 @@ export class AstroTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
             canHaveChildren: node => nodesWithChildren.includes(node.type),
-            visitFunc: MixedVisitor.withCtxRestore(this, this.visitAs.bind(this)),
+            visitFunc: this.visitAs.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 let begin = `{${rtRenderFunc}({\nx: `
-                if (this.inCompoundText) {
+                if (inNested) {
                     begin += `${this.vars().nestCtx},\nn: true`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
@@ -193,12 +193,8 @@ export class AstroTransformer extends Transformer {
 
     _visitChildren = (nodes: Node[]): Message[] =>
         this.mixedVisitor.visit({
-            mstr: this.mstr,
-            index: this.index,
-            addCtx: this.addCtx,
             children: nodes,
             commentDirectives: this.commentDirectives,
-            inCompoundText: this.inCompoundText,
             scope: 'markup',
             element: this.currentElement as string,
             useComponent: this.currentElement !== 'title',
@@ -264,20 +260,6 @@ export class AstroTransformer extends Transformer {
         return []
     }
 
-    visittext(node: TextNode): Message[] {
-        const [startWh, trimmed, endWh] = nonWhitespaceText(node.value)
-        const [pass, msgInfo] = this.checkHeuristic(trimmed, {
-            scope: 'markup',
-            element: this.currentElement,
-        })
-        if (!pass) {
-            return []
-        }
-        const { start, end } = this.getRange(node)
-        this.mstr.update(start + startWh, end - endWh, `{${this.literalRepl(msgInfo)}}`)
-        return [msgInfo]
-    }
-
     visitfrontmatter(node: FrontmatterNode): Message[] {
         const { start } = this.getRange(node)
         this.frontMatterStart = this.content.indexOf('---', start) + 3
@@ -288,7 +270,8 @@ export class AstroTransformer extends Transformer {
         // node.children can be undefined!
         const children = node.children ?? []
         this._saveCorrectedRanges(children, this.content.length)
-        return this._visitChildren(children)
+        const msgs = [...this._visitChildren(children), ...this.mixedVisitor.applyMod()]
+        return msgs
     }
 
     visitAs(node: Node | AttributeNode | Estree.AnyNode): Message[] {
