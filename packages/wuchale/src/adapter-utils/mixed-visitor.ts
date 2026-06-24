@@ -21,10 +21,6 @@ import {
 
 type NestedRanges = [number, number, boolean][]
 
-type WrapNestedArgs = [msgInfo: Message, hasExprs: boolean, nestedRanges: NestedRanges, lastChildEnd: number]
-
-export type ModFunc = (nested: boolean, siblings: number) => void
-
 type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> = {
     mstr: MagicString
     index: IndexTracker
@@ -35,41 +31,48 @@ type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT ext
     isExpression: (node: MixNodeT) => node is ExprT
     isComment: (node: MixNodeT) => node is ComT
     leaveInPlace: (node: MixNodeT) => boolean
-    canHaveChildren: (node: MixNodeT) => boolean
     getTextContent: (node: TxtT) => string
     getCommentData: (node: ComT) => string
     visitFunc: (node: MixNodeT) => Message[]
     fullHeuristicDetails: (details: HeuristicDetailsBase) => HeuristicDetails
     checkHeuristic: HeuristicFunc
-    wrapNested: (inNested: boolean, ...args: WrapNestedArgs) => void
+    wrapNested: (
+        inNested: boolean,
+        msgInfo: Message,
+        hasExprs: boolean,
+        nestedRanges: NestedRanges,
+        lastChildEnd: number,
+    ) => void
 }
 
 export type MixedScope = 'markup' | 'attribute'
 
+export type ModFunc = (nested: boolean) => void
+
 type LevelMod = {
     msg: Message | null
     txts: [Message, () => void][]
+    hasTxtDesc: boolean
     unit: boolean
     pending: boolean
     building: boolean
-    siblings: number
     funcs: ModFunc[]
     children: LevelMod[]
 }
 
 const newMod = (building = false, unit = false): LevelMod => ({
     msg: null,
+    hasTxtDesc: false,
     txts: [],
     building,
     unit,
     pending: true,
-    siblings: 0,
     funcs: [],
     children: [],
 })
 
 /** trims from end first */
-export function nonWhitespaceText(msgStr: string): [number, string, number] {
+function nonWhitespaceText(msgStr: string): [number, string, number] {
     const trimmedE = msgStr.trimEnd()
     const endWh = msgStr.length - trimmedE.length
     const trimmed = trimmedE.trimStart()
@@ -141,7 +144,7 @@ export class MixedVisitor<
         }
         if (modify) {
             for (const func of mod.funcs) {
-                func(nested, mod.siblings)
+                func(nested)
             }
         }
         for (const childMod of mod.children) {
@@ -158,7 +161,7 @@ export class MixedVisitor<
         return msgs
     }
 
-    getLastChildEnd(children: MixNodeT[]): number {
+    #getLastChildEnd(children: MixNodeT[]): number {
         const lastChild = children.slice(-1)[0]!
         const lastChildEnd = this.#props.getRange(lastChild).end
         if (this.#props.isText(lastChild)) {
@@ -178,14 +181,13 @@ export class MixedVisitor<
         let iTag = 0
         const commentDirectivesOrig: CommentDirectives = { ...props.commentDirectives }
         let lastVisitIsComment = false
-        const lastChildEnd = this.getLastChildEnd(props.children)
+        const lastChildEnd = this.#getLastChildEnd(props.children)
         const childrenNestedRanges: NestedRanges = []
         const msgs: Message[] = []
         const placeholders: [string, string][] = []
         const vars = this.#props.vars()
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
         const mod = this.#mod[props.scope]
-        mod.siblings = props.children.length
         mod.building ||=
             alreadyInsideUnit ||
             props.children.find(c => this.#props.isText(c) && this.#props.getTextContent(c).trim()) != null
@@ -216,6 +218,7 @@ export class MixedVisitor<
                     continue
                 }
                 if (props.commentDirectives.forceType !== false) {
+                    mod.hasTxtDesc = true
                     msgStr += trimmed
                     if (endWh) {
                         msgStr += ' '
@@ -238,8 +241,8 @@ export class MixedVisitor<
                             this.#props.mstr.update(start + startWh, end - endWh, `{${vars.rtTrans}(${index})}`)
                         },
                     ])
-                    mod.funcs.push((nested, siblings) => {
-                        if (!nested && siblings === 1) {
+                    mod.funcs.push(nested => {
+                        if (!nested && props.children.length === 1) {
                             start += startWh
                             end -= endWh
                         }
@@ -273,23 +276,30 @@ export class MixedVisitor<
                     continue
                 }
                 // elements, components and other things as well
-                const childMod: LevelMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
+                const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
                 this.#mod[props.scope] = childMod
                 const childMsgs = this.#props.visitFunc(child)
                 this.#mod[props.scope] = mod
                 mod.children.push(childMod)
+                if (childMod.hasTxtDesc) {
+                    mod.hasTxtDesc = true
+                }
                 msgs.push(...childMsgs)
                 let nestedNeedsCtx = false
                 let chTxt = `<${iTag}/>`
-                const canHaveChildren = this.#props.canHaveChildren(child)
-                if (canHaveChildren && childMod.msg) {
-                    chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
-                    for (const [num, cont] of childMod.msg.placeholders) {
-                        placeholders.push([`${iTag}.${num}`, cont])
+                if (childMod.msg) {
+                    if (props.children.length === 1) {
+                        chTxt = childMod.msg.msgStr[0]!
+                        placeholders.push(...childMod.msg.placeholders)
+                    } else if (childMod.hasTxtDesc) {
+                        chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
+                        for (const [num, cont] of childMod.msg.placeholders) {
+                            placeholders.push([`${iTag}.${num}`, cont])
+                        }
+                        nestedNeedsCtx = true
                     }
-                    nestedNeedsCtx = true
+                    childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                 }
-                childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                 msgStr += chTxt
                 iTag++
             }
@@ -315,11 +325,16 @@ export class MixedVisitor<
             mod.txts = []
         }
         mod.funcs.push(nested => {
+            if (!mod.hasTxtDesc) {
+                return
+            }
             if (
                 ((props.useComponent ?? true) && props.scope === 'markup' && iArg > 0) ||
                 childrenNestedRanges.length > 0
             ) {
-                this.#props.wrapNested(nested, msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
+                if (props.children.length > 1) {
+                    this.#props.wrapNested(nested, msgInfo, iArg > 0, childrenNestedRanges, lastChildEnd)
+                }
                 return
             }
             // no need for component use

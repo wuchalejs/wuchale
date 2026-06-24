@@ -14,7 +14,6 @@ export function parseScriptJSX(content: string): [Estree.Program, Estree.Comment
     return [JsxParser.parse(content, opts), comments]
 }
 
-const nodesWithChildren = ['JSXElement']
 const rtComponent = 'W_tx_'
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
@@ -55,11 +54,11 @@ export class JSXTransformer extends Transformer {
             isExpression: node => node.type === 'JSXExpressionContainer',
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: this.visitJx.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+                const vars = this.vars()
                 let begin = `<${rtComponent}`
                 if (nestedRanges.length > 0) {
                     for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
@@ -69,16 +68,16 @@ export class JSXTransformer extends Transformer {
                         } else {
                             toAppend = ', '
                         }
-                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
+                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? vars.nestCtx : '()'} => `)
                     }
                     begin = `]}`
                 }
                 begin += ' x='
                 if (inNested) {
-                    begin += `{${this.vars().nestCtx}} n`
+                    begin += `{${vars.nestCtx}} n`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
-                    begin += `{${this.vars().rtCtx}(${index})}`
+                    begin += `{${vars.rtCtx}(${index})}`
                 }
                 let end = ' />'
                 if (hasExprs) {

@@ -407,6 +407,40 @@ test('Nested and mixed with svelte:element', async t => {
     )
 })
 
+test('Collapsing deep nested messages', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+            Hello
+            <a><b><i><Foo /></i></b><Bar /></a>
+            there
+            <a><b><i>user {user}</i></b></a>
+        `),
+        svelte`
+            <script>
+                import { _w_load_, _w_load_rx_ } from "./loader.js"
+                import W_tx_ from "@wuchale/svelte/runtime.svelte"
+                const _w_runtime_ = $derived(_w_load_rx_());
+            </script>
+            {#snippet _w_snippet_0()}
+                <a><b><i><Foo /></i></b><Bar /></a>
+            {/snippet}
+            {#snippet _w_snippet_1(_w_ctx_)}
+                <a><b><i>
+                    <W_tx_ x={_w_ctx_} n a={[user]} />
+                </i></b></a>
+            {/snippet}
+            <W_tx_ t={[_w_snippet_0, _w_snippet_1]} x={_w_runtime_.c(0)} />
+        `,
+        [
+            {
+                msgStr: ['Hello <0/> there <1>user {0}</1>'],
+                placeholders: [['1.0', 'user']],
+            },
+        ],
+    )
+})
+
 test('svelte:element uses static tag context', async t => {
     transformTest(
         t,
