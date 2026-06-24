@@ -1,5 +1,16 @@
 # @wuchale/jsx
 
+## 0.12.2
+
+### Patch Changes
+
+- Redo nested message visit algorithm ([#393](https://github.com/wuchalejs/wuchale/pull/393))
+
+  This release is all about the core of wuchale, i.e. the nested message visitor. It has now been vastly improved with a more solid approach.
+
+- Updated dependencies [[`3c88ee9`](https://github.com/wuchalejs/wuchale/commit/3c88ee9b475b83b654aaf0fe6c07a31edc8f6387)]:
+  - wuchale@0.25.0
+
 ## 0.12.1
 
 ### Patch Changes
