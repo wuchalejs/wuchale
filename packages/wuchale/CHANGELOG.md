@@ -1,5 +1,13 @@
 # wuchale
 
+## 0.25.0
+
+### Minor Changes
+
+- Redo nested message visit algorithm ([#393](https://github.com/wuchalejs/wuchale/pull/393))
+
+  This release is all about the core of wuchale, i.e. the nested message visitor. It has now been vastly improved with a more solid approach.
+
 ## 0.24.2
 
 ### Patch Changes
