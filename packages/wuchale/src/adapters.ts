@@ -90,7 +90,11 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 }
             }
         }
-        const msgStr = msg.msgStr.join('\n')
+        let msgStr = msg.msgStr.join('\n')
+        if (msg.details.scope === 'markup') {
+            // only check the top level for letters
+            msgStr = msgStr.replaceAll(/<\d+\/>/g, '#').replaceAll(/<\d+>.+<\/\d+>/g, '#')
+        }
         const looksLikeUrlPath = msgStr.startsWith('/') && !msgStr.includes(' ')
         if (looksLikeUrlPath && (msg.details.scope === 'script' || msg.details.scope === 'attribute')) {
             if (msg.details.call) {
