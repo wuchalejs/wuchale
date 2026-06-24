@@ -3,11 +3,11 @@ import type { Composite } from 'wuchale'
 export type WuchaleComponentProps = {
     n?: boolean
     x: Composite
-    t: ((...a: any[]) => any)[]
+    t?: ((...a: any[]) => any)[]
     a?: any[]
 }
 
-export default ({ t, n, x, a }: WuchaleComponentProps) =>
+export default ({ t = [], n, x, a }: WuchaleComponentProps) =>
     x.map((x, i) => {
         if (typeof x === 'string') {
             return x

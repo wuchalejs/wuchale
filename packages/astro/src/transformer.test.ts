@@ -225,8 +225,8 @@ test('Nested and mixed', async t => {
                     x: _w_ctx_,
                     n: true,
                     a: [appName]
-            })}</i></b>]
-            })}]
+            })}</i>]
+            })}</b>]
         })}</p>
     `,
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
