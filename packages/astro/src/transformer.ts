@@ -35,9 +35,6 @@ export function parseExpr(content: string): [Estree.Expression, Estree.Comment[]
     return [ExprParser.parseExpressionAt(content, 0, opts), comments]
 }
 
-const tagNodes = ['element', 'component', 'custom-element']
-const nodesWithChildren = [...tagNodes, 'fragment']
-
 const rtRenderFunc = '_w_Tx_'
 
 const u8decoder = new TextDecoder()
@@ -75,15 +72,11 @@ export class AstroTransformer extends Transformer {
 
     _saveCorrectedRanges(nodes: Node[], containerEnd: number) {
         for (const [i, child] of nodes.entries()) {
-            const isExpr = child.type === 'expression'
-            const isTag = tagNodes.includes(child.type)
-            if (!(isExpr || isTag)) {
+            if (child.type !== 'expression') {
                 continue
             }
             let start = this._byteOffsetToIndex(child.position?.start?.offset)
-            if (isExpr) {
-                start = this.content.indexOf('{', start)
-            }
+            start = this.content.indexOf('{', start)
             const nextChild = nodes[i + 1]
             let end: number = this._byteOffsetToIndex(child.position?.end?.offset)
             if (nextChild != null) {
@@ -92,8 +85,7 @@ export class AstroTransformer extends Transformer {
                     end = this.content.indexOf('{', end)
                 }
             } else {
-                const lookFor = isExpr ? '}' : '>'
-                end = this.content.lastIndexOf(lookFor, containerEnd) + lookFor.length
+                end = this.content.lastIndexOf('}', containerEnd) + 1
             }
             this.correctedExprRanges.set(child, { start, end })
         }
@@ -124,17 +116,17 @@ export class AstroTransformer extends Transformer {
             isExpression: node => node.type === 'expression',
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: this.visitAs.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+                const vars = this.vars()
                 let begin = `{${rtRenderFunc}({\nx: `
                 if (inNested) {
-                    begin += `${this.vars().nestCtx},\nn: true`
+                    begin += `${vars.nestCtx},\nn: true`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
-                    begin += `${this.vars().rtCtx}(${index})`
+                    begin += `${vars.rtCtx}(${index})`
                 }
                 if (nestedRanges.length > 0) {
                     for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
@@ -144,7 +136,7 @@ export class AstroTransformer extends Transformer {
                         } else {
                             toAppend = ', '
                         }
-                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? this.vars().nestCtx : '()'} => `)
+                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? vars.nestCtx : '()'} => `)
                     }
                     begin = `]`
                 }
@@ -184,7 +176,6 @@ export class AstroTransformer extends Transformer {
             }
             msgs.push(...this.visitAs(part))
             const { start, end } = this.getRange(part)
-            if (end === -1) console.log(part, node)
             expr += `"${' '.repeat(end - start)}"`
         }
         msgs.push(...this._parseAndVisitExpr(expr, start + 1))

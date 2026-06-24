@@ -22,7 +22,6 @@ import { getKey } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
-const nodesWithChildren = ['RegularElement', 'Component', 'SvelteElement']
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
@@ -112,18 +111,18 @@ export class SvelteTransformer extends Transformer {
             isExpression: node => node.type === 'ExpressionTag',
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             visitFunc: this.visitSv.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
+                const vars = this.vars()
                 // create and reference snippets
                 for (const [childStart, childEnd, haveCtx] of nestedRanges) {
                     const snippetName = `${snipPrefix}${this.currentSnippet}`
                     snippets.push(snippetName)
                     this.currentSnippet++
-                    const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? this.vars().nestCtx : ''})}\n`
+                    const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? vars.nestCtx : ''})}\n`
                     this.mstr.appendRight(childStart, snippetBegin)
                     this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
                 }
@@ -133,10 +132,10 @@ export class SvelteTransformer extends Transformer {
                 }
                 begin += ' x='
                 if (inNested) {
-                    begin += `{${this.vars().nestCtx}} n`
+                    begin += `{${vars.nestCtx}} n`
                 } else {
                     const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
-                    begin += `{${this.vars().rtCtx}(${index})}`
+                    begin += `{${vars.rtCtx}(${index})}`
                 }
                 let end = ' />\n'
                 if (hasExprs) {
