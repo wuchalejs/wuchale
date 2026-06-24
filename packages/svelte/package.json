@@ -57,7 +57,7 @@
         "wuchale": "^0.25.0"
     },
     "devDependencies": {
-        "@types/node": "~24.13.2",
+        "@types/node": "~26.0.0",
         "svelte": "^5.56.3",
         "acorn": "^8.17.0",
         "typescript": "^6.0.3"
