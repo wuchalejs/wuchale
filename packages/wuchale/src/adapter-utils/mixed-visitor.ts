@@ -129,12 +129,11 @@ export class MixedVisitor<
                     if (heurMsgType) {
                         mod.msg.type = heurMsgType
                         modify = true
-                    } else {
-                        modify = false
                     }
                 }
                 modify && msgs.push(mod.msg)
-            } else {
+            }
+            if (!modify) {
                 for (const [msg, func] of mod.txts) {
                     const heurMsgType = this.#props.checkHeuristic(msg)
                     if (!heurMsgType) {
