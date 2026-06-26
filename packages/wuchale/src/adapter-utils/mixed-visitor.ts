@@ -355,8 +355,8 @@ export class MixedVisitor<
                             }
                             nestedNeedsCtx = true
                         }
-                        childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                     }
+                    childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                     msgStr += chTxt
                     iTag++
                 }

@@ -382,6 +382,7 @@ test('Nested and mixed with svelte:element', async t => {
         t,
         await getOutput(svelte`
             <p>Hello and <svelte:element this="b">welcome to <i>the app {appName}</i></svelte:element>!</p>
+            <a><Test></Test> More</a>
         `),
         svelte`
         <script>
@@ -402,8 +403,14 @@ test('Nested and mixed with svelte:element', async t => {
             {/snippet}
             <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
         </p>
+        <a>
+            {#snippet _w_snippet_2()}
+                <Test></Test>
+            {/snippet}
+            <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.c(1)} />
+        </a>
     `,
-        ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
+        ['Hello and <0>welcome to <0>the app {0}</0></0>!', '<0/> More'],
     )
 })
 
