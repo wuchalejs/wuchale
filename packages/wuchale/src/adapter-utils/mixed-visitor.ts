@@ -20,8 +20,8 @@ import {
 } from './index.js'
 
 type NestedRanges = [number, number, boolean][]
-
 type Range = { start: number; end: number }
+type Nums = { text: number; expr: number; element: number; comment: number }
 
 type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> = {
     mstr: MagicString
@@ -187,7 +187,25 @@ export class MixedVisitor<
         })
     }
 
-    #text(mod: LevelMod, props: VisitProps<MixNodeT>, trimOut: TrimOut, range: Range) {
+    #childNums(children: MixNodeT[]): Nums {
+        const nums: Nums = { text: 0, expr: 0, element: 0, comment: 0 }
+        for (const child of children) {
+            if (this.#props.isText(child)) {
+                if (this.#props.getTextContent(child).trim()) {
+                    nums.text++
+                }
+            } else if (this.#props.isExpression(child)) {
+                nums.expr++
+            } else if (this.#props.isComment(child)) {
+                nums.comment++
+            } else {
+                nums.element++
+            }
+        }
+        return nums
+    }
+
+    #text(mod: LevelMod, props: VisitProps<MixNodeT>, trimOut: TrimOut, range: Range, nums: Nums) {
         const [startWh, trimmed, endWh] = trimOut
         mod.hasTxtDesc = true
         const msg = this.#makeMsg(props, trimmed)
@@ -200,7 +218,7 @@ export class MixedVisitor<
             },
         ])
         mod.funcs.push(nested => {
-            if (!nested && props.children.length === 1) {
+            if (!nested && nums.text === 1 && nums.element === 0 && nums.expr === 0) {
                 start += startWh
                 end -= endWh
             }
@@ -212,12 +230,12 @@ export class MixedVisitor<
         return trimmed
     }
 
-    #expression(mod: LevelMod, range: Range, iArg: number, placeholders: [string, string][], lastChildEnd: number) {
+    #expression(funcs: ModFunc[], range: Range, iArg: number, placeholders: [string, string][], lastChildEnd: number) {
         const start = range.start + 1
         const end = range.end - 1
         placeholders.push([iArg.toString(), this.#props.content.slice(start, end)])
         const firstOne = iArg === 0
-        mod.funcs.push(() => {
+        funcs.push(() => {
             let moveStart = range.start
             if (firstOne) {
                 moveStart++
@@ -237,6 +255,7 @@ export class MixedVisitor<
         lastChildEnd: number,
         childrenNestedRanges: [number, number, boolean][],
         hasExpr: boolean,
+        nums: Nums,
     ): ModFunc {
         const vars = this.#props.vars()
         return nested => {
@@ -244,7 +263,7 @@ export class MixedVisitor<
                 ((props.useComponent ?? true) && props.scope === 'markup' && hasExpr) ||
                 childrenNestedRanges.length > 0
             ) {
-                if (props.children.length > 1) {
+                if (nums.element + nums.text + nums.expr > 1) {
                     this.#props.wrapNested(nested, msg, hasExpr, childrenNestedRanges, lastChildEnd)
                 }
                 return
@@ -293,12 +312,12 @@ export class MixedVisitor<
         const placeholders: [string, string][] = []
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
         const mod = this.#mod[props.scope]
-        mod.building ||=
-            alreadyInsideUnit ||
-            props.children.find(c => this.#props.isText(c) && this.#props.getTextContent(c).trim()) != null
+        const nums = this.#childNums(props.children)
+        mod.building ||= alreadyInsideUnit || nums.text > 0
         if (props.addMod) {
             mod.funcs.push(props.addMod)
         }
+        const exprFuncs: ModFunc[] = []
         for (const child of props.children) {
             if (this.#props.isComment(child)) {
                 const data = this.#props.getCommentData(child)
@@ -325,15 +344,17 @@ export class MixedVisitor<
                 }
                 if (props.commentDirectives.forceType !== false) {
                     mod.hasTxtDesc = true
-                    msgStr += this.#text(mod, props, trimOut, chRange)
+                    msgStr += this.#text(mod, props, trimOut, chRange, nums)
                 }
             } else if (props.commentDirectives.forceType !== false) {
                 if (this.#props.leaveInPlace(child)) {
                     msgs.push(...this.#props.visitFunc(child))
                 } else if (this.#props.isExpression(child)) {
                     msgs.push(...this.#props.visitFunc(child))
-                    msgStr += this.#expression(mod, chRange, iArg, placeholders, lastChildEnd)
-                    iArg++
+                    if (nums.text > 0 || nums.element > 0) {
+                        msgStr += this.#expression(exprFuncs, chRange, iArg, placeholders, lastChildEnd)
+                        iArg++
+                    }
                 } else {
                     // elements, components and other things as well
                     const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
@@ -345,7 +366,7 @@ export class MixedVisitor<
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
                     if (childMod.msg) {
-                        if (props.children.length === 1) {
+                        if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
                             chTxt = childMod.msg.msgStr[0]!
                             placeholders.push(...childMod.msg.placeholders)
                         } else if (childMod.hasTxtDesc) {
@@ -372,7 +393,7 @@ export class MixedVisitor<
             mod.msg = msg // can be taken together
         }
         if (mod.hasTxtDesc) {
-            mod.funcs.push(this.#finalMod(props, msg, lastChildEnd, childrenNestedRanges, iArg > 0))
+            mod.funcs.push(...exprFuncs, this.#finalMod(props, msg, lastChildEnd, childrenNestedRanges, iArg > 0, nums))
         }
         if (mod.unit || !mod.building || hasCommentDirectives) {
             msgs.push(...this.applyMod(props.scope))
