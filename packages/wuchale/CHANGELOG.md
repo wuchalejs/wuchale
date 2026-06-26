@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.25.1
+
+### Patch Changes
+
+- a8db752: Fix `undefined` shown in nested messages #395 #396
+
 ## 0.25.0
 
 ### Minor Changes
