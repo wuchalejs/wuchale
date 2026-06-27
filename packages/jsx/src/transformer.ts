@@ -15,6 +15,7 @@ export function parseScriptJSX(content: string): [Estree.Program, Estree.Comment
 }
 
 const rtComponent = 'W_tx_'
+const nodesWithChildren: (JX.Node | JX.JSXSpreadChild)['type'][] = ['JSXElement']
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
 
@@ -51,6 +52,7 @@ export class JSXTransformer extends Transformer {
                 node.expression.end > node.expression.start,
             isText: node => node.type === 'JSXText',
             leaveInPlace: () => false,
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'JSXExpressionContainer',
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),

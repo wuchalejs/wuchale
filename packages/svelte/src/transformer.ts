@@ -22,6 +22,7 @@ import { getKey } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
+const nodesWithChildren: AST.SvelteNode['type'][] = ['RegularElement', 'Component', 'SvelteElement']
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
@@ -108,6 +109,7 @@ export class SvelteTransformer extends Transformer {
             isText: node => node.type === 'Text',
             isComment: node => node.type === 'Comment',
             leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'ExpressionTag',
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),

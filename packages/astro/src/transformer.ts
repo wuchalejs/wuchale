@@ -36,6 +36,7 @@ export function parseExpr(content: string): [Estree.Expression, Estree.Comment[]
 }
 
 const rtRenderFunc = '_w_Tx_'
+const nodesWithChildren: (Node | AttributeNode)['type'][] = ['element', 'component', 'custom-element']
 
 const u8decoder = new TextDecoder()
 
@@ -112,7 +113,8 @@ export class AstroTransformer extends Transformer {
             getRange: this.getRange.bind(this),
             isText: node => node.type === 'text',
             isComment: node => node.type === 'comment',
-            leaveInPlace: node => [''].includes(node.type),
+            leaveInPlace: () => false,
+            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'expression',
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),

@@ -33,6 +33,7 @@ type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT ext
     isExpression: (node: MixNodeT) => node is ExprT
     isComment: (node: MixNodeT) => node is ComT
     leaveInPlace: (node: MixNodeT) => boolean
+    canHaveChildren: (node: MixNodeT) => boolean
     getTextContent: (node: TxtT) => string
     getCommentData: (node: ComT) => string
     visitFunc: (node: MixNodeT) => Message[]
@@ -56,6 +57,7 @@ type LevelMod = {
     txts: [Message, () => void][]
     hasTxtDesc: boolean
     unit: boolean
+    noNest: boolean
     pending: boolean
     building: boolean
     funcs: ModFunc[]
@@ -68,6 +70,7 @@ const newMod = (building = false, unit = false): LevelMod => ({
     txts: [],
     building,
     unit,
+    noNest: false,
     pending: true,
     funcs: [],
     children: [],
@@ -111,10 +114,12 @@ export class MixedVisitor<
         this.#props = props
     }
 
-    /** apply pending nested message edits */
     #applyMod(mod: LevelMod, depth = 0) {
         if (!mod.pending) {
             return []
+        }
+        if (mod.noNest) {
+            depth = 0
         }
         const msgs: Message[] = []
         const nested = depth > 0
@@ -357,25 +362,33 @@ export class MixedVisitor<
                     }
                 } else {
                     // elements, components and other things as well
-                    const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
+                    const canHaveChildren = this.#props.canHaveChildren(child)
+                    const childMod = newMod(
+                        canHaveChildren && mod.building,
+                        !alreadyInsideUnit && props.commentDirectives.unit,
+                    )
                     this.#mod[props.scope] = childMod
                     msgs.push(...this.#props.visitFunc(child))
                     this.#mod[props.scope] = mod
                     mod.children.push(childMod)
-                    mod.hasTxtDesc ||= childMod.hasTxtDesc
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
-                    if (childMod.msg) {
-                        if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
-                            chTxt = childMod.msg.msgStr[0]!
-                            placeholders.push(...childMod.msg.placeholders)
-                        } else if (childMod.hasTxtDesc) {
-                            chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
-                            for (const [num, cont] of childMod.msg.placeholders) {
-                                placeholders.push([`${iTag}.${num}`, cont])
+                    if (canHaveChildren) {
+                        mod.hasTxtDesc ||= childMod.hasTxtDesc
+                        if (childMod.msg) {
+                            if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
+                                chTxt = childMod.msg.msgStr[0]!
+                                placeholders.push(...childMod.msg.placeholders)
+                            } else if (childMod.hasTxtDesc) {
+                                chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
+                                for (const [num, cont] of childMod.msg.placeholders) {
+                                    placeholders.push([`${iTag}.${num}`, cont])
+                                }
+                                nestedNeedsCtx = true
                             }
-                            nestedNeedsCtx = true
                         }
+                    } else {
+                        childMod.noNest = true
                     }
                     childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                     msgStr += chTxt
