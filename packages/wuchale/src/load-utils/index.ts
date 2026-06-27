@@ -24,7 +24,7 @@ export function defaultCollection(store: Runtime[]): RuntimeCollection {
 
 /** Global catalog states registry */
 const states: Record<string, LoaderState> = {}
-const emptyRuntime = toRuntime()
+const emptyRuntime = toRuntime('')
 
 /**
  * - `key` is a unique identifier for the group
@@ -51,7 +51,7 @@ export function registerLoaders(
 export function commitLocale(locale: string) {
     for (const state of Object.values(states)) {
         for (const [loadID, catalog] of state.catalogs.entries()) {
-            state.collection.set(loadID, toRuntime(catalog, locale))
+            state.collection.set(loadID, toRuntime(locale, catalog))
         }
     }
 }

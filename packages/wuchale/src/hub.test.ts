@@ -84,17 +84,8 @@ test('hub transform with hmr', async (t: TestContext) => {
         trimLines(output.code),
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./locales/main.loader.js"
-        const _w_hmrUpdate_ = {"version":0,"data":{"en":[[0,"Hello"]]}}
-        function _w_load_(loadID) {
-            const _w_rt_ = _w_load_hmr_(loadID)
-            _w_rt_?._?.update?.(_w_hmrUpdate_)
-            return _w_rt_
-        }
-        function _w_load_rx_(loadID) {
-            const _w_rt_ = _w_load_rx_hmr_(loadID)
-            _w_rt_?._?.update?.(_w_hmrUpdate_)
-            return _w_rt_
-        }
+        import {updated as _w_updated_} from "wuchale/dev"
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]})
         _w_load_()(0)
     `),
     )

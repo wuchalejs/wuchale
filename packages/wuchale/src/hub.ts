@@ -145,7 +145,7 @@ export class Hub {
 
     #formatTransformErr: TransformErrFormatter = e => e
 
-    #hmrVersion = -1
+    #inHMR = false
     #lastSourceTriggeredCatalogWrite: number = 0
 
     #lastAdapterForFile = new Map<string, string>()
@@ -281,7 +281,7 @@ export class Hub {
                     }
                 }
             }
-            this.#hmrVersion++
+            this.#inHMR = true
             return
         }
         // catalog changed
@@ -292,7 +292,7 @@ export class Hub {
         for (const handler of handlers) {
             if (!changeInfo.sourceTriggered) {
                 await handler.loadStorage()
-                await handler.compile(this.#hmrVersion)
+                await handler.compile()
             }
             const loadIDs = getLoadIDs(handler.adapter, handler.granularState.byID.values(), handler.sourceLocale)
             for (const loc of this.#opts.config.locales) {
@@ -315,7 +315,7 @@ export class Hub {
                 continue
             }
             try {
-                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                output = await adapter.transform(code, filename, this.#inHMR, forServer)
             } catch (e) {
                 throw this.#formatTransformErr(e as Error, adapter.key, filename)
             }
