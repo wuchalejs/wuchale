@@ -2,6 +2,7 @@
  * This is the common coordination logic for use in the CLI as well as the bundler plugins
  */
 
+import { unlinkSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
@@ -17,6 +18,7 @@ import { itemIsObsolete, itemIsUrl } from './storage.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
+export const devPidFile = 'dev.pid'
 const logPrefix = `[${color.magenta(pluginName)}]:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
@@ -121,10 +123,35 @@ async function getSharedState(
     return sharedState
 }
 
+async function processIsPrimary(mode: Mode, fs: FS, pidFileAbs: string) {
+    const pid = await fs.read(pidFileAbs)
+    let primary = pid == null
+    if (pid != null) {
+        try {
+            process.kill(Number(pid), 0)
+        } catch {
+            primary = true
+        }
+    }
+    if (primary && mode === 'dev') {
+        await fs.write(pidFileAbs, process.pid.toString())
+        const cleanupExit = () => {
+            try {
+                unlinkSync(pidFileAbs)
+            } catch {}
+            process.exit()
+        }
+        process.on('SIGTERM', cleanupExit)
+        process.on('SIGINT', cleanupExit)
+    }
+    return primary
+}
+
 type HubOpts = {
     mode: Mode
     config: Config
     root: string
+    primary: boolean
     log: Logger
     // threshold to consider po file change is manual edit instead of a sideeffect of editing code
     hmrDelayThreshold: number
@@ -211,6 +238,8 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
+        const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
+        const primary = await processIsPrimary(mode, fs, pidFileAbs)
         await initGenDirWithData(config, fs, root)
         const log = new Logger(config.logLevel)
         const sharedStates = new Map<string, SharedState>()
@@ -220,6 +249,7 @@ export class Hub {
             const sourceLocale = adapter.sourceLocale ?? config.locales[0]
             const handler = await AdapterHandler.create({
                 ...commonOpts,
+                primary,
                 adapter,
                 key,
                 sourceLocale,
@@ -239,9 +269,12 @@ export class Hub {
             handlers.set(key, handler)
         }
         const confUpdateFileAbs = resolve(root, config.localesDir, generatedDir, confUpdateName)
-        await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+        if (mode === 'dev' && primary) {
+            await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+        }
         return new Hub({
             ...commonOpts,
+            primary,
             handlers,
             confUpdateFileAbs: normalizeSep(confUpdateFileAbs),
             hmrDelayThreshold,
@@ -251,7 +284,7 @@ export class Hub {
 
     onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
         file = normalizeSep(file) // just to be sure
-        if (this.#opts.confUpdateFileAbs === file) {
+        if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
             const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
             this.#opts.log.info(`${logPrefix} config update received: ${color.cyan(updateTxt)}`)
