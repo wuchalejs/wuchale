@@ -28,8 +28,9 @@ export const getRuntimeRx = catalogs => {
         const cb = (/** @type {import('${DATA}').Locale} */ locale) => setLocale(locale)
         callbacks.add(cb)
         return () => callbacks.delete(cb)
-    }, [catalogs])
-    return useMemo(() => toRuntime(catalogs[locale], locale), [locale, catalogs])
+    }, [])
+    // biome-ignore lint/correctness/useExhaustiveDependencies: catalogs is a constant
+    return useMemo(() => toRuntime(catalogs[locale], locale), [locale])
 }
 
 /**
