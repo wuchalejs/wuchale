@@ -63,6 +63,10 @@
             "types": "./dist/url.d.ts",
             "default": "./dist/url.js"
         },
+        "./dev": {
+            "types": "./dist/dev.d.ts",
+            "default": "./dist/dev.js"
+        },
         "./compiler": {
             "types": "./dist/compile.d.ts",
             "default": "./dist/compile.js"

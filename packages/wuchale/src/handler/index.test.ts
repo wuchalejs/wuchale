@@ -53,30 +53,17 @@ const handler = await makeHandler()
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`
     t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 1))[0].code),
+        trimLines((await handler.transform(content, 'test.js', true))[0].code),
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./src/locales/test.loader.js"
-
-        const _w_hmrUpdate_ = {"version":1,"data":{"en":[[0,"Hello"]]}}
-
-        function _w_load_(loadID) {
-            const _w_rt_ = _w_load_hmr_(loadID)
-            _w_rt_?._?.update?.(_w_hmrUpdate_)
-            return _w_rt_
-        }
-
-        function _w_load_rx_(loadID) {
-            const _w_rt_ = _w_load_rx_hmr_(loadID)
-            _w_rt_?._?.update?.(_w_hmrUpdate_)
-            return _w_rt_
-        }
-
+        import {updated as _w_updated_} from "wuchale/dev"
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]})
         _w_load_()(0)
     `),
     )
     // not on SSR
     t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 1, true))[0].code),
+        trimLines((await handler.transform(content, 'test.js', true, true))[0].code),
         trimLines(ts`
         import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./src/locales/test.loader.js"
         _w_load_()(0)
@@ -97,14 +84,14 @@ test('Manifest', async (t: TestContext) => {
 
 test('Handle messages', async (t: TestContext) => {
     const msgs = [newMessage({ msgStr: ['Hello'] })]
-    const [hmrKeys, updated] = await handler.handleMessages(msgs, 'foo.ts')
+    const [hmrKeys, updated] = await handler.handleMessages(msgs, 'foo.ts', true)
     t.assert.strictEqual(updated, true)
     t.assert.deepStrictEqual(hmrKeys, ['Hello'])
     // @ts-expect-error
     const msgs1 = [newMessage({ msgStr: ['Hello'], context: null })]
-    const [, updated1] = await handler.handleMessages(msgs1, 'foo.ts')
+    const [, updated1] = await handler.handleMessages(msgs1, 'foo.ts', true)
     t.assert.strictEqual(updated1, false)
-    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts')
+    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts', true)
     t.assert.strictEqual(updated2, true)
 })
 
@@ -123,11 +110,11 @@ test('Handler compiles only when necessary', async (t: TestContext) => {
         compileCalls++
         return handlerCompile(...args)
     }
-    const [, updated1] = await handler.handleMessages(msgs, 'foo.ts')
+    const [, updated1] = await handler.handleMessages(msgs, 'foo.ts', true)
     t.assert.strictEqual(updated1, true)
     t.assert.strictEqual(saveCalls, 1)
     t.assert.strictEqual(compileCalls, 1)
-    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts')
+    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts', true)
     t.assert.strictEqual(updated2, true)
     t.assert.strictEqual(saveCalls, 2)
     t.assert.strictEqual(compileCalls, 1)
