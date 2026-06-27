@@ -7,7 +7,7 @@ import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/ut
 import { defaultArgs } from './adapter-vanilla/index.js'
 import { type Config, type DevMode, defaultConfig } from './config.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
-import { Hub } from './hub.js'
+import { devPidFile, Hub } from './hub.js'
 
 const file = resolve(import.meta.dirname, 'src/foo.js') // needs to match files, relative to root
 
@@ -28,6 +28,8 @@ const defaultLoaderPath = {
 }
 
 let devMode: DevMode = 'refs'
+
+const devPidPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, devPidFile)
 
 const loadConfig = async (): Promise<Config> => ({
     ...defaultConfig,
@@ -53,6 +55,7 @@ test('hub transform basic', async (t: TestContext) => {
 })
 
 test('hub transform ssr', async (t: TestContext) => {
+    await inMemFS.unlink(devPidPath)
     const hub = await Hub.create('build', loadConfig, import.meta.dirname, [], 0, inMemFS)
     const [output] = await hub.transform(code, file, true)
     t.assert.strictEqual(
@@ -94,6 +97,7 @@ test('hub transform with hmr', async (t: TestContext) => {
 test('different dev modes', async (t: TestContext) => {
     const po = resolve(import.meta.dirname, 'src/locales/en.po')
 
+    await inMemFS.unlink(devPidPath)
     await inMemFS.unlink(po)
     devMode = false
     let hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
@@ -102,6 +106,7 @@ test('different dev modes', async (t: TestContext) => {
     t.assert.deepStrictEqual(output, {})
 
     // existing po
+    await inMemFS.unlink(devPidPath)
     devMode = 'add'
     hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
     await hub.transform(code, file)
@@ -111,6 +116,7 @@ test('different dev modes', async (t: TestContext) => {
     t.assert.match(poContent, /\nmsgid "Hello1"/)
 
     // existing po
+    await inMemFS.unlink(devPidPath)
     devMode = 'read'
     hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
     await hub.transform(ts`const x = () => 'Hello2'`, file)
@@ -119,6 +125,7 @@ test('different dev modes', async (t: TestContext) => {
     t.assert.match(poContent, /"Hello1"/)
     t.assert.doesNotMatch(poContent, /"Hello2"/)
 
+    await inMemFS.unlink(devPidPath)
     await inMemFS.unlink(po)
     devMode = 'refs'
     hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
@@ -129,6 +136,7 @@ test('different dev modes', async (t: TestContext) => {
     t.assert.match(poContent, /\nmsgid "Hello1"/) // new
 
     // existing po
+    await inMemFS.unlink(devPidPath)
     devMode = 'clean'
     hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
     await hub.transform(code, file)

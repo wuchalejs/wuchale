@@ -35,6 +35,7 @@ async function makeHandler() {
 
     return await AdapterHandler.create({
         adapter,
+        primary: true,
         key: 'test',
         config: defaultConfig,
         mode: 'dev',
