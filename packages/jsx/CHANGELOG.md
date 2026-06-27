@@ -1,5 +1,13 @@
 # @wuchale/jsx
 
+## 0.12.3
+
+### Patch Changes
+
+- [fa12c12](https://github.com/wuchalejs/wuchale/commit/fa12c1248ea4ce7a15d9c4cd12d04cba01838d50): Limit nesting to only element-like nodes to fix unexpected errors (e.g. around `{#if}`)
+- Updated dependencies [fa12c12]:
+  - wuchale@0.25.3
+
 ## 0.12.2
 
 ### Patch Changes
