@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/jsx",
-    "version": "0.12.2",
+    "version": "0.12.3",
     "description": "Protobuf-like i18n from plain code: JSX adapter",
     "scripts": {
         "dev": "tsc --watch",
@@ -72,7 +72,7 @@
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.10",
         "acorn": "^8.17.0",
-        "wuchale": "^0.25.0"
+        "wuchale": "^0.25.3"
     },
     "devDependencies": {
         "@types/estree-jsx": "^1.0.5",
