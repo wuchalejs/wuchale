@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.25.2
+
+### Patch Changes
+
+- [2d436dc](https://github.com/wuchalejs/wuchale/commit/2d436dc4f56b44a795661749bf1bb5e3e4916a35): Fix nested messages applying unnecessary edits #398
+
 ## 0.25.1
 
 ### Patch Changes
