@@ -9,6 +9,7 @@ import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial, DevMode } from '../config.js'
 import type { HMRData } from '../dev.js'
+import { readOnlyFS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import {
@@ -95,6 +96,7 @@ export function getFallbackChains(fallbackConf: Record<string, string>, locales:
 
 type HandlerOptsCreate = FilesOptsCreatePass & {
     config: ConfigPartial
+    primary: boolean
     mode: Mode
     log: Logger
     sourceLocale: string
@@ -146,13 +148,13 @@ export class AdapterHandler {
     }
 
     static create = async (opts: HandlerOptsCreate) => {
-        const { adapter, key, sharedState, config, fs, root } = opts
+        const { adapter, key, sharedState, config, primary, fs, root } = opts
         const files = await Files.create({
             adapter,
             key,
             ownerKey: sharedState.ownerKey,
             localesDirAbs: resolve(root, config.localesDir),
-            fs,
+            fs: primary ? fs : readOnlyFS,
             root,
         })
         const writeProxies: WriteProxies = groupPatts => files.writeProxies(config.locales, groupPatts)
