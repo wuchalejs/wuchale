@@ -15,7 +15,6 @@ export function parseScriptJSX(content: string): [Estree.Program, Estree.Comment
 }
 
 const rtComponent = 'W_tx_'
-const nodesWithChildren: (JX.Node | JX.JSXSpreadChild)['type'][] = ['JSXElement']
 
 type MixedNodesTypes = JX.JSXElement | JX.JSXFragment | JX.JSXText | JX.JSXExpressionContainer | JX.JSXSpreadChild
 
@@ -52,7 +51,6 @@ export class JSXTransformer extends Transformer {
                 node.expression.end > node.expression.start,
             isText: node => node.type === 'JSXText',
             leaveInPlace: () => false,
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'JSXExpressionContainer',
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
@@ -92,11 +90,12 @@ export class JSXTransformer extends Transformer {
         })
     }
 
-    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment, addMod?: ModFunc): Message[] {
+    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment, nestable: boolean, addMod?: ModFunc): Message[] {
         const prevInsideProg = this.heuristciDetails.insideProgram
         this.heuristciDetails.insideProgram = false
         const msgs = this.mixedVisitor.visit({
             children: node.children,
+            nestable,
             commentDirectives: this.commentDirectives,
             scope: 'markup',
             element: this.currentElement as string,
@@ -141,7 +140,7 @@ export class JSXTransformer extends Transformer {
                 this.currentJsxKey++
             }
         }
-        const msgs = this.visitChildrenJ(node, addMod)
+        const msgs = this.visitChildrenJ(node, true, addMod)
         for (const attr of node.openingElement.attributes) {
             msgs.push(...this.visitJx(attr))
         }
@@ -152,7 +151,7 @@ export class JSXTransformer extends Transformer {
     visitJSXFragment(node: JX.JSXFragment): Message[] {
         const currentElement = this.currentElement
         this.currentElement = ''
-        const msgs = this.visitChildrenJ(node)
+        const msgs = this.visitChildrenJ(node, true)
         this.currentElement = currentElement
         return msgs
     }

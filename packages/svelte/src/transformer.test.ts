@@ -11,7 +11,7 @@ const urlHandler = new URLHandler(['en'], 'en', {
     patterns: ['/translated/**', '/'],
     localize: true,
 })
-urlHandler.initPatterns('foo', new Map(), new Map())
+await urlHandler.initPatterns('foo', new Map(), new Map())
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 
@@ -382,35 +382,53 @@ test('Nested and mixed with svelte:element', async t => {
         t,
         await getOutput(svelte`
             <p>Hello and <svelte:element this="b">welcome to <i>the app {appName}</i></svelte:element>!</p>
-            <a><Test></Test> More</a>
+            {#if name}
+                <Icon /> Name
+            {:else if number}
+                <Icon /> Number
+            {:else}
+                <a><Test></Test> More</a>
+            {/if}
         `),
         svelte`
-        <script>
-            import { _w_load_, _w_load_rx_ } from "./loader.js"
-            import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_());
-        </script>
-        <p>
-            {#snippet _w_snippet_0(_w_ctx_)}
-                <svelte:element this="b">
-                    {#snippet _w_snippet_1(_w_ctx_)}
-                        <i>
-                            <W_tx_ x={_w_ctx_} n a={[appName]} />
-                        </i>
+            <script>
+                import { _w_load_, _w_load_rx_ } from "./loader.js"
+                import W_tx_ from "@wuchale/svelte/runtime.svelte"
+                const _w_runtime_ = $derived(_w_load_rx_());
+            </script>
+            <p>
+                {#snippet _w_snippet_3(_w_ctx_)}
+                    <svelte:element this="b">
+                        {#snippet _w_snippet_4(_w_ctx_)}
+                            <i>
+                                <W_tx_ x={_w_ctx_} n a={[appName]} />
+                            </i>
+                        {/snippet}
+                        <W_tx_ t={[_w_snippet_4]} x={_w_ctx_} n />
+                    </svelte:element>
+                {/snippet}
+                <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(3)} />
+            </p>
+            {#if name}
+                {#snippet _w_snippet_0()}
+                    <Icon />
+                {/snippet}
+                <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
+            {:else if number}
+                {#snippet _w_snippet_1()}
+                    <Icon />
+                {/snippet}
+                <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(1)} />
+            {:else}
+                <a>
+                    {#snippet _w_snippet_2()}
+                        <Test></Test>
                     {/snippet}
-                    <W_tx_ t={[_w_snippet_1]} x={_w_ctx_} n />
-                </svelte:element>
-            {/snippet}
-            <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
-        </p>
-        <a>
-            {#snippet _w_snippet_2()}
-                <Test></Test>
-            {/snippet}
-            <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.c(1)} />
-        </a>
+                    <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.c(2)} />
+                </a>
+            {/if}
     `,
-        ['Hello and <0>welcome to <0>the app {0}</0></0>!', '<0/> More'],
+        ['<0/> Name', '<0/> Number', '<0/> More', 'Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
 

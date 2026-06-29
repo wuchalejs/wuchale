@@ -33,7 +33,6 @@ type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT ext
     isExpression: (node: MixNodeT) => node is ExprT
     isComment: (node: MixNodeT) => node is ComT
     leaveInPlace: (node: MixNodeT) => boolean
-    canHaveChildren: (node: MixNodeT) => boolean
     getTextContent: (node: TxtT) => string
     getCommentData: (node: ComT) => string
     visitFunc: (node: MixNodeT) => Message[]
@@ -57,7 +56,6 @@ type LevelMod = {
     txts: [Message, () => void][]
     hasTxtDesc: boolean
     unit: boolean
-    noNest: boolean
     pending: boolean
     building: boolean
     funcs: ModFunc[]
@@ -70,7 +68,6 @@ const newMod = (building = false, unit = false): LevelMod => ({
     txts: [],
     building,
     unit,
-    noNest: false,
     pending: true,
     funcs: [],
     children: [],
@@ -89,6 +86,7 @@ function trimText(msgStr: string): TrimOut {
 
 type VisitProps<NodeT> = {
     children: NodeT[]
+    nestable: boolean
     commentDirectives: CommentDirectives
     scope: MixedScope
     element: string
@@ -117,9 +115,6 @@ export class MixedVisitor<
     #applyMod(mod: LevelMod, depth = 0) {
         if (!mod.pending) {
             return []
-        }
-        if (mod.noNest) {
-            depth = 0
         }
         const msgs: Message[] = []
         const nested = depth > 0
@@ -362,9 +357,8 @@ export class MixedVisitor<
                     }
                 } else {
                     // elements, components and other things as well
-                    const canHaveChildren = this.#props.canHaveChildren(child)
                     const childMod = newMod(
-                        canHaveChildren && mod.building,
+                        props.nestable && mod.building,
                         !alreadyInsideUnit && props.commentDirectives.unit,
                     )
                     this.#mod[props.scope] = childMod
@@ -373,22 +367,18 @@ export class MixedVisitor<
                     mod.children.push(childMod)
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
-                    if (canHaveChildren) {
-                        mod.hasTxtDesc ||= childMod.hasTxtDesc
-                        if (childMod.msg) {
-                            if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
-                                chTxt = childMod.msg.msgStr[0]!
-                                placeholders.push(...childMod.msg.placeholders)
-                            } else if (childMod.hasTxtDesc) {
-                                chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
-                                for (const [num, cont] of childMod.msg.placeholders) {
-                                    placeholders.push([`${iTag}.${num}`, cont])
-                                }
-                                nestedNeedsCtx = true
+                    mod.hasTxtDesc ||= childMod.hasTxtDesc
+                    if (childMod.pending && childMod.msg) {
+                        if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
+                            chTxt = childMod.msg.msgStr[0]!
+                            placeholders.push(...childMod.msg.placeholders)
+                        } else if (childMod.hasTxtDesc) {
+                            chTxt = `<${iTag}>${childMod.msg.msgStr[0]!}</${iTag}>`
+                            for (const [num, cont] of childMod.msg.placeholders) {
+                                placeholders.push([`${iTag}.${num}`, cont])
                             }
+                            nestedNeedsCtx = true
                         }
-                    } else {
-                        childMod.noNest = true
                     }
                     childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
                     msgStr += chTxt
@@ -408,7 +398,7 @@ export class MixedVisitor<
         if (mod.hasTxtDesc) {
             mod.funcs.push(...exprFuncs, this.#finalMod(props, msg, lastChildEnd, childrenNestedRanges, iArg > 0, nums))
         }
-        if (mod.unit || !mod.building || hasCommentDirectives) {
+        if (mod.unit || !mod.building || hasCommentDirectives || !props.nestable) {
             msgs.push(...this.applyMod(props.scope))
         }
         return msgs

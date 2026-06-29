@@ -36,7 +36,6 @@ export function parseExpr(content: string): [Estree.Expression, Estree.Comment[]
 }
 
 const rtRenderFunc = '_w_Tx_'
-const nodesWithChildren: (Node | AttributeNode)['type'][] = ['element', 'component', 'custom-element']
 
 const u8decoder = new TextDecoder()
 
@@ -114,7 +113,6 @@ export class AstroTransformer extends Transformer {
             isText: node => node.type === 'text',
             isComment: node => node.type === 'comment',
             leaveInPlace: () => false,
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'expression',
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
@@ -184,9 +182,10 @@ export class AstroTransformer extends Transformer {
         return msgs
     }
 
-    _visitChildren = (nodes: Node[]): Message[] =>
+    _visitChildren = (nodes: Node[], nestable: boolean): Message[] =>
         this.mixedVisitor.visit({
             children: nodes,
+            nestable,
             commentDirectives: this.commentDirectives,
             scope: 'markup',
             element: this.currentElement as string,
@@ -194,7 +193,7 @@ export class AstroTransformer extends Transformer {
         })
 
     visitFragmentNode(node: FragmentNode): Message[] {
-        return this._visitChildren(node.children)
+        return this._visitChildren(node.children, false)
     }
 
     visitelement(node: ElementNode): Message[] {
@@ -206,7 +205,7 @@ export class AstroTransformer extends Transformer {
         }
         const { end } = this.getRange(node)
         this._saveCorrectedRanges(node.children, end)
-        msgs.push(...this._visitChildren(node.children))
+        msgs.push(...this._visitChildren(node.children, true))
         this.currentElement = currentElement
         return msgs
     }
@@ -263,7 +262,7 @@ export class AstroTransformer extends Transformer {
         // node.children can be undefined!
         const children = node.children ?? []
         this._saveCorrectedRanges(children, this.content.length)
-        const msgs = [...this._visitChildren(children), ...this.mixedVisitor.applyMod()]
+        const msgs = [...this._visitChildren(children, false)]
         return msgs
     }
 

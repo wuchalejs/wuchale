@@ -22,7 +22,6 @@ import { getKey } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
-const nodesWithChildren: AST.SvelteNode['type'][] = ['RegularElement', 'Component', 'SvelteElement']
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
@@ -109,7 +108,6 @@ export class SvelteTransformer extends Transformer {
             isText: node => node.type === 'Text',
             isComment: node => node.type === 'Comment',
             leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
-            canHaveChildren: node => nodesWithChildren.includes(node.type),
             isExpression: node => node.type === 'ExpressionTag',
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
@@ -150,9 +148,10 @@ export class SvelteTransformer extends Transformer {
         })
     }
 
-    visitFragment(node: AST.Fragment): Message[] {
+    visitFragment(node: AST.Fragment, nestable = false): Message[] {
         return this.mixedVisitor.visit({
             children: node.nodes,
+            nestable,
             commentDirectives: this.commentDirectives,
             scope: 'markup',
             element: this.currentElement as string,
@@ -167,7 +166,7 @@ export class SvelteTransformer extends Transformer {
         for (const attrib of node.attributes) {
             msgs.push(...this.visitSv(attrib))
         }
-        msgs.push(...this.visitFragment(node.fragment))
+        msgs.push(...this.visitFragment(node.fragment, true))
         this.currentElement = currentElement
         return msgs
     }
@@ -193,6 +192,7 @@ export class SvelteTransformer extends Transformer {
         if (values.length > 1) {
             const msgs = this.mixedVisitor.visit({
                 children: values,
+                nestable: false,
                 commentDirectives: this.commentDirectives,
                 scope: 'attribute',
                 element: this.currentElement as string,
@@ -276,45 +276,45 @@ export class SvelteTransformer extends Transformer {
         if (this.hasIdentifier(this.moduleExportExprs, node.expression.name)) {
             this.currentRtVar = rtModuleVar
         }
-        const msgs = this.visitFragment(node.body)
+        const msgs = this.visitFragment(node.body, false)
         this.currentRtVar = prevRtVar
         return msgs
     }
 
     visitIfBlock(node: AST.IfBlock): Message[] {
         const msgs = this.visit(node.test as AnyNode)
-        msgs.push(...this.visitSv(node.consequent))
+        msgs.push(...this.visitFragment(node.consequent, false))
         if (node.alternate) {
-            msgs.push(...this.visitSv(node.alternate))
+            msgs.push(...this.visitFragment(node.alternate, false))
         }
         return msgs
     }
 
     visitEachBlock(node: AST.EachBlock): Message[] {
-        const msgs = [...this.visit(node.expression as AnyNode), ...this.visitSv(node.body)]
+        const msgs = [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.body, false)]
         if (node.key) {
             msgs.push(...this.visit(node.key as AnyNode))
         }
         if (node.fallback) {
-            msgs.push(...this.visitSv(node.fallback))
+            msgs.push(...this.visitFragment(node.fallback, false))
         }
         return msgs
     }
 
     visitKeyBlock(node: AST.KeyBlock): Message[] {
-        return [...this.visit(node.expression as AnyNode), ...this.visitSv(node.fragment)]
+        return [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.fragment, false)]
     }
 
     visitAwaitBlock(node: AST.AwaitBlock): Message[] {
         const msgs = this.visit(node.expression as AnyNode)
         if (node.then) {
-            msgs.push(...this.visitFragment(node.then))
+            msgs.push(...this.visitFragment(node.then, false))
         }
         if (node.pending) {
-            msgs.push(...this.visitFragment(node.pending))
+            msgs.push(...this.visitFragment(node.pending, false))
         }
         if (node.catch) {
-            msgs.push(...this.visitFragment(node.catch))
+            msgs.push(...this.visitFragment(node.catch, false))
         }
         return msgs
     }
@@ -334,7 +334,7 @@ export class SvelteTransformer extends Transformer {
         } else {
             this.currentElement = 'svelte:element'
         }
-        const msgs = [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitFragment(node.fragment)]
+        const msgs = [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitFragment(node.fragment, true)]
         this.currentElement = currentElement
         return msgs
     }
@@ -379,7 +379,7 @@ export class SvelteTransformer extends Transformer {
             this.commentDirectives = {} // reset
             msgs.push(...this.visitProgram(node.instance.content as Program))
         }
-        msgs.push(...this.visitFragment(node.fragment), ...this.mixedVisitor.applyMod())
+        msgs.push(...this.visitFragment(node.fragment, false))
         return msgs
     }
 
