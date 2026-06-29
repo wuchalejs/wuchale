@@ -26,7 +26,7 @@ import { itemIsObsolete, itemIsUrl } from './storage.js'
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
 export const devPidFile = 'dev.pid'
-const logPrefix = `[${color.magenta(pluginName)}]:`
+const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = Pick<Config, 'dev'>
@@ -239,10 +239,13 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
+        const log = new Logger(config.logLevel)
         const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
         const primary = await processIsPrimary(mode, fs, pidFileAbs)
+        if (!primary) {
+            log.warn(`${logPrefix} ${color.yellow('running in secondary process')}`)
+        }
         await initGenDirWithData(config, fs, root)
-        const log = new Logger(config.logLevel)
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
