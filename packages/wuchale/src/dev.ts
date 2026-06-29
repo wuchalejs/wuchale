@@ -6,9 +6,12 @@ type GetRuntime = (loadID: number) => Runtime
 
 export type HMRData = Record<string, [number, CompiledElement][]>
 
-function updatedFunc(getRuntime: GetRuntime, data: HMRData): GetRuntime {
+function updatedFunc(getRuntime: GetRuntime, data: HMRData, version: number): GetRuntime {
     return loadID => {
         const rt = getRuntime(loadID)
+        if (rt._.v != null && rt._.v >= version) {
+            return rt
+        }
         const newItems: CompiledElement[] = [...rt._.c]
         for (const [index, item] of data[rt.l] ?? []) {
             newItems[index] = item
@@ -17,6 +20,11 @@ function updatedFunc(getRuntime: GetRuntime, data: HMRData): GetRuntime {
     }
 }
 
-export function updated(getRuntime: GetRuntime, getRuntimeRx: GetRuntime, data: HMRData): [GetRuntime, GetRuntime] {
-    return [updatedFunc(getRuntime, data), updatedFunc(getRuntimeRx, data)]
+export function updated(
+    getRuntime: GetRuntime,
+    getRuntimeRx: GetRuntime,
+    data: HMRData,
+    version: number,
+): [GetRuntime, GetRuntime] {
+    return [updatedFunc(getRuntime, data, version), updatedFunc(getRuntimeRx, data, version)]
 }

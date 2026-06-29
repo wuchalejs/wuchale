@@ -275,13 +275,19 @@ export class Files {
         pluralRule: string | null,
         locale: string,
         loadID: number | null,
+        hmrVersion: number,
     ) => {
         const compiledItems = JSON.stringify(compiledData)
         let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
         if (pluralRule) {
             module = `${module}\nexport let p = (/** @type number */ n) => ${pluralRule}`
         }
-        await this.#opts.fs.write(this.getCompiledFilePath(locale, loadID), module)
+        if (hmrVersion >= 0) {
+            module = `${module}\nexport let v = ${hmrVersion}`
+        }
+        const filePath = this.getCompiledFilePath(locale, loadID)
+        await this.#opts.fs.write(filePath, module)
+        return filePath
     }
 
     getImportLoaderPath(forServer: boolean, relativeTo: string) {
