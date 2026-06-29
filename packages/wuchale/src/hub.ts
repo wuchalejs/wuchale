@@ -10,8 +10,15 @@ import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation, isEquivalent } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
-import { dataFileName, generatedDir, getLoaderPath, globConfToArgs, normalizeSep } from './handler/files.js'
-import { AdapterHandler, getLoadIDs, type Mode, newItemsAllowed } from './handler/index.js'
+import {
+    dataFileName,
+    defaultLoadID,
+    generatedDir,
+    getLoaderPath,
+    globConfToArgs,
+    normalizeSep,
+} from './handler/files.js'
+import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
@@ -167,12 +174,11 @@ export class Hub {
     #handlers: Map<string, AdapterHandler>
 
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
-    #granularLoadHandlers: AdapterHandler[] = []
-    #singleCompiledCatalogs: Set<string> = new Set()
+    #compiledCatalogs: Set<string> = new Set()
 
     #formatTransformErr: TransformErrFormatter = e => e
 
-    #inHMR = false
+    #hmrVersion = -1
     #lastSourceTriggeredCatalogWrite: number = 0
 
     #lastAdapterForFile = new Map<string, string>()
@@ -185,13 +191,8 @@ export class Hub {
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
-            const adapter = handler.adapter
-            if (adapter.loading.granular) {
-                this.#granularLoadHandlers.push(handler)
-            } else {
-                for (const locale of opts.config.locales) {
-                    this.#singleCompiledCatalogs.add(normalizeSep(handler.files.getCompiledFilePath(locale, null)))
-                }
+            handler.onWriteCompiled = file => {
+                this.#compiledCatalogs.add(file)
             }
             for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
@@ -301,20 +302,10 @@ export class Hub {
         if (handlers == null) {
             // prevent reloading whole app because of a change in compiled catalog
             // triggered by extraction from single file, hmr handled by embedding patch
-            if (this.#singleCompiledCatalogs.has(file)) {
+            if (this.#compiledCatalogs.has(file)) {
                 return ignoreChange
             }
-            // for granular as well
-            for (const adapter of this.#granularLoadHandlers) {
-                for (const loc of this.#opts.config.locales) {
-                    for (const id of adapter.granularState.byID.keys()) {
-                        if (normalizeSep(adapter.files.getCompiledFilePath(loc, id)) === file) {
-                            return ignoreChange
-                        }
-                    }
-                }
-            }
-            this.#inHMR = true
+            this.#hmrVersion++
             return
         }
         // catalog changed
@@ -325,9 +316,15 @@ export class Hub {
         for (const handler of handlers) {
             if (!changeInfo.sourceTriggered) {
                 await handler.loadStorage()
-                await handler.compile()
+                await handler.compile(this.#hmrVersion)
             }
-            const loadIDs = getLoadIDs(handler.adapter, handler.granularState.byID.values(), handler.sourceLocale)
+            const loadIDs = [defaultLoadID]
+            for (const state of handler.granularState.byID.values()) {
+                // only the ones with ready messages
+                if (state.compiled.get(handler.sourceLocale)!.items.length) {
+                    loadIDs.push(state.id)
+                }
+            }
             for (const loc of this.#opts.config.locales) {
                 for (const loadID of loadIDs) {
                     changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
@@ -348,7 +345,7 @@ export class Hub {
                 continue
             }
             try {
-                output = await adapter.transform(code, filename, this.#inHMR, forServer)
+                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
             } catch (e) {
                 throw this.#formatTransformErr(e as Error, adapter.key, filename)
             }
@@ -418,7 +415,7 @@ export class Hub {
         }
         if (updated) {
             await handler.saveStorage()
-            await handler.compile()
+            await handler.compile(this.#hmrVersion)
         }
         return updated
     }

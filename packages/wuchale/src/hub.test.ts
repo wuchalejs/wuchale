@@ -88,7 +88,7 @@ test('hub transform with hmr', async (t: TestContext) => {
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./locales/main.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
-        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]})
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 0)
         _w_load_()(0)
     `),
     )

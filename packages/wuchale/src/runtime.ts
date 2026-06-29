@@ -1,6 +1,6 @@
 import type { CompiledElement, CompositePayload, Mixed } from './compile.js'
 
-export type CatalogModule = { c: CompiledElement[]; p?: ((n: number) => number) | undefined }
+export type CatalogModule = { c: CompiledElement[]; p?: ((n: number) => number) | undefined; v?: number }
 
 let onInvalidFunc: (i: number, c: CompiledElement[]) => string = () => ''
 
