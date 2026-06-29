@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.20.3
+
+### Patch Changes
+
+- [d4ef202](https://github.com/wuchalejs/wuchale/commit/d4ef20267323b47b2bc39600ed5f28e3959e6ed8): Fix inconsistent handling of nested messages with non-nestable block types #402
+- Updated dependencies [d4ef202]:
+  - wuchale@0.25.4
+
 ## 0.20.2
 
 ### Patch Changes
