@@ -131,25 +131,33 @@ async function getSharedState(
 }
 
 async function processIsPrimary(mode: Mode, fs: FS, pidFileAbs: string) {
-    const pid = await fs.read(pidFileAbs)
-    let primary = pid == null
-    if (pid != null) {
+    const pidStr = await fs.read(pidFileAbs)
+    const pid = pidStr ? Number(pidStr) : null
+    let primary = pid == null || pid === process.pid
+    if (pid != null && pid !== process.pid) {
         try {
-            process.kill(Number(pid), 0)
+            process.kill(pid, 0)
         } catch {
             primary = true
         }
     }
-    if (primary && mode === 'dev') {
+    if (primary && pid !== process.pid && mode === 'dev') {
         await fs.write(pidFileAbs, process.pid.toString())
-        const cleanupExit = () => {
+        const cleanup = () => {
             try {
                 unlinkSync(pidFileAbs)
             } catch {}
-            process.exit()
         }
-        process.on('SIGTERM', cleanupExit)
-        process.on('SIGINT', cleanupExit)
+        const onSignal = (signal: NodeJS.Signals) => {
+            cleanup()
+            process.off(signal, onSignal)
+            // not to affect other listeners
+            process.kill(process.pid, signal)
+        }
+        process.on('SIGTERM', onSignal)
+        process.on('SIGINT', onSignal)
+        process.on('SIGHUP', onSignal)
+        process.on('exit', cleanup)
     }
     return primary
 }
