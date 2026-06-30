@@ -23,11 +23,12 @@ time.
 - **Tiny catalogs to bundle** - Text catalogs are just arrays, no keys necessary, like Protobuf
 - **Zero-effort integration** - Add i18n to existing projects without rewriting code
 - **Framework agnostic** - Works with React, Preact, Svelte(Kit), SolidJS, Astro, and plain JS/TS
-- **Optional AI translation** - Configurable integration for automatic on-the-fly translations
-- **Full, granular HMR support** - Live updates during development, including AI auto-translation
+- **Full URLs support** - E.g. `/about` to `/de/uber-uns`
+- **LLM translation support** - Configurable integration for automatic on-the-fly translations
+- **Full, granular HMR** - Live updates during development, including LLM translation
 - **Tiny footprint** - Very few (less than 5) additional dependencies, no bloated `node_modules`
 - **Smart extraction** - Uses AST analysis to handle nested markup, conditionals, loops, and complex interpolations
-- **Standard .po files** - Compatible with existing translation tools and workflows
+- **Storage agnostic** - Standard PO files by default, storage interface to store translations anywhere
 
 ## A taste
 
@@ -45,9 +46,9 @@ With `wuchale`:
 <p>Welcome {userName}</p>
 ```
 
-No imports, no wrappers, no annotations. `wuchale` handles everything at
-compile time by analyzing your code and automatically extracting translatable
-strings.
+No imports, no special components, no annotations. `wuchale` handles everything
+at compile time by analyzing your code and automatically extracting
+translatable strings.
 
 ## Getting started
 
@@ -57,7 +58,7 @@ instructions specific to your project type.
 ## How it works
 
 1. **Scans your source code** using AST and identify translatable text content
-2. **Extracts strings** into standard `.po` translation files for translators
+2. **Extracts strings** into standard `.po` translation files (or custom storage) for translators
 3. **Compiles catalogs** into compact modules which export arrays
 4. **Replaces strings** with translation function calls that access messages by indices from the arrays
 
@@ -69,11 +70,10 @@ Let's say you have:
 
 ```jsx
 // src/components/Welcome.jsx
-function Welcome({ name }) {
+function Welcome({ user }) {
   return (
     <div>
-      <h1>Welcome to our app!</h1>
-      <p>Hello, {name}! How are you today?</p>
+      <p><b>Hello, {user}</b>, and welcome!</p>
       <button>Get started</button>
     </div>
   )
@@ -84,12 +84,8 @@ The messages are extracted into a `.po` file. for Spanish for example, after tra
 
 ```po
 #~ src/components/Welcome.jsx
-msgid "Welcome to our app!"
-msgstr "¡Bienvenido a nuestra aplicación!"
-
-#~ src/components/Welcome.jsx
-msgid "Hello, {0}! How are you today?"
-msgstr "¡Hola, {0}! ¿Cómo estás hoy?"
+msgid "<0>Hello, {0}</0>, and welcome!"
+msgstr "<0>Hola, {0}</0>, y ¡bienvenido!"
 
 #~ src/components/Welcome.jsx
 msgid "Get started"
@@ -99,39 +95,34 @@ msgstr "Comenzar"
 Then they are compiled into a compact form optimized for loading (just an array):
 
 ```js
-export let c = ["¡Bienvenido a nuestra aplicación!",["¡Hola, ",0,"! ¿Cómo estás hoy?"],"Comenzar"]
+export let c = [[[0, "Hola, ", 0], ", y ¡bienvenido!"], "Comenzar"]
 ```
 
 And your code is transformed into a version that accesses them by index:
 
 ```jsx
 // src/components/Welcome.jsx
-import { _load_ } from '../locales/loader.js'
+import W_tx_ from "@wuchale/jsx/runtime.jsx"
 
-function Welcome({ name }) {
-  const _w_runtime_ = _load_('main')
+function Welcome({ user }) {
+  const _w_runtime_ = _w_load_rx_();
   return (
     <div>
-      <h1>{_w_runtime_(0)}</h1>
-      <p>{_w_runtime_(1, [name])}</p>
-      <button>{_w_runtime_(2)}</button>
+      <p><W_tx_ t={[_w_ctx_ => <b key="_0"><W_tx_ x={_w_ctx_} n a={[user]} /></b>]} x={_w_runtime_.c(0)} /></p>
+      <button>{_w_runtime_(1)}</button>
     </div>
   )
 }
 ```
 
+Notice the automatic handling of the nested `<b>`, that's wuchale's full
+supported for indefinite nesting at play. You can nest as deep as you want, and
+it still makes it work for i18n. That gives the translator freedom to even
+reorder placeholders and it gets rendered accordingly.
+
 Check out full working examples for different setups at
 **[`wuchalejs/examples`](https://github.com/wuchalejs/examples)** to see
 `wuchale` in action with different frameworks.
-
-## Supported Features
-
-- **Complex interpolations**: `Welcome {userName}, you have {count} messages`
-- **Nested markup**: `<p>Visit our <a href="/help">help page</a> for more info</p>`
-- **Conditional content**: Handles dynamic content in templates
-- **Loop structures**: Automatic extraction from repeated elements
-- **URLs**: E.g. `/about` to `/de/uber-uns`
-- **Hot Module Replacement**: Live translation updates during development
 
 ## Repository structure
 
@@ -173,16 +164,6 @@ Special thanks to our supporters:
 [![ZerGo0](https://avatars.githubusercontent.com/u/18653821?v=4&s=48)](https://github.com/ZerGo0)
 
 And <!-- s:private -->one private donor 🙏.
-
-## Inspiration
-
-This project was inspired by [Lingui](https://lingui.dev/) especially some of
-its workflow. If you've used Lingui before, you'll find familiar concepts like
-extraction and compilation.
-
-Where `wuchale` differs, among other things, is that you don't need to change your
-code, catalogs compile smaller than any other tool (including Lingui's), and it
-integrates with a wider range of frameworks.
 
 ## License
 
