@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.25.5
+
+### Patch Changes
+
+- [b6372c2](https://github.com/wuchalejs/wuchale/commit/b6372c27a695884413a7373b4851e9e0883f06e4): Fix runtime not initialized error on messages inside hoisted function calls at the top #404
+
 ## 0.25.4
 
 ### Patch Changes
