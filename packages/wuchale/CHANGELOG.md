@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.25.6
+
+### Patch Changes
+
+- [40b5c42](https://github.com/wuchalejs/wuchale/commit/40b5c4257fb09b8b920e32303f4ee9f061caca8b): Fix runtime not initialized inside funcs with only patterns without messages
+
 ## 0.25.5
 
 ### Patch Changes
