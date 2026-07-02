@@ -14,7 +14,7 @@ function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
 }
 
 test('Runtime', t => {
-    const rt = toRuntime('en', testCatalog)
+    const rt = toRuntime(testCatalog, 'en')
     t.assert.equal(rt.l, 'en')
     t.assert.equal(rt(0), 'Hello')
     t.assert.equal(rt(1, ['User']), 'Hello User!')
