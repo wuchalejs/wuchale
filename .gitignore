@@ -3,3 +3,4 @@ rnd
 tmp
 dist
 **/*.tsbuildinfo
+packages/go/main
