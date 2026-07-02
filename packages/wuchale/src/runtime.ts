@@ -47,7 +47,7 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
     return msgStr
 }
 
-export default function toRuntime(locale: string, mod: CatalogModule = { c: [] }): Runtime {
+export default function toRuntime(mod: CatalogModule = { c: [] }, locale = ''): Runtime {
     const getCompositeContext = (id: number) => {
         const ctx: CompiledElement = mod.c[id]!
         if (typeof ctx === 'string') {
