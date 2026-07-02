@@ -8,8 +8,9 @@ import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
 import type { ConfigPartial, DevMode } from '../config.js'
+import type { HMRData } from '../dev.js'
+import { readOnlyFS } from '../fs.js'
 import type { Logger } from '../log.js'
-import type { HMRData } from '../runtime.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
 import {
     defaultLoadID,
@@ -20,7 +21,7 @@ import {
     normalizeSep,
     objKeyLocale,
 } from './files.js'
-import { type GranularState, type SharedState, State, type WriteProxies } from './state.js'
+import { type SharedState, State, type WriteProxies } from './state.js'
 import { URLHandler } from './url.js'
 
 const loaderImportGetRuntime = 'getRuntime'
@@ -30,6 +31,7 @@ const getFuncPlainDefault = '_w_load_'
 const urlLocalizeUdfName = 'localize'
 const getFuncReactiveDefault = `${getFuncPlainDefault}rx_`
 const bundleCatalogsVarName = '_w_catalogs_'
+const updatedFuncName = '_w_updated_'
 
 export type Mode = 'dev' | 'build' | 'cli'
 
@@ -40,20 +42,6 @@ type TrackedRefs = Map<
         used: number
     }
 >
-
-export function getLoadIDs(adapter: Adapter, granularStates: Iterable<GranularState>, sourceLocale: string): number[] {
-    if (!adapter.loading.granular) {
-        return [defaultLoadID]
-    }
-    const loadIDs: number[] = []
-    for (const state of granularStates) {
-        // only the ones with ready messages
-        if (state.compiled.get(sourceLocale)!.items.length) {
-            loadIDs.push(state.id)
-        }
-    }
-    return loadIDs
-}
 
 export const newItemsAllowed = (mode: Mode, devMode: DevMode) =>
     mode !== 'dev' || devMode === 'add' || devMode === 'refs' || devMode === 'clean'
@@ -94,6 +82,7 @@ export function getFallbackChains(fallbackConf: Record<string, string>, locales:
 
 type HandlerOptsCreate = FilesOptsCreatePass & {
     config: ConfigPartial
+    primary: boolean
     mode: Mode
     log: Logger
     sourceLocale: string
@@ -119,6 +108,7 @@ export class AdapterHandler {
     readonly url: URLHandler
     readonly aiQueue?: AIQueue
     onBeforeSave?: () => void
+    onWriteCompiled?: (file: string) => void
     #fallbackChains: Map<string, string[]>
     #newKeys = new Set<string>() // keys added during dev
 
@@ -145,13 +135,13 @@ export class AdapterHandler {
     }
 
     static create = async (opts: HandlerOptsCreate) => {
-        const { adapter, key, sharedState, config, fs, root } = opts
+        const { adapter, key, sharedState, config, primary, fs, root } = opts
         const files = await Files.create({
             adapter,
             key,
             ownerKey: sharedState.ownerKey,
             localesDirAbs: resolve(root, config.localesDir),
-            fs,
+            fs: primary ? fs : readOnlyFS,
             root,
         })
         const writeProxies: WriteProxies = groupPatts => files.writeProxies(config.locales, groupPatts)
@@ -161,7 +151,7 @@ export class AdapterHandler {
         if (await handler.url.initPatterns(key, sharedState.catalog, handler.#fallbackChains, handler.aiQueue)) {
             await handler.saveStorage()
         }
-        await handler.compile()
+        await handler.compile(-1)
         await writeProxies(granularState.groupPatterns)
         await files.writeUrlFiles(handler.url.buildManifest(), config.locales[0])
         return handler
@@ -178,7 +168,7 @@ export class AdapterHandler {
         await this.sharedState.save(this.#opts.mode === 'dev' && this.#opts.devMode === 'clean')
     }
 
-    compile = async (hmrVersion = -1) => {
+    compile = async (hmrVersion: number) => {
         // for proper fallback
         const localesOrdered = [this.sourceLocale, ...this.#opts.config.locales.filter(l => l !== this.sourceLocale)]
         await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
@@ -221,22 +211,21 @@ export class AdapterHandler {
         await Promise.all(promises)
     }
 
-    saveStorageCompile = async () => {
+    saveStorageCompile = async (hmrVersion = -1) => {
         await this.saveStorage()
-        await this.compile()
+        await this.compile(hmrVersion)
     }
 
-    writeCompiled = async (loc: string, hmrVersion = -1) => {
+    writeCompiled = async (loc: string, hmrVersion: number) => {
         let compiledData = this.sharedState.compiled.get(loc)!
         const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
-        const hmrVersionMode = this.#opts.mode === 'dev' ? hmrVersion : null
         const promises = [
             this.files.writeCatalogModule(
                 compiledData.items,
                 compiledData.hasPlurals ? pluralRule : null,
                 loc,
-                hmrVersionMode,
                 null,
+                hmrVersion,
             ),
         ]
         if (this.adapter.loading.granular) {
@@ -250,13 +239,15 @@ export class AdapterHandler {
                         compiledData.items,
                         compiledData.hasPlurals ? pluralRule : null,
                         loc,
-                        hmrVersionMode,
                         state.id,
+                        hmrVersion,
                     ),
                 )
             }
         }
-        await Promise.all(promises)
+        for (const file of await Promise.all(promises)) {
+            this.onWriteCompiled?.(file)
+        }
     }
 
     getCompiledFallback(index: number, locale: string) {
@@ -269,7 +260,7 @@ export class AdapterHandler {
         return ''
     }
 
-    #compileForLocale = async (loc: string, hmrVersion = -1) => {
+    #compileForLocale = async (loc: string, hmrVersion: number) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
             sharedCompiledLoc = { hasPlurals: false, items: [] }
@@ -278,7 +269,11 @@ export class AdapterHandler {
         for (const [itemKey, item] of this.sharedState.catalog) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
-            if (!item.references.some(r => this.fileMatches(r.file))) {
+            // in dev mode, include obsolete items, they may be added back
+            if (
+                (this.#opts.mode !== 'dev' || item.references.length > 0) &&
+                !item.references.some(r => this.fileMatches(r.file))
+            ) {
                 continue
             }
             let keys = [itemKey]
@@ -329,17 +324,6 @@ export class AdapterHandler {
         await this.writeCompiled(loc, hmrVersion)
     }
 
-    #hmrUpdateFunc = (getFuncName: string, getFuncNameHmr: string) => {
-        const rtVar = '_w_rt_'
-        return `
-            function ${getFuncName}(loadID) {
-                const ${rtVar} = ${getFuncNameHmr}(loadID)
-                ${rtVar}?._?.update?.(${varNames.hmrUpdate})
-                return ${rtVar}
-            }
-        `
-    }
-
     #getRuntimeVars = (): RuntimeExpr => ({
         plain: this.adapter.getRuntimeVars?.plain ?? getFuncPlainDefault,
         reactive: this.adapter.getRuntimeVars?.reactive ?? getFuncReactiveDefault,
@@ -349,6 +333,7 @@ export class AdapterHandler {
         filename: string,
         loadID: number,
         hmrData: HMRData | null,
+        hmrVersion: number,
         hasUrls: boolean,
         forServer: boolean,
     ): string => {
@@ -366,13 +351,12 @@ export class AdapterHandler {
         let getRuntimePlain = getRuntimeVars.plain
         let getRuntimeReactive = getRuntimeVars.reactive
         if (hmrData != null) {
-            const hmrDataStr = JSON.stringify(hmrData).replaceAll('</script>', '\\x3C/script>')
-            head.push(`const ${varNames.hmrUpdate} = ${hmrDataStr}`)
             getRuntimePlain += 'hmr_'
             getRuntimeReactive += 'hmr_'
+            const hmrDataStr = JSON.stringify(hmrData).replaceAll('</script>', '\\x3C/script>')
             head.push(
-                this.#hmrUpdateFunc(getRuntimeVars.plain, getRuntimePlain),
-                this.#hmrUpdateFunc(getRuntimeVars.reactive, getRuntimeReactive),
+                `import {updated as ${updatedFuncName}} from "wuchale/dev"`,
+                `const [${getRuntimeVars.plain}, ${getRuntimeVars.reactive}] = ${updatedFuncName}(${getRuntimePlain}, ${getRuntimeReactive}, ${hmrDataStr}, ${hmrVersion})`,
             )
         }
         const loaderPath = this.files.getImportLoaderPath(forServer, filename)
@@ -477,7 +461,7 @@ export class AdapterHandler {
         return { cleaned, cleanedUrls }
     }
 
-    handleMessages = async (msgs: Message[], filename: string): Promise<[string[], boolean]> => {
+    handleMessages = async (msgs: Message[], filename: string, hmrVersion: number): Promise<[string[], boolean]> => {
         const previousReferences = this.popTrackedRefs(filename)
         let storageUpdated = false
         let compileUpdated = false
@@ -487,7 +471,6 @@ export class AdapterHandler {
             this.#opts.mode !== 'dev' || this.#opts.devMode === 'refs' || this.#opts.devMode === 'clean'
         for (const msgInfo of msgs) {
             let key = getKey(msgInfo.msgStr, msgInfo.context)
-            hmrKeys.push(key)
             if (msgInfo.type === 'url') {
                 const matched = this.url.match(key)
                 if (!matched) {
@@ -504,6 +487,9 @@ export class AdapterHandler {
                 this.#newKeys.add(key)
                 storageUpdated = true
                 compileUpdated = true
+            }
+            if (hmrVersion >= 0 && this.#newKeys.has(key)) {
+                hmrKeys.push(key)
             }
             const modifyRefs = modifyExistingRefs || (this.#opts.devMode === 'add' && this.#newKeys.has(key))
             if (modifyRefs && this.updateRef(item, key, filename, msgInfo, previousReferences)) {
@@ -549,7 +535,7 @@ export class AdapterHandler {
         if (storageUpdated && this.#opts.mode !== 'cli') {
             this.#opts.devMode && (await this.saveStorage())
             if (compileUpdated) {
-                await this.compile()
+                await this.compile(hmrVersion)
             }
         }
         return [hmrKeys, storageUpdated]
@@ -595,12 +581,12 @@ export class AdapterHandler {
                     this.#opts.log.verbose(`${this.key}: No messages from ${filename}.`)
                 }
             }
-            const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename)
+            const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename, hmrVersion)
             updated = updatedItems
-            if (!forServer && msgs.length > 0 && hmrVersion >= 0) {
-                hmrData = { version: hmrVersion, data: {} }
+            if (!forServer && hmrKeys.length > 0) {
+                hmrData = {}
                 for (const loc of this.#opts.config.locales) {
-                    hmrData.data[loc] =
+                    hmrData[loc] =
                         hmrKeys.map(key => {
                             const index = indexTracker.get(key)
                             return [index, compiled.get(loc)!.items[index]!]
@@ -615,6 +601,7 @@ export class AdapterHandler {
                     filename,
                     loadID,
                     hmrData,
+                    hmrVersion,
                     msgs.some(m => m.type === 'url'),
                     forServer,
                 ),

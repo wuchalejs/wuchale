@@ -274,32 +274,20 @@ export class Files {
         compiledData: CompiledElement[],
         pluralRule: string | null,
         locale: string,
-        hmrVersion: number | null,
         loadID: number | null,
+        hmrVersion: number,
     ) => {
         const compiledItems = JSON.stringify(compiledData)
         let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
         if (pluralRule) {
             module = `${module}\nexport let p = (/** @type number */ n) => ${pluralRule}`
         }
-        if (hmrVersion != null) {
-            module = `
-                ${module}
-                // only during dev, for HMR
-                let latestVersion = ${hmrVersion}
-                // @ts-ignore
-                export function update({ version, data }) {
-                    if (latestVersion >= version) {
-                        return
-                    }
-                    for (const [ index, item ] of data['${locale}'] ?? []) {
-                        c[index] = item
-                    }
-                    latestVersion = version
-                }
-            `
+        if (hmrVersion >= 0) {
+            module = `${module}\nexport let v = ${hmrVersion}`
         }
-        await this.#opts.fs.write(this.getCompiledFilePath(locale, loadID), module)
+        const filePath = this.getCompiledFilePath(locale, loadID)
+        await this.#opts.fs.write(filePath, module)
+        return filePath
     }
 
     getImportLoaderPath(forServer: boolean, relativeTo: string) {

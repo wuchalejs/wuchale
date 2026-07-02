@@ -2,6 +2,7 @@
  * This is the common coordination logic for use in the CLI as well as the bundler plugins
  */
 
+import { unlinkSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
@@ -9,15 +10,23 @@ import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation, isEquivalent } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
-import { dataFileName, generatedDir, getLoaderPath, globConfToArgs, normalizeSep } from './handler/files.js'
-import { AdapterHandler, getLoadIDs, type Mode, newItemsAllowed } from './handler/index.js'
+import {
+    dataFileName,
+    defaultLoadID,
+    generatedDir,
+    getLoaderPath,
+    globConfToArgs,
+    normalizeSep,
+} from './handler/files.js'
+import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
-const logPrefix = `[${color.magenta(pluginName)}]:`
+export const devPidFile = 'dev.pid'
+const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = Pick<Config, 'dev'>
@@ -121,10 +130,43 @@ async function getSharedState(
     return sharedState
 }
 
+async function processIsPrimary(mode: Mode, fs: FS, pidFileAbs: string) {
+    const pidStr = await fs.read(pidFileAbs)
+    const pid = pidStr ? Number(pidStr) : null
+    let primary = pid == null || pid === process.pid
+    if (pid != null && pid !== process.pid) {
+        try {
+            process.kill(pid, 0)
+        } catch {
+            primary = true
+        }
+    }
+    if (primary && pid !== process.pid && mode === 'dev') {
+        await fs.write(pidFileAbs, process.pid.toString())
+        const cleanup = () => {
+            try {
+                unlinkSync(pidFileAbs)
+            } catch {}
+        }
+        const onSignal = (signal: NodeJS.Signals) => {
+            cleanup()
+            process.off(signal, onSignal)
+            // not to affect other listeners
+            process.kill(process.pid, signal)
+        }
+        process.on('SIGTERM', onSignal)
+        process.on('SIGINT', onSignal)
+        process.on('SIGHUP', onSignal)
+        process.on('exit', cleanup)
+    }
+    return primary
+}
+
 type HubOpts = {
     mode: Mode
     config: Config
     root: string
+    primary: boolean
     log: Logger
     // threshold to consider po file change is manual edit instead of a sideeffect of editing code
     hmrDelayThreshold: number
@@ -140,8 +182,7 @@ export class Hub {
     #handlers: Map<string, AdapterHandler>
 
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
-    #granularLoadHandlers: AdapterHandler[] = []
-    #singleCompiledCatalogs: Set<string> = new Set()
+    #compiledCatalogs: Set<string> = new Set()
 
     #formatTransformErr: TransformErrFormatter = e => e
 
@@ -158,13 +199,8 @@ export class Hub {
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
             }
-            const adapter = handler.adapter
-            if (adapter.loading.granular) {
-                this.#granularLoadHandlers.push(handler)
-            } else {
-                for (const locale of opts.config.locales) {
-                    this.#singleCompiledCatalogs.add(normalizeSep(handler.files.getCompiledFilePath(locale, null)))
-                }
+            handler.onWriteCompiled = file => {
+                this.#compiledCatalogs.add(file)
             }
             for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
@@ -211,8 +247,13 @@ export class Hub {
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
-        await initGenDirWithData(config, fs, root)
         const log = new Logger(config.logLevel)
+        const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
+        const primary = await processIsPrimary(mode, fs, pidFileAbs)
+        if (!primary) {
+            log.warn(`${logPrefix} ${color.yellow('running in secondary process')}`)
+        }
+        await initGenDirWithData(config, fs, root)
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
@@ -220,6 +261,7 @@ export class Hub {
             const sourceLocale = adapter.sourceLocale ?? config.locales[0]
             const handler = await AdapterHandler.create({
                 ...commonOpts,
+                primary,
                 adapter,
                 key,
                 sourceLocale,
@@ -239,9 +281,12 @@ export class Hub {
             handlers.set(key, handler)
         }
         const confUpdateFileAbs = resolve(root, config.localesDir, generatedDir, confUpdateName)
-        await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+        if (mode === 'dev' && primary) {
+            await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+        }
         return new Hub({
             ...commonOpts,
+            primary,
             handlers,
             confUpdateFileAbs: normalizeSep(confUpdateFileAbs),
             hmrDelayThreshold,
@@ -251,7 +296,7 @@ export class Hub {
 
     onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
         file = normalizeSep(file) // just to be sure
-        if (this.#opts.confUpdateFileAbs === file) {
+        if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
             const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
             this.#opts.log.info(`${logPrefix} config update received: ${color.cyan(updateTxt)}`)
@@ -268,18 +313,8 @@ export class Hub {
         if (handlers == null) {
             // prevent reloading whole app because of a change in compiled catalog
             // triggered by extraction from single file, hmr handled by embedding patch
-            if (this.#singleCompiledCatalogs.has(file)) {
+            if (this.#compiledCatalogs.has(file)) {
                 return ignoreChange
-            }
-            // for granular as well
-            for (const adapter of this.#granularLoadHandlers) {
-                for (const loc of this.#opts.config.locales) {
-                    for (const id of adapter.granularState.byID.keys()) {
-                        if (normalizeSep(adapter.files.getCompiledFilePath(loc, id)) === file) {
-                            return ignoreChange
-                        }
-                    }
-                }
             }
             this.#hmrVersion++
             return
@@ -294,7 +329,13 @@ export class Hub {
                 await handler.loadStorage()
                 await handler.compile(this.#hmrVersion)
             }
-            const loadIDs = getLoadIDs(handler.adapter, handler.granularState.byID.values(), handler.sourceLocale)
+            const loadIDs = [defaultLoadID]
+            for (const state of handler.granularState.byID.values()) {
+                // only the ones with ready messages
+                if (state.compiled.get(handler.sourceLocale)!.items.length) {
+                    loadIDs.push(state.id)
+                }
+            }
             for (const loc of this.#opts.config.locales) {
                 for (const loadID of loadIDs) {
                     changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
@@ -385,7 +426,7 @@ export class Hub {
         }
         if (updated) {
             await handler.saveStorage()
-            await handler.compile()
+            await handler.compile(this.#hmrVersion)
         }
         return updated
     }
