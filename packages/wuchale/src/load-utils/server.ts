@@ -8,7 +8,7 @@ type LoadedRuntimes = Record<string, Runtime[]>
 const runtimes: Record<string, LoadedRuntimes> = {}
 // exported mainly for stackblitz examples polyfills
 export const runtimeCtx: AsyncLocalStorage<LoadedRuntimes> = new AsyncLocalStorage()
-const emptyRuntime = toRuntime('')
+const emptyRuntime = toRuntime()
 
 const warningShown: Record<string, boolean> = {}
 
@@ -43,7 +43,7 @@ export async function loadLocales(
             loaded[key] = []
         }
         for (let id = 0; id < loadCount; id++) {
-            loaded[key]![id] = toRuntime(locale, await load(id, locale))
+            loaded[key]![id] = toRuntime(await load(id, locale), locale)
         }
     }
     return (loadID = 0) => currentRuntime(key, loadID)

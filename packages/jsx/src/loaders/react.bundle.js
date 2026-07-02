@@ -30,11 +30,11 @@ export const getRuntimeRx = catalogs => {
         return () => callbacks.delete(cb)
     }, [])
     // biome-ignore lint/correctness/useExhaustiveDependencies: catalogs is a constant
-    return useMemo(() => toRuntime(locale, catalogs[locale]), [locale])
+    return useMemo(() => toRuntime(catalogs[locale], locale), [locale])
 }
 
 /**
  * non-reactive
  * @param {{[locale in import('${DATA}').Locale]: import('wuchale/runtime').CatalogModule }} catalogs
  */
-export const getRuntime = catalogs => toRuntime(locale, catalogs[locale])
+export const getRuntime = catalogs => toRuntime(catalogs[locale], locale)
