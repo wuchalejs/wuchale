@@ -100,6 +100,7 @@ export class Transformer extends InertVisitors {
     heuristciDetails: HeuristicDetails = { file: '', scope: 'script', insideProgram: true }
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
+    patternMatchMods = 0 // for realBodyStarts
     /** will be passed to decide which runtime variable to use */
     runtimeCtx = {}
 
@@ -408,9 +409,11 @@ export class Transformer extends InertVisitors {
         }
         for (const [start, end, by] of updates) {
             this.mstr.update(start, end, by)
+            this.patternMatchMods++
         }
         for (const [index, insert] of appends) {
             this.mstr.appendRight(index, insert)
+            this.patternMatchMods++
         }
         return msgs
     }
@@ -574,26 +577,68 @@ export class Transformer extends InertVisitors {
         return this.visitExportNamedDeclaration(node)
     }
 
+    hasReturn(node: Estree.AnyNode | Estree.AnyNode[]): boolean {
+        if (!node || typeof node !== 'object') {
+            return false
+        }
+        if (Array.isArray(node)) {
+            return node.some(child => this.hasReturn(child))
+        }
+        if (
+            node.type === 'FunctionDeclaration' ||
+            node.type === 'FunctionExpression' ||
+            node.type === 'ArrowFunctionExpression'
+        ) {
+            return false
+        }
+        if (node.type === 'ReturnStatement') {
+            return true
+        }
+        return Object.values(node).some(value => this.hasReturn(value))
+    }
+
+    #updateBodyStart(bodyStart: number | null, newBodyStart: number | undefined) {
+        if (newBodyStart == null) {
+            return bodyStart
+        }
+        if (bodyStart == null) {
+            return newBodyStart
+        }
+        return bodyStart < newBodyStart ? bodyStart : newBodyStart
+    }
+
     visitStatementsNSaveRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Message[] {
+        // the runtime should be initialized:
+        // - before any extracted messages and function pattern match modifications: to make it available
+        // - before any return statement: to respect react hooks requirement of always calling the same
+        // - after any function calls: to handle the case where one of them is loading the catalogs
+        // - but before hoited function calls of the ones down below: to make it available at call time
         const msgs: Message[] = []
         let bodyStart: number | null = null
+        const firstCalls = new Map<string, number>()
         for (const bod of nodes) {
-            let currentContent = '' // for now
-            if (bodyStart == null) {
-                currentContent = this.mstr.toString()
-            }
+            const prevPatternMods = this.patternMatchMods
+            const prevMsgsLen = msgs.length
             msgs.push(...this.visit(bod))
-            if (bodyStart != null) {
-                continue
+            // get bodyStart
+            if (bod.type === 'ExpressionStatement') {
+                if (bod.expression.type === 'CallExpression') {
+                    const name = this.getCalleeName(bod.expression.callee)
+                    if (!firstCalls.has(name)) {
+                        firstCalls.set(name, bod.start)
+                    }
+                }
+            } else if (bod.type === 'FunctionDeclaration') {
+                bodyStart = this.#updateBodyStart(bodyStart, firstCalls.get(bod.id.name))
+            } else if (bod.type === 'VariableDeclaration') {
+                for (const decl of bod.declarations) {
+                    if (decl.id.type === 'Identifier' || decl.id.type === 'MemberExpression') {
+                        bodyStart = this.#updateBodyStart(bodyStart, firstCalls.get(this.getCalleeName(decl.id)))
+                    }
+                }
             }
-            // TODO: use deep return checks after using state passing to visitors
-            if (
-                this.mstr.toString() !== currentContent ||
-                (bod.type === 'IfStatement' &&
-                    bod.consequent.type === 'BlockStatement' &&
-                    bod.consequent.body.some(n => n.type === 'ReturnStatement'))
-            ) {
-                bodyStart = bod.start
+            if (msgs.length > prevMsgsLen || this.patternMatchMods > prevPatternMods || this.hasReturn(bod)) {
+                bodyStart = this.#updateBodyStart(bodyStart, bod.start)
             }
         }
         if (bodyStart) {

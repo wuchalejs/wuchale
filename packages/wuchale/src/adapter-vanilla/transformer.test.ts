@@ -156,6 +156,15 @@ test('Runtime init place', t => {
             }
             return 'Hello'
         }
+        function bar() {
+            'foo'
+            some.call()
+            initSth()
+            call('Hello')
+            function initSth() {
+                doSth()
+            }
+        }
     `),
         ts`
         import { _w_load_, _w_load_rx_ } from "./loader.js"
@@ -169,8 +178,18 @@ test('Runtime init place', t => {
             }
             return _w_runtime_(0)
         }
+        function bar() {
+            'foo'
+            some.call()
+            const _w_runtime_ = _w_load_();
+            initSth()
+            call(_w_runtime_(0))
+            function initSth() {
+                doSth()
+            }
+        }
     `,
-        ['Hello'],
+        ['Hello', 'Hello'],
     )
 })
 
