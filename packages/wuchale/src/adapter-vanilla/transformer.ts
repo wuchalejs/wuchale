@@ -669,8 +669,9 @@ export class Transformer extends InertVisitors {
         const prevFuncNested = this.heuristciDetails.funcIsNested
         this.heuristciDetails.funcName = name
         this.heuristciDetails.funcIsNested = name != null && prevFuncDef != null
+        const prevPatternMods = this.patternMatchMods
         const msgs = this.visit(node)
-        if (msgs.length > 0) {
+        if (msgs.length > 0 || this.patternMatchMods > prevPatternMods) {
             const initRuntime = this.initRuntime(this.heuristciDetails.funcName, prevFuncDef ?? undefined)
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
