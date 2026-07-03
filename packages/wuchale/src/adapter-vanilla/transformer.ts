@@ -185,7 +185,7 @@ export class Transformer extends InertVisitors {
             // nothing to ask
             return false
         }
-        if (this.commentDirectives.forceType === false || !this.index.has(getKey(msg.msgStr, msg.context))) {
+        if (this.commentDirectives.forceType === false) {
             return false
         }
         const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
@@ -195,7 +195,7 @@ export class Transformer extends InertVisitors {
         return this.commentDirectives.forceType || heuRes
     }
 
-    checkHeuristic(msgStr: string, detailsBase: HeuristicDetailsBase): [MessageType, Message] | [false, null] {
+    checkHeuristicAllowNew(msgStr: string, detailsBase: HeuristicDetailsBase): [MessageType, Message] | [false, null] {
         if (!msgStr) {
             // nothing to ask
             return [false, null]
@@ -207,7 +207,7 @@ export class Transformer extends InertVisitors {
         })
         const heuRes = this.getHeuristicMessageType(msg)
         // not allowed here, or msg is new but new msgs are not allowed
-        if (!heuRes) {
+        if (!heuRes || !this.index.has(getKey(msg.msgStr, msg.context))) {
             return [false, null]
         }
         msg.type = heuRes
@@ -229,7 +229,7 @@ export class Transformer extends InertVisitors {
             return []
         }
         const { start, end } = node
-        const [pass, msgInfo] = this.checkHeuristic(node.value, heuristicDetailsBase ?? { scope: 'script' })
+        const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value, heuristicDetailsBase ?? { scope: 'script' })
         if (!pass) {
             return []
         }
@@ -824,7 +824,7 @@ export class Transformer extends InertVisitors {
             visitRes = this.visitTemplateLiteralQuasis(node)
         } else {
             const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node, true)
-            const [heuRes] = this.checkHeuristic(msgInfoHeu.msgStr[0]!, heurDetails || { scope: 'script' })
+            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.msgStr[0]!, heurDetails || { scope: 'script' })
             if (!heuRes) {
                 return node.expressions.flatMap(n => this.visit(n))
             }
@@ -856,7 +856,7 @@ export class Transformer extends InertVisitors {
         this.heuristciDetails.call = this.getCalleeName(node.tag)
         let msgs: Message[] = []
         const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node.quasi, true)
-        const [heuRes] = this.checkHeuristic(msgInfoHeu.msgStr[0]!, { scope: 'script' })
+        const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.msgStr[0]!, { scope: 'script' })
         if (heuRes) {
             const [msgInfo, index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
             msgInfo.type = heuRes

@@ -385,7 +385,7 @@ test('Nested and mixed with svelte:element', async t => {
             {#if name}
                 <Icon /> Name
             {:else if number}
-                <Icon /> Number
+                <pre>Foo bar</pre> Code
             {:else}
                 <a><Test></Test> More</a>
             {/if}
@@ -416,7 +416,7 @@ test('Nested and mixed with svelte:element', async t => {
                 <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
             {:else if number}
                 {#snippet _w_snippet_1()}
-                    <Icon />
+                    <pre>Foo bar</pre>
                 {/snippet}
                 <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(1)} />
             {:else}
@@ -428,7 +428,7 @@ test('Nested and mixed with svelte:element', async t => {
                 </a>
             {/if}
     `,
-        ['<0/> Name', '<0/> Number', '<0/> More', 'Hello and <0>welcome to <0>the app {0}</0></0>!'],
+        ['<0/> Name', '<0/> Code', '<0/> More', 'Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
 

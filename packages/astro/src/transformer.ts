@@ -232,7 +232,7 @@ export class AstroTransformer extends Transformer {
             start = this.content.indexOf('=', start) + 1
         }
         if (node.kind === 'quoted') {
-            const [pass, msgInfo] = this.checkHeuristic(node.value, heurBase)
+            const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value, heurBase)
             if (!pass) {
                 return []
             }

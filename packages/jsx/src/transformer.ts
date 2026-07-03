@@ -200,7 +200,7 @@ export class JSXTransformer extends Transformer {
             return []
         }
         const value = node.value
-        const [pass, msgInfo] = this.checkHeuristic(node.value.value, heurBase)
+        const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value.value, heurBase)
         if (!pass) {
             return []
         }

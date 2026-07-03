@@ -219,7 +219,7 @@ export class SvelteTransformer extends Transformer {
             return this.visitSv(value)
         }
         heuDetails.scope = 'attribute'
-        const [pass, msgInfo] = this.checkHeuristic(value.data, heuDetails)
+        const [pass, msgInfo] = this.checkHeuristicAllowNew(value.data, heuDetails)
         if (!pass) {
             return []
         }
