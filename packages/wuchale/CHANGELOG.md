@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.25.6
+
+### Patch Changes
+
+- [c46696a](https://github.com/wuchalejs/wuchale/commit/c46696a26cb5ee57331b909d06d8f887e760cd9f): Fix new mixed visitor visiting ignored elements when nested #408
+- [40b5c42](https://github.com/wuchalejs/wuchale/commit/40b5c4257fb09b8b920e32303f4ee9f061caca8b): Fix runtime not initialized inside funcs with only patterns without messages
+
 ## 0.25.5
 
 ### Patch Changes

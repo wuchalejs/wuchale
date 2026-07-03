@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/astro",
-    "version": "0.4.3",
+    "version": "0.4.4",
     "description": "Wuchale i18n adapter for Astro files",
     "scripts": {
         "dev": "tsc --watch",
@@ -51,7 +51,7 @@
         "@astrojs/compiler": "^4",
         "@sveltejs/acorn-typescript": "^1.0.10",
         "acorn": "^8.17.0",
-        "wuchale": "^0.25.4"
+        "wuchale": "^0.25.6"
     },
     "devDependencies": {
         "@types/node": "~24.13.2",
