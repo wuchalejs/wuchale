@@ -1,5 +1,13 @@
 # @wuchale/jsx
 
+## 0.12.5
+
+### Patch Changes
+
+- [c46696a](https://github.com/wuchalejs/wuchale/commit/c46696a26cb5ee57331b909d06d8f887e760cd9f): Fix new mixed visitor visiting ignored elements when nested #408
+- Updated dependencies [c46696a, 40b5c42]:
+  - wuchale@0.25.6
+
 ## 0.12.4
 
 ### Patch Changes
