@@ -33,14 +33,17 @@
     "files": [
         "dist",
         "src/loaders",
-        "src/runtime.svelte"
+        "src/runtime.*"
     ],
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
-        "./runtime.svelte": "./src/runtime.svelte"
+        "./runtime.svelte": {
+            "types": "./src/runtime.d.ts",
+            "default": "./src/runtime.svelte"
+        }
     },
     "repository": {
         "type": "git",
