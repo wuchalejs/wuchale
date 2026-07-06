@@ -432,12 +432,13 @@ test('Nested and mixed with svelte:element', async t => {
     )
 })
 
-test('Collapsing deep nested messages', async t => {
+test('Collapsing deep nested messages with declaration tags', async t => {
     transformTest(
         t,
         await getOutput(svelte`
             Hello
             <div>
+                {const foo = 'in place'}
                 there
                 <b><i><s>someone</s></i></b>
                 <Bar />
@@ -458,6 +459,7 @@ test('Collapsing deep nested messages', async t => {
             </script>
             {#snippet _w_snippet_0(_w_ctx_)}
                 <div>
+                    {const foo = 'in place'}
                     {#snippet _w_snippet_2(_w_ctx_)}
                         <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
                     {/snippet}

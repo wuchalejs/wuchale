@@ -107,7 +107,7 @@ export class SvelteTransformer extends Transformer {
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
             isComment: node => node.type === 'Comment',
-            leaveInPlace: node => ['ConstTag', 'SnippetBlock'].includes(node.type),
+            leaveInPlace: node => ['ConstTag', 'SnippetBlock', 'DeclarationTag'].includes(node.type),
             isExpression: node => node.type === 'ExpressionTag',
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
