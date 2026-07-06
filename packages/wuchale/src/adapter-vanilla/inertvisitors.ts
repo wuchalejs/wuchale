@@ -1,88 +1,88 @@
-import type { Message } from '../adapters.js'
+import type { Text } from '../text.js'
 
 export default class {
-    visitEmptyStatement(): Message[] {
+    visitEmptyStatement(): Text[] {
         return []
     }
-    visitArrayPattern(): Message[] {
+    visitArrayPattern(): Text[] {
         return []
     }
-    visitBreakStatement(): Message[] {
+    visitBreakStatement(): Text[] {
         return []
     }
-    visitCatchClause(): Message[] {
+    visitCatchClause(): Text[] {
         return []
     }
-    visitClassBody(): Message[] {
+    visitClassBody(): Text[] {
         return []
     }
-    visitClassExpression(): Message[] {
+    visitClassExpression(): Text[] {
         return []
     }
-    visitContinueStatement(): Message[] {
+    visitContinueStatement(): Text[] {
         return []
     }
-    visitDebuggerStatement(): Message[] {
+    visitDebuggerStatement(): Text[] {
         return []
     }
-    visitExportAllDeclaration(): Message[] {
+    visitExportAllDeclaration(): Text[] {
         return []
     }
-    visitExportSpecifier(): Message[] {
+    visitExportSpecifier(): Text[] {
         return []
     }
-    visitIdentifier(): Message[] {
+    visitIdentifier(): Text[] {
         return []
     }
-    visitImportAttribute(): Message[] {
+    visitImportAttribute(): Text[] {
         return []
     }
-    visitImportDeclaration(): Message[] {
+    visitImportDeclaration(): Text[] {
         return []
     }
-    visitImportDefaultSpecifier(): Message[] {
+    visitImportDefaultSpecifier(): Text[] {
         return []
     }
-    visitImportExpression(): Message[] {
+    visitImportExpression(): Text[] {
         return []
     }
-    visitImportNamespaceSpecifier(): Message[] {
+    visitImportNamespaceSpecifier(): Text[] {
         return []
     }
-    visitImportSpecifier(): Message[] {
+    visitImportSpecifier(): Text[] {
         return []
     }
-    visitMetaProperty(): Message[] {
+    visitMetaProperty(): Text[] {
         return []
     }
-    visitMethodDefinition(): Message[] {
+    visitMethodDefinition(): Text[] {
         return []
     } // handled inside visitClassDeclaration
-    visitPrivateIdentifier(): Message[] {
+    visitPrivateIdentifier(): Text[] {
         return []
     }
-    visitPropertyDefinition(): Message[] {
+    visitPropertyDefinition(): Text[] {
         return []
     }
-    visitStaticBlock(): Message[] {
+    visitStaticBlock(): Text[] {
         return []
     } // handled inside visitClassDeclaration
-    visitSuper(): Message[] {
+    visitSuper(): Text[] {
         return []
     }
-    visitTemplateElement(): Message[] {
+    visitTemplateElement(): Text[] {
         return []
     }
-    visitThisExpression(): Message[] {
+    visitThisExpression(): Text[] {
         return []
     }
-    visitThrowStatement(): Message[] {
+    visitThrowStatement(): Text[] {
         return []
     }
-    visitUpdateExpression(): Message[] {
+    visitUpdateExpression(): Text[] {
         return []
     }
-    visitWithStatement(): Message[] {
+    visitWithStatement(): Text[] {
         return []
     }
 }

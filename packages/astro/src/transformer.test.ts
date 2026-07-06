@@ -200,7 +200,7 @@ test('Plural', async t => {
             ---
             <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
     `,
-        [{ msgStr: ['One item', '# items'] }],
+        [{ body: ['One item', '# items'] }],
     )
 })
 

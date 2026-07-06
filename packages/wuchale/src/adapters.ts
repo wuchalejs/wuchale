@@ -1,171 +1,7 @@
 import type { StorageFactory } from './storage.js'
-
-type TxtScope = 'script' | 'markup' | 'attribute'
-
-export type HeuristicDetailsBase = {
-    scope: TxtScope
-    element?: string | undefined
-    attribute?: string | undefined
-}
-
-export type ScriptDeclType = 'variable' | 'function' | 'class' | 'expression'
-
-export type HeuristicDetails = HeuristicDetailsBase & {
-    file: string
-    /** the type of the top level declaration */
-    declaring?: ScriptDeclType | undefined
-    /** in assignments, whether the string is on the left side as destructuring default */
-    leftSide?: boolean | undefined
-    /** the name of the function being defined, '' for arrow or null for global */
-    funcName?: string | null | undefined
-    /** whether the function being defined is nested inside another, null for no function */
-    funcIsNested?: boolean | undefined
-    /** whether inside a script file/<script> instead of an expression inside markup */
-    insideProgram: boolean
-    /** the name of the call at the top level */
-    topLevelCall?: string | undefined
-    /** the name of the nearest call (for arguments) */
-    call?: string | undefined
-    /** inside an export const ... etc */
-    exported?: boolean | undefined
-    /** object property path */
-    property?: string | undefined
-}
-
-export type MessageType = 'message' | 'url'
-
-export type Message = {
-    msgStr: string[] // array for plurals
-    context?: string | undefined
-    placeholders: [string, string][]
-    details: HeuristicDetails
-    type: MessageType
-}
-
-export function newMessage(init: Partial<Message>): Message {
-    init.msgStr = init.msgStr?.filter(str => str != null) ?? []
-    if (init.details?.scope === 'markup') {
-        init.msgStr = init.msgStr.map(msg => msg.replace(/\s+/g, ' ').trim())
-    }
-    return {
-        msgStr: init.msgStr,
-        placeholders: init.placeholders ?? [],
-        type: init.type ?? 'message',
-        context: init.context,
-        details: init.details ?? {
-            file: '',
-            scope: 'markup',
-            insideProgram: true,
-        },
-    }
-}
+import type { HeuristicFunc, Text } from './text.js'
 
 export const getKey = (text: string[], context?: string) => `${text.join('\n')}\n${context ?? ''}`.trim()
-
-export type HeuristicResultChecked = MessageType | false // after checking all heuristic functions
-export type HeuristicResult = HeuristicResultChecked | null | undefined
-
-export type HeuristicFunc = (msg: Message) => HeuristicResult
-
-export const defaultHeuristicOpts = {
-    ignoreElements: ['script', 'style', 'path', 'code', 'pre'],
-    ignoreAttribs: [['form', 'method']],
-    ignoreCalls: ['fetch'],
-    urlAttribs: [['a', 'href']],
-    urlCalls: [] as string[],
-    urlProps: ['href', 'link', 'url'],
-}
-
-export type CreateHeuristicOpts = typeof defaultHeuristicOpts
-
-export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
-    return msg => {
-        if (msg.details.element && opts.ignoreElements.includes(msg.details.element)) {
-            return false
-        }
-        if (msg.details.scope === 'attribute') {
-            for (const [element, attrib] of opts.ignoreAttribs) {
-                if (msg.details.element === element && msg.details.attribute === attrib) {
-                    return false
-                }
-            }
-        }
-        let msgStr = msg.msgStr.join('\n')
-        if (msg.details.scope === 'markup') {
-            // only check the top level for letters
-            msgStr = msgStr.replaceAll(/<\d+\/>/g, '#').replaceAll(/<\d+>.+<\/\d+>/g, '#')
-        }
-        const looksLikeUrlPath = msgStr.startsWith('/') && !msgStr.includes(' ')
-        if (looksLikeUrlPath && (msg.details.scope === 'script' || msg.details.scope === 'attribute')) {
-            if (msg.details.call) {
-                for (const call of opts.urlCalls) {
-                    if (msg.details.call === call) {
-                        return 'url'
-                    }
-                }
-            }
-            if (msg.details.property) {
-                for (const prop of opts.urlProps) {
-                    if (msg.details.property === prop || msg.details.property?.endsWith(`.${prop}`)) {
-                        return 'url'
-                    }
-                }
-            }
-            if (msg.details.attribute) {
-                for (const [element, attrib] of opts.urlAttribs) {
-                    if (msg.details.element === element && msg.details.attribute === attrib) {
-                        return 'url'
-                    }
-                }
-            }
-        }
-        if (!/\p{L}/u.test(msgStr)) {
-            return false
-        }
-        if (msg.details.scope === 'markup') {
-            return 'message'
-        }
-        // script and attribute
-        if (/^([A-Z]|\P{L})+$/u.test(msgStr)) {
-            // only upper-case English and non-letters
-            return false
-        }
-        if (/^\{\d+\}/.test(msgStr)) {
-            // template literals that begin with a placeholder expression
-            if (!/\s\p{L}/u.test(msgStr)) {
-                // should contain spaces and letters
-                return false
-            }
-        } else if (/[a-z]|\P{L}/u.test(msgStr[0]!)) {
-            // ignore non-letter and lower-case English beginnings
-            return false
-        }
-        if (msg.details.scope === 'attribute') {
-            return 'message'
-        }
-        if (msg.details.declaring === 'expression' && msg.details.funcName == null) {
-            return false
-        }
-        if (
-            !msg.details.call ||
-            (!msg.details.call.startsWith('console.') && !opts.ignoreCalls.includes(msg.details.call))
-        ) {
-            return 'message'
-        }
-        return false
-    }
-}
-
-/** Default heuristic */
-export const defaultHeuristic = createHeuristic(defaultHeuristicOpts)
-
-/** Default heuristic which ignores messages outside functions in the `script` scope */
-export const defaultHeuristicFuncOnly: HeuristicFunc = msg => {
-    if (defaultHeuristic(msg) && (msg.details.scope !== 'script' || msg.details.funcName != null)) {
-        return 'message'
-    }
-    return false
-}
 
 export class IndexTracker {
     #indices: Map<string, number> = new Map()
@@ -176,18 +12,18 @@ export class IndexTracker {
         this.#bypassHas = bypassHas
     }
 
-    get = (msgStr: string) => {
-        let index = this.#indices.get(msgStr)
+    get = (txt: string) => {
+        let index = this.#indices.get(txt)
         if (index != null) {
             return index
         }
         index = this.#nextIndex
-        this.#indices.set(msgStr, index)
+        this.#indices.set(txt, index)
         this.#nextIndex++
         return index
     }
 
-    has = (msgStr: string) => this.#bypassHas || this.#indices.has(msgStr)
+    has = (txt: string) => this.#bypassHas || this.#indices.has(txt)
 
     getAll = () => this.#indices.entries()
 }
@@ -224,7 +60,7 @@ export type TransformOutputFunc = (header: string) => TransformOutputCode
 
 export type TransformOutput = {
     output: TransformOutputFunc
-    msgs: Message[]
+    txts: Text[]
 }
 
 export type TransformFunc = (expr: TransformCtx) => TransformOutput

@@ -64,7 +64,7 @@ test('JS module files', async t => {
             'No translation!' // simple expression
             const alreadyDerived = $derived(call('Foo'))
             noExtract('Foo')
-            const msg = $derived('Hello')
+            const txt = $derived('Hello')
 
             function foo() {
                 return 'Should extract'
@@ -80,7 +80,7 @@ test('JS module files', async t => {
         'No translation!' // simple expression
         const alreadyDerived = $derived(call(_w_runtime_(1)))
         noExtract('Foo')
-        const msg = $derived(_w_runtime_(2))
+        const txt = $derived(_w_runtime_(2))
 
         function foo() {
             const _w_runtime_ = _w_load_();
@@ -241,14 +241,14 @@ test('URLs', async t => {
         <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(7)}</a>
     `,
         [
-            { msgStr: ['/translated/{0}'], type: 'url' },
-            { msgStr: ['/translated/somewhere/{0}'], type: 'url' },
-            { msgStr: ['/translated/propertyhref'], type: 'url' },
-            { msgStr: ['/translated/hello'], type: 'url' },
-            { msgStr: ['/translated/hello/there'], type: 'url' },
-            { msgStr: ['/translated/very/deep/link/{0}'], type: 'url' },
-            { msgStr: ['/translated/{0}'], type: 'url' },
-            { msgStr: ['/'], type: 'url' },
+            { body: ['/translated/{0}'], type: 'url' },
+            { body: ['/translated/somewhere/{0}'], type: 'url' },
+            { body: ['/translated/propertyhref'], type: 'url' },
+            { body: ['/translated/hello'], type: 'url' },
+            { body: ['/translated/hello/there'], type: 'url' },
+            { body: ['/translated/very/deep/link/{0}'], type: 'url' },
+            { body: ['/translated/{0}'], type: 'url' },
+            { body: ['/'], type: 'url' },
             'Hello',
             'Hello',
             'Hello',
@@ -284,7 +284,7 @@ test('Exported snippet', async t => {
         <script module>
             export const bar = {
                 feel: () => {
-					const msg = 'Hello'
+					const txt = 'Hello'
                     return foo
                 }
             }
@@ -302,7 +302,7 @@ test('Exported snippet', async t => {
             export const bar = {
                 feel: () => {
 					const _w_runtime_mod_ = _w_load_();
-					const msg = _w_runtime_mod_(0)
+					const txt = _w_runtime_mod_(0)
                     return foo
                 }
             }
@@ -345,10 +345,10 @@ test('Context', async t => {
             {_w_runtime_(2)}
     `,
         [
-            { msgStr: ['String'], context: 'music' },
-            { msgStr: ['String'], context: 'programming' },
-            { msgStr: ['Close'], context: 'door' },
-            { msgStr: ['Close'], context: 'distance' },
+            { body: ['String'], context: 'music' },
+            { body: ['String'], context: 'programming' },
+            { body: ['Close'], context: 'door' },
+            { body: ['Close'], context: 'distance' },
         ],
     )
 })
@@ -488,11 +488,11 @@ test('Collapsing deep nested messages with declaration tags', async t => {
         `,
         [
             {
-                msgStr: ['user {0}'],
+                body: ['user {0}'],
                 placeholders: [['0', 'user']],
             },
             {
-                msgStr: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>'],
+                body: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>'],
                 placeholders: [['0.0', 'varName']],
             },
         ],

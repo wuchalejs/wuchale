@@ -16,18 +16,13 @@ export type { RuntimeCtxSv }
 
 export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return msg => {
-        const defRes = defaultHeuristic(msg)
-        if (!defRes) {
-            return false
+    return (txt, file) => {
+        for (const s of txt.path) {
+            if (s.type === 'call' && s.name === '$inspect') {
+                return false
+            }
         }
-        if (msg.details.scope !== 'script') {
-            return defRes
-        }
-        if (msg.details.call === '$inspect') {
-            return false
-        }
-        return defRes
+        return defaultHeuristic(txt, file)
     }
 }
 
@@ -37,24 +32,6 @@ export const svelteKitDefaultHeuristic = createSvelteHeuristic({
     ...defaultHeuristicOpts,
     urlCalls: ['asset', 'goto', 'pushState', 'replaceState', 'resolve'],
 })
-
-/** Default Svelte heuristic which requires `$derived` or `$derived.by` for top level variable assignments */
-export const svelteDefaultHeuristicDerivedReq: HeuristicFunc = msg => {
-    const defRes = svelteDefaultHeuristic(msg)
-    if (!defRes) {
-        return false
-    }
-    if (msg.details.scope !== 'script' || msg.details.declaring !== 'variable') {
-        return defRes
-    }
-    if (!msg.details.topLevelCall) {
-        return false
-    }
-    if (['$derived', '$derived.by'].includes(msg.details.topLevelCall)) {
-        return defRes
-    }
-    return false
-}
 
 type LoadersAvailable = 'svelte' | 'sveltekit'
 

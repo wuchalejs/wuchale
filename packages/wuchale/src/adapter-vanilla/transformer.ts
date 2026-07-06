@@ -14,18 +14,16 @@ import {
 } from '../adapter-utils/index.js'
 import type {
     CodePattern,
-    HeuristicDetails,
-    HeuristicDetailsBase,
-    HeuristicFunc,
-    HeuristicResultChecked,
+    DecideReactiveDetails,
     IndexTracker,
-    MessageType,
     RuntimeConf,
     TransformCtx,
     TransformOutput,
     UrlMatcher,
 } from '../adapters.js'
-import { defaultHeuristicFuncOnly, getKey, type Message, newMessage } from '../adapters.js'
+import { getKey } from '../adapters.js'
+import type { HeuristicFunc, HeuristicResultChecked, Scope, TextType } from '../text.js'
+import { ascendPath, defaultHeuristicFuncOnly, newText, type Text } from '../text.js'
 import InertVisitors from './inertvisitors.js'
 
 export const scriptParseOptions: Estree.Options = {
@@ -74,12 +72,40 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 
 type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
-const extendPropDownTypes: Estree.Property['value']['type'][] = [
-    'Literal',
-    'TemplateLiteral',
-    'TaggedTemplateExpression',
-    'ObjectExpression',
-]
+export function decideRTDetails<R>(path: Scope[], file: string, ctx: R) {
+    const details: DecideReactiveDetails<R> = {
+        file,
+        ctx,
+        nested: false,
+    }
+    let innerIsArrow = false
+    for (const s of ascendPath(path)) {
+        if (s.type === 'funcexpr') {
+            innerIsArrow = true
+            continue
+        }
+        let funcName: string | null = null
+        if (s.type === 'function') {
+            funcName = s.name
+        } else if (innerIsArrow) {
+            if (s.type === 'assignment' && !s.left && s.targets.length === 1) {
+                funcName = s.targets[0]!
+            } else {
+                funcName = ''
+            }
+        }
+        innerIsArrow = false
+        if (funcName === null) {
+            continue
+        }
+        if (details.funcName) {
+            details.nested = true
+            return details
+        }
+        details.funcName = funcName
+    }
+    return details
+}
 
 export class Transformer extends InertVisitors {
     index: IndexTracker
@@ -90,14 +116,15 @@ export class Transformer extends InertVisitors {
     mstr: MagicString
     patterns: CodePattern[]
     matchUrl: UrlMatcher
-    initReactive: (...a: Parameters<InitRuntimeFunc>) => ReturnType<RuntimeConf['initReactive']>
+    initReactive: () => ReturnType<RuntimeConf['initReactive']>
     initRuntime: InitRuntimeFunc
     currentRtVar: string
     vars: () => RuntimeVars
 
     // state
     commentDirectives: CommentDirectives = {}
-    heuristciDetails: HeuristicDetails = { file: '', scope: 'script', insideProgram: true }
+    filename: string
+    scopePath: Scope[] = []
     /** .start of the first statements in their respective parents, to put the runtime init before */
     realBodyStarts = new Set<number>()
     patternMatchMods = 0 // for realBodyStarts
@@ -115,19 +142,14 @@ export class Transformer extends InertVisitors {
         this.index = ctx.index
         this.content = ctx.content
         this.matchUrl = ctx.matchUrl
-        this.heuristciDetails.file = ctx.filename
+        this.filename = ctx.filename
         this.heuristic = heuristic
         this.patterns = patterns
         this.mstr = new MagicString(this.content)
         const topLevelUseReactive =
             typeof rtConf.useReactive === 'boolean'
                 ? rtConf.useReactive
-                : (rtConf.useReactive({
-                      funcName: undefined,
-                      nested: false,
-                      file: ctx.filename,
-                      ctx: this.runtimeCtx,
-                  }) ?? false)
+                : (rtConf.useReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx)) ?? false)
 
         const vars: Record<string, { [key in 'plain' | 'reactive']: RuntimeVars }> = {}
         // to enable the use of different runtime vars for different places, right now for svelte <script module>s
@@ -142,24 +164,14 @@ export class Transformer extends InertVisitors {
             const useReactive =
                 typeof rtConf.useReactive === 'boolean'
                     ? rtConf.useReactive
-                    : (rtConf.useReactive({
-                          funcName: this.heuristciDetails.funcName ?? undefined,
-                          nested: this.heuristciDetails.funcIsNested ?? false,
-                          file: ctx.filename,
-                          ctx: this.runtimeCtx,
-                      }) ?? topLevelUseReactive)
+                    : (rtConf.useReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx)) ??
+                      topLevelUseReactive)
             const currentVars = vars[this.currentRtVar]!
             return useReactive ? currentVars.reactive : currentVars.plain
         }
-        this.initReactive = (funcName, parentFunc) =>
-            rtConf.initReactive({
-                funcName,
-                nested: parentFunc != null,
-                file: ctx.filename,
-                ctx: this.runtimeCtx,
-            })
-        this.initRuntime = (funcName, parentFunc) => {
-            let initReactive = this.initReactive(funcName, parentFunc)
+        this.initReactive = () => rtConf.initReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx))
+        this.initRuntime = () => {
+            let initReactive = this.initReactive()
             if (initReactive == null) {
                 return
             }
@@ -172,64 +184,68 @@ export class Transformer extends InertVisitors {
         }
     }
 
-    fullHeuristicDetails(detailsBase: HeuristicDetailsBase): HeuristicDetails {
-        return {
-            ...this.heuristciDetails,
-            ...detailsBase,
-        }
-    }
-
-    getHeuristicMessageType(msg: Message): HeuristicResultChecked {
-        const msgStr = msg.msgStr.join('\n')
-        if (!msgStr) {
+    getHeuristicMessageType(txt: Text): HeuristicResultChecked {
+        const body0 = txt.body[0]
+        if (!body0) {
             // nothing to ask
             return false
         }
         if (this.commentDirectives.forceType === false) {
             return false
         }
-        const heuRes = this.heuristic(msg) ?? defaultHeuristicFuncOnly(msg) ?? 'message'
-        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(msgStr) == null) {
+        const heuRes = this.heuristic(txt, this.filename) ?? defaultHeuristicFuncOnly(txt, this.filename) ?? 'message'
+        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(body0) == null) {
             return false
         }
         return this.commentDirectives.forceType || heuRes
     }
 
-    checkHeuristicAllowNew(msgStr: string, detailsBase: HeuristicDetailsBase): [MessageType, Message] | [false, null] {
-        if (!msgStr) {
+    checkHeuristicAllowNew(body: string): [TextType, Text] | [false, null] {
+        if (!body) {
             // nothing to ask
             return [false, null]
         }
-        const msg = newMessage({
-            msgStr: [msgStr],
-            details: this.fullHeuristicDetails(detailsBase),
+        const txt = newText({
+            body: [body],
+            path: this.scopePath,
             context: this.commentDirectives.context,
         })
-        const heuRes = this.getHeuristicMessageType(msg)
-        // not allowed here, or msg is new but new msgs are not allowed
-        if (!heuRes || !this.index.has(getKey(msg.msgStr, msg.context))) {
+        const heuRes = this.getHeuristicMessageType(txt)
+        // not allowed here, or txt is new but new txts are not allowed
+        if (!heuRes || !this.index.has(getKey(txt.body, txt.context))) {
             return [false, null]
         }
-        msg.type = heuRes
-        return [heuRes, msg]
+        txt.type = heuRes
+        return [heuRes, txt]
     }
 
-    literalRepl(msgInfo: Message) {
+    inScope<T>(scope: Scope, fn: () => T) {
+        this.scopePath.push(scope)
+        const ret = fn()
+        this.scopePath.pop()
+        return ret
+    }
+
+    inScopeVisit(scope: Scope, node: Estree.AnyNode): Text[] {
+        return this.inScope(scope, () => this.visit(node))
+    }
+
+    literalRepl(txt: Text) {
         const vars = this.vars()
-        const indexKey = getKey(msgInfo.msgStr, msgInfo.context)
+        const indexKey = getKey(txt.body, txt.context)
         const repl = `${vars.rtTrans}(${this.index.get(indexKey)})`
-        if (msgInfo.type !== 'url') {
+        if (txt.type !== 'url') {
             return repl
         }
         return `${varNames.urlLocalize}(${repl}, ${vars.rtLocale})`
     }
 
-    visitLiteral(node: Estree.Literal, heuristicDetailsBase?: HeuristicDetailsBase): Message[] {
+    visitLiteral(node: Estree.Literal): Text[] {
         if (typeof node.value !== 'string') {
             return []
         }
         const { start, end } = node
-        const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value, heuristicDetailsBase ?? { scope: 'script' })
+        const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value)
         if (!pass) {
             return []
         }
@@ -237,28 +253,28 @@ export class Transformer extends InertVisitors {
         return [msgInfo]
     }
 
-    visitArrayExpression(node: Estree.ArrayExpression): Message[] {
+    visitArrayExpression(node: Estree.ArrayExpression): Text[] {
         return node.elements.flatMap(elm => (elm ? this.visit(elm) : []))
     }
 
-    visitSequenceExpression(node: Estree.SequenceExpression): Message[] {
+    visitSequenceExpression(node: Estree.SequenceExpression): Text[] {
         return node.expressions.flatMap(n => this.visit(n))
     }
 
-    visitObjectExpression(node: Estree.ObjectExpression): Message[] {
+    visitObjectExpression(node: Estree.ObjectExpression): Text[] {
         return node.properties.flatMap(n => this.visit(n))
     }
 
-    visitObjectPattern(node: Estree.ObjectPattern): Message[] {
+    visitObjectPattern(node: Estree.ObjectPattern): Text[] {
         return node.properties.flatMap(n => this.visit(n))
     }
 
-    visitRestElement(node: Estree.RestElement): Message[] {
+    visitRestElement(node: Estree.RestElement): Text[] {
         return this.visit(node.argument)
     }
 
-    visitProperty(node: Estree.Property): Message[] {
-        const msgs = this.visit(node.key)
+    visitProperty(node: Estree.Property): Text[] {
+        const txts = this.visit(node.key)
         let keyName = '[]'
         let keyIsLiteral = false
         if (node.key.type === 'Identifier') {
@@ -267,50 +283,43 @@ export class Transformer extends InertVisitors {
             keyIsLiteral = true
             keyName = node.key.value
         }
-        if (msgs.length && keyIsLiteral && !node.computed) {
+        if (txts.length && keyIsLiteral && !node.computed) {
             this.mstr.appendRight(node.key.start, '[')
             this.mstr.appendLeft(node.key.end, ']')
         }
-        const extendPropDown = extendPropDownTypes.includes(node.value.type)
-        const prevProp = this.heuristciDetails.property
-        if (extendPropDown) {
-            this.heuristciDetails.property = prevProp ? `${prevProp}.${keyName}` : keyName
-        }
-        msgs.push(...this.visit(node.value))
-        if (extendPropDown) {
-            this.heuristciDetails.property = prevProp // restore
-        }
-        return msgs
+        txts.push(...this.inScopeVisit({ type: 'property', name: keyName }, node.value))
+        return txts
     }
 
-    visitSpreadElement(node: Estree.SpreadElement): Message[] {
+    visitSpreadElement(node: Estree.SpreadElement): Text[] {
         return this.visit(node.argument)
     }
 
-    visitMemberExpression(node: Estree.MemberExpression): Message[] {
+    visitMemberExpression(node: Estree.MemberExpression): Text[] {
         return [...this.visit(node.object), ...this.visit(node.property)]
     }
 
-    visitChainExpression(node: Estree.ChainExpression): Message[] {
+    visitChainExpression(node: Estree.ChainExpression): Text[] {
         return this.visit(node.expression)
     }
 
-    visitNewExpression(node: Estree.NewExpression): Message[] {
-        return node.arguments.flatMap(n => this.visit(n))
+    visitNewExpression(node: Estree.NewExpression): Text[] {
+        return this.inScope({ type: 'call', kind: 'new', name: this.getCalleeName(node.callee) }, () =>
+            node.arguments.flatMap(n => this.visit(n)),
+        )
     }
 
-    defaultVisitCallExpression(node: Estree.CallExpression): Message[] {
-        const msgs = this.visit(node.callee)
-        const currentCall = this.heuristciDetails.call
-        this.heuristciDetails.call = this.getCalleeName(node.callee)
-        for (const arg of node.arguments) {
-            msgs.push(...this.visit(arg))
-        }
-        this.heuristciDetails.call = currentCall // restore
-        return msgs
+    defaultVisitCallExpression(node: Estree.CallExpression): Text[] {
+        const txts = this.visit(node.callee)
+        this.inScope({ type: 'call', kind: 'function', name: this.getCalleeName(node.callee) }, () => {
+            for (const arg of node.arguments) {
+                txts.push(...this.visit(arg))
+            }
+        })
+        return txts
     }
 
-    visitCallExpression(node: Estree.CallExpression): Message[] {
+    visitCallExpression(node: Estree.CallExpression): Text[] {
         if (node.callee.type !== 'Identifier') {
             return this.defaultVisitCallExpression(node)
         }
@@ -325,7 +334,7 @@ export class Transformer extends InertVisitors {
                 break
             }
         }
-        const msgs: Message[] = []
+        const txts: Text[] = []
         const updates: [number, number, string][] = []
         const appends: [number, string][] = []
         let lastArgEnd: number | null = null
@@ -374,17 +383,17 @@ export class Transformer extends InertVisitors {
                 if (typeof argVal.value !== 'string') {
                     return this.defaultVisitCallExpression(node)
                 }
-                const msgInfo = newMessage({
-                    msgStr: [argVal.value],
-                    details: this.fullHeuristicDetails({ scope: 'script' }),
+                const msgInfo = newText({
+                    body: [argVal.value],
+                    path: this.scopePath,
                     context: this.commentDirectives.context,
                 })
                 updates.push([argVal.start, argVal.end, this.literalRepl(msgInfo)])
-                msgs.push(msgInfo)
+                txts.push(msgInfo)
                 continue
             }
             if (argVal.type === 'TemplateLiteral') {
-                msgs.push(...this.visitTemplateLiteral(argVal, true))
+                txts.push(...this.visitTemplateLiteral(argVal, true))
                 continue
             }
             if (argVal.type !== 'ArrayExpression') {
@@ -398,13 +407,13 @@ export class Transformer extends InertVisitors {
                 candidates.push(elm.value)
             }
             // plural(num, ['Form one', 'Form two'])
-            const msgInfo = newMessage({
-                msgStr: candidates,
-                details: this.fullHeuristicDetails({ scope: 'script' }),
+            const txt = newText({
+                body: candidates,
+                path: this.scopePath,
                 context: this.commentDirectives.context,
             })
-            const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
-            msgs.push(msgInfo)
+            const index = this.index.get(getKey(txt.body, txt.context))
+            txts.push(txt)
             updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
         }
         for (const [start, end, by] of updates) {
@@ -415,26 +424,26 @@ export class Transformer extends InertVisitors {
             this.mstr.appendRight(index, insert)
             this.patternMatchMods++
         }
-        return msgs
+        return txts
     }
 
-    visitBinaryExpression(node: Estree.BinaryExpression): Message[] {
+    visitBinaryExpression(node: Estree.BinaryExpression): Text[] {
         return [...this.visit(node.left), ...this.visit(node.right)]
     }
 
-    visitConditionalExpression(node: Estree.ConditionalExpression): Message[] {
+    visitConditionalExpression(node: Estree.ConditionalExpression): Text[] {
         return [...this.visit(node.test), ...this.visit(node.consequent), ...this.visit(node.alternate)]
     }
 
-    visitUnaryExpression(node: Estree.UnaryExpression): Message[] {
+    visitUnaryExpression(node: Estree.UnaryExpression): Text[] {
         return this.visit(node.argument)
     }
 
-    visitLogicalExpression(node: Estree.LogicalExpression): Message[] {
+    visitLogicalExpression(node: Estree.LogicalExpression): Text[] {
         return [...this.visit(node.left), ...this.visit(node.right)]
     }
 
-    visitAwaitExpression(node: Estree.AwaitExpression): Message[] {
+    visitAwaitExpression(node: Estree.AwaitExpression): Text[] {
         return this.visit(node.argument)
     }
 
@@ -442,30 +451,30 @@ export class Transformer extends InertVisitors {
         return [...this.visit(node.left), ...this.visit(node.right)]
     }
 
-    visitAssignmentPattern(node: Estree.AssignmentPattern): Message[] {
+    visitAssignmentPattern(node: Estree.AssignmentPattern): Text[] {
         return [...this.visit(node.left), ...this.visit(node.right)]
     }
 
-    visitForOfStatement(node: Estree.ForOfStatement): Message[] {
+    visitForOfStatement(node: Estree.ForOfStatement): Text[] {
         return [...this.visit(node.left), ...this.visit(node.right), ...this.visit(node.body)]
     }
 
-    visitForInStatement(node: Estree.ForInStatement): Message[] {
+    visitForInStatement(node: Estree.ForInStatement): Text[] {
         return [...this.visit(node.left), ...this.visit(node.right), ...this.visit(node.body)]
     }
 
-    visitForStatement(node: Estree.ForStatement): Message[] {
-        const msgs = this.visit(node.body)
+    visitForStatement(node: Estree.ForStatement): Text[] {
+        const txts = this.visit(node.body)
         if (node.init) {
-            msgs.push(...this.visit(node.init))
+            txts.push(...this.visit(node.init))
         }
         if (node.test) {
-            msgs.push(...this.visit(node.test))
+            txts.push(...this.visit(node.test))
         }
         if (node.update) {
-            msgs.push(...this.visit(node.update))
+            txts.push(...this.visit(node.update))
         }
-        return msgs
+        return txts
     }
 
     getMemberChainName(node: Estree.MemberExpression): string {
@@ -498,83 +507,54 @@ export class Transformer extends InertVisitors {
         return `[${callee.type}]`
     }
 
-    getActualExpression(expr?: Estree.Expression | Estree.TSAsExpression | Estree.TSTypeAssertion) {
-        if (!expr) {
-            return null
-        }
-        if (expr.type === 'TSAsExpression' || expr.type === 'TSTypeAssertion') {
-            return expr.expression
-        }
-        return expr
+    visitExpressionStatement(node: Estree.ExpressionStatement): Text[] {
+        return this.inScopeVisit({ type: 'expression' }, node.expression)
     }
 
-    withUpdateTLDetails(visit: (atTopLevel: boolean) => Message[]) {
-        const atTopLevelDefn = this.heuristciDetails.insideProgram && !this.heuristciDetails.declaring
-        const msgs = visit(atTopLevelDefn)
-        if (atTopLevelDefn) {
-            this.heuristciDetails.topLevelCall = undefined // reset
-            this.heuristciDetails.declaring = undefined
+    getAssignmentNames(id: Estree.Pattern | Estree.AssignmentProperty) {
+        let names: string[] = []
+        if (id.type === 'Identifier') {
+            names.push(id.name)
+        } else if (id.type === 'ArrayPattern') {
+            names = id.elements.filter(n => n !== null).flatMap(this.getAssignmentNames)
+        } else if (id.type === 'ObjectPattern') {
+            names = id.properties.flatMap(this.getAssignmentNames)
+        } else if (id.type === 'RestElement') {
+            names = this.getAssignmentNames(id.argument)
+        } else if (id.type === 'AssignmentPattern') {
+            names = this.getAssignmentNames(id.left)
         }
-        return msgs
-    }
-
-    visitExpressionStatement(node: Estree.ExpressionStatement): Message[] {
-        return this.withUpdateTLDetails(topLevel => {
-            const expr = this.getActualExpression(node.expression)!
-            if (topLevel) {
-                this.heuristciDetails.declaring = 'expression'
-                if (expr.type === 'CallExpression') {
-                    this.heuristciDetails.topLevelCall = this.getCalleeName(expr.callee)
-                }
-            }
-            return this.visit(expr)
-        })
+        return names
     }
 
     // for e.g. svelte to surrounded with $derived
     visitVariableDeclarator(node: Estree.VariableDeclarator) {
-        return this.withUpdateTLDetails(topLevel => {
-            if (!node.init) {
-                return []
-            }
-            const init = this.getActualExpression(node.init)!
-            if (topLevel) {
-                if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression') {
-                    this.heuristciDetails.declaring = 'function'
-                } else {
-                    this.heuristciDetails.declaring = 'variable'
-                }
-            }
-            this.heuristciDetails.leftSide = true
-            const msgs = this.visit(node.id)
-            this.heuristciDetails.leftSide = false
-            if (topLevel && this.heuristciDetails.declaring === 'variable' && init.type === 'CallExpression') {
-                this.heuristciDetails.topLevelCall = this.getCalleeName(init.callee)
-            }
-            delete this.heuristciDetails.leftSide
-            if (
-                node.id.type === 'Identifier' &&
-                (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression')
-            ) {
-                return [...msgs, ...this.visitFunctionBody(init.body, node.id.name, init.end)]
-            }
-            return [...msgs, ...this.visit(node.init)]
-        })
+        if (!node.init) {
+            return []
+        }
+        const txts = this.inScopeVisit({ type: 'assignment', left: true }, node.id)
+        txts.push(
+            ...this.inScopeVisit(
+                { type: 'assignment', left: false, targets: this.getAssignmentNames(node.id) },
+                node.init,
+            ),
+        )
+        return txts
     }
 
-    visitVariableDeclaration(node: Estree.VariableDeclaration): Message[] {
+    visitVariableDeclaration(node: Estree.VariableDeclaration): Text[] {
         return node.declarations.flatMap(n => this.visitVariableDeclarator(n))
     }
 
-    visitExportNamedDeclaration(node: Estree.ExportNamedDeclaration | Estree.ExportDefaultDeclaration): Message[] {
-        this.heuristciDetails.exported = true
-        const msgs = node.declaration ? this.visit(node.declaration) : []
-        delete this.heuristciDetails.exported
-        return msgs
+    visitExportNamedDeclaration(node: Estree.ExportNamedDeclaration | Estree.ExportDefaultDeclaration): Text[] {
+        if (!node.declaration) {
+            return []
+        }
+        return this.inScopeVisit({ type: 'export' }, node.declaration)
     }
 
     visitExportDefaultDeclaration(node: Estree.ExportDefaultDeclaration) {
-        return this.visitExportNamedDeclaration(node)
+        return this.inScopeVisit({ type: 'export' }, node)
     }
 
     hasReturn(node: Estree.AnyNode | Estree.AnyNode[]): boolean {
@@ -607,19 +587,19 @@ export class Transformer extends InertVisitors {
         return bodyStart < newBodyStart ? bodyStart : newBodyStart
     }
 
-    visitStatementsNSaveRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Message[] {
+    visitStatementsNSaveRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Text[] {
         // the runtime should be initialized:
-        // - before any extracted messages and function pattern match modifications: to make it available
+        // - before any extracted txts and function pattern match modifications: to make it available
         // - before any return statement: to respect react hooks requirement of always calling the same
         // - after any function calls: to handle the case where one of them is loading the catalogs
         // - but before hoited function calls of the ones down below: to make it available at call time
-        const msgs: Message[] = []
+        const txts: Text[] = []
         let bodyStart: number | null = null
         const firstCalls = new Map<string, number>()
         for (const bod of nodes) {
             const prevPatternMods = this.patternMatchMods
-            const prevMsgsLen = msgs.length
-            msgs.push(...this.visit(bod))
+            const prevMsgsLen = txts.length
+            txts.push(...this.visit(bod))
             // get bodyStart
             if (bod.type === 'ExpressionStatement') {
                 if (bod.expression.type === 'CallExpression') {
@@ -637,14 +617,14 @@ export class Transformer extends InertVisitors {
                     }
                 }
             }
-            if (msgs.length > prevMsgsLen || this.patternMatchMods > prevPatternMods || this.hasReturn(bod)) {
+            if (txts.length > prevMsgsLen || this.patternMatchMods > prevPatternMods || this.hasReturn(bod)) {
                 bodyStart = this.#updateBodyStart(bodyStart, bod.start)
             }
         }
         if (bodyStart) {
             this.realBodyStarts.add(bodyStart)
         }
-        return msgs
+        return txts
     }
 
     getRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined {
@@ -664,15 +644,11 @@ export class Transformer extends InertVisitors {
         return nonLiteralStart ?? nodes[0]?.start
     }
 
-    visitFunctionBody(node: Estree.BlockStatement | Estree.Expression, name?: string, end?: number): Message[] {
-        const prevFuncDef = this.heuristciDetails.funcName
-        const prevFuncNested = this.heuristciDetails.funcIsNested
-        this.heuristciDetails.funcName = name
-        this.heuristciDetails.funcIsNested = name != null && prevFuncDef != null
+    visitFunctionBody(node: Estree.BlockStatement | Estree.Expression, end?: number): Text[] {
         const prevPatternMods = this.patternMatchMods
-        const msgs = this.visit(node)
-        if (msgs.length > 0 || this.patternMatchMods > prevPatternMods) {
-            const initRuntime = this.initRuntime(this.heuristciDetails.funcName, prevFuncDef ?? undefined)
+        const txts = this.visit(node)
+        if (txts.length > 0 || this.patternMatchMods > prevPatternMods) {
+            const initRuntime = this.initRuntime()
             if (initRuntime) {
                 if (node.type === 'BlockStatement') {
                     this.mstr.prependLeft(this.getRealBodyStart(node.body) ?? node.start, initRuntime)
@@ -694,112 +670,116 @@ export class Transformer extends InertVisitors {
                 }
             }
         }
-        this.heuristciDetails.funcIsNested = prevFuncNested
-        this.heuristciDetails.funcName = prevFuncDef
-        return msgs
+        return txts
     }
 
-    visitFunctionDeclaration(node: Estree.FunctionDeclaration): Message[] {
-        const declaring = this.heuristciDetails.declaring
-        this.heuristciDetails.declaring = 'function'
-        const msgs = this.visitFunctionBody(node.body, node.id?.name ?? '')
-        this.heuristciDetails.declaring = declaring
-        return msgs
+    visitFunctionDeclaration(node: Estree.FunctionDeclaration): Text[] {
+        return this.inScope({ type: 'function', name: node.id.name }, () => this.visitFunctionBody(node.body))
     }
 
-    visitArrowFunctionExpression(node: Estree.ArrowFunctionExpression): Message[] {
-        return this.visitFunctionBody(node.body, '', node.end)
+    visitArrowFunctionExpression(node: Estree.ArrowFunctionExpression | Estree.FunctionExpression): Text[] {
+        return this.inScope(
+            {
+                type: 'funcexpr',
+                kind: node.type === 'ArrowFunctionExpression' ? 'arrow' : 'function',
+            },
+            () => this.visitFunctionBody(node.body, node.end),
+        )
     }
 
-    visitFunctionExpression(node: Estree.FunctionExpression): Message[] {
-        return this.visitFunctionBody(node.body, '')
+    visitFunctionExpression(node: Estree.FunctionExpression): Text[] {
+        return this.visitArrowFunctionExpression(node)
     }
 
-    visitBlockStatement(node: Estree.BlockStatement): Message[] {
+    visitBlockStatement(node: Estree.BlockStatement): Text[] {
         return this.visitStatementsNSaveRealBodyStart(node.body)
     }
 
-    visitReturnStatement(node: Estree.ReturnStatement): Message[] {
+    visitReturnStatement(node: Estree.ReturnStatement): Text[] {
         return node.argument ? this.visit(node.argument) : []
     }
 
-    visitIfStatement(node: Estree.IfStatement): Message[] {
-        const msgs = this.visit(node.test)
-        msgs.push(...this.visit(node.consequent))
+    visitIfStatement(node: Estree.IfStatement): Text[] {
+        const txts = this.visit(node.test)
+        txts.push(...this.visit(node.consequent))
         if (node.alternate) {
-            msgs.push(...this.visit(node.alternate))
+            txts.push(...this.visit(node.alternate))
         }
-        return msgs
+        return txts
     }
 
-    visitWhileStatement(node: Estree.WhileStatement): Message[] {
+    visitWhileStatement(node: Estree.WhileStatement): Text[] {
         return [...this.visit(node.test), ...this.visit(node.body)]
     }
 
-    visitDoWhileStatement(node: Estree.DoWhileStatement): Message[] {
+    visitDoWhileStatement(node: Estree.DoWhileStatement): Text[] {
         return [...this.visit(node.body), ...this.visit(node.test)]
     }
 
-    visitLabeledStatement(node: Estree.LabeledStatement): Message[] {
+    visitLabeledStatement(node: Estree.LabeledStatement): Text[] {
         return this.visit(node.body)
     }
 
-    visitParenthesizedExpression(node: Estree.ParenthesizedExpression): Message[] {
+    visitParenthesizedExpression(node: Estree.ParenthesizedExpression): Text[] {
         return this.visit(node.expression)
     }
 
-    visitSwitchStatement(node: Estree.SwitchStatement): Message[] {
+    visitSwitchStatement(node: Estree.SwitchStatement): Text[] {
         return node.cases.flatMap(n => this.visit(n))
     }
 
-    visitSwitchCase(node: Estree.SwitchCase): Message[] {
-        const msgs = node.consequent.flatMap(n => this.visit(n))
+    visitSwitchCase(node: Estree.SwitchCase): Text[] {
+        const txts = node.consequent.flatMap(n => this.visit(n))
         if (node.test) {
-            return [...this.visit(node.test), ...msgs]
+            return [...this.visit(node.test), ...txts]
         }
-        return msgs
+        return txts
     }
 
-    visitYieldExpression(node: Estree.YieldExpression): Message[] {
+    visitYieldExpression(node: Estree.YieldExpression): Text[] {
         return node.argument ? this.visit(node.argument) : []
     }
 
-    visitClassDeclaration(node: Estree.ClassDeclaration): Message[] {
-        const msgs: Message[] = []
-        const prevDecl = this.heuristciDetails.declaring
-        this.heuristciDetails.declaring = 'class'
-        for (const body of node.body.body) {
-            if (body.type === 'MethodDefinition') {
-                msgs.push(...this.visit(body.key))
-                const methodName = this.content.slice(body.key.start, body.key.end)
-                if (body.value.type === 'FunctionExpression') {
-                    // and not e.g. TSDeclareMethod
-                    msgs.push(...this.visitFunctionBody(body.value.body, `${node.id.name}.${methodName}`))
+    visitClassDeclaration(node: Estree.ClassDeclaration): Text[] {
+        const txts: Text[] = []
+        this.inScope({ type: 'class', name: node.id.name }, () => {
+            for (const body of node.body.body) {
+                if (body.type === 'MethodDefinition') {
+                    const methodName = this.content.slice(body.key.start, body.key.end)
+                    txts.push(...this.visit(body.key))
+                    if (body.value.type === 'FunctionExpression') {
+                        // and not e.g. TSDeclareMethod
+                        txts.push(
+                            ...this.inScope({ type: 'method', name: methodName }, () =>
+                                this.visitFunctionBody(body.value.body),
+                            ),
+                        )
+                    }
+                } else if (body.type === 'StaticBlock') {
+                    txts.push(
+                        ...this.inScope({ type: 'method', name: '[static]' }, () =>
+                            body.body.flatMap(n => this.visit(n)),
+                        ),
+                    )
                 }
-            } else if (body.type === 'StaticBlock') {
-                const currentFuncDef = this.heuristciDetails.funcName
-                this.heuristciDetails.funcName = `${node.id.name}.[static]`
-                msgs.push(...body.body.flatMap(n => this.visit(n)))
-                this.heuristciDetails.funcName = currentFuncDef // restore
             }
-        }
-        this.heuristciDetails.declaring = prevDecl // restore
-        return msgs
+        })
+        return txts
     }
 
-    visitTemplateLiteralQuasis(node: Estree.TemplateLiteral, forHeuristic = false): [Message, number, Message[]] {
-        const msgs: Message[] = []
-        let msgStr = node.quasis[0]!.value?.cooked ?? ''
+    visitTemplateLiteralQuasis(node: Estree.TemplateLiteral, forHeuristic = false): [Text, number, Text[]] {
+        const txts: Text[] = []
+        let body = node.quasis[0]!.value?.cooked ?? ''
         const placeholders: [string, string][] = []
         for (const [i, expr] of node.expressions.entries()) {
             const quasi = node.quasis[i + 1]!
-            msgStr += `{${i}}${quasi.value.cooked}`
+            body += `{${i}}${quasi.value.cooked}`
             placeholders.push([i.toString(), this.content.slice(expr.start, expr.end)])
             if (forHeuristic) {
                 // skip modifications and sub visits
                 continue
             }
-            msgs.push(...this.visit(expr))
+            txts.push(...this.visit(expr))
             const { start, end } = quasi
             this.mstr.remove(start - 1, end)
             if (i + 1 === node.expressions.length) {
@@ -807,31 +787,31 @@ export class Transformer extends InertVisitors {
             }
             this.mstr.update(end, end + 2, ', ')
         }
-        const msgInfo = newMessage({
-            msgStr: [msgStr],
-            details: this.fullHeuristicDetails({ scope: 'script' }),
+        const msgInfo = newText({
+            body: [body],
+            path: this.scopePath,
             context: this.commentDirectives.context,
             placeholders,
         })
-        msgs.push(msgInfo)
-        return [msgInfo, forHeuristic ? 0 : this.index.get(getKey(msgInfo.msgStr, msgInfo.context)), msgs]
+        txts.push(msgInfo)
+        return [msgInfo, forHeuristic ? 0 : this.index.get(getKey(msgInfo.body, msgInfo.context)), txts]
     }
 
-    visitTemplateLiteral(node: Estree.TemplateLiteral, heurDetails: HeuristicDetailsBase | boolean = false): Message[] {
-        let msgTyp: MessageType = 'message'
-        let visitRes: [Message, number, Message[]]
-        if (heurDetails === true) {
+    visitTemplateLiteral(node: Estree.TemplateLiteral, bypassHeuristic = false): Text[] {
+        let msgTyp: TextType = 'message'
+        let visitRes: [Text, number, Text[]]
+        if (bypassHeuristic) {
             visitRes = this.visitTemplateLiteralQuasis(node)
         } else {
             const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node, true)
-            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.msgStr[0]!, heurDetails || { scope: 'script' })
+            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body[0]!)
             if (!heuRes) {
                 return node.expressions.flatMap(n => this.visit(n))
             }
             msgTyp = heuRes
             visitRes = this.visitTemplateLiteralQuasis(node)
         }
-        const [msgInfo, index, msgs] = visitRes
+        const [msgInfo, index, txts] = visitRes
         msgInfo.type = msgTyp
         const { start: start0, end: end0 } = node.quasis[0]!
         let begin = `${this.vars().rtTrans}(${index}`
@@ -848,64 +828,61 @@ export class Transformer extends InertVisitors {
         } else {
             this.mstr.update(start0 - 1, end0 + 1, begin + end)
         }
-        return msgs
+        return txts
     }
 
-    visitTaggedTemplateExpression(node: Estree.TaggedTemplateExpression): Message[] {
-        const prevCall = this.heuristciDetails.call
-        this.heuristciDetails.call = this.getCalleeName(node.tag)
-        let msgs: Message[] = []
-        const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node.quasi, true)
-        const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.msgStr[0]!, { scope: 'script' })
-        if (heuRes) {
-            const [msgInfo, index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
-            msgInfo.type = heuRes
-            msgs = msgsNew
-            this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
-            const { start, end, expressions } = node.quasi
-            if (expressions.length > 0) {
-                this.mstr.update(start, expressions[0]!.start, `, ${index}, [`)
-                this.mstr.update(end - 1, end, `])`)
-            } else {
-                this.mstr.remove(start, start + 1)
-                this.mstr.update(start, end, `, ${index})`)
+    visitTaggedTemplateExpression(node: Estree.TaggedTemplateExpression): Text[] {
+        return this.inScope({ type: 'call', kind: 'tagged', name: this.getCalleeName(node.tag) }, () => {
+            let txts: Text[] = []
+            const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node.quasi, true)
+            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body[0]!)
+            if (heuRes) {
+                const [msgInfo, index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
+                msgInfo.type = heuRes
+                txts = msgsNew
+                this.mstr.appendRight(node.tag.start, `${this.vars().rtTransTag}(`)
+                const { start, end, expressions } = node.quasi
+                if (expressions.length > 0) {
+                    this.mstr.update(start, expressions[0]!.start, `, ${index}, [`)
+                    this.mstr.update(end - 1, end, `])`)
+                } else {
+                    this.mstr.remove(start, start + 1)
+                    this.mstr.update(start, end, `, ${index})`)
+                }
             }
-        }
-        this.heuristciDetails.call = prevCall
-        return msgs
+            return txts
+        })
     }
 
-    visitTryStatement(node: Estree.TryStatement): Message[] {
-        const msgs = this.visit(node.block)
+    visitTryStatement(node: Estree.TryStatement): Text[] {
+        const txts = this.visit(node.block)
         if (node.handler) {
-            msgs.push(...this.visit(node.handler.body))
+            txts.push(...this.visit(node.handler.body))
         }
         if (node.finalizer) {
-            msgs.push(...this.visit(node.finalizer))
+            txts.push(...this.visit(node.finalizer))
         }
-        return msgs
+        return txts
     }
 
-    visitTSAsExpression(node: Estree.TSAsExpression): Message[] {
+    visitTSAsExpression(node: Estree.TSAsExpression): Text[] {
         return this.visit(node.expression)
     }
 
-    visitTSTypeAssertion(node: Estree.TSTypeAssertion): Message[] {
+    visitTSTypeAssertion(node: Estree.TSTypeAssertion): Text[] {
         return this.visit(node.expression)
     }
 
-    visitTSSatisfiesExpression(node: Estree.TSSatisfiesExpression): Message[] {
+    visitTSSatisfiesExpression(node: Estree.TSSatisfiesExpression): Text[] {
         return this.visit(node.expression)
     }
 
-    visitProgram(node: Estree.Program): Message[] {
-        this.heuristciDetails.insideProgram = true
-        const msgs = this.visitStatementsNSaveRealBodyStart(node.body)
-        this.heuristciDetails.insideProgram = false
-        return msgs
+    visitProgram(node: Estree.Program): Text[] {
+        const txts = this.visitStatementsNSaveRealBodyStart(node.body)
+        return txts
     }
 
-    visitWithCommentDirectives(node: Estree.AnyNode, func: () => Message[]) {
+    visitWithCommentDirectives(node: Estree.AnyNode, func: () => Text[]) {
         const commentDirectives = { ...this.commentDirectives }
         // for estree
         const comments = this.comments[node.start]
@@ -921,25 +898,25 @@ export class Transformer extends InertVisitors {
         return res
     }
 
-    visit(node: Estree.AnyNode): Message[] {
+    visit(node: Estree.AnyNode): Text[] {
         return this.visitWithCommentDirectives(node, () => {
             if (this.commentDirectives.forceType === false) {
                 return []
             }
-            let msgs: Message[] = []
+            let txts: Text[] = []
             const visitor = this[`visit${node.type}` as `visit${typeof node.type}`]
             if (visitor != null) {
-                msgs = visitor.bind(this)(node as any)
+                txts = visitor.bind(this)(node as any)
                 // } else {
                 //     console.log(node)
             }
-            return msgs
+            return txts
         })
     }
 
-    finalize(msgs: Message[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput {
+    finalize(txts: Text[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput {
         return {
-            msgs,
+            txts: txts,
             output: header => {
                 this.mstr.prependRight(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
                 return {

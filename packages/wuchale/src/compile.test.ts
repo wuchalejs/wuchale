@@ -3,9 +3,9 @@
 import { type TestContext, test } from 'node:test'
 import { type CompiledElement, compileTranslation, isEquivalent } from './compile.js'
 
-test('Compile messages', t => {
-    const testCompile = (msg: string, expect: CompiledElement) =>
-        t.assert.deepEqual(compileTranslation(msg, 'Fallback'), expect)
+test('Compile items', t => {
+    const testCompile = (txt: string, expect: CompiledElement) =>
+        t.assert.deepEqual(compileTranslation(txt, 'Fallback'), expect)
     testCompile('Foo', 'Foo')
     testCompile('Foo {0}', ['Foo ', 0])
     testCompile('Foo <0>bar</0>', ['Foo ', [0, 'bar']])

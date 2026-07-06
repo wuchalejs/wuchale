@@ -2,7 +2,7 @@ import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
-import type { CodePattern, HeuristicFunc, Message, RuntimeConf, TransformCtx, TransformOutput } from 'wuchale'
+import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
 import { MixedVisitor, type ModFunc } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -23,7 +23,6 @@ export type JSXLib = 'default' | 'solidjs'
 
 export class JSXTransformer extends Transformer {
     // state
-    currentElement?: string | undefined
     lastVisitIsComment: boolean = false
     currentJsxKey?: number
 
@@ -39,6 +38,7 @@ export class JSXTransformer extends Transformer {
             mstr: this.mstr,
             index: this.index,
             content: this.content,
+            scopePath: this.scopePath,
             vars: this.vars.bind(this),
             getRange: node => ({
                 start: node.start,
@@ -54,7 +54,6 @@ export class JSXTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             visitFunc: this.visitJx.bind(this),
-            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const vars = this.vars()
@@ -89,22 +88,13 @@ export class JSXTransformer extends Transformer {
         })
     }
 
-    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment, nestable: boolean, addMod?: ModFunc): Message[] {
-        const prevInsideProg = this.heuristciDetails.insideProgram
-        this.heuristciDetails.insideProgram = false
-        const msgs = this.mixedVisitor.visit({
+    visitChildrenJ(node: JX.JSXElement | JX.JSXFragment, nestable: boolean, addMod?: ModFunc): Text[] {
+        return this.mixedVisitor.visit({
             children: node.children,
             nestable,
             commentDirectives: this.commentDirectives,
-            scope: 'markup',
-            element: this.currentElement as string,
             addMod,
         })
-        if (prevInsideProg) {
-            msgs.push(...this.mixedVisitor.applyMod('markup'))
-        }
-        this.heuristciDetails.insideProgram = prevInsideProg // restore
-        return msgs
     }
 
     visitNameJSXNamespacedName(node: JX.JSXNamespacedName): string {
@@ -123,36 +113,33 @@ export class JSXTransformer extends Transformer {
         return this[`visitName${node.type}` as `visitName${typeof node.type}`](node as any)
     }
 
-    visitJSXElement(node: JX.JSXElement): Message[] {
-        const currentElement = this.currentElement
-        this.currentElement = this.visitName(node.openingElement.name)
-        let addMod: ModFunc | undefined
-        const key = node.openingElement.attributes.find(
-            attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
-        )
-        if (!key) {
-            addMod = nested => {
-                if (!nested || this.currentJsxKey == null) {
-                    return
+    visitJSXElement(node: JX.JSXElement): Text[] {
+        const alreadyInElement = this.scopePath.at(-1)!.type === 'element'
+        return this.inScope({ type: 'element', name: this.visitName(node.openingElement.name) }, () => {
+            let addMod: ModFunc | undefined
+            const key = node.openingElement.attributes.find(
+                attr => attr.type === 'JSXAttribute' && attr.name.name === 'key',
+            )
+            if (!key) {
+                addMod = nested => {
+                    if (!nested || this.currentJsxKey == null) {
+                        return
+                    }
+                    this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.currentJsxKey}"`)
+                    this.currentJsxKey++
                 }
-                this.mstr.appendLeft(node.openingElement.name.end, ` key="_${this.currentJsxKey}"`)
-                this.currentJsxKey++
             }
-        }
-        const msgs = this.visitChildrenJ(node, true, addMod)
-        for (const attr of node.openingElement.attributes) {
-            msgs.push(...this.visitJx(attr))
-        }
-        this.currentElement = currentElement
-        return msgs
+            const txts = this.visitChildrenJ(node, alreadyInElement, addMod)
+            for (const attr of node.openingElement.attributes) {
+                txts.push(...this.visitJx(attr))
+            }
+            return txts
+        })
     }
 
-    visitJSXFragment(node: JX.JSXFragment): Message[] {
-        const currentElement = this.currentElement
-        this.currentElement = ''
-        const msgs = this.visitChildrenJ(node, true)
-        this.currentElement = currentElement
-        return msgs
+    visitJSXFragment(node: JX.JSXFragment): Text[] {
+        const alreadyInElement = this.scopePath.at(-1)!.type === 'element'
+        return this.inScope({ type: 'element', name: '' }, () => this.visitChildrenJ(node, alreadyInElement))
     }
 
     getMarkupCommentBody(node: JX.JSXEmptyExpression): string {
@@ -163,11 +150,11 @@ export class JSXTransformer extends Transformer {
         return comment.slice(2, -2).trim()
     }
 
-    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Message[] => {
-        return this.visit(node.expression as Estree.Expression)
+    visitJSXExpressionContainer = (node: JX.JSXExpressionContainer): Text[] => {
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Estree.Expression)
     }
 
-    visitJSXAttribute(node: JX.JSXAttribute): Message[] {
+    visitJSXAttribute(node: JX.JSXAttribute): Text[] {
         if (node.value == null) {
             return []
         }
@@ -177,59 +164,54 @@ export class JSXTransformer extends Transformer {
         } else {
             name = node.name.name.name
         }
-        const heurBase = {
-            scope: 'script' as 'script',
-            element: this.currentElement,
-            attribute: name,
-        }
-        if (node.value.type !== 'Literal') {
-            if (node.value.type === 'JSXExpressionContainer') {
-                if (node.value.expression.type === 'Literal' && typeof node.value.expression.value === 'string') {
-                    const expr = node.value.expression as Estree.Literal
-                    return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr, heurBase))
-                }
-                if (node.value.expression.type === 'TemplateLiteral') {
-                    const expr = node.value.expression as Estree.TemplateLiteral
-                    return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr, heurBase))
-                }
-            }
-            return this.visitJx(node.value)
-        }
-        if (typeof node.value.value !== 'string') {
-            return []
-        }
         const value = node.value
-        const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value.value, heurBase)
-        if (!pass) {
-            return []
-        }
-        this.mstr.update(value.start, value.end, `{${this.literalRepl(msgInfo)}}`)
-        return [msgInfo]
+        return this.inScope({ type: 'attribute', name }, () => {
+            if (value.type !== 'Literal') {
+                if (value.type === 'JSXExpressionContainer') {
+                    if (value.expression.type === 'Literal' && typeof value.expression.value === 'string') {
+                        const expr = value.expression as Estree.Literal
+                        return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr))
+                    }
+                    if (value.expression.type === 'TemplateLiteral') {
+                        const expr = value.expression as Estree.TemplateLiteral
+                        return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr))
+                    }
+                }
+                return this.visitJx(value)
+            }
+            if (typeof value.value !== 'string') {
+                return []
+            }
+            const [pass, txt] = this.checkHeuristicAllowNew(value.value)
+            if (!pass) {
+                return []
+            }
+            this.mstr.update(value.start, value.end, `{${this.literalRepl(txt)}}`)
+            return [txt]
+        })
     }
 
-    visitJSXSpreadAttribute(node: JX.JSXSpreadAttribute): Message[] {
-        return this.visit(node.argument as Estree.Expression)
+    visitJSXSpreadAttribute(node: JX.JSXSpreadAttribute): Text[] {
+        return this.inScopeVisit({ type: 'attribute', name: '...' }, node.argument as Estree.Expression)
     }
 
-    visitJx(node: JX.Node | JX.JSXSpreadChild | Estree.Program): Message[] {
+    visitJx(node: JX.Node | JX.JSXSpreadChild | Estree.Program): Text[] {
         return this.visit(node as Estree.AnyNode)
     }
 
     transformJx(lib: JSXLib): TransformOutput {
         // jsx vs type casting is not ambiguous in all files except .ts files
-        const [ast, comments] = (this.heuristciDetails.file.endsWith('.ts') ? parseScript : parseScriptJSX)(
-            this.content,
-        )
+        const [ast, comments] = (this.filename.endsWith('.ts') ? parseScript : parseScriptJSX)(this.content)
         this.comments = comments
         if (lib === 'default') {
             this.currentJsxKey = 0
         }
-        const msgs = this.visitJx(ast)
+        const txts = this.visitJx(ast)
         const header = [
             `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
             this.initRuntime(),
         ].join('\n')
         const bodyStart = this.getRealBodyStart(ast.body) as number
-        return this.finalize(msgs, bodyStart, header)
+        return this.finalize(txts, bodyStart, header)
     }
 }

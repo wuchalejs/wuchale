@@ -15,15 +15,7 @@ import type {
 import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
-import type {
-    CodePattern,
-    HeuristicDetailsBase,
-    HeuristicFunc,
-    Message,
-    RuntimeConf,
-    TransformCtx,
-    TransformOutput,
-} from 'wuchale'
+import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
 import { MixedVisitor } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -42,8 +34,6 @@ type MixedVisitorAstro = MixedVisitor<Node, TextNode, CommentNode, ExpressionNod
 
 export class AstroTransformer extends Transformer {
     byteArray: Uint8Array
-    // state
-    currentElement?: string | undefined
     frontMatterStart?: number
 
     mixedVisitor: MixedVisitorAstro
@@ -56,7 +46,6 @@ export class AstroTransformer extends Transformer {
         ctx.content = ctx.content.trim()
         super(ctx, heuristic, patterns, rtConf)
         this.byteArray = new Uint8Array(Buffer.from(this.content))
-        this.heuristciDetails.insideProgram = false
         this.mixedVisitor = this.initMixedVisitor()
     }
 
@@ -107,6 +96,7 @@ export class AstroTransformer extends Transformer {
             mstr: this.mstr,
             index: this.index,
             content: this.content,
+            scopePath: this.scopePath,
             vars: this.vars.bind(this),
             getRange: this.getRange.bind(this),
             isText: node => node.type === 'text',
@@ -116,7 +106,6 @@ export class AstroTransformer extends Transformer {
             getTextContent: node => node.value,
             getCommentData: node => node.value.trim(),
             visitFunc: this.visitAs.bind(this),
-            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const vars = this.vars()
@@ -150,133 +139,129 @@ export class AstroTransformer extends Transformer {
         })
     }
 
-    _parseAndVisitExpr(expr: string, startOffset: number, asScript = false): Message[] {
+    _parseAndVisitExpr(expr: string, startOffset: number, asScript = false): Text[] {
         const [ast, comments] = (asScript ? parseScript : parseExpr)(expr)
         this.comments = comments
         this.mstr.offset = startOffset
-        const msgs = this.visit(ast)
+        const txts = this.visit(ast)
         this.mstr.offset = 0 // restore
-        return msgs
+        return txts
     }
 
-    visitexpression(node: ExpressionNode): Message[] {
+    visitexpression(node: ExpressionNode): Text[] {
         if (!node.children?.length) {
             // can be undefined!
             return []
         }
         let expr = ''
-        const msgs: Message[] = []
+        const txts: Text[] = []
         const { start, end } = this.getRange(node)
         this._saveCorrectedRanges(node.children, end)
-        for (const part of node.children) {
-            if (part.type === 'text') {
-                expr += part.value
-                continue
+        this.inScope({ type: 'expression' }, () => {
+            for (const part of node.children) {
+                if (part.type === 'text') {
+                    expr += part.value
+                    continue
+                }
+                txts.push(...this.visitAs(part))
+                const { start, end } = this.getRange(part)
+                expr += `"${' '.repeat(end - start)}"`
             }
-            msgs.push(...this.visitAs(part))
-            const { start, end } = this.getRange(part)
-            expr += `"${' '.repeat(end - start)}"`
-        }
-        msgs.push(...this._parseAndVisitExpr(expr, start + 1))
-        return msgs
+            txts.push(...this._parseAndVisitExpr(expr, start + 1))
+        })
+        return txts
     }
 
-    _visitChildren = (nodes: Node[], nestable: boolean): Message[] =>
-        this.mixedVisitor.visit({
+    _visitChildren = (nodes: Node[], nestable: boolean): Text[] => {
+        const scope = this.scopePath.at(-1)!
+        return this.mixedVisitor.visit({
             children: nodes,
             nestable,
             commentDirectives: this.commentDirectives,
-            scope: 'markup',
-            element: this.currentElement as string,
-            useComponent: this.currentElement !== 'title',
+            useComponent: scope.type !== 'element' || scope.name !== 'title',
         })
+    }
 
-    visitFragmentNode(node: FragmentNode): Message[] {
+    visitFragmentNode(node: FragmentNode): Text[] {
         return this._visitChildren(node.children, false)
     }
 
-    visitelement(node: ElementNode): Message[] {
-        const currentElement = this.currentElement
-        this.currentElement = node.name
-        const msgs: Message[] = []
-        for (const attrib of node.attributes) {
-            msgs.push(...this.visitAs(attrib))
-        }
-        const { end } = this.getRange(node)
-        this._saveCorrectedRanges(node.children, end)
-        msgs.push(...this._visitChildren(node.children, true))
-        this.currentElement = currentElement
-        return msgs
+    visitelement(node: ElementNode): Text[] {
+        return this.inScope({ type: 'element', name: node.name }, () => {
+            const txts: Text[] = []
+            for (const attrib of node.attributes) {
+                txts.push(...this.visitAs(attrib))
+            }
+            const { end } = this.getRange(node)
+            this._saveCorrectedRanges(node.children, end)
+            txts.push(...this._visitChildren(node.children, true))
+            return txts
+        })
     }
 
-    visitcomponent(node: ComponentNode): Message[] {
+    visitcomponent(node: ComponentNode): Text[] {
         return this.visitelement(node as unknown as ElementNode)
     }
 
-    'visitcustom-element'(node: CustomElementNode): Message[] {
+    'visitcustom-element'(node: CustomElementNode): Text[] {
         return this.visitelement(node as unknown as ElementNode)
     }
 
-    visitattribute(node: AttributeNode): Message[] {
-        const heurBase: HeuristicDetailsBase = {
-            scope: 'attribute',
-            element: this.currentElement,
-            attribute: node.name,
-        }
+    visitattribute(node: AttributeNode): Text[] {
         let { start } = this.getRange(node)
         if (node.kind === 'spread') {
-            return this._parseAndVisitExpr(node.name, start)
+            return this.inScope({ type: 'attribute', name: '...' }, () => this._parseAndVisitExpr(node.name, start))
         }
-        if (node.kind !== 'empty') {
-            start = this.content.indexOf('=', start) + 1
-        }
-        if (node.kind === 'quoted') {
-            const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value, heurBase)
-            if (!pass) {
-                return []
+        return this.inScope({ type: 'attribute', name: node.name }, () => {
+            if (node.kind !== 'empty') {
+                start = this.content.indexOf('=', start) + 1
             }
-            this.mstr.update(start, start + node.value.length + 2, `{${this.literalRepl(msgInfo)}}`)
-            return [msgInfo]
-        }
-        if (node.kind === 'expression') {
-            heurBase.scope = 'script'
-            start = this.content.indexOf(node.value, start)
-            let expr = node.value
-            if (expr.startsWith('...')) {
-                start += 3
-                expr = expr.slice(3)
+            if (node.kind === 'quoted') {
+                const [pass, msgInfo] = this.checkHeuristicAllowNew(node.value)
+                if (!pass) {
+                    return []
+                }
+                this.mstr.update(start, start + node.value.length + 2, `{${this.literalRepl(msgInfo)}}`)
+                return [msgInfo]
             }
-            return this._parseAndVisitExpr(expr, start)
-        }
-        return []
+            if (node.kind === 'expression') {
+                start = this.content.indexOf(node.value, start)
+                let expr = node.value
+                if (expr.startsWith('...')) {
+                    start += 3
+                    expr = expr.slice(3)
+                }
+                return this._parseAndVisitExpr(expr, start)
+            }
+            return []
+        })
     }
 
-    visitfrontmatter(node: FrontmatterNode): Message[] {
+    visitfrontmatter(node: FrontmatterNode): Text[] {
         const { start } = this.getRange(node)
         this.frontMatterStart = this.content.indexOf('---', start) + 3
         return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
     }
 
-    visitroot(node: RootNode): Message[] {
+    visitroot(node: RootNode): Text[] {
         // node.children can be undefined!
         const children = node.children ?? []
         this._saveCorrectedRanges(children, this.content.length)
-        const msgs = [...this._visitChildren(children, false)]
-        return msgs
+        return this.inScope({ type: 'element', name: '' }, () => this._visitChildren(children, false))
     }
 
-    visitAs(node: Node | AttributeNode | Estree.AnyNode): Message[] {
+    visitAs(node: Node | AttributeNode | Estree.AnyNode): Text[] {
         return this.visit(node as Estree.AnyNode)
     }
 
     async transformAs(): Promise<TransformOutput> {
         const { ast } = await parse(this.content)
-        const msgs = this.visitAs(ast)
+        const txts = this.visitAs(ast)
         if (this.frontMatterStart == null) {
             this.mstr.appendLeft(0, '---\n')
             this.mstr.appendRight(0, '---\n')
         }
         const header = [`import ${rtRenderFunc} from "@wuchale/astro/runtime.js"`, this.initRuntime()].join('\n')
-        return this.finalize(msgs, this.frontMatterStart ?? 0, header)
+        return this.finalize(txts, this.frontMatterStart ?? 0, header)
     }
 }

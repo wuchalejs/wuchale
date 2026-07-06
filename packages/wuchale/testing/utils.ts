@@ -1,9 +1,10 @@
 import { statfs } from 'node:fs/promises'
 import type { TestContext } from 'node:test'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
-import { getKey, type Message, newMessage, type TransformFunc, type TransformOutput } from '../src/adapters.js'
+import { getKey, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 import type { FS } from '../src/fs.js'
 import type { SaveData, StorageFactory } from '../src/storage.js'
+import { newText, type Text } from '../src/text.js'
 
 const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an example header
 
@@ -20,7 +21,7 @@ export const testCatalog = {
     ],
 }
 
-type TstMsg = Partial<Message>
+type TstTxt = Partial<Text>
 
 export function trimLines(str?: string) {
     if (!str) {
@@ -37,26 +38,26 @@ export function trimLines(str?: string) {
 
 export function transformTest(
     t: TestContext,
-    { msgs, output }: TransformOutput,
+    { txts, output }: TransformOutput,
     expectedContent: string | undefined,
-    expectedMsgs: (string | TstMsg)[],
+    expectedMsgs: (string | TstTxt)[],
 ) {
-    const code = msgs.length ? output(header).code : undefined
+    const code = txts.length ? output(header).code : undefined
     t.assert.strictEqual(trimLines(code), trimLines(expectedContent))
     t.assert.strictEqual(
-        msgs.length,
+        txts.length,
         expectedMsgs.length,
-        `Unexpected number of messages: ${msgs.length} !== ${expectedMsgs.length}\n${msgs.map(m => `  ${m.msgStr[0]}`).join('\n')}`,
+        `Unexpected number of messages: ${txts.length} !== ${expectedMsgs.length}\n${txts.map(m => `  ${m.body[0]}`).join('\n')}`,
     )
     for (let [i, exp] of expectedMsgs.entries()) {
         if (typeof exp === 'string') {
-            exp = { msgStr: [exp] }
+            exp = { body: [exp] }
         }
-        const msg = msgs[i]!
-        t.assert.deepStrictEqual(msg.msgStr, exp.msgStr, `Different msgStr`)
-        for (const prop of ['context', 'placeholders']) {
+        const txt = txts[i]!
+        t.assert.deepStrictEqual(txt.body, exp.body, `Different msgStr`)
+        for (const prop of ['context', 'placeholders'] as const) {
             if (prop in exp) {
-                t.assert.deepStrictEqual(msg[prop as keyof Message], exp[prop as keyof Message], `Different ${prop}`)
+                t.assert.deepStrictEqual(txt[prop], exp[prop], `Different ${prop}`)
             }
         }
     }
@@ -75,7 +76,7 @@ export const testLoadersExist = async (loaders: string[], getLoaderPath = getDef
 }
 
 export const dummyTransform: TransformFunc = ctx => {
-    const msgs: Message[] = []
+    const msgs: Text[] = []
     let out = ''
     for (const m of ctx.content.matchAll(/'\w+'/g)) {
         const msg = m[0].slice(1, -1)
@@ -83,10 +84,10 @@ export const dummyTransform: TransformFunc = ctx => {
             continue
         }
         out += `${ctx.expr.plain}(${ctx.index.get(msg)})\n`
-        msgs.push(newMessage({ msgStr: [msg] }))
+        msgs.push(newText({ body: [msg] }))
     }
     return {
-        msgs,
+        txts: msgs,
         output: header => ({
             code: `${header}\n${out}`,
             map: [],

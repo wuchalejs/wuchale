@@ -143,16 +143,16 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
             },
             save: async ({ items, pluralRules }) => {
                 const urls: Item[] = []
-                const msgs: Item[] = []
+                const txts: Item[] = []
                 for (const item of items) {
-                    ;(itemIsUrl(item) ? urls : msgs).push(item)
+                    ;(itemIsUrl(item) ? urls : txts).push(item)
                 }
                 const promises: (void | Promise<void>)[] = []
                 if (urls.length) {
                     promises.push(byType.get('url')!.save({ items: urls, pluralRules }))
                 }
-                if (msgs.length) {
-                    promises.push(byType.get('message')!.save({ items: msgs, pluralRules }))
+                if (txts.length) {
+                    promises.push(byType.get('message')!.save({ items: txts, pluralRules }))
                 }
                 await Promise.all(promises)
             },

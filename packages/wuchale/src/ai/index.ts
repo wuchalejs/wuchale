@@ -11,7 +11,7 @@ const MAX_RETRIES = 30
 type Batch = {
     id: number
     targetLocales: string[]
-    messages: Item[]
+    items: Item[]
 }
 
 type GroupKey = string | string[]
@@ -24,7 +24,7 @@ export type AIPassThruOpts = {
 
 export type AI = AIPassThruOpts & {
     name: string
-    translate: (messages: string, instruction: string) => Promise<string>
+    translate: (body: string, instruction: string) => Promise<string>
 }
 
 // by locale
@@ -107,7 +107,7 @@ export default class AIQueue {
         const logStart = this.#logStart(batch.id, batch.targetLocales)
         let translated: OutputItem[] = []
         try {
-            const inputItems: InputItem[] = batch.messages.map(item => ({
+            const inputItems: InputItem[] = batch.items.map(item => ({
                 id: item.translations.get(this.sourceLocale)!,
                 context: item.context,
                 references: item.references,
@@ -118,7 +118,7 @@ export default class AIQueue {
             )
             translated = JSON.parse(translatedstr)
             if (Array.isArray(translated)) {
-                translated = translated.slice(0, batch.messages.length) // may return more
+                translated = translated.slice(0, batch.items.length) // may return more
             } else {
                 translated = []
             }
@@ -126,9 +126,9 @@ export default class AIQueue {
             this.log.error(logStart, `error: ${err}`)
             return
         }
-        const unTranslated: Item[] = batch.messages.slice(translated.length)
+        const unTranslated: Item[] = batch.items.slice(translated.length)
         for (const [i, outItem] of translated.entries()) {
-            const item = batch.messages[i]!
+            const item = batch.items[i]!
             const id = item.translations.get(this.sourceLocale)!
             const sourceComp = id.map(i => compileTranslation(i, ''))
             for (const loc of batch.targetLocales) {
@@ -174,8 +174,8 @@ export default class AIQueue {
             this.log.error(logStart, `Giving up after ${attempt} unsuccessful retries`)
             return
         }
-        this.log.warn(logStart, color.cyan(unTranslated.length), 'messages not translated. Retrying...')
-        batch.messages = unTranslated
+        this.log.warn(logStart, color.cyan(unTranslated.length), 'items not translated. Retrying...')
+        batch.items = unTranslated
         await this.translate(batch, attempt)
     }
 
@@ -225,11 +225,11 @@ export default class AIQueue {
         for (let [groupKey, items] of itemsByGroup) {
             const groupBatches = this.batches.get(groupKey) ?? []
             const lastBatch = groupBatches.at(-1)
-            if (lastBatch && lastBatch.messages.length < this.ai.batchSize) {
-                const lastBatchFree = this.ai.batchSize - lastBatch.messages.length
+            if (lastBatch && lastBatch.items.length < this.ai.batchSize) {
+                const lastBatchFree = this.ai.batchSize - lastBatch.items.length
                 const itemsToAdd = items.slice(0, lastBatchFree)
                 opInfo.push(['(add)', lastBatch, itemsToAdd.length])
-                lastBatch.messages.push(...itemsToAdd)
+                lastBatch.items.push(...itemsToAdd)
                 items = items.slice(lastBatchFree)
             }
             for (let i = 0; i < items.length; i += this.ai.batchSize) {
@@ -237,7 +237,7 @@ export default class AIQueue {
                 const batch: Batch = {
                     id: this.nextBatchId,
                     targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
-                    messages: chunk,
+                    items: chunk,
                 }
                 groupBatches.push(batch)
                 opInfo.push([color.yellow('(new)'), batch, chunk.length])
@@ -265,7 +265,7 @@ export default class AIQueue {
                 opType,
                 'translate',
                 color.cyan(msgsLen),
-                'messages',
+                'items',
             )
         }
         if (!this.running) {

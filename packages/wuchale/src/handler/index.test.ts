@@ -5,9 +5,10 @@ import { type TestContext, test } from 'node:test'
 // @ts-expect-error
 import { dummyTransform, inMemFS, inMemStorage, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
-import { type Adapter, newMessage } from '../adapters.js'
+import type { Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
 import { Logger } from '../log.js'
+import { newText } from '../text.js'
 import { generatedDir } from './files.js'
 import { AdapterHandler, getFallbackChains } from './index.js'
 import { SharedState } from './state.js'
@@ -83,22 +84,21 @@ test('Manifest', async (t: TestContext) => {
     )
 })
 
-test('Handle messages', async (t: TestContext) => {
-    const msgs = [newMessage({ msgStr: ['Hello'] })]
-    const [hmrKeys, updated] = await handler.handleMessages(msgs, 'foo.ts', 0)
+test('Handle texts', async (t: TestContext) => {
+    const txts = [newText({ body: ['Hello'] })]
+    const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 0)
     t.assert.strictEqual(updated, true)
     t.assert.deepStrictEqual(hmrKeys, ['Hello'])
-    // @ts-expect-error
-    const msgs1 = [newMessage({ msgStr: ['Hello'], context: null })]
-    const [, updated1] = await handler.handleMessages(msgs1, 'foo.ts', 0)
+    const msgs1 = [newText({ body: ['Hello'], context: undefined })]
+    const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 0)
     t.assert.strictEqual(updated1, false)
-    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts', 0)
+    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
     t.assert.strictEqual(updated2, true)
 })
 
 test('Handler compiles only when necessary', async (t: TestContext) => {
     const handler = await makeHandler()
-    const msgs = [newMessage({ msgStr: ['Hello'] })]
+    const txts = [newText({ body: ['Hello'] })]
     let saveCalls = 0
     let compileCalls = 0
     const handlerSaveStorage = handler.saveStorage.bind(handler)
@@ -111,11 +111,11 @@ test('Handler compiles only when necessary', async (t: TestContext) => {
         compileCalls++
         return handlerCompile(...args)
     }
-    const [, updated1] = await handler.handleMessages(msgs, 'foo.ts', 0)
+    const [, updated1] = await handler.handleTexts(txts, 'foo.ts', 0)
     t.assert.strictEqual(updated1, true)
     t.assert.strictEqual(saveCalls, 1)
     t.assert.strictEqual(compileCalls, 1)
-    const [, updated2] = await handler.handleMessages(msgs, 'bar.ts', 0)
+    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
     t.assert.strictEqual(updated2, true)
     t.assert.strictEqual(saveCalls, 2)
     t.assert.strictEqual(compileCalls, 1)

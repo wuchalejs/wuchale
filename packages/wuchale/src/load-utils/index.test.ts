@@ -23,8 +23,8 @@ test('Loading', async t => {
 
 test('Loading server side', async t => {
     const getRT = await loadLocales('main', 1, _ => testCatalog, ['en'])
-    const msg = await runWithLocale('en', () => {
+    const txt = await runWithLocale('en', () => {
         return getRT()(1, ['server user'])
     })
-    t.assert.equal(msg, 'Hello server user!')
+    t.assert.equal(txt, 'Hello server user!')
 })

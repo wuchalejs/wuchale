@@ -9,15 +9,7 @@ import type {
     VariableDeclarator,
 } from 'acorn'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
-import type {
-    CodePattern,
-    HeuristicDetailsBase,
-    HeuristicFunc,
-    Message,
-    RuntimeConf,
-    TransformCtx,
-    TransformOutput,
-} from 'wuchale'
+import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -45,7 +37,6 @@ export type RuntimeCtxSv = {
 
 export class SvelteTransformer extends Transformer {
     // state
-    currentElement?: string | undefined
     currentSnippet = 0
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
 
@@ -53,48 +44,46 @@ export class SvelteTransformer extends Transformer {
 
     constructor(ctx: TransformCtx, heuristic: HeuristicFunc, patterns: CodePattern[], rtConf: RuntimeConf) {
         super(ctx, heuristic, patterns, rtConf, [varNames.rt, rtModuleVar])
-        this.heuristciDetails.insideProgram = false
         this.mixedVisitor = this.initMixedVisitor()
     }
 
-    visitExpressionTag(node: AST.ExpressionTag): Message[] {
-        return this.visit(node.expression as AnyNode)
+    visitExpressionTag(node: AST.ExpressionTag): Text[] {
+        return this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode)
     }
 
-    override visitVariableDeclarator(node: VariableDeclarator): Message[] {
-        const msgs = super.visitVariableDeclarator(node)
+    override visitVariableDeclarator(node: VariableDeclarator): Text[] {
+        const txts = super.visitVariableDeclarator(node)
         const init = node.init
         if (
-            !msgs.length ||
-            (this.heuristciDetails.declaring != null && this.heuristciDetails.declaring !== 'variable') ||
+            !txts.length ||
+            this.scopePath.some(s => s.type === 'assignment') ||
             init == null ||
             init.type === 'ArrowFunctionExpression' ||
             init.type === 'FunctionExpression'
         ) {
-            return msgs
+            return txts
         }
-        const needsWrapping = msgs.some(msg => {
-            if (msg.details.leftSide) {
-                return false
-            }
-            const call = msg.details.topLevelCall ?? msg.details.call ?? ''
-            if (noWrapTopCalls.includes(call) || noWrapTopCalls.some(c => call.startsWith(`${c}.`))) {
-                return false
-            }
-            if (msg.details.declaring !== 'variable') {
-                return false
+        const needsWrapping = txts.some(txt => {
+            for (const s of txt.path) {
+                if (s.type === 'assignment') {
+                    if (s.left) {
+                        return false
+                    }
+                } else if (s.type === 'call' && (noWrapTopCalls.includes(s.name) || noWrapTopCalls.some(c => s.name.startsWith(`${c}.`)))) {
+                    return false
+                }
             }
             return true
         })
         if (!needsWrapping) {
-            return msgs
+            return txts
         }
         const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
         if (!isExported && this.initReactive()) {
             this.mstr.appendLeft(init.start, '$derived(')
             this.mstr.appendRight(init.end, ')')
         }
-        return msgs
+        return txts
     }
 
     initMixedVisitor(): MixedVisitorSvelte {
@@ -102,6 +91,7 @@ export class SvelteTransformer extends Transformer {
             mstr: this.mstr,
             index: this.index,
             content: this.content,
+            scopePath: this.scopePath,
             vars: this.vars.bind(this),
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
@@ -111,7 +101,6 @@ export class SvelteTransformer extends Transformer {
             getTextContent: node => node.data,
             getCommentData: node => node.data.trim(),
             visitFunc: this.visitSv.bind(this),
-            fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
             wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
@@ -147,38 +136,36 @@ export class SvelteTransformer extends Transformer {
         })
     }
 
-    visitFragment(node: AST.Fragment, nestable = false): Message[] {
+    visitFragment(node: AST.Fragment, nestable = false): Text[] {
+        const scope = this.scopePath.at(-1)!
         return this.mixedVisitor.visit({
             children: node.nodes,
             nestable,
             commentDirectives: this.commentDirectives,
-            scope: 'markup',
-            element: this.currentElement as string,
-            useComponent: this.currentElement !== 'title',
+            useComponent: scope.type !== 'element' || scope.name !== 'title',
         })
     }
 
-    visitRegularElement(node: AST.ElementLike): Message[] {
-        const currentElement = this.currentElement
-        this.currentElement = node.name
-        const msgs: Message[] = []
-        for (const attrib of node.attributes) {
-            msgs.push(...this.visitSv(attrib))
-        }
-        msgs.push(...this.visitFragment(node.fragment, true))
-        this.currentElement = currentElement
-        return msgs
+    visitRegularElement(node: AST.ElementLike): Text[] {
+        return this.inScope({ type: 'element', name: node.name }, () => {
+            const txts: Text[] = []
+            for (const attrib of node.attributes) {
+                txts.push(...this.visitSv(attrib))
+            }
+            txts.push(...this.visitFragment(node.fragment, true))
+            return txts
+        })
     }
 
     visitComponent(node: AST.Component) {
         return this.visitRegularElement(node)
     }
 
-    visitSpreadAttribute(node: AST.SpreadAttribute): Message[] {
-        return this.visit(node.expression as AnyNode)
+    visitSpreadAttribute(node: AST.SpreadAttribute): Text[] {
+        return this.inScopeVisit({ type: 'attribute', name: '...' }, node.expression as AnyNode)
     }
 
-    visitAttribute(node: AST.Attribute): Message[] {
+    visitAttribute(node: AST.Attribute): Text[] {
         if (node.value === true) {
             return []
         }
@@ -188,71 +175,58 @@ export class SvelteTransformer extends Transformer {
         } else {
             values = [node.value]
         }
-        if (values.length > 1) {
-            const msgs = this.mixedVisitor.visit({
-                children: values,
-                nestable: false,
-                commentDirectives: this.commentDirectives,
-                scope: 'attribute',
-                element: this.currentElement as string,
-                attribute: node.name,
-            })
-            msgs.push(...this.mixedVisitor.applyMod('attribute'))
-            return msgs
-        }
-        const value = values[0]!
-        const heuDetails: HeuristicDetailsBase = {
-            scope: 'script',
-            element: this.currentElement,
-            attribute: node.name,
-        }
-        if (value.type === 'ExpressionTag') {
-            if (value.expression.type === 'Literal') {
-                const expr = value.expression as Literal
-                return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr, heuDetails))
+        return this.inScope({ type: 'attribute', name: node.name }, () => {
+            if (values.length > 1) {
+                return this.mixedVisitor.visit({
+                    children: values,
+                    nestable: false,
+                    commentDirectives: this.commentDirectives,
+                })
             }
-            if (value.expression.type === 'TemplateLiteral') {
-                const expr = value.expression as TemplateLiteral
-                return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr, heuDetails))
+            const value = values[0]!
+            if (value.type === 'ExpressionTag') {
+                if (value.expression.type === 'Literal') {
+                    const expr = value.expression as Literal
+                    return this.visitWithCommentDirectives(expr, () => this.visitLiteral(expr))
+                }
+                if (value.expression.type === 'TemplateLiteral') {
+                    const expr = value.expression as TemplateLiteral
+                    return this.visitWithCommentDirectives(expr, () => this.visitTemplateLiteral(expr))
+                }
+                return this.visitSv(value)
             }
-            return this.visitSv(value)
-        }
-        heuDetails.scope = 'attribute'
-        const [pass, msgInfo] = this.checkHeuristicAllowNew(value.data, heuDetails)
-        if (!pass) {
-            return []
-        }
-        this.mstr.update(value.start, value.end, `{${this.literalRepl(msgInfo)}}`)
-        if (`'"`.includes(this.content[value.start - 1]!)) {
-            this.mstr.remove(value.start - 1, value.start)
-            this.mstr.remove(value.end, value.end + 1)
-        }
-        return [msgInfo]
+            const [pass, txt] = this.checkHeuristicAllowNew(value.data)
+            if (!pass) {
+                return []
+            }
+            this.mstr.update(value.start, value.end, `{${this.literalRepl(txt)}}`)
+            if (`'"`.includes(this.content[value.start - 1]!)) {
+                this.mstr.remove(value.start - 1, value.start)
+                this.mstr.remove(value.end, value.end + 1)
+            }
+            return [txt]
+        })
     }
 
-    visitConstTag(node: AST.ConstTag): Message[] {
+    visitConstTag(node: AST.ConstTag): Text[] {
         // @ts-expect-error
         return this.visitVariableDeclaration(node.declaration)
     }
 
-    visitDeclarationTag(node: AST.DeclarationTag): Message[] {
-        const prevDeclaring = this.heuristciDetails.declaring
-        this.heuristciDetails.declaring = 'variable'
+    visitDeclarationTag(node: AST.DeclarationTag): Text[] {
         // @ts-expect-error
-        const msgs = this.visitVariableDeclaration(node.declaration)
-        this.heuristciDetails.declaring = prevDeclaring
-        return msgs
+        return this.visitVariableDeclaration(node.declaration)
     }
 
-    visitRenderTag(node: AST.RenderTag): Message[] {
+    visitRenderTag(node: AST.RenderTag): Text[] {
         return this.visit(node.expression as Expression)
     }
 
-    visitHtmlTag(node: AST.HtmlTag): Message[] {
+    visitHtmlTag(node: AST.HtmlTag): Text[] {
         return this.visit(node.expression as Expression)
     }
 
-    visitOnDirective(node: AST.OnDirective): Message[] {
+    visitOnDirective(node: AST.OnDirective): Text[] {
         return node.expression ? this.visit(node.expression as Expression) : []
     }
 
@@ -269,100 +243,99 @@ export class SvelteTransformer extends Transformer {
         return Object.values(node).some(value => this.hasIdentifier(value, name))
     }
 
-    visitSnippetBlock(node: AST.SnippetBlock): Message[] {
+    visitSnippetBlock(node: AST.SnippetBlock): Text[] {
         // use module runtime var because the snippet may be exported from the module
         const prevRtVar = this.currentRtVar
         if (this.hasIdentifier(this.moduleExportExprs, node.expression.name)) {
             this.currentRtVar = rtModuleVar
         }
-        const msgs = this.visitFragment(node.body, false)
+        const txts = this.visitFragment(node.body, false)
         this.currentRtVar = prevRtVar
-        return msgs
+        return txts
     }
 
-    visitIfBlock(node: AST.IfBlock): Message[] {
-        const msgs = this.visit(node.test as AnyNode)
-        msgs.push(...this.visitFragment(node.consequent, false))
+    visitIfBlock(node: AST.IfBlock): Text[] {
+        const txts = this.visit(node.test as AnyNode)
+        txts.push(...this.visitFragment(node.consequent, false))
         if (node.alternate) {
-            msgs.push(...this.visitFragment(node.alternate, false))
+            txts.push(...this.visitFragment(node.alternate, false))
         }
-        return msgs
+        return txts
     }
 
-    visitEachBlock(node: AST.EachBlock): Message[] {
-        const msgs = [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.body, false)]
+    visitEachBlock(node: AST.EachBlock): Text[] {
+        const txts = [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.body, false)]
         if (node.key) {
-            msgs.push(...this.visit(node.key as AnyNode))
+            txts.push(...this.visit(node.key as AnyNode))
         }
         if (node.fallback) {
-            msgs.push(...this.visitFragment(node.fallback, false))
+            txts.push(...this.visitFragment(node.fallback, false))
         }
-        return msgs
+        return txts
     }
 
-    visitKeyBlock(node: AST.KeyBlock): Message[] {
+    visitKeyBlock(node: AST.KeyBlock): Text[] {
         return [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.fragment, false)]
     }
 
-    visitAwaitBlock(node: AST.AwaitBlock): Message[] {
-        const msgs = this.visit(node.expression as AnyNode)
+    visitAwaitBlock(node: AST.AwaitBlock): Text[] {
+        const txts = this.visit(node.expression as AnyNode)
         if (node.then) {
-            msgs.push(...this.visitFragment(node.then, false))
+            txts.push(...this.visitFragment(node.then, false))
         }
         if (node.pending) {
-            msgs.push(...this.visitFragment(node.pending, false))
+            txts.push(...this.visitFragment(node.pending, false))
         }
         if (node.catch) {
-            msgs.push(...this.visitFragment(node.catch, false))
+            txts.push(...this.visitFragment(node.catch, false))
         }
-        return msgs
+        return txts
     }
 
-    visitSvelteBody(node: AST.SvelteBody): Message[] {
+    visitSvelteBody(node: AST.SvelteBody): Text[] {
         return node.attributes.flatMap(n => this.visitSv(n))
     }
 
-    visitSvelteDocument(node: AST.SvelteDocument): Message[] {
+    visitSvelteDocument(node: AST.SvelteDocument): Text[] {
         return node.attributes.flatMap(n => this.visitSv(n))
     }
 
-    visitSvelteElement(node: AST.SvelteElement): Message[] {
-        const currentElement = this.currentElement
+    visitSvelteElement(node: AST.SvelteElement): Text[] {
+        let name = 'svelte:element'
         if (node.tag.type === 'Literal' && typeof node.tag.value === 'string') {
-            this.currentElement = node.tag.value
-        } else {
-            this.currentElement = 'svelte:element'
+            name = node.tag.value
         }
-        const msgs = [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitFragment(node.fragment, true)]
-        this.currentElement = currentElement
-        return msgs
+        return this.inScope({ type: 'element', name }, () => [
+            ...node.attributes.flatMap(n => this.visitSv(n)),
+            ...this.visitFragment(node.fragment, true),
+        ])
     }
 
-    visitSvelteBoundary(node: AST.SvelteBoundary): Message[] {
+    visitSvelteBoundary(node: AST.SvelteBoundary): Text[] {
         return [...node.attributes.flatMap(n => this.visitSv(n)), ...this.visitSv(node.fragment)]
     }
 
-    visitSvelteHead(node: AST.SvelteHead): Message[] {
+    visitSvelteHead(node: AST.SvelteHead): Text[] {
         return this.visitSv(node.fragment)
     }
 
-    visitTitleElement(node: AST.TitleElement): Message[] {
+    visitTitleElement(node: AST.TitleElement): Text[] {
         return this.visitRegularElement(node)
     }
 
-    visitSvelteWindow(node: AST.SvelteWindow): Message[] {
+    visitSvelteWindow(node: AST.SvelteWindow): Text[] {
         return node.attributes.flatMap(n => this.visitSv(n))
     }
 
-    visitRoot(node: AST.Root): Message[] {
-        const msgs: Message[] = []
+    visitRoot(node: AST.Root): Text[] {
+        const txts: Text[] = []
         if (node.module) {
             const prevRtVar = this.currentRtVar
             this.currentRtVar = rtModuleVar
             this.runtimeCtx = { module: true }
             this.commentDirectives = {} // reset
             // @ts-expect-error
-            msgs.push(...this.visitProgram(node.module.content))
+            txts.push(...this.visitProgram(node.module.content))
             const runtimeInit = this.initRuntime()
             if (runtimeInit) {
                 this.mstr.appendRight(
@@ -376,13 +349,13 @@ export class SvelteTransformer extends Transformer {
         }
         if (node.instance) {
             this.commentDirectives = {} // reset
-            msgs.push(...this.visitProgram(node.instance.content as Program))
+            txts.push(...this.visitProgram(node.instance.content as Program))
         }
-        msgs.push(...this.visitFragment(node.fragment, false))
-        return msgs
+        txts.push(...this.inScope({ type: 'element', name: '' }, () => this.visitFragment(node.fragment, false)))
+        return txts
     }
 
-    visitSv(node: AST.SvelteNode | AnyNode): Message[] {
+    visitSv(node: AST.SvelteNode | AnyNode): Text[] {
         return this.visit(node as AnyNode)
     }
 
@@ -416,7 +389,7 @@ export class SvelteTransformer extends Transformer {
     }
 
     async transformSv(): Promise<TransformOutput> {
-        const isComponent = this.heuristciDetails.file.endsWith('.svelte')
+        const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
             const prepd = await preprocess(this.content, { style: removeCSS })
@@ -427,14 +400,14 @@ export class SvelteTransformer extends Transformer {
         if (ast.type === 'Root' && ast.module) {
             this.collectModuleExportExprs(ast.module)
         }
-        const msgs = this.visitSv(ast)
+        const txts = this.visitSv(ast)
         const initRuntime = this.initRuntime()
         if (ast.type === 'Program') {
             const bodyStart = this.getRealBodyStart(ast.body) ?? 0
             if (initRuntime) {
                 this.mstr.appendRight(bodyStart, initRuntime)
             }
-            return this.finalize(msgs, bodyStart)
+            return this.finalize(txts, bodyStart)
         }
         let headerIndex = 0
         if (ast.module) {
@@ -457,6 +430,6 @@ export class SvelteTransformer extends Transformer {
             this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
-        return this.finalize(msgs, headerIndex, headerAdd)
+        return this.finalize(txts, headerIndex, headerAdd)
     }
 }

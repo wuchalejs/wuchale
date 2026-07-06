@@ -3,16 +3,9 @@ export type {
     AdapterArgs,
     AdapterPassThruOpts,
     CodePattern,
-    CreateHeuristicOpts,
     DecideReactiveDetails,
-    HeuristicDetails,
-    HeuristicDetailsBase,
-    HeuristicFunc,
-    HeuristicResult,
     LoaderChoice,
     LoadGroupPatt,
-    Message,
-    MessageType,
     RuntimeConf,
     RuntimeExpr,
     TransformCtx,
@@ -22,9 +15,6 @@ export type {
     UrlMatcher,
 } from './adapters.js'
 export {
-    createHeuristic,
-    defaultHeuristic,
-    defaultHeuristicOpts,
     getKey,
     IndexTracker,
 } from './adapters.js'
@@ -65,3 +55,17 @@ export type {
     StorageFactoryOpts,
 } from './storage.js'
 export { defaultPluralRule, mergeItemsByKey, migrateStorage, storageByLocale, storageByType } from './storage.js'
+export type {
+    CreateHeuristicOpts,
+    HeuristicFunc,
+    HeuristicResult,
+    Scope,
+    Text,
+    TextType,
+} from './text.js'
+export {
+    ascendPath,
+    createHeuristic,
+    defaultHeuristic,
+    defaultHeuristicOpts,
+} from './text.js'
