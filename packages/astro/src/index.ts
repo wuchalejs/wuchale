@@ -14,15 +14,20 @@ import { AstroTransformer } from './transformer.js'
 
 export function createAstroHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return msg => {
-        const defRes = defaultHeuristic(msg)
+    return (txt, file) => {
+        const defRes = defaultHeuristic(txt, file)
         if (!defRes) {
             return false
         }
-        if (msg.details.scope !== 'script') {
+        const scopeType = txt.path.at(-1)?.type
+        if (scopeType === 'attribute' || scopeType === 'element') {
             return defRes
         }
-        if (msg.details.call?.startsWith('Astro.') || (msg.details.funcName == null && msg.details.exported)) {
+        if (txt.path.some(s => s.type === 'call' && s.name.startsWith('Astro.'))) {
+            return false
+        }
+        const iExport = txt.path.findIndex(s => s.type === 'export')
+        if (iExport !== -1 && !txt.path.slice(iExport).some(s => s.type === 'function' || s.type === 'funcexpr')) {
             return false
         }
         return defRes

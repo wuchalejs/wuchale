@@ -58,14 +58,14 @@ Usage:
     ${color.cyan('wuchale [command] {options}')}
 
 Commands:
-    ${color.grey('[none]')}  Extract/compile messages from the codebase into catalogs
-            deleting unused messages if ${color.cyan('--clean')} is specified
+    ${color.grey('[none]')}  Extract/compile texts from the codebase into catalogs
+            deleting unused items if ${color.cyan('--clean')} is specified
     ${color.cyan('status')}  Show current status
     ${color.cyan('check')}   Check for errors
 
 Options:
     ${color.cyan('--config')}         Use another config file instead of ${defaultConfigNames.map(color.cyan).join('|')}
-    ${color.cyan('--clean')}, ${color.cyan('-c')}      Remove unused messages from catalogs
+    ${color.cyan('--clean')}, ${color.cyan('-c')}      Remove unused items from catalogs
     ${color.cyan('--watch')}, ${color.cyan('-w')}      Continuously watch for file changes
     ${color.cyan('--sync')}           Extract sequentially instead of in parallel
     ${color.cyan('--modify a1,a2')}   Modify files in place for adapters ${color.cyan('a1')}, ${color.cyan('a2')}, etc.

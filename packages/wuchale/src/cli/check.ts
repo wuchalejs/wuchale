@@ -8,7 +8,7 @@ Usage:
     ${color.cyan('wuchale check {options}')}
 
 Options:
-    ${color.cyan('--full')}           check if there are unextracted and newly obsolete messages in source code as well
+    ${color.cyan('--full')}           check if there are unextracted and newly obsolete items in source code as well
     ${color.cyan('--help')}, ${color.cyan('-h')}       Show this help
 `
 

@@ -34,17 +34,17 @@ export type Runtime = {
 
 /** get translation using composite context */
 function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
-    let msgStr = ''
+    let txt = ''
     for (let i = start; i < ctx.length; i++) {
         const fragment = ctx[i]!
         if (typeof fragment === 'string') {
-            msgStr += fragment
+            txt += fragment
         } else {
             // index of non-text children
-            msgStr += args[fragment]
+            txt += args[fragment]
         }
     }
-    return msgStr
+    return txt
 }
 
 export default function toRuntime(mod: CatalogModule = { c: [] }, locale = ''): Runtime {

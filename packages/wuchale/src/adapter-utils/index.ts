@@ -2,7 +2,7 @@ export { MixedVisitor, type ModFunc } from './mixed-visitor.js'
 
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { HeuristicResultChecked } from '../adapters.js'
+import type { HeuristicResultChecked } from '../text.js'
 
 export const varNames = {
     rt: '_w_runtime_',

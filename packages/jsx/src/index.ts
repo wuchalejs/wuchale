@@ -14,15 +14,16 @@ import { type JSXLib, JSXTransformer } from './transformer.js'
 
 export function createJsxHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     const defaultHeuristic = createHeuristic(opts)
-    return msg => {
-        const defRes = defaultHeuristic(msg)
+    return (txt, file) => {
+        const defRes = defaultHeuristic(txt, file)
         if (!defRes) {
             return false
         }
-        if (msg.details.scope !== 'script') {
+        const scopeType = txt.path.at(-1)?.type
+        if (scopeType === 'attribute' || scopeType === 'element') {
             return defRes
         }
-        if (msg.details.declaring === 'variable') {
+        if (!txt.path.some(s => s.type === 'function' || s.type === 'funcexpr' || s.type === 'class')) {
             return false
         }
         return defRes

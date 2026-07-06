@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import pm, { type Matcher } from 'picomatch'
 import { varNames } from '../adapter-utils/index.js'
-import type { Adapter, Message, RuntimeExpr, TransformOutputCode } from '../adapters.js'
+import type { Adapter, RuntimeExpr, TransformOutputCode } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
 import { type CompiledElement, compileTranslation } from '../compile.js'
@@ -12,6 +12,7 @@ import type { HMRData } from '../dev.js'
 import { readOnlyFS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
+import type { Text } from '../text.js'
 import {
     defaultLoadID,
     Files,
@@ -408,15 +409,15 @@ export class AdapterHandler {
         return previousReferences
     }
 
-    updateRef = (item: Item, key: string, filename: string, msgInfo: Message, trackedRefrences: TrackedRefs) => {
+    updateRef = (item: Item, key: string, filename: string, txt: Text, trackedRefrences: TrackedRefs) => {
         let updated = false
         const newRef: FileRefEntry = {
-            placeholders: msgInfo.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
+            placeholders: txt.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
-        if (msgInfo.type === 'url' && getKey(msgInfo.msgStr, msgInfo.context) !== key) {
-            newRef.link = msgInfo.msgStr[0]!
+        if (txt.type === 'url' && getKey(txt.body, txt.context) !== key) {
+            newRef.link = txt.body[0]!
         }
-        const newRefEntry = newRef.link || msgInfo.placeholders.length ? newRef : null
+        const newRefEntry = newRef.link || txt.placeholders.length ? newRef : null
         const prevRef = trackedRefrences.get(key)
         if (prevRef == null) {
             const newFileRef: FileRef = {
@@ -461,7 +462,7 @@ export class AdapterHandler {
         return { cleaned, cleanedUrls }
     }
 
-    handleMessages = async (msgs: Message[], filename: string, hmrVersion: number): Promise<[string[], boolean]> => {
+    handleTexts = async (txts: Text[], filename: string, hmrVersion: number): Promise<[string[], boolean]> => {
         const previousReferences = this.popTrackedRefs(filename)
         let storageUpdated = false
         let compileUpdated = false
@@ -469,12 +470,12 @@ export class AdapterHandler {
         const toTranslate: Item[] = []
         const modifyExistingRefs =
             this.#opts.mode !== 'dev' || this.#opts.devMode === 'refs' || this.#opts.devMode === 'clean'
-        for (const msgInfo of msgs) {
-            let key = getKey(msgInfo.msgStr, msgInfo.context)
-            if (msgInfo.type === 'url') {
+        for (const txt of txts) {
+            let key = getKey(txt.body, txt.context)
+            if (txt.type === 'url') {
                 const matched = this.url.match(key)
                 if (!matched) {
-                    const err = new Error(`URL ${msgInfo.msgStr[0]} has no matching pattern defined`)
+                    const err = new Error(`URL ${txt.body[0]} has no matching pattern defined`)
                     ;(err as any).id = filename
                     throw err
                 }
@@ -482,7 +483,7 @@ export class AdapterHandler {
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ id: msgInfo.msgStr }, this.#opts.config.locales)
+                item = newItem({ id: txt.body }, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
                 this.#newKeys.add(key)
                 storageUpdated = true
@@ -492,27 +493,27 @@ export class AdapterHandler {
                 hmrKeys.push(key)
             }
             const modifyRefs = modifyExistingRefs || (this.#opts.devMode === 'add' && this.#newKeys.has(key))
-            if (modifyRefs && this.updateRef(item, key, filename, msgInfo, previousReferences)) {
+            if (modifyRefs && this.updateRef(item, key, filename, txt, previousReferences)) {
                 storageUpdated = true
-                if (msgInfo.type === 'url') {
+                if (txt.type === 'url') {
                     compileUpdated = true
                 }
             }
-            if (msgInfo.type === 'url') {
+            if (txt.type === 'url') {
                 // already translated or attempted at startup
                 // and context not to be updated
                 continue
             }
             // biome-ignore lint: noDoubleEquals: NOT !== because they may be null (from pofile!)
-            if (msgInfo.context != item.context) {
+            if (txt.context != item.context) {
                 storageUpdated = true
                 compileUpdated = true
             }
-            item.context = msgInfo.context
+            item.context = txt.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
-            const msgStr = msgInfo.msgStr.join('\n')
-            if (sourceTransl.join('\n') !== msgStr) {
-                item.translations.set(this.sourceLocale, msgInfo.msgStr)
+            const body = txt.body.join('\n')
+            if (sourceTransl.join('\n') !== body) {
+                item.translations.set(this.sourceLocale, txt.body)
                 storageUpdated = true
                 compileUpdated = true
             }
@@ -561,7 +562,7 @@ export class AdapterHandler {
             loadID = state.id
             compiled = state.compiled
         }
-        const { msgs, ...result } = await this.adapter.transform({
+        const { txts, ...result } = await this.adapter.transform({
             content,
             filename,
             index: indexTracker,
@@ -572,16 +573,16 @@ export class AdapterHandler {
         let updated = false
         if (this.#opts.mode !== 'build') {
             if (this.#opts.log.checkLevel('verbose')) {
-                if (msgs.length) {
-                    this.#opts.log.verbose(`${this.key}: ${msgs.length} messages from ${filename}:`)
-                    for (const msg of msgs) {
-                        this.#opts.log.verbose(`  ${msg.msgStr.join(', ')} [${msg.details.scope}]`)
+                if (txts.length) {
+                    this.#opts.log.verbose(`${this.key}: ${txts.length} items from ${filename}:`)
+                    for (const txt of txts) {
+                        this.#opts.log.verbose(`  ${txt.body.join(', ')} [${txt.path.at(-1)!.type}]`)
                     }
                 } else {
-                    this.#opts.log.verbose(`${this.key}: No messages from ${filename}.`)
+                    this.#opts.log.verbose(`${this.key}: No items from ${filename}.`)
                 }
             }
-            const [hmrKeys, updatedItems] = await this.handleMessages(msgs, filename, hmrVersion)
+            const [hmrKeys, updatedItems] = await this.handleTexts(txts, filename, hmrVersion)
             updated = updatedItems
             if (!forServer && hmrKeys.length > 0) {
                 hmrData = {}
@@ -595,14 +596,14 @@ export class AdapterHandler {
             }
         }
         let output: TransformOutputCode = {}
-        if (msgs.length) {
+        if (txts.length) {
             output = result.output(
                 this.#prepareHeader(
                     filename,
                     loadID,
                     hmrData,
                     hmrVersion,
-                    msgs.some(m => m.type === 'url'),
+                    txts.some(m => m.type === 'url'),
                     forServer,
                 ),
             )

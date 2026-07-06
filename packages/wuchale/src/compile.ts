@@ -11,9 +11,9 @@ const PLACEHOLDER = Symbol()
 
 const digitRange = ['0', '9'].map(d => d.charCodeAt(0)) as [number, number]
 
-function extractSpecial(msgStr: string, start: number): [symbol | null, number | null, number] {
-    const inPlaceHolder = msgStr[start] === '{'
-    const inTag = msgStr[start] === '<'
+function extractSpecial(txt: string, start: number): [symbol | null, number | null, number] {
+    const inPlaceHolder = txt[start] === '{'
+    const inTag = txt[start] === '<'
     if (!inTag && !inPlaceHolder) {
         return [null, null, start]
     }
@@ -21,13 +21,13 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
     let endChar = ''
     let inClose = false
     let i = start + 1
-    const beginChar = msgStr[i]
+    const beginChar = txt[i]
     if (inTag && beginChar === '/') {
         inClose = true
         i++
     }
-    while (i < msgStr.length) {
-        const char = msgStr[i]!
+    while (i < txt.length) {
+        const char = txt[i]!
         const code = char.charCodeAt(0)
         if (code < digitRange[0] || code > digitRange[1]) {
             endChar = char
@@ -46,7 +46,7 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
         }
         return [PLACEHOLDER, n, i + 1]
     }
-    if (endChar === '/' && msgStr[i + 1] === '>') {
+    if (endChar === '/' && txt[i + 1] === '>') {
         return [SELF_CLOSE, n, i + 2]
     }
     if (endChar !== '>') {
@@ -58,19 +58,15 @@ function extractSpecial(msgStr: string, start: number): [symbol | null, number |
     return [OPEN, n, i + 1]
 }
 
-function compile(
-    msgStr: string,
-    start = 0,
-    parentTag: number | null = null,
-): [CompositePayload[], number, string | null] {
+function compile(txt: string, start = 0, parentTag: number | null = null): [CompositePayload[], number, string | null] {
     let curTxt = ''
     const compiled: CompositePayload[] = []
     let i = start
-    const len = msgStr.length
+    const len = txt.length
     let currentOpenTag: number | null = null
     while (i < len) {
-        const char = msgStr[i]
-        const [type, n, newI] = extractSpecial(msgStr, i)
+        const char = txt[i]
+        const [type, n, newI] = extractSpecial(txt, i)
         if (type === null) {
             curTxt += char
             i++
@@ -82,7 +78,7 @@ function compile(
         }
         if (type === OPEN) {
             currentOpenTag = n
-            const [subExt, newIc] = compile(msgStr, newI, n)
+            const [subExt, newIc] = compile(txt, newI, n)
             compiled.push([n as number, ...subExt])
             i = newIc
             continue
@@ -115,13 +111,13 @@ function compile(
     return [compiled, i, null]
 }
 
-export function compileTranslation(msgStr: string, fallback: CompiledElement): CompiledElement {
-    if (!msgStr) {
+export function compileTranslation(txt: string, fallback: CompiledElement): CompiledElement {
+    if (!txt) {
         return fallback
     }
-    const [compiled, , err] = compile(msgStr)
+    const [compiled, , err] = compile(txt)
     if (err !== null) {
-        console.error('Compile error:', err, ':', msgStr)
+        console.error('Compile error:', err, ':', txt)
         return fallback
     }
     if (compiled.length === 1 && typeof compiled[0] === 'string') {

@@ -59,7 +59,7 @@ test('Group and prep items', async (t: TestContext) => {
     const opInfo = queue.prepItemsInBatches(groupedItems)
     // batchSize 4
     // for group in [es, de&am]
-    //  batchSize msg * 7 batch + 2 msg * 1 batch = 30
-    //  batch msgs = 7 + 1 = 8
+    //  batchSize txt * 7 batch + 2 txt * 1 batch = 30
+    //  batch txts = 7 + 1 = 8
     t.assert.equal(opInfo.length, 16)
 })

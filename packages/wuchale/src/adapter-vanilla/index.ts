@@ -2,9 +2,9 @@
 
 import { loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice } from '../adapters.js'
-import { defaultHeuristicFuncOnly } from '../adapters.js'
 import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
+import { defaultHeuristicFuncOnly } from '../text.js'
 import { Transformer } from './transformer.js'
 
 export { parseScript, scriptParseOptions, scriptParseOptionsWithComments } from './transformer.js'

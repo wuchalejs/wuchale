@@ -211,7 +211,7 @@ test('Plural', async t => {
                 return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
             }
     `,
-        [{ msgStr: ['One item', '# items'] }],
+        [{ body: ['One item', '# items'] }],
     )
 })
 
@@ -223,7 +223,7 @@ test('Nested and mixed', async (t: TestContext) => {
             </>
         }
     `)
-    t.assert.deepStrictEqual(out.msgs[0]?.placeholders, [['0.0.0', 'appName']])
+    t.assert.deepStrictEqual(out.txts[0]?.placeholders, [['0.0.0', 'appName']])
     transformTest(
         t,
         out,

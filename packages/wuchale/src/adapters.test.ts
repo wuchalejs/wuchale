@@ -1,27 +1,24 @@
 // $ node --import ../testing/resolve.ts %f
 
 import { test } from 'node:test'
-import { createHeuristic, defaultHeuristicOpts, newMessage } from './adapters.js'
+import { createHeuristic, defaultHeuristicOpts, newText } from './text.js'
 
 const heuristic = createHeuristic(defaultHeuristicOpts)
 
-function scriptMsg(msgStr: string) {
-    return newMessage({
-        msgStr: [msgStr],
-        details: {
-            file: 'test.ts',
-            scope: 'script',
-            insideProgram: true,
-            funcName: 'myFn',
-        },
+function scriptTxt(body: string) {
+    return newText({
+        body: [body],
+        path: [{ type: 'function', name: 'myFn' }],
     })
 }
 
+const file = 'test.ts'
+
 test('Default heuristic checks correct', t => {
-    t.assert.equal(heuristic(scriptMsg('{0} was successfully deleted!')), 'message')
-    t.assert.equal(heuristic(scriptMsg("{0}'s role was updated to administrator.")), 'message')
-    t.assert.equal(heuristic(scriptMsg('{0}/api/users')), false)
-    t.assert.equal(heuristic(scriptMsg('{0}')), false)
-    t.assert.equal(heuristic(scriptMsg('Hello world')), 'message')
-    t.assert.equal(heuristic(scriptMsg('someVariable')), false)
+    t.assert.equal(heuristic(scriptTxt('{0} was successfully deleted!'), file), 'message')
+    t.assert.equal(heuristic(scriptTxt("{0}'s role was updated to administrator."), file), 'message')
+    t.assert.equal(heuristic(scriptTxt('{0}/api/users'), file), false)
+    t.assert.equal(heuristic(scriptTxt('{0}'), file), false)
+    t.assert.equal(heuristic(scriptTxt('Hello world'), file), 'message')
+    t.assert.equal(heuristic(scriptTxt('someVariable'), file), false)
 })

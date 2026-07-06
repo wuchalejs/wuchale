@@ -5,12 +5,12 @@ import { test } from 'node:test'
 import { testCatalog } from '../testing/utils.ts'
 import toRuntime from './runtime.js'
 
-function taggedHandler(msgs: TemplateStringsArray, ...args: any[]) {
-    let msg = msgs[0]
+function taggedHandler(txts: TemplateStringsArray, ...args: any[]) {
+    let txt = txts[0]
     for (const [i, arg] of args.entries()) {
-        msg += `${arg}${msgs[i + 1]}`
+        txt += `${arg}${txts[i + 1]}`
     }
-    return msg
+    return txt
 }
 
 test('Runtime', t => {
