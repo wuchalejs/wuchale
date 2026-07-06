@@ -18,7 +18,6 @@ import type {
     TransformCtx,
     TransformOutput,
 } from 'wuchale'
-import { getKey } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -114,7 +113,7 @@ export class SvelteTransformer extends Transformer {
             visitFunc: this.visitSv.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const snippets: string[] = []
                 const vars = this.vars()
                 // create and reference snippets
@@ -131,10 +130,10 @@ export class SvelteTransformer extends Transformer {
                     begin += ` t={[${snippets.join(', ')}]}`
                 }
                 begin += ' x='
-                if (inNested) {
+                if (index === null) {
+                    // nested
                     begin += `{${vars.nestCtx}} n`
                 } else {
-                    const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
                     begin += `{${vars.rtCtx}(${index})}`
                 }
                 let end = ' />\n'

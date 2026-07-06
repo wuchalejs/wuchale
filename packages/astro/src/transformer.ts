@@ -24,7 +24,6 @@ import type {
     TransformCtx,
     TransformOutput,
 } from 'wuchale'
-import { getKey } from 'wuchale'
 import { MixedVisitor } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -119,13 +118,13 @@ export class AstroTransformer extends Transformer {
             visitFunc: this.visitAs.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const vars = this.vars()
                 let begin = `{${rtRenderFunc}({\nx: `
-                if (inNested) {
+                if (index === null) {
+                    // nested
                     begin += `${vars.nestCtx},\nn: true`
                 } else {
-                    const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
                     begin += `${vars.rtCtx}(${index})`
                 }
                 if (nestedRanges.length > 0) {

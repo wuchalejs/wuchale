@@ -3,7 +3,6 @@ import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
 import type { CodePattern, HeuristicFunc, Message, RuntimeConf, TransformCtx, TransformOutput } from 'wuchale'
-import { getKey } from 'wuchale'
 import { MixedVisitor, type ModFunc } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -57,7 +56,7 @@ export class JSXTransformer extends Transformer {
             visitFunc: this.visitJx.bind(this),
             fullHeuristicDetails: this.fullHeuristicDetails.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (inNested, msgInfo, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
                 const vars = this.vars()
                 let begin = `<${rtComponent}`
                 if (nestedRanges.length > 0) {
@@ -73,10 +72,10 @@ export class JSXTransformer extends Transformer {
                     begin = `]}`
                 }
                 begin += ' x='
-                if (inNested) {
+                if (index === null) {
+                    // nested
                     begin += `{${vars.nestCtx}} n`
                 } else {
-                    const index = this.index.get(getKey(msgInfo.msgStr, msgInfo.context))
                     begin += `{${vars.rtCtx}(${index})}`
                 }
                 let end = ' />'

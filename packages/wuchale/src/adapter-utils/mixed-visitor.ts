@@ -38,13 +38,7 @@ type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT ext
     visitFunc: (node: MixNodeT) => Message[]
     fullHeuristicDetails: (details: HeuristicDetailsBase) => HeuristicDetails
     checkHeuristic: HeuristicFunc
-    wrapNested: (
-        inNested: boolean,
-        msgInfo: Message,
-        hasExpr: boolean,
-        nestedRanges: NestedRanges,
-        lastChildEnd: number,
-    ) => void
+    wrapNested: (index: number | null, hasExpr: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
 }
 
 export type MixedScope = 'markup' | 'attribute'
@@ -270,12 +264,13 @@ export class MixedVisitor<
     ): ModFunc {
         const vars = this.#props.vars()
         return nested => {
+            const index = this.#props.index.get(getKey(msg.msgStr, msg.context))
             if (
                 ((props.useComponent ?? true) && props.scope === 'markup' && hasExpr) ||
                 childrenNestedRanges.length > 0
             ) {
                 if (nums.element + nums.text + nums.expr > 1) {
-                    this.#props.wrapNested(nested, msg, hasExpr, childrenNestedRanges, lastChildEnd)
+                    this.#props.wrapNested(nested ? null : index, hasExpr, childrenNestedRanges, lastChildEnd)
                 }
                 return
             }
@@ -289,7 +284,6 @@ export class MixedVisitor<
                     begin += `${varNames.urlLocalize}(`
                     end = `), ${vars.rtLocale}${end}`
                 }
-                const index = this.#props.index.get(getKey(msg.msgStr, msg.context))
                 begin += `${vars.rtTrans}(${index}`
             }
             if (hasExpr) {
