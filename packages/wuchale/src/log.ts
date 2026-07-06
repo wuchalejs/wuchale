@@ -8,7 +8,9 @@ const colors = {
     reset: 0,
 }
 
-const encode = (code: number) => `\x1b[${code}m`
+const colorStart = '\x1b['
+
+const encode = (code: number) => `${colorStart}${code}m`
 
 type ColorFuncs = Record<keyof typeof colors, (msg: string | number) => string>
 
@@ -37,7 +39,7 @@ export class Logger {
 
     checkLevel = (level: LogLevel) => logLevels[level] >= this.#logLevel
 
-    #show = (message: string, level: LogLevel) => {
+    #show = (message: string[], level: LogLevel, col: keyof ColorFuncs) => {
         if (!this.checkLevel(level)) {
             return
         }
@@ -45,11 +47,11 @@ export class Logger {
         if (level !== 'verbose') {
             func = console[level]
         }
-        func(message)
+        func(...message.map(m => (m.startsWith(colorStart) ? m : color[col](m))))
     }
 
-    info = (msg: string) => this.#show(color.cyan(msg), 'info')
-    warn = (msg: string) => this.#show(color.yellow(msg), 'warn')
-    error = (msg: string) => this.#show(color.red(msg), 'error')
-    verbose = (msg: string) => this.#show(color.grey(msg), 'verbose')
+    info = (...msg: any[]) => this.#show(msg, 'info', 'cyan')
+    warn = (...msg: any[]) => this.#show(msg, 'warn', 'yellow')
+    error = (...msg: any[]) => this.#show(msg, 'error', 'red')
+    verbose = (...msg: any[]) => this.#show(msg, 'verbose', 'grey')
 }

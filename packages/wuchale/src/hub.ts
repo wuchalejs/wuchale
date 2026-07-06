@@ -251,7 +251,7 @@ export class Hub {
         const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
         const primary = await processIsPrimary(mode, fs, pidFileAbs)
         if (!primary) {
-            log.warn(`${logPrefix} ${color.yellow('running in secondary process')}`)
+            log.warn(logPrefix, 'running in secondary process')
         }
         await initGenDirWithData(config, fs, root)
         const sharedStates = new Map<string, SharedState>()
@@ -299,7 +299,7 @@ export class Hub {
         if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
             const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
-            this.#opts.log.info(`${logPrefix} config update received: ${color.cyan(updateTxt)}`)
+            this.#opts.log.info(logPrefix, 'config update received:', color.cyan(updateTxt))
             if (update.dev !== undefined) {
                 this.#opts.config.dev = update.dev
             }
@@ -368,10 +368,16 @@ export class Hub {
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
         const lastAdapterKey = this.#lastAdapterForFile.get(filename)
         if (lastAdapterKey && lastAdapterKey !== handler.key) {
-            this.#opts.log.warn(`${filename} matches both adapters '${lastAdapterKey}' and '${handler.key}'`)
+            this.#opts.log.warn(
+                color.cyan(filename),
+                'matches both adapters',
+                color.magenta(lastAdapterKey),
+                'and',
+                color.magenta(handler.key),
+            )
         }
         this.#lastAdapterForFile.set(filename, handler.key)
-        this.#opts.log.info(`${logPrefixHandler(handler.key)} Extract from ${color.cyan(filename)}`)
+        this.#opts.log.info(logPrefixHandler(handler.key), 'Extract from', color.cyan(filename))
         const contents = await this.#opts.fs.read(resolve(this.#opts.root, filename))
         const [, updated] = await handler.transform(contents!, filename)
         return updated
@@ -421,7 +427,7 @@ export class Hub {
                 cleaned++
             }
             if (cleaned > 0) {
-                this.#opts.log.info(`${logPrefixHandler(handler.key)} Cleaned ${cleaned} items`)
+                this.#opts.log.info(logPrefixHandler(handler.key), 'Cleaned', color.cyan(cleaned), 'items')
             }
         }
         if (updated) {

@@ -23,13 +23,13 @@ export async function check(config: Config, root: string, full: boolean) {
     const { checked, errors, syncs } = await hub.check(full)
     // console.log because if the user invokes this command, they want full info regardless of config
     for (const err of errors) {
-        console.error(`${color.magenta(err.adapter)}: ${color.red(checkErrMsgs[err.type])}`)
-        console.error(`  ${color.grey('Source:')} ${err.source}`)
-        console.error(`  ${color.grey('Target locale:')} ${err.locale}`)
-        console.error(`  ${color.grey('Translation:')} ${err.translation}`)
+        console.error(`${color.magenta(err.adapter)}:`, color.red(checkErrMsgs[err.type]))
+        console.error(' ', color.grey('Source:'), err.source)
+        console.error(' ', color.grey('Target locale:'), err.locale)
+        console.error(' ', color.grey('Translation:'), err.translation)
     }
     for (const key of syncs) {
-        console.error(`${color.red(key)}: Pending changes`)
+        console.error(`${color.red(key)}:`, 'Pending changes')
     }
     if (errors.length > 0 || syncs.length > 0) {
         process.exit(1)

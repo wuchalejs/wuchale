@@ -100,11 +100,11 @@ export default class AIQueue {
         this.log = log
     }
 
-    #requestName = (id: number, targetLocales: string[]) =>
-        `${color.cyan(this.ai.name)}: ${this.sourceLocale}..[${targetLocales.join(',')}] [${id}]`
+    #logStart = (id: number, targetLocales: string[]) =>
+        `${color.cyan(this.ai.name)}: ${color.cyan(this.sourceLocale)}..[${targetLocales.map(color.cyan).join(',')}] [${color.cyan(id)}]:`
 
     translate = async (batch: Batch, attempt = 0) => {
-        const logStart = this.#requestName(batch.id, batch.targetLocales)
+        const logStart = this.#logStart(batch.id, batch.targetLocales)
         let translated: OutputItem[] = []
         try {
             const inputItems: InputItem[] = batch.messages.map(item => ({
@@ -123,7 +123,7 @@ export default class AIQueue {
                 translated = []
             }
         } catch (err) {
-            this.log.error(`${logStart}: ${color.red(`error: ${err}`)}`)
+            this.log.error(logStart, `error: ${err}`)
             return
         }
         const unTranslated: Item[] = batch.messages.slice(translated.length)
@@ -166,15 +166,15 @@ export default class AIQueue {
             }
         }
         if (unTranslated.length === 0) {
-            this.log.info(`${logStart}: ${color.green('translated')}`)
+            this.log.info(logStart, color.green('translated'))
             return
         }
         attempt++
         if (attempt === MAX_RETRIES) {
-            this.log.error(`${logStart}: Giving up after ${attempt} unsuccessful retries`)
+            this.log.error(logStart, `Giving up after ${attempt} unsuccessful retries`)
             return
         }
-        this.log.warn(`${logStart}: ${unTranslated.length} ${color.yellow('messages not translated. Retrying...')}`)
+        this.log.warn(logStart, color.cyan(unTranslated.length), 'messages not translated. Retrying...')
         batch.messages = unTranslated
         await this.translate(batch, attempt)
     }
@@ -261,7 +261,11 @@ export default class AIQueue {
         }
         for (const [opType, batch, msgsLen] of this.prepItemsInBatches(itemsByLocales)) {
             this.log.info(
-                `${this.#requestName(batch.id, batch.targetLocales)}: ${opType} translate ${color.cyan(msgsLen)} messages`,
+                this.#logStart(batch.id, batch.targetLocales),
+                opType,
+                'translate',
+                color.cyan(msgsLen),
+                'messages',
             )
         }
         if (!this.running) {

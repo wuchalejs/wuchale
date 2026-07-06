@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { color } from '../log.js'
 import toRuntime, { type Runtime } from '../runtime.js'
 import type { LoaderFunc } from './index.js'
 
@@ -22,7 +23,9 @@ export function currentRuntime(key: string, loadID: number) {
         return emptyRuntime
     }
     console.warn(
-        `Catalog for '${warnKey}' not found.\n  Either 'runWithLocale' was not called or the environment has a problem.`,
+        'Catalog for',
+        color.cyan(warnKey),
+        "not found.\n  Either 'runWithLocale' was not called or the environment has a problem.",
     )
     warningShown[warnKey] = true
     return emptyRuntime
