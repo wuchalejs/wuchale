@@ -77,8 +77,8 @@ export class SvelteTransformer extends Transformer {
             if (msg.details.leftSide) {
                 return false
             }
-            const topCall = msg.details.topLevelCall ?? ''
-            if (noWrapTopCalls.includes(topCall) || noWrapTopCalls.some(c => topCall.startsWith(`${c}.`))) {
+            const call = msg.details.topLevelCall ?? msg.details.call ?? ''
+            if (noWrapTopCalls.includes(call) || noWrapTopCalls.some(c => call.startsWith(`${c}.`))) {
                 return false
             }
             if (msg.details.declaring !== 'variable') {
