@@ -1,5 +1,12 @@
 # @wuchale/svelte
 
+## 0.20.5
+
+### Patch Changes
+
+- [b9cd9b4](https://github.com/wuchalejs/wuchale/commit/b9cd9b4075046ab8eca2add819757614acfaa976): Fix error on `on:` directives without expressions like `on:submit|preventDefault` (#415)
+- [b7826cf](https://github.com/wuchalejs/wuchale/commit/b7826cf1662677f59a71f8e1a19c104c28c3edaa): Fix `{const x = $derived(...)}` being wrapped in another `$derived` #416
+
 ## 0.20.4
 
 ### Patch Changes
