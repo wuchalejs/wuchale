@@ -254,7 +254,7 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitOnDirective(node: AST.OnDirective): Message[] {
-        return this.visit(node.expression as Expression)
+        return node.expression ? this.visit(node.expression as Expression) : []
     }
 
     hasIdentifier(node: AnyNode | AnyNode[], name: string): boolean {

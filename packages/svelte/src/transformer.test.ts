@@ -360,7 +360,9 @@ test('Tags and directives', async t => {
             {@render foo('Hello')}
             {@html 'Hello'}
             {let x = 'Hello'}
-            <button on:click={() => alert('Hello')}>42</button>
+            <form on:submit|preventDefault>
+                <button on:click={() => alert('Hello')}>42</button>
+            </form>
         `),
         svelte`
         <script>
@@ -371,7 +373,9 @@ test('Tags and directives', async t => {
             {@render foo(_w_runtime_(0))}
             {@html _w_runtime_(0)}
             {let x = $derived(_w_runtime_(0))}
-            <button on:click={() => alert(_w_runtime_(0))}>42</button>
+            <form on:submit|preventDefault>
+                <button on:click={() => alert(_w_runtime_(0))}>42</button>
+            </form>
     `,
         ['Hello', 'Hello', 'Hello', 'Hello'],
     )
