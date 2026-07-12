@@ -4,5 +4,5 @@
         "rootDir": "src"
     },
     "include": ["src", "augment.d.ts"],
-    "exclude": ["./src/adapter-vanilla/loaders/", "**/*.test.ts"]
+    "exclude": ["./src/adapter-vanilla/loaders/", "./src/plural-tmpl.js", "**/*.test.ts"]
 }

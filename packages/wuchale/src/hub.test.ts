@@ -7,7 +7,7 @@ import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/ut
 import { defaultArgs } from './adapter-vanilla/index.js'
 import { type Config, type DevMode, defaultConfig } from './config.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
-import { devPidFile, Hub } from './hub.js'
+import { devPidFile, Hub, pluralTemplPath } from './hub.js'
 
 const file = resolve(import.meta.dirname, 'src/foo.js') // needs to match files, relative to root
 
@@ -45,9 +45,17 @@ const loadConfig = async (): Promise<Config> => ({
     dev: devMode,
 })
 
-inMemFS.write(defaultLoaderPath.client, '')
-inMemFS.write(defaultLoaderPath.server, '')
+await inMemFS.write(defaultLoaderPath.client, '')
+await inMemFS.write(defaultLoaderPath.server, '')
+await inMemFS.write(pluralTemplPath, 'const ALL_C = []')
 const hub = await Hub.create('dev', loadConfig, import.meta.dirname, [], 0, inMemFS)
+
+test('hub init files', async (t: TestContext) => {
+    const data = resolve(import.meta.dirname, 'src/locales/data.js')
+    t.assert.match((await inMemFS.read(data)) ?? '', /const locales = \['en'\]/)
+    const plural = resolve(import.meta.dirname, 'src/locales/plural.js')
+    t.assert.match((await inMemFS.read(plural)) ?? '', /const ALL_C = \['zero', .*\]/)
+})
 
 test('hub transform basic', async (t: TestContext) => {
     const [output] = await hub.transform(code, file)
