@@ -7,9 +7,6 @@ import {
     type FileRefEntry,
     type Item,
     itemIsObsolete,
-    type PluralRule,
-    type PluralRules,
-    type SaveData,
     type StorageFactory,
     type StorageFactoryOpts,
 } from './storage.js'
@@ -186,8 +183,7 @@ export class POFile {
         return content == null ? null : PO.parse(content)
     }
 
-    async load(): Promise<SaveData> {
-        const pluralRules: PluralRules = new Map()
+    async load(): Promise<Item[]> {
         // by key, then by locale
         const poItems: Map<string, Map<string, POItem>> = new Map()
         // first, group by key
@@ -195,12 +191,6 @@ export class POFile {
             const po = await this.loadRaw(locale)
             if (po == null) {
                 continue
-            }
-            const pluralHeader = po.headers['Plural-Forms']
-            if (pluralHeader) {
-                const pluralRule = PO.parsePluralForms(pluralHeader) as unknown as PluralRule
-                pluralRule.nplurals = Number(pluralRule.nplurals)
-                pluralRules.set(locale, pluralRule)
             }
             for (const poItem of po.items) {
                 const key = getKey(getItemId(poItem), poItem.msgctxt)
@@ -210,10 +200,7 @@ export class POFile {
                 poItems.get(key)?.set(locale, poItem)
             }
         }
-        return {
-            items: poitemsToItems(poItems.values(), this.opts.locales, this.opts.sourceLocale),
-            pluralRules,
-        }
+        return poitemsToItems(poItems.values(), this.opts.locales, this.opts.sourceLocale)
     }
 
     async saveRaw(items: POItem[], headers: POHeaders, locale: string) {
@@ -233,23 +220,21 @@ export class POFile {
         this.fileExistsCache.set(filename, true)
     }
 
-    async save(data: SaveData) {
+    async save(items: Item[]) {
         await Promise.all(
             this.opts.locales.map(locale => {
                 const poItems: POItem[] = []
-                for (const item of data.items) {
+                for (const item of items) {
                     const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
                     poItems.push(poItem)
                 }
-                const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
-                return this.saveRaw(poItems, headers, locale)
+                return this.saveRaw(poItems, this.getHeaders(locale), locale)
             }),
         )
     }
 
-    getHeaders(locale: string, pluralRule: PluralRule) {
+    getHeaders(locale: string) {
         const updateHeaders: [string, string][] = [
-            ['Plural-Forms', `nplurals=${pluralRule.nplurals}; plural=${pluralRule.plural};`],
             ['Source-Language', this.opts.sourceLocale],
             ['Language', locale],
             ['MIME-Version', '1.0'],

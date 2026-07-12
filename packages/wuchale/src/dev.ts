@@ -16,7 +16,7 @@ function updatedFunc(getRuntime: GetRuntime, data: HMRData, version: number): Ge
         for (const [index, item] of data[rt.l] ?? []) {
             newItems[index] = item
         }
-        return toRuntime({ c: newItems, p: rt._.p }, rt.l)
+        return toRuntime({ c: newItems }, rt.l)
     }
 }
 

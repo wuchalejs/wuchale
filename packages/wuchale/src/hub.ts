@@ -332,7 +332,7 @@ export class Hub {
             const loadIDs = [defaultLoadID]
             for (const state of handler.granularState.byID.values()) {
                 // only the ones with ready items
-                if (state.compiled.get(handler.sourceLocale)!.items.length) {
+                if (state.compiled.get(handler.sourceLocale)!.length) {
                     loadIDs.push(state.id)
                 }
             }

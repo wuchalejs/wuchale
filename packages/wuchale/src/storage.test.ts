@@ -38,11 +38,9 @@ const createStor = (num: number, init: Item[] = []) => {
     const savedItems = { current: init }
     const stor: StorageFactory = ({ locales, sourceLocale }) => ({
         key: `stor${num}`,
-        load: () => ({
-            items: savedItems.current,
-        }),
-        save: data => {
-            savedItems.current = data.items.map(i => ({
+        load: () => savedItems.current,
+        save: items => {
+            savedItems.current = items.map(i => ({
                 ...i,
                 translations: new Map(
                     Array.from(i.translations).filter(([l]) => l === sourceLocale || locales.includes(l)),
@@ -69,8 +67,8 @@ test('Migrate storage works', async (t: TestContext) => {
     const storage = await migrateStorage([stor1], stor2)(storageOpts)
     t.assert.strictEqual(storage.key, 'stor2')
     t.assert.deepStrictEqual(storage.files, ['/stor1'])
-    t.assert.deepStrictEqual((await storage.load()).items, [itemFull])
-    await storage.save({ pluralRules: new Map(), items: [itemFull] })
+    t.assert.deepStrictEqual(await storage.load(), [itemFull])
+    await storage.save([itemFull])
     t.assert.deepStrictEqual(stor2Items.current, [itemFull])
 })
 
@@ -98,10 +96,10 @@ test('Storage by type works', async (t: TestContext) => {
     const storage = await storageByType({ message: stor1, url: stor2 })(storageOpts)
     t.assert.strictEqual(storage.key, 'stor1,stor2')
     t.assert.deepStrictEqual(storage.files, ['/stor1', '/stor2'])
-    await storage.save({ pluralRules: new Map(), items: [itemFull, itemFullUrl] })
+    await storage.save([itemFull, itemFullUrl])
     t.assert.deepStrictEqual(stor1Items.current, [itemFull])
     t.assert.deepStrictEqual(stor2Items.current, [itemFullUrl])
-    t.assert.deepStrictEqual((await storage.load()).items, [itemFull, itemFullUrl])
+    t.assert.deepStrictEqual(await storage.load(), [itemFull, itemFullUrl])
 })
 
 test('Storage by locale works', async (t: TestContext) => {
@@ -116,8 +114,8 @@ test('Storage by locale works', async (t: TestContext) => {
     const trans = Array.from(itemFull.translations)
     const itemNoDe: Item = { ...itemFull, translations: new Map(trans.filter(([l]) => l !== 'de')) }
     const itemNoEs: Item = { ...itemFull, translations: new Map(trans.filter(([l]) => l !== 'es')) }
-    await storage.save({ pluralRules: new Map(), items: [itemFull] })
+    await storage.save([itemFull])
     t.assert.deepStrictEqual(stor1Items.current, [itemNoDe])
     t.assert.deepStrictEqual(stor2Items.current, [itemNoEs])
-    t.assert.deepStrictEqual((await storage.load()).items, [itemFull])
+    t.assert.deepStrictEqual(await storage.load(), [itemFull])
 })

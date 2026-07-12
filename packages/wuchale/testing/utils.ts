@@ -3,7 +3,7 @@ import type { TestContext } from 'node:test'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
 import { getKey, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 import type { FS } from '../src/fs.js'
-import type { SaveData, StorageFactory } from '../src/storage.js'
+import type { Item, StorageFactory } from '../src/storage.js'
 import { newText, type Text } from '../src/text.js'
 
 const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an example header
@@ -112,12 +112,12 @@ export const inMemFS: FS = {
 }
 
 export const inMemStorage: StorageFactory = () => {
-    let stored: SaveData = { items: [], pluralRules: new Map() }
+    let stored: Item[] = []
     return {
         key: 'inMem',
         load: async () => stored,
-        save: async data => {
-            stored = data
+        save: async items => {
+            stored = items
         },
         files: [],
     }
