@@ -208,7 +208,7 @@ test('Plural', async t => {
 
             function m() {
                 const _w_runtime_ = _w_load_();
-                return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
+                return <p>{plural(items, _w_runtime_.p(0), _w_runtime_.l)}</p>
             }
     `,
         [{ body: ['One item', '# items'] }],

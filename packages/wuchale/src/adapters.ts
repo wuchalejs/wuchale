@@ -124,7 +124,7 @@ export type Adapter = AdapterPassThruOpts & {
 
 export type CodePattern = {
     name: string
-    args: ('message' | 'pluralFunc' | 'locale' | 'other')[]
+    args: ('message' | 'locale' | 'other')[]
 }
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | (string & {}) | 'custom'

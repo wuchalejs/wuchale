@@ -218,32 +218,11 @@ export class AdapterHandler {
     }
 
     writeCompiled = async (loc: string, hmrVersion: number) => {
-        let compiledData = this.sharedState.compiled.get(loc)!
-        const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
-        const promises = [
-            this.files.writeCatalogModule(
-                compiledData.items,
-                compiledData.hasPlurals ? pluralRule : null,
-                loc,
-                null,
-                hmrVersion,
-            ),
-        ]
+        const compiledData = this.sharedState.compiled.get(loc)!
+        const promises = [this.files.writeCatalogModule(compiledData, loc, null, hmrVersion)]
         if (this.adapter.loading.granular) {
             for (const state of this.granularState.byID.values()) {
-                compiledData = state.compiled?.get(loc) || {
-                    hasPlurals: false,
-                    items: [],
-                }
-                promises.push(
-                    this.files.writeCatalogModule(
-                        compiledData.items,
-                        compiledData.hasPlurals ? pluralRule : null,
-                        loc,
-                        state.id,
-                        hmrVersion,
-                    ),
-                )
+                promises.push(this.files.writeCatalogModule(state.compiled?.get(loc) || [], loc, state.id, hmrVersion))
             }
         }
         for (const file of await Promise.all(promises)) {
@@ -253,7 +232,7 @@ export class AdapterHandler {
 
     getCompiledFallback(index: number, locale: string) {
         for (const loc of this.#fallbackChains.get(locale) ?? [locale, this.sourceLocale]) {
-            const compiled = this.sharedState.compiled.get(loc)!.items![index]
+            const compiled = this.sharedState.compiled.get(loc)![index]
             if (compiled || loc === this.sourceLocale) {
                 return compiled || ''
             }
@@ -264,7 +243,7 @@ export class AdapterHandler {
     #compileForLocale = async (loc: string, hmrVersion: number) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
-            sharedCompiledLoc = { hasPlurals: false, items: [] }
+            sharedCompiledLoc = []
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
         for (const [itemKey, item] of this.sharedState.catalog) {
@@ -293,7 +272,6 @@ export class AdapterHandler {
                 const fallback = this.getCompiledFallback(index, loc)
                 const transl = item.translations.get(loc)!
                 if (transl.length > 1) {
-                    sharedCompiledLoc.hasPlurals = true
                     if (transl.join('').trim()) {
                         compiled = transl
                     } else {
@@ -306,7 +284,7 @@ export class AdapterHandler {
                     }
                     compiled = compileTranslation(toCompile, fallback)
                 }
-                sharedCompiledLoc.items[index] = compiled
+                sharedCompiledLoc[index] = compiled
                 if (!this.adapter.loading.granular) {
                     continue
                 }
@@ -317,8 +295,7 @@ export class AdapterHandler {
                         newItemsAllowed(this.#opts.mode, this.#opts.devMode),
                     )
                     const compiledLoc = state.compiled.get(loc)!
-                    compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
-                    compiledLoc.items[state.indexTracker.get(key)] = compiled
+                    compiledLoc[state.indexTracker.get(key)] = compiled
                 }
             }
         }
@@ -590,7 +567,7 @@ export class AdapterHandler {
                     hmrData[loc] =
                         hmrKeys.map(key => {
                             const index = indexTracker.get(key)
-                            return [index, compiled.get(loc)!.items[index]!]
+                            return [index, compiled.get(loc)![index]!]
                         }) ?? []
                 }
             }

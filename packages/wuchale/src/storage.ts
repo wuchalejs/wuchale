@@ -50,28 +50,6 @@ export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
 export const itemIsUrl = (item: Item) => item.urlAdapters.length > 0
 export const itemIsObsolete = (item: Item) => item.urlAdapters.length === 0 && item.references.length === 0
 
-export type PluralRule = {
-    nplurals: number
-    plural: string
-}
-
-export type PluralRules = Map<string, PluralRule>
-
-export const defaultPluralRule: PluralRule = {
-    nplurals: 2,
-    plural: 'n == 1 ? 0 : 1',
-}
-
-export type SaveData = {
-    pluralRules: PluralRules // will always be provided
-    items: Item[]
-}
-
-export type LoadData = {
-    pluralRules?: PluralRules | undefined // optional if it's the first time etc, will be filled by the default one
-    items: Item[]
-}
-
 export type CatalogStorage = {
     /**
      * the key to check if two storages share the same location
@@ -79,8 +57,8 @@ export type CatalogStorage = {
      * two storages with same keys means they are the same/shared
      */
     key: string
-    load(): LoadData | Promise<LoadData>
-    save(data: SaveData): void | Promise<void>
+    load(): Item[] | Promise<Item[]>
+    save(items: Item[]): void | Promise<void>
     /** the files controlled by this storage, for e.g. for Vite to watch */
     files: string[]
 }
@@ -104,13 +82,7 @@ export function migrateStorage(fromStorages: StorageFactory[], toStorage: Storag
         return {
             ...(await toStorage(opts)),
             files: fromSts.flatMap(s => s.files),
-            load: async () => {
-                const loadeds = await Promise.all(fromSts.map(st => st.load()))
-                return {
-                    pluralRules: loadeds[0]?.pluralRules,
-                    items: loadeds.flatMap(l => l.items),
-                }
-            },
+            load: async () => (await Promise.all(fromSts.map(st => st.load()))).flat(),
         }
     }
 }
@@ -134,14 +106,8 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
         const byType = new Map<ItemType, CatalogStorage>(types.map((t, i) => [t, all[i]!]))
         return {
             ...keyAndFiles(all),
-            load: async () => {
-                const loadeds = await Promise.all(all.map(st => st.load()))
-                return {
-                    pluralRules: loadeds.find(l => l.pluralRules)?.pluralRules,
-                    items: loadeds.flatMap(l => l.items),
-                }
-            },
-            save: async ({ items, pluralRules }) => {
+            load: async () => (await Promise.all(all.map(st => st.load()))).flat(),
+            save: async items => {
                 const urls: Item[] = []
                 const txts: Item[] = []
                 for (const item of items) {
@@ -149,10 +115,10 @@ export function storageByType(storages: Record<ItemType, StorageFactory>): Stora
                 }
                 const promises: (void | Promise<void>)[] = []
                 if (urls.length) {
-                    promises.push(byType.get('url')!.save({ items: urls, pluralRules }))
+                    promises.push(byType.get('url')!.save(urls))
                 }
                 if (txts.length) {
-                    promises.push(byType.get('message')!.save({ items: txts, pluralRules }))
+                    promises.push(byType.get('message')!.save(txts))
                 }
                 await Promise.all(promises)
             },
@@ -201,19 +167,9 @@ export function storageByLocale(storages: [string[], StorageFactory][]): Storage
         }
         return {
             ...keyAndFiles(all),
-            load: async () => {
-                let pluralRules: PluralRules | undefined
-                const itemsToMerge: Item[][] = []
-                for (const loaded of await Promise.all(all.map(st => st.load()))) {
-                    if (!pluralRules) {
-                        pluralRules = loaded.pluralRules
-                    }
-                    itemsToMerge.push(loaded.items)
-                }
-                return { pluralRules, items: mergeItemsByKey(itemsToMerge, opts.sourceLocale) }
-            },
-            save: async data => {
-                await Promise.all(all.map(s => s.save(data)))
+            load: async () => mergeItemsByKey(await Promise.all(all.map(st => st.load())), opts.sourceLocale),
+            save: async items => {
+                await Promise.all(all.map(s => s.save(items)))
             },
         }
     }

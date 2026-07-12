@@ -1,42 +1,9 @@
 import pm from 'picomatch'
 import { getKey, IndexTracker, type LoadGroupPatt } from '../adapters.js'
 import type { CompiledElement } from '../compile.js'
-import {
-    type Catalog,
-    type CatalogStorage,
-    defaultPluralRule,
-    fillTranslations,
-    itemIsObsolete,
-    type PluralRules,
-} from '../storage.js'
+import { type Catalog, type CatalogStorage, fillTranslations, itemIsObsolete } from '../storage.js'
 
-export type Compiled = {
-    hasPlurals: boolean
-    items: CompiledElement[]
-}
-
-export type CompiledCatalogs = Map<string, Compiled>
-
-/**
- * plural rule expressions should be
- * - made of ternary and binary expressions
- * - involve the variable n
- * - always return a number >= 0
- */
-function validatePluralRule(body: string) {
-    // strip valid tokens, if anything remains it's suspicious
-    const stripped = body
-        .replace(/[0-9]+/g, '')
-        .replace(/\bn\b/g, '')
-        .replace(/[%!=<>?:()&|+\-\s]/g, '')
-    if (stripped.length > 0) {
-        return false
-    }
-    // check if it returns a number, just an example
-    // biome-ignore lint: noGlobalEval
-    const num = eval(`(n => ${body})(42)`)
-    return !Number.isNaN(num) && num >= 0
-}
+export type CompiledCatalogs = Map<string, CompiledElement[]>
 
 /** shared states among multiple adapters handlers */
 export class SharedState {
@@ -48,7 +15,6 @@ export class SharedState {
     // storage
     storage: CatalogStorage
     catalog: Catalog = new Map()
-    pluralRules: PluralRules = new Map()
 
     constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string, allowNewItems: boolean) {
         this.ownerKey = ownerKey
@@ -58,19 +24,7 @@ export class SharedState {
     }
 
     async load(locales: string[]) {
-        const loaded = await this.storage.load()
-        this.pluralRules = loaded.pluralRules ?? new Map()
-        for (const loc of locales) {
-            if (!this.pluralRules.has(loc)) {
-                this.pluralRules.set(loc, defaultPluralRule)
-                continue
-            }
-            const plural = this.pluralRules.get(loc)!.plural
-            if (!validatePluralRule(plural)) {
-                throw new Error(`[${this.ownerKey}]: invalid plural rule for ${loc}: ${plural}`)
-            }
-        }
-        for (const item of loaded.items) {
+        for (const item of await this.storage.load()) {
             fillTranslations(item, locales)
             const id = item.translations.get(this.sourceLocale)!
             this.catalog.set(getKey(id, item.context), item)
@@ -79,10 +33,7 @@ export class SharedState {
 
     async save(onlyReferenced: boolean) {
         const items = Array.from(this.catalog.values())
-        await this.storage.save({
-            pluralRules: this.pluralRules,
-            items: onlyReferenced ? items.filter(i => !itemIsObsolete(i)) : items,
-        })
+        await this.storage.save(onlyReferenced ? items.filter(i => !itemIsObsolete(i)) : items)
     }
 }
 
@@ -138,7 +89,7 @@ export class State {
                 indexTracker: new IndexTracker(allowNewItems),
             }
             for (const loc of locales) {
-                state.compiled.set(loc, { hasPlurals: false, items: [] })
+                state.compiled.set(loc, [])
             }
             this.byID.set(id, state)
             await this.#writeProxies(this.groupPatterns)
