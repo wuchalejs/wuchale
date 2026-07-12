@@ -272,16 +272,12 @@ export class Files {
 
     writeCatalogModule = async (
         compiledData: CompiledElement[],
-        pluralRule: string | null,
         locale: string,
         loadID: number | null,
         hmrVersion: number,
     ) => {
         const compiledItems = JSON.stringify(compiledData)
         let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
-        if (pluralRule) {
-            module = `${module}\nexport let p = (/** @type number */ n) => ${pluralRule}`
-        }
         if (hmrVersion >= 0) {
             module = `${module}\nexport let v = ${hmrVersion}`
         }

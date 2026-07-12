@@ -323,14 +323,6 @@ export class Transformer extends InertVisitors {
                 }
                 continue
             }
-            if (arg === 'pluralFunc') {
-                if (argVal) {
-                    updates.push([argVal.start, argVal.end, this.vars().rtPlural])
-                } else {
-                    appends.push([argInsertIndex, `${comma}${this.vars().rtPlural}`])
-                }
-                continue
-            }
             // message, always required
             if (argVal == null) {
                 return this.defaultVisitCallExpression(node)

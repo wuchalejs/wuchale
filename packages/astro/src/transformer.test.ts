@@ -198,7 +198,7 @@ test('Plural', async t => {
             import _w_Tx_ from "@wuchale/astro/runtime.js"
             const _w_runtime_ = _w_load_();
             ---
-            <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
+            <p>{plural(items, _w_runtime_.p(0), _w_runtime_.l)}</p>
     `,
         [{ body: ['One item', '# items'] }],
     )
