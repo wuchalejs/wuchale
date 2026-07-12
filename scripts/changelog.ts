@@ -6,7 +6,7 @@ export default {
     async getReleaseLine(changeset) {
         let [firstLine, ...futureLines] = changeset.summary.split('\n').map(l => l.trimEnd())
         if (firstLine?.startsWith('!')) {
-            firstLine = `⚠️ BREAKING: ${firstLine}`
+            firstLine = `⚠️ BREAKING: ${firstLine.slice(1).trimStart()}`
         }
         let commitLinkPref = ''
         if (changeset.commit) {
