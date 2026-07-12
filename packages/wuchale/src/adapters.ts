@@ -1,5 +1,5 @@
 import type { StorageFactory } from './storage.js'
-import type { HeuristicFunc, Text } from './text.js'
+import type { HeuristicFunc, Scope, Text } from './text.js'
 
 export const getKey = (text: string[], context?: string) => `${text.join('\n')}\n${context ?? ''}`.trim()
 
@@ -68,12 +68,11 @@ export type TransformFuncAsync = (expr: TransformCtx) => Promise<TransformOutput
 
 export type WrapFunc = (expr: string) => string
 
-export type DecideReactiveDetails<RTCtxT = any /* can be changed at the adapter */> = {
-    funcName?: string | undefined
-    nested: boolean
-    file: string
-    ctx: RTCtxT
-}
+export type DecideReactiveArgs<RTCtxT = any /* can be changed at the adapter */> = [
+    path: Scope[],
+    file: string,
+    ctx: RTCtxT,
+]
 
 type RuntimeConfDetails = {
     wrapInit: WrapFunc
@@ -82,8 +81,8 @@ type RuntimeConfDetails = {
 
 export type RuntimeConf = {
     /** return null to disable */
-    initReactive: (details: DecideReactiveDetails) => boolean | null
-    useReactive: boolean | ((details: DecideReactiveDetails) => boolean)
+    initReactive: (...args: DecideReactiveArgs) => boolean | null
+    useReactive: boolean | ((...args: DecideReactiveArgs) => boolean)
     plain: RuntimeConfDetails
     reactive: RuntimeConfDetails
 }

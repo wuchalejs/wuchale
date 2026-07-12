@@ -8,7 +8,7 @@ import type {
     RuntimeConf,
 } from 'wuchale'
 import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
-import { loaderPathResolver } from 'wuchale/adapter-utils'
+import { getFuncNameNested, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { AstroTransformer } from './transformer.js'
 
@@ -43,7 +43,11 @@ export type AstroArgs = Omit<AdapterArgs<LoadersAvailable>, 'loading' | 'runtime
 
 export const defaultRuntime: RuntimeConf = {
     // Astro is SSR-only, so we use non-reactive runtime by default
-    initReactive: ({ funcName, nested }) => (funcName == null || !nested ? false : null), // Only init in top-level and top-level functions
+    initReactive: path => {
+        const [funcName, nested] = getFuncNameNested(path)
+        // Only init in top-level and top-level functions
+        return funcName == null || !nested ? false : null
+    },
     // Astro is SSR - always use non-reactive
     useReactive: () => false,
     reactive: {

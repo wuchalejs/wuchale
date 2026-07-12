@@ -39,6 +39,7 @@ export class SvelteTransformer extends Transformer {
     // state
     currentSnippet = 0
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
+    override runtimeCtx: RuntimeCtxSv = { module: false }
 
     mixedVisitor: MixedVisitorSvelte
 
@@ -69,7 +70,10 @@ export class SvelteTransformer extends Transformer {
                     if (s.left) {
                         return false
                     }
-                } else if (s.type === 'call' && (noWrapTopCalls.includes(s.name) || noWrapTopCalls.some(c => s.name.startsWith(`${c}.`)))) {
+                } else if (
+                    s.type === 'call' &&
+                    (noWrapTopCalls.includes(s.name) || noWrapTopCalls.some(c => s.name.startsWith(`${c}.`)))
+                ) {
                     return false
                 }
             }

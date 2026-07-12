@@ -2,7 +2,7 @@ export { MixedVisitor, type ModFunc } from './mixed-visitor.js'
 
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { HeuristicResultChecked } from '../text.js'
+import { ascendPath, type HeuristicResultChecked, type Scope } from '../text.js'
 
 export const varNames = {
     rt: '_w_runtime_',
@@ -83,4 +83,34 @@ export function restoreCommentDirectives(target: CommentDirectives, original: Co
     for (const key in target) {
         pullDirective(target, original, key as keyof CommentDirectives) // restore
     }
+}
+
+/** for deciding to use reactive runtimes */
+export function getFuncNameNested(path: Scope[]): [string | null, boolean] {
+    let funcName: string | null = null
+    let innerIsArrow = false
+    for (const s of ascendPath(path)) {
+        if (s.type === 'funcexpr') {
+            innerIsArrow = true
+            continue
+        }
+        let func: string
+        if (s.type === 'function') {
+            func = s.name
+        } else if (innerIsArrow) {
+            if (s.type === 'assignment' && !s.left && s.targets.length === 1) {
+                func = s.targets[0]!
+            } else {
+                func = ''
+            }
+            innerIsArrow = false
+        } else {
+            continue
+        }
+        if (funcName) {
+            return [funcName, true]
+        }
+        funcName = func
+    }
+    return [funcName, false]
 }

@@ -3,7 +3,7 @@ export type {
     AdapterArgs,
     AdapterPassThruOpts,
     CodePattern,
-    DecideReactiveDetails,
+    DecideReactiveArgs,
     LoaderChoice,
     LoadGroupPatt,
     RuntimeConf,

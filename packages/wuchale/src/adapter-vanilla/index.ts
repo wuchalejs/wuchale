@@ -1,6 +1,6 @@
 // $$ cd .. && npm run test
 
-import { loaderPathResolver } from '../adapter-utils/index.js'
+import { getFuncNameNested, loaderPathResolver } from '../adapter-utils/index.js'
 import type { Adapter, AdapterArgs, CodePattern, LoaderChoice } from '../adapters.js'
 import { type DeepPartial, fillDefaults } from '../config.js'
 import { pofile } from '../pofile.js'
@@ -31,7 +31,7 @@ export const defaultArgs: VanillaArgs = {
     },
     loader: 'vite',
     runtime: {
-        initReactive: ({ nested }) => (nested ? null : false),
+        initReactive: path => (getFuncNameNested(path)[1] ? null : false),
         useReactive: false,
         plain: {
             wrapInit: expr => expr,

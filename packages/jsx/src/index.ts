@@ -8,7 +8,7 @@ import type {
     RuntimeConf,
 } from 'wuchale'
 import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
-import { loaderPathResolver } from 'wuchale/adapter-utils'
+import { getFuncNameNested, loaderPathResolver } from 'wuchale/adapter-utils'
 import { getDefaultLoaderPath as getDefaultLoaderPathVanilla, pluralPattern } from 'wuchale/adapter-vanilla'
 import { type JSXLib, JSXTransformer } from './transformer.js'
 
@@ -39,7 +39,8 @@ export type JSXArgs = AdapterArgs<LoadersAvailable> & {
 }
 
 const defaultRuntime: RuntimeConf = {
-    initReactive: ({ funcName, nested }) => {
+    initReactive: path => {
+        const [funcName, nested] = getFuncNameNested(path)
         const inTopLevel = funcName == null
         const insideReactive =
             !inTopLevel &&
@@ -47,10 +48,14 @@ const defaultRuntime: RuntimeConf = {
             ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!))
         return inTopLevel ? null : insideReactive
     },
-    useReactive: ({ funcName, nested }) =>
-        funcName != null &&
-        !nested &&
-        ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!)),
+    useReactive: path => {
+        const [funcName, nested] = getFuncNameNested(path)
+        return (
+            funcName != null &&
+            !nested &&
+            ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!))
+        )
+    },
     reactive: {
         wrapInit: expr => expr,
         wrapUse: expr => expr,
@@ -63,7 +68,7 @@ const defaultRuntime: RuntimeConf = {
 
 export const defaultRuntimeSolid: RuntimeConf = {
     ...defaultRuntime,
-    initReactive: ({ funcName }) => (funcName == null ? true : null), // init only in top level
+    initReactive: path => (getFuncNameNested(path)[0] == null ? true : null), // init only in top level
     useReactive: true, // always reactive, because solidjs doesn't have a problem with it
     reactive: {
         wrapInit: expr => `() => ${expr}`,

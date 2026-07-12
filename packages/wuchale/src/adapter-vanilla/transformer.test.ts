@@ -1,12 +1,13 @@
 // $ node --import ../../testing/resolve.ts %f
 
-import { type TestContext, test } from 'node:test'
+import { test } from 'node:test'
 // @ts-expect-error
 import { transformTest, ts } from '../../testing/utils.ts'
+import { getFuncNameNested } from '../adapter-utils/index.js'
 import { IndexTracker, type RuntimeConf } from '../adapters.js'
 import { URLHandler } from '../handler/url.js'
 import { defaultArgs } from './index.js'
-import { decideRTDetails, Transformer } from './transformer.js'
+import { Transformer } from './transformer.js'
 
 const catalogExpr = { plain: '_w_load_()', reactive: '_w_load_rx_()' }
 const filename = 'test.ts'
@@ -22,27 +23,6 @@ const makeCtx = (content: string, index = new IndexTracker(true)) => ({
 
 const getOutput = (content: string, patterns = defaultArgs.patterns) =>
     new Transformer(makeCtx(content), defaultArgs.heuristic, patterns, defaultArgs.runtime).transform()
-
-test('RT details', (t: TestContext) => {
-    t.assert.deepStrictEqual(
-        decideRTDetails(
-            [
-                { type: 'function', name: 'foo' },
-                { type: 'assignment', left: false, targets: ['bar'] },
-                { type: 'funcexpr', kind: 'arrow' },
-            ],
-            'foo.ts',
-            {},
-        ),
-        { nested: true, file: 'foo.ts', ctx: {}, funcName: 'bar' },
-    )
-    t.assert.deepStrictEqual(decideRTDetails([{ type: 'function', name: 'foo' }], 'foo.ts', {}), {
-        nested: false,
-        file: 'foo.ts',
-        ctx: {},
-        funcName: 'foo',
-    })
-})
 
 test('Simple expression and assignment', t => {
     transformTest(
@@ -229,7 +209,7 @@ test('useReactive nullish fallback stays boolean', t => {
             defaultArgs.patterns,
             {
                 initReactive: () => false,
-                useReactive: ({ funcName }) => (funcName == null ? false : undefined),
+                useReactive: path => (getFuncNameNested(path)[0] == null ? false : undefined),
                 plain: {
                     wrapInit: expr => expr,
                     wrapUse: expr => `plainUse(${expr})`,

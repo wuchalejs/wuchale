@@ -1,14 +1,6 @@
-import type {
-    Adapter,
-    AdapterArgs,
-    CreateHeuristicOpts,
-    DecideReactiveDetails,
-    DeepPartial,
-    HeuristicFunc,
-    LoaderChoice,
-} from 'wuchale'
+import type { Adapter, AdapterArgs, CreateHeuristicOpts, DeepPartial, HeuristicFunc, LoaderChoice } from 'wuchale'
 import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
-import { loaderPathResolver } from 'wuchale/adapter-utils'
+import { getFuncNameNested, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
 import { type RuntimeCtxSv, SvelteTransformer } from './transformer.js'
 
@@ -37,8 +29,6 @@ type LoadersAvailable = 'svelte' | 'sveltekit'
 
 export type SvelteArgs = AdapterArgs<LoadersAvailable>
 
-type DecideRxDetails = DecideReactiveDetails<RuntimeCtxSv>
-
 export const defaultArgs: SvelteArgs = {
     files: ['src/**/*.svelte', 'src/**/*.svelte.{js,ts}'],
     storage: pofile(),
@@ -51,13 +41,14 @@ export const defaultArgs: SvelteArgs = {
     },
     loader: 'svelte',
     runtime: {
-        initReactive: ({ file, funcName, ctx: { module } }: DecideRxDetails) => {
+        initReactive: (path, file, { module }: RuntimeCtxSv) => {
+            const [funcName] = getFuncNameNested(path)
             const inTopLevel = funcName == null
             return file.endsWith('.svelte.js') || module ? inTopLevel : inTopLevel ? true : null
         },
-        useReactive: ({ file, funcName, ctx: { module } }: DecideRxDetails) => {
-            const inTopLevel = funcName == null
-            return file.endsWith('.svelte.js') || module ? inTopLevel : true
+        useReactive: (path, file, { module }: RuntimeCtxSv) => {
+            const [funcName] = getFuncNameNested(path)
+            return file.endsWith('.svelte.js') || module ? funcName == null : true
         },
         reactive: {
             wrapInit: expr => `$derived(${expr})`,
