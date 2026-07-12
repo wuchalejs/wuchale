@@ -6,6 +6,7 @@ import { unlinkSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
+import { loaderPathResolver } from './adapter-utils/index.js'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation, isEquivalent } from './compile.js'
 import type { Config } from './config.js'
@@ -25,6 +26,9 @@ import { itemIsObsolete, itemIsUrl } from './storage.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
+const pluralFileName = 'plural.js'
+export const pluralTemplPath = loaderPathResolver(import.meta.url, '../src', 'js')('plural-tmpl')
+const pluralCategOrder: Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other']
 export const devPidFile = 'dev.pid'
 const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
@@ -97,6 +101,14 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
             `export const locales = ['${config.locales.join("','")}']`,
         ].join('\n'),
     )
+    const pluralTempl = await fs.read(pluralTemplPath)
+    if (!pluralTempl) {
+        throw new Error('Plural template not found')
+    }
+    const pluralFileContent = pluralTempl
+        .replaceAll('${DATA}', './data.js')
+        .replace('ALL_C = []', `ALL_C = ['${pluralCategOrder.join("', '")}']`)
+    await fs.write(resolve(localesDirAbs, pluralFileName), pluralFileContent)
 }
 
 async function getSharedState(
