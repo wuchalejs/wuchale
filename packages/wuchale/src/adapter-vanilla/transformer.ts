@@ -12,18 +12,10 @@ import {
     updateCommentDirectives,
     varNames,
 } from '../adapter-utils/index.js'
-import type {
-    CodePattern,
-    DecideReactiveDetails,
-    IndexTracker,
-    RuntimeConf,
-    TransformCtx,
-    TransformOutput,
-    UrlMatcher,
-} from '../adapters.js'
+import type { CodePattern, IndexTracker, RuntimeConf, TransformCtx, TransformOutput, UrlMatcher } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import type { HeuristicFunc, HeuristicResultChecked, Scope, TextType } from '../text.js'
-import { ascendPath, defaultHeuristicFuncOnly, newText, type Text } from '../text.js'
+import { defaultHeuristicFuncOnly, newText, type Text } from '../text.js'
 import InertVisitors from './inertvisitors.js'
 
 export const scriptParseOptions: Estree.Options = {
@@ -72,41 +64,6 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
 
 type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
 
-export function decideRTDetails<R>(path: Scope[], file: string, ctx: R) {
-    const details: DecideReactiveDetails<R> = {
-        file,
-        ctx,
-        nested: false,
-    }
-    let innerIsArrow = false
-    for (const s of ascendPath(path)) {
-        if (s.type === 'funcexpr') {
-            innerIsArrow = true
-            continue
-        }
-        let funcName: string | null = null
-        if (s.type === 'function') {
-            funcName = s.name
-        } else if (innerIsArrow) {
-            if (s.type === 'assignment' && !s.left && s.targets.length === 1) {
-                funcName = s.targets[0]!
-            } else {
-                funcName = ''
-            }
-        }
-        innerIsArrow = false
-        if (funcName === null) {
-            continue
-        }
-        if (details.funcName) {
-            details.nested = true
-            return details
-        }
-        details.funcName = funcName
-    }
-    return details
-}
-
 export class Transformer extends InertVisitors {
     index: IndexTracker
     heuristic: HeuristicFunc
@@ -149,7 +106,7 @@ export class Transformer extends InertVisitors {
         const topLevelUseReactive =
             typeof rtConf.useReactive === 'boolean'
                 ? rtConf.useReactive
-                : (rtConf.useReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx)) ?? false)
+                : (rtConf.useReactive(this.scopePath, ctx.filename, this.runtimeCtx) ?? false)
 
         const vars: Record<string, { [key in 'plain' | 'reactive']: RuntimeVars }> = {}
         // to enable the use of different runtime vars for different places, right now for svelte <script module>s
@@ -164,12 +121,11 @@ export class Transformer extends InertVisitors {
             const useReactive =
                 typeof rtConf.useReactive === 'boolean'
                     ? rtConf.useReactive
-                    : (rtConf.useReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx)) ??
-                      topLevelUseReactive)
+                    : (rtConf.useReactive(this.scopePath, ctx.filename, this.runtimeCtx) ?? topLevelUseReactive)
             const currentVars = vars[this.currentRtVar]!
             return useReactive ? currentVars.reactive : currentVars.plain
         }
-        this.initReactive = () => rtConf.initReactive(decideRTDetails(this.scopePath, ctx.filename, this.runtimeCtx))
+        this.initReactive = () => rtConf.initReactive(this.scopePath, ctx.filename, this.runtimeCtx)
         this.initRuntime = () => {
             let initReactive = this.initReactive()
             if (initReactive == null) {
