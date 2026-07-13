@@ -20,6 +20,6 @@
         "@biomejs/biome": "2.4.12",
         "@changesets/cli": "^2.31.0",
         "@changesets/types": "^6.1.0",
-        "@types/node": "^24.13.2"
+        "@types/node": "^24.13.3"
     }
 }
