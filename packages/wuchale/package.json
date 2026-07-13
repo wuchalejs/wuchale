@@ -99,7 +99,7 @@
     "devDependencies": {
         "@types/node": "~24.13.3",
         "@types/picomatch": "^4.0.3",
-        "typescript": "^6.0.3"
+        "typescript": "^7.0.2"
     },
     "funding": "https://github.com/sponsors/K1DV5",
     "type": "module"
