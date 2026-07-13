@@ -1,5 +1,32 @@
 # wuchale
 
+## 0.26.0
+
+### Minor Changes
+
+- [cd53445](https://github.com/wuchalejs/wuchale/commit/cd53445e64344206fdd8aff1c50e72eab5d8d9b2): More reliable HMR implementation that doesn't get confused with secondary instances (like the CLI)
+- [15d677e](https://github.com/wuchalejs/wuchale/commit/15d677e8286dba588a2123389375673e3ea83675): ⚠️ BREAKING: Replace single details object with an array of scope objects and separate filename for heuristic
+
+  The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
+
+  - `.body: string[]` instead of `Message.msgStr`
+  - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
+  - The rest of the properties are the same as `Message`
+
+  Therefore if you implement a custom heuristic function you should for example:
+
+  ```diff
+  -heuristic: (msg) => {
+  +heuristic: (text, file) => {
+  -    if (msg.details.element || msg.details.file.endsWith('.foo')) {
+  +    if (text.path.some(s => s.type === 'element') || file.endsWith('.foo')) {
+           return false
+       }
+   }
+  ```
+
+  The scope array is now used to ignore whole sub-trees of ignored elements even if they contain non-ignored elements.
+
 ## 0.25.6
 
 ### Patch Changes

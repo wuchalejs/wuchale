@@ -1,5 +1,12 @@
 # @wuchale/json
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [cd53445, 15d677e]:
+  - wuchale@0.26.0
+
 ## 0.2.1
 
 ### Patch Changes
