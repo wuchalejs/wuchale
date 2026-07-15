@@ -2,7 +2,9 @@ export type CompositePayload = number | string | Composite
 // for nested markup. first number indicates the tag index, rest are arguments
 export type Composite = [number, ...CompositePayload[]]
 export type Mixed = (string | number)[] // in e.g. attributes and template literals
-export type CompiledElement = string | Mixed | CompositePayload[] // in e.g. nested svelte elements
+export type CompiledSingle = string | Mixed | CompositePayload[] // in e.g. nested svelte elements
+export type CompiledPlural = (string | Mixed)[]
+export type CompiledElement = CompiledSingle | CompiledPlural
 
 const OPEN = Symbol()
 const CLOSE = Symbol()
@@ -124,36 +126,4 @@ export function compileTranslation(txt: string, fallback: CompiledElement): Comp
         return compiled[0]
     }
     return compiled
-}
-
-export function isEquivalent(source: CompiledElement, translation: CompiledElement) {
-    const sourceStr = typeof source === 'string'
-    const translStr = typeof translation === 'string'
-    if (sourceStr || translStr) {
-        return sourceStr === translStr
-    }
-    let stringsS = 0
-    for (const elm of source) {
-        if (typeof elm === 'string') {
-            stringsS++
-            continue
-        }
-        if (typeof elm === 'number') {
-            if (!translation.includes(elm)) {
-                return false
-            }
-            continue
-        }
-        const transl = translation.find(t => Array.isArray(t) && t[0] === elm[0]) as Composite | null
-        if (transl == null || !isEquivalent(elm.slice(1), transl.slice(1))) {
-            return false
-        }
-    }
-    let stringsT = 0
-    for (const transl of translation) {
-        if (typeof transl === 'string') {
-            stringsT++
-        }
-    }
-    return (stringsS === 0) === (stringsT === 0) && source.length - stringsS === translation.length - stringsT
 }
