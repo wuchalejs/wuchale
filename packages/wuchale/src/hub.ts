@@ -8,7 +8,7 @@ import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
 import { loaderPathResolver } from './adapter-utils/index.js'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
-import { compileTranslation, isEquivalent } from './compile.js'
+import { compileTranslation } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
 import {
@@ -23,6 +23,7 @@ import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
+import { isEquivalent, pluralForms } from './validate.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -71,14 +72,11 @@ type AdapterStatus = {
         | TranslStats
 }
 
-export type CheckErrorType = 'notEquivalent' | 'unequalLength'
-
 type CheckErrorItem = {
     adapter: string
     source: string[]
     locale: string
     translation: string[]
-    type: CheckErrorType
 }
 
 type CheckResult = {
@@ -526,6 +524,7 @@ export class Hub {
         const syncs: string[] = []
         let checkedItems = 0
         const existingFilesByOwner = new Map<string, Set<string>>()
+        const plurals = new Map(this.#opts.config.locales.map(l => [l, pluralForms(l).length]))
         for (const handler of this.#getSortedHandlersForDirectVisit()) {
             const state = handler.sharedState
             if (full && (await this.#directVisitHandler(handler, false, false, existingFilesByOwner))) {
@@ -546,21 +545,14 @@ export class Hub {
                         source,
                         translation: translation ?? [],
                         locale,
-                        type: 'unequalLength',
                     }
                     if (translation.length === 0) {
                         continue
                     }
-                    if (translation.length > 0 && translation.length !== source.length) {
+                    const translComp = translation.map(t => compileTranslation(t, ''))
+                    if (!isEquivalent(sourceCompEntries, translComp, plurals.get(locale) ?? 0)) {
                         errors.push(err)
-                        continue
-                    }
-                    for (const [i, sou] of sourceCompEntries.entries()) {
-                        if (!isEquivalent(sou, compileTranslation(translation[i]!, ''))) {
-                            err.type = 'notEquivalent'
-                            errors.push(err)
-                            break
-                        }
+                        break
                     }
                 }
             }
