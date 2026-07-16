@@ -51,7 +51,7 @@ export function transformTest(
     )
     for (let [i, exp] of expectedMsgs.entries()) {
         if (typeof exp === 'string') {
-            exp = { body: [exp] }
+            exp = { body: exp }
         }
         const txt = txts[i]!
         t.assert.deepStrictEqual(txt.body, exp.body, `Different msgStr`)
@@ -84,7 +84,7 @@ export const dummyTransform: TransformFunc = ctx => {
             continue
         }
         out += `${ctx.expr.plain}(${ctx.index.get(msg)})\n`
-        msgs.push(newText({ body: [msg] }))
+        msgs.push(newText({ body: msg }))
     }
     return {
         txts: msgs,

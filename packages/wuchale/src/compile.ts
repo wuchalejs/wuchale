@@ -113,17 +113,24 @@ function compile(txt: string, start = 0, parentTag: number | null = null): [Comp
     return [compiled, i, null]
 }
 
-export function compileTranslation(txt: string, fallback: CompiledElement): CompiledElement {
+function compileTransl(txt: string): CompiledElement | undefined {
     if (!txt) {
-        return fallback
+        return
     }
     const [compiled, , err] = compile(txt)
     if (err !== null) {
         console.error('Compile error:', err, ':', txt)
-        return fallback
+        return
     }
     if (compiled.length === 1 && typeof compiled[0] === 'string') {
         return compiled[0]
     }
     return compiled
+}
+
+export function compileTranslation(txt: string | string[], fallback?: CompiledElement): CompiledElement {
+    if (typeof txt === 'string') {
+        return (compileTransl(txt) as CompiledSingle) ?? fallback ?? ''
+    }
+    return (txt.map(compileTransl) as CompiledPlural) ?? fallback ?? []
 }

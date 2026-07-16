@@ -12,6 +12,10 @@ const root = '/projects'
 
 const itemFull = newItem(
     {
+        translations: new Map([
+            ['en', 'Hello'],
+            ['es', 'Hola'],
+        ]),
         references: [
             {
                 file: 'src/file1.ts',
@@ -25,8 +29,6 @@ const itemFull = newItem(
     },
     ['en', 'es'],
 )
-itemFull.translations.set('en', ['Hello'])
-itemFull.translations.set('es', ['Hola'])
 
 const itemMin: Item = { ...itemFull, references: itemFull.references.map(r => ({ ...r, refs: [null] })) }
 
@@ -43,8 +45,8 @@ export function testStorage(storage: CatalogStorage, name: string, minimal = fal
         await storage.save([item])
         await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
         const items = await storage.load()
-        t.assert.deepStrictEqual(items[0]!.translations.get('en'), ['Hello'])
-        t.assert.deepStrictEqual(items[0]!.translations.get('es'), ['Hola'])
+        t.assert.deepStrictEqual(items[0]!.translations.get('en'), 'Hello')
+        t.assert.deepStrictEqual(items[0]!.translations.get('es'), 'Hola')
     })
 
     test(`${name} removes stale catalogs`, async (t: TestContext) => {
