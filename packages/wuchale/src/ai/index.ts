@@ -46,7 +46,7 @@ const outputSchema = {
 }
 
 type InputItem = {
-    id: string[]
+    id: string | string[]
     context?: string | undefined
     references: FileRef[]
 }
@@ -57,7 +57,7 @@ You are a professional translator for a web application.
 You will be given a list of items to translate from ${sourceLocale} (${getLanguageName(sourceLocale)}) to ${targetLocales.map(l => `${l} (${getLanguageName(l)})`).join(', ')}.
 
 Each item has:
-- id: the source text (always array to support plural forms)
+- id: the source text (array for plural forms)
 - context: optional disambiguation context
 - references[]: source file locations
     - file: the file path where it was used
@@ -140,15 +140,15 @@ export default class AIQueue {
         for (const [i, outItem] of translated.entries()) {
             const item = batch.items[i]!
             const id = item.translations.get(this.sourceLocale)!
-            const sourceComp = id.map(i => compileTranslation(i, ''))
+            const sourceComp = compileTranslation(id)
             for (const loc of batch.targetLocales) {
                 const translation = outItem[loc]
                 if (translation === undefined) {
                     unTranslated.push(item)
                     break
                 }
-                const translComp = translation.map(t => compileTranslation(t, ''))
-                if (!isEquivalent(sourceComp, translComp, plurals?.length ?? 0)) {
+                const forms = typeof id === 'string' ? null : (plurals?.length ?? 0)
+                if (!isEquivalent(sourceComp, compileTranslation(translation), forms)) {
                     unTranslated.push(item)
                     break
                 }

@@ -6,13 +6,13 @@ import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, RuntimeExpr, TransformOutputCode } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
-import { type CompiledElement, compileTranslation } from '../compile.js'
+import { compileTranslation } from '../compile.js'
 import type { ConfigPartial, DevMode } from '../config.js'
 import type { HMRData } from '../dev.js'
 import { readOnlyFS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
-import type { Text } from '../text.js'
+import { singleTxt, type Text } from '../text.js'
 import {
     defaultLoadID,
     Files,
@@ -268,22 +268,13 @@ export class AdapterHandler {
             }
             for (const key of keys) {
                 const index = this.sharedState.indexTracker.get(key)
-                let compiled: CompiledElement
                 const fallback = this.getCompiledFallback(index, loc)
                 const transl = item.translations.get(loc)!
-                if (transl.length > 1) {
-                    if (transl.join('').trim()) {
-                        compiled = transl
-                    } else {
-                        compiled = fallback
-                    }
-                } else {
-                    let toCompile = transl[0]!
-                    if (itemIsUrl(item)) {
-                        toCompile = this.url.matchToCompile(key, loc)
-                    }
-                    compiled = compileTranslation(toCompile, fallback)
+                let toCompile = transl
+                if (itemIsUrl(item) && typeof transl === 'string') {
+                    toCompile = this.url.matchToCompile(transl, loc)
                 }
+                const compiled = compileTranslation(toCompile, fallback)
                 sharedCompiledLoc[index] = compiled
                 if (!this.adapter.loading.granular) {
                     continue
@@ -488,8 +479,7 @@ export class AdapterHandler {
             }
             item.context = txt.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
-            const body = txt.body.join('\n')
-            if (sourceTransl.join('\n') !== body) {
+            if (singleTxt(sourceTransl) !== singleTxt(txt.body)) {
                 item.translations.set(this.sourceLocale, txt.body)
                 storageUpdated = true
                 compileUpdated = true
@@ -553,7 +543,7 @@ export class AdapterHandler {
                 if (txts.length) {
                     this.#opts.log.verbose(`${this.key}: ${txts.length} items from ${filename}:`)
                     for (const txt of txts) {
-                        this.#opts.log.verbose(`  ${txt.body.join(', ')} [${txt.path.at(-1)!.type}]`)
+                        this.#opts.log.verbose(`  ${txt.body} [${txt.path.at(-1)!.type}]`)
                     }
                 } else {
                     this.#opts.log.verbose(`${this.key}: No items from ${filename}.`)

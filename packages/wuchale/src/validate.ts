@@ -76,14 +76,12 @@ function isEquivalentPlural(source: CompiledPlural, translation: CompiledPlural)
     return true
 }
 
-export function isEquivalent(source: CompiledElement[], translation: CompiledElement[], forms: number) {
-    if (source.length === 1) {
-        if (translation.length !== 1) {
-            return false
-        }
-        return isEquivalentSingle(source[0] as CompiledSingle, translation[0] as CompiledSingle)
+export function isEquivalent(source: CompiledElement, translation: CompiledElement, forms: number | null) {
+    if (forms === null) {
+        // single
+        return isEquivalentSingle(source as CompiledSingle, translation as CompiledSingle)
     }
-    // plural
+    // plural, forms=0 means unknown length, skip length check
     if (forms > 0 && translation.length !== forms) {
         return false
     }

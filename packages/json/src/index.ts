@@ -26,7 +26,6 @@ type JSONOpts = {
     mergeSameRegionals: boolean
     removePlaceholders: boolean
     flattenTranslations: boolean
-    stringForSingle: boolean
     parse: typeof JSON.parse
     stringify: typeof JSON.stringify
 }
@@ -36,7 +35,6 @@ const defaultOpts: JSONOpts = {
     mergeSameRegionals: false,
     removePlaceholders: false,
     flattenTranslations: false,
-    stringForSingle: false,
     parse: JSON.parse,
     stringify: JSON.stringify,
 }
@@ -84,7 +82,7 @@ export class JSONFile {
             if (str == null) {
                 continue // filled at main handler
             }
-            item.translations.set(loc, typeof str === 'string' ? [str] : (str as string[]))
+            item.translations.set(loc, str)
         }
         if (this.#opts.mergeSameRegionals) {
             for (const loc of this.#opts.locales) {
@@ -120,12 +118,9 @@ export class JSONFile {
     }
 
     toSaveItem = (item: Item): SaveItem => {
-        let translations: [string, string | string[]][] = []
+        const translations: [string, string | string[]][] = []
         for (const loc of this.#opts.locales) {
             translations.push([loc, item.translations.get(loc)!])
-        }
-        if (this.#opts.stringForSingle) {
-            translations = translations.map(([k, t]) => [k, t.length === 1 ? t[0]! : t])
         }
         const saveItem: SaveItem = {
             context: item.context,
@@ -148,9 +143,18 @@ export class JSONFile {
                 if (!reg) {
                     continue
                 }
-                const tLoc = translationsForMerge[loc] as string[]
-                const tBase = translationsForMerge[base!] as string[]
-                if (tLoc === tBase || (tLoc.length === tBase.length && !tLoc.some((t, i) => t !== tBase[i]))) {
+                const tLoc = translationsForMerge[loc] as string | string[]
+                const tBase = translationsForMerge[base!] as string | string[]
+                if (!tLoc || !tBase) {
+                    continue
+                }
+                if (
+                    tLoc === tBase ||
+                    (typeof tLoc !== 'string' &&
+                        typeof tBase !== 'string' &&
+                        tLoc.length === tBase.length &&
+                        !tLoc.some((t, i) => t !== tBase[i]))
+                ) {
                     delete translationsForMerge[loc]
                 }
             }

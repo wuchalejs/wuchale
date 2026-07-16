@@ -15,7 +15,7 @@ import {
 import type { CodePattern, IndexTracker, RuntimeConf, TransformCtx, TransformOutput, UrlMatcher } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import type { HeuristicFunc, HeuristicResultChecked, Scope, TextType } from '../text.js'
-import { defaultHeuristicFuncOnly, newText, type Text } from '../text.js'
+import { defaultHeuristicFuncOnly, newText, singleTxt, type Text } from '../text.js'
 import InertVisitors from './inertvisitors.js'
 
 export const scriptParseOptions: Estree.Options = {
@@ -141,8 +141,8 @@ export class Transformer extends InertVisitors {
     }
 
     getHeuristicMessageType(txt: Text): HeuristicResultChecked {
-        const body0 = txt.body[0]
-        if (!body0) {
+        const body = singleTxt(txt.body)
+        if (!body) {
             // nothing to ask
             return false
         }
@@ -150,7 +150,7 @@ export class Transformer extends InertVisitors {
             return false
         }
         const heuRes = this.heuristic(txt, this.filename) ?? defaultHeuristicFuncOnly(txt, this.filename) ?? 'message'
-        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(body0) == null) {
+        if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(body) == null) {
             return false
         }
         return this.commentDirectives.forceType || heuRes
@@ -162,7 +162,7 @@ export class Transformer extends InertVisitors {
             return [false, null]
         }
         const txt = newText({
-            body: [body],
+            body,
             path: this.scopePath,
             context: this.commentDirectives.context,
         })
@@ -332,7 +332,7 @@ export class Transformer extends InertVisitors {
                     return this.defaultVisitCallExpression(node)
                 }
                 const msgInfo = newText({
-                    body: [argVal.value],
+                    body: argVal.value,
                     path: this.scopePath,
                     context: this.commentDirectives.context,
                 })
@@ -736,7 +736,7 @@ export class Transformer extends InertVisitors {
             this.mstr.update(end, end + 2, ', ')
         }
         const msgInfo = newText({
-            body: [body],
+            body,
             path: this.scopePath,
             context: this.commentDirectives.context,
             placeholders,
@@ -752,7 +752,7 @@ export class Transformer extends InertVisitors {
             visitRes = this.visitTemplateLiteralQuasis(node)
         } else {
             const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node, true)
-            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body[0]!)
+            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body as string)
             if (!heuRes) {
                 return node.expressions.flatMap(n => this.visit(n))
             }
@@ -783,7 +783,7 @@ export class Transformer extends InertVisitors {
         return this.inScope({ type: 'call', kind: 'tagged', name: this.getCalleeName(node.tag) }, () => {
             let txts: Text[] = []
             const [msgInfoHeu] = this.visitTemplateLiteralQuasis(node.quasi, true)
-            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body[0]!)
+            const [heuRes] = this.checkHeuristicAllowNew(msgInfoHeu.body as string)
             if (heuRes) {
                 const [msgInfo, index, msgsNew] = this.visitTemplateLiteralQuasis(node.quasi)
                 msgInfo.type = heuRes

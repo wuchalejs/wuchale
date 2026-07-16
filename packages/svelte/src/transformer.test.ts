@@ -241,14 +241,14 @@ test('URLs', async t => {
         <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(7)}</a>
     `,
         [
-            { body: ['/translated/{0}'], type: 'url' },
-            { body: ['/translated/somewhere/{0}'], type: 'url' },
-            { body: ['/translated/propertyhref'], type: 'url' },
-            { body: ['/translated/hello'], type: 'url' },
-            { body: ['/translated/hello/there'], type: 'url' },
-            { body: ['/translated/very/deep/link/{0}'], type: 'url' },
-            { body: ['/translated/{0}'], type: 'url' },
-            { body: ['/'], type: 'url' },
+            { body: '/translated/{0}', type: 'url' },
+            { body: '/translated/somewhere/{0}', type: 'url' },
+            { body: '/translated/propertyhref', type: 'url' },
+            { body: '/translated/hello', type: 'url' },
+            { body: '/translated/hello/there', type: 'url' },
+            { body: '/translated/very/deep/link/{0}', type: 'url' },
+            { body: '/translated/{0}', type: 'url' },
+            { body: '/', type: 'url' },
             'Hello',
             'Hello',
             'Hello',
@@ -345,10 +345,10 @@ test('Context', async t => {
             {_w_runtime_(2)}
     `,
         [
-            { body: ['String'], context: 'music' },
-            { body: ['String'], context: 'programming' },
-            { body: ['Close'], context: 'door' },
-            { body: ['Close'], context: 'distance' },
+            { body: 'String', context: 'music' },
+            { body: 'String', context: 'programming' },
+            { body: 'Close', context: 'door' },
+            { body: 'Close', context: 'distance' },
         ],
     )
 })
@@ -488,11 +488,11 @@ test('Collapsing deep nested messages with declaration tags', async t => {
         `,
         [
             {
-                body: ['user {0}'],
+                body: 'user {0}',
                 placeholders: [['0', 'user']],
             },
             {
-                body: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>'],
+                body: 'Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>',
                 placeholders: [['0.0', 'varName']],
             },
         ],

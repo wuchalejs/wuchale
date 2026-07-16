@@ -35,9 +35,15 @@ function split(str: string, sep: string, count?: number) {
 function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
     const poi = new PO.Item()
     const id = item.translations.get(sourceLocale)!
-    poi.msgid = id[0]!
-    poi.msgid_plural = id[1]!
-    poi.msgstr = item.translations.get(locale)!
+    const body = item.translations.get(locale)!
+    if (typeof id === 'string') {
+        poi.msgid = id
+        poi.msgstr = [body as string]
+    } else {
+        poi.msgid = id[0]!
+        poi.msgid_plural = id[1] ?? ''
+        poi.msgstr = body as string[]
+    }
     if (item.context) {
         poi.msgctxt = item.context
     }
@@ -113,11 +119,10 @@ function poitemToItemCommons(poi: POItem): Item {
 }
 
 function getItemId(poItem: POItem) {
-    const id = [poItem.msgid]
-    if (poItem.msgid_plural) {
-        id.push(poItem.msgid_plural)
+    if (poItem.msgid_plural == null) {
+        return poItem.msgid
     }
-    return id
+    return [poItem.msgid, poItem.msgid_plural]
 }
 
 function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[], sourceLocale: string) {
@@ -127,9 +132,13 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
         const basePoOtem = poIs.values().next().value! // ! as poIs exists because at least one exists
         const item = poitemToItemCommons(basePoOtem)
         const additionals: AdditionalsByLoc = new Map()
+        const id = getItemId(basePoOtem)
         for (const loc of locales) {
             const poi = poIs.get(loc)
-            item.translations.set(loc, poi?.msgstr ?? (loc === sourceLocale ? getItemId(basePoOtem) : []))
+            item.translations.set(
+                loc,
+                loc === sourceLocale ? id : typeof id === 'string' ? (poi?.msgstr?.[0] ?? '') : (poi?.msgstr ?? []),
+            )
             const add: Additionals = {
                 comments: poi?.comments ?? [],
                 flags: {},

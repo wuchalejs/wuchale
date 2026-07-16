@@ -7,7 +7,7 @@ const heuristic = createHeuristic(defaultHeuristicOpts)
 
 function scriptTxt(body: string) {
     return newText({
-        body: [body],
+        body,
         path: [{ type: 'function', name: 'myFn' }],
     })
 }
