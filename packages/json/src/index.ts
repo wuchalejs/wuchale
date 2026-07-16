@@ -1,14 +1,5 @@
 import { dirname, resolve } from 'node:path'
-import {
-    type FileRefEntry,
-    fillDefaults,
-    type Item,
-    type PluralRule,
-    type PluralRules,
-    type SaveData,
-    type StorageFactory,
-    type StorageFactoryOpts,
-} from 'wuchale'
+import { type FileRefEntry, fillDefaults, type Item, type StorageFactory, type StorageFactoryOpts } from 'wuchale'
 
 type SaveRefMin = {
     file: string
@@ -29,18 +20,12 @@ type SaveItem = Partial<Pick<Item, 'urlAdapters' | 'context'>> & {
     [loc: string]: unknown // translations flattened
 }
 
-type SaveDataCustom = {
-    items: SaveItem[]
-    pluralRules: Record<string, PluralRule>
-}
-
 type JSONOpts = {
     /** can include `{locale}` when used for specific locales */
     location: string
     mergeSameRegionals: boolean
     removePlaceholders: boolean
     flattenTranslations: boolean
-    stringForSingle: boolean
     parse: typeof JSON.parse
     stringify: typeof JSON.stringify
 }
@@ -50,7 +35,6 @@ const defaultOpts: JSONOpts = {
     mergeSameRegionals: false,
     removePlaceholders: false,
     flattenTranslations: false,
-    stringForSingle: false,
     parse: JSON.parse,
     stringify: JSON.stringify,
 }
@@ -98,7 +82,7 @@ export class JSONFile {
             if (str == null) {
                 continue // filled at main handler
             }
-            item.translations.set(loc, typeof str === 'string' ? [str] : (str as string[]))
+            item.translations.set(loc, str)
         }
         if (this.#opts.mergeSameRegionals) {
             for (const loc of this.#opts.locales) {
@@ -118,36 +102,25 @@ export class JSONFile {
     loadRaw = async (filename: string) => {
         const content = await this.#opts.fs.read(filename)
         if (content == null || !content.trim()) {
-            return {}
+            return []
         }
-        const data: SaveDataCustom = this.#opts.parse(content)
-        return {
-            items: data.items.map(this.fromSaveItem),
-            pluralRules: new Map(Object.entries(data.pluralRules ?? {})),
-        }
+        return this.#opts.parse(content).map(this.fromSaveItem)
     }
 
-    load = async () => {
-        const { items, pluralRules } = await this.loadRaw(this.files[0])
-        return { items: items ?? [], pluralRules }
-    }
+    load = () => this.loadRaw(this.files[0])
 
-    saveRaw = async (filename: string, items: SaveItem[], pluralRules: PluralRules) => {
+    saveRaw = async (filename: string, items: SaveItem[]) => {
         if (items.length === 0) {
             await this.#opts.fs.unlink(filename)
             return
         }
-        const data = { pluralRules: Object.fromEntries(pluralRules.entries()), items } as SaveDataCustom
-        await this.#opts.fs.write(filename, this.#opts.stringify(data, null, '  '))
+        await this.#opts.fs.write(filename, this.#opts.stringify(items as SaveItem[], null, '  '))
     }
 
     toSaveItem = (item: Item): SaveItem => {
-        let translations: [string, string | string[]][] = []
+        const translations: [string, string | string[]][] = []
         for (const loc of this.#opts.locales) {
             translations.push([loc, item.translations.get(loc)!])
-        }
-        if (this.#opts.stringForSingle) {
-            translations = translations.map(([k, t]) => [k, t.length === 1 ? t[0]! : t])
         }
         const saveItem: SaveItem = {
             context: item.context,
@@ -170,9 +143,18 @@ export class JSONFile {
                 if (!reg) {
                     continue
                 }
-                const tLoc = translationsForMerge[loc] as string[]
-                const tBase = translationsForMerge[base!] as string[]
-                if (tLoc === tBase || (tLoc.length === tBase.length && !tLoc.some((t, i) => t !== tBase[i]))) {
+                const tLoc = translationsForMerge[loc] as string | string[]
+                const tBase = translationsForMerge[base!] as string | string[]
+                if (!tLoc || !tBase) {
+                    continue
+                }
+                if (
+                    tLoc === tBase ||
+                    (typeof tLoc !== 'string' &&
+                        typeof tBase !== 'string' &&
+                        tLoc.length === tBase.length &&
+                        !tLoc.some((t, i) => t !== tBase[i]))
+                ) {
                     delete translationsForMerge[loc]
                 }
             }
@@ -214,12 +196,10 @@ export class JSONFile {
         return saveItem
     }
 
-    save = async (data: SaveData) => {
-        const items = data.items.map(this.toSaveItem)
+    save = async (items: Item[]) => {
         await this.saveRaw(
             this.files[0],
-            items.filter(i => !(i.urlAdapters as string[])?.length),
-            data.pluralRules,
+            items.map(this.toSaveItem).filter(i => !(i.urlAdapters as string[])?.length),
         )
     }
 }

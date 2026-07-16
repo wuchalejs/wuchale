@@ -161,7 +161,7 @@ export class MixedVisitor<
 
     #makeTxt(props: VisitProps<MixNodeT>, body: string, placeholders: [string, string][] = []) {
         return newText({
-            body: [body.trim()],
+            body: body.trim(),
             path: this.#props.scopePath,
             context: props.commentDirectives.context,
             placeholders,
@@ -369,10 +369,10 @@ export class MixedVisitor<
                     mod.hasTxtDesc ||= childMod.hasTxtDesc
                     if (childMod.pending && childMod.txt) {
                         if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
-                            chTxt = childMod.txt.body[0]!
+                            chTxt = childMod.txt.body as string
                             placeholders.push(...childMod.txt.placeholders)
                         } else if (childMod.hasTxtDesc) {
-                            chTxt = `<${iTag}>${childMod.txt.body[0]!}</${iTag}>`
+                            chTxt = `<${iTag}>${childMod.txt.body as string}</${iTag}>`
                             for (const [num, cont] of childMod.txt.placeholders) {
                                 placeholders.push([`${iTag}.${num}`, cont])
                             }

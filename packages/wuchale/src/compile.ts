@@ -2,7 +2,9 @@ export type CompositePayload = number | string | Composite
 // for nested markup. first number indicates the tag index, rest are arguments
 export type Composite = [number, ...CompositePayload[]]
 export type Mixed = (string | number)[] // in e.g. attributes and template literals
-export type CompiledElement = string | Mixed | CompositePayload[] // in e.g. nested svelte elements
+export type CompiledSingle = string | Mixed | CompositePayload[] // in e.g. nested svelte elements
+export type CompiledPlural = (string | Mixed)[]
+export type CompiledElement = CompiledSingle | CompiledPlural
 
 const OPEN = Symbol()
 const CLOSE = Symbol()
@@ -111,14 +113,14 @@ function compile(txt: string, start = 0, parentTag: number | null = null): [Comp
     return [compiled, i, null]
 }
 
-export function compileTranslation(txt: string, fallback: CompiledElement): CompiledElement {
+function compileTransl(txt: string): CompiledElement | undefined {
     if (!txt) {
-        return fallback
+        return
     }
     const [compiled, , err] = compile(txt)
     if (err !== null) {
         console.error('Compile error:', err, ':', txt)
-        return fallback
+        return
     }
     if (compiled.length === 1 && typeof compiled[0] === 'string') {
         return compiled[0]
@@ -126,34 +128,9 @@ export function compileTranslation(txt: string, fallback: CompiledElement): Comp
     return compiled
 }
 
-export function isEquivalent(source: CompiledElement, translation: CompiledElement) {
-    const sourceStr = typeof source === 'string'
-    const translStr = typeof translation === 'string'
-    if (sourceStr || translStr) {
-        return sourceStr === translStr
+export function compileTranslation(txt: string | string[], fallback?: CompiledElement): CompiledElement {
+    if (typeof txt === 'string') {
+        return (compileTransl(txt) as CompiledSingle) ?? fallback ?? ''
     }
-    let stringsS = 0
-    for (const elm of source) {
-        if (typeof elm === 'string') {
-            stringsS++
-            continue
-        }
-        if (typeof elm === 'number') {
-            if (!translation.includes(elm)) {
-                return false
-            }
-            continue
-        }
-        const transl = translation.find(t => Array.isArray(t) && t[0] === elm[0]) as Composite | null
-        if (transl == null || !isEquivalent(elm.slice(1), transl.slice(1))) {
-            return false
-        }
-    }
-    let stringsT = 0
-    for (const transl of translation) {
-        if (typeof transl === 'string') {
-            stringsT++
-        }
-    }
-    return (stringsS === 0) === (stringsT === 0) && source.length - stringsS === translation.length - stringsT
+    return (txt.map(compileTransl) as CompiledPlural) ?? fallback ?? []
 }

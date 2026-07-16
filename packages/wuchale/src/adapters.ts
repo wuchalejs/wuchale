@@ -1,7 +1,7 @@
 import type { StorageFactory } from './storage.js'
-import type { HeuristicFunc, Scope, Text } from './text.js'
+import { type HeuristicFunc, type Scope, singleTxt, type Text } from './text.js'
 
-export const getKey = (text: string[], context?: string) => `${text.join('\n')}\n${context ?? ''}`.trim()
+export const getKey = (text: string | string[], context?: string) => `${singleTxt(text)}\n${context ?? ''}`.trim()
 
 export class IndexTracker {
     #indices: Map<string, number> = new Map()
@@ -124,7 +124,7 @@ export type Adapter = AdapterPassThruOpts & {
 
 export type CodePattern = {
     name: string
-    args: ('message' | 'pluralFunc' | 'locale' | 'other')[]
+    args: ('message' | 'locale' | 'other')[]
 }
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | (string & {}) | 'custom'

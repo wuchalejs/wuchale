@@ -85,11 +85,11 @@ test('Manifest', async (t: TestContext) => {
 })
 
 test('Handle texts', async (t: TestContext) => {
-    const txts = [newText({ body: ['Hello'] })]
+    const txts = [newText({ body: 'Hello' })]
     const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 0)
     t.assert.strictEqual(updated, true)
     t.assert.deepStrictEqual(hmrKeys, ['Hello'])
-    const msgs1 = [newText({ body: ['Hello'], context: undefined })]
+    const msgs1 = [newText({ body: 'Hello', context: undefined })]
     const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 0)
     t.assert.strictEqual(updated1, false)
     const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
@@ -98,7 +98,7 @@ test('Handle texts', async (t: TestContext) => {
 
 test('Handler compiles only when necessary', async (t: TestContext) => {
     const handler = await makeHandler()
-    const txts = [newText({ body: ['Hello'] })]
+    const txts = [newText({ body: 'Hello' })]
     let saveCalls = 0
     let compileCalls = 0
     const handlerSaveStorage = handler.saveStorage.bind(handler)

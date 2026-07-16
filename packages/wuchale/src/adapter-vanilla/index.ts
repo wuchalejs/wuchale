@@ -12,7 +12,7 @@ export { Transformer }
 
 export const pluralPattern: CodePattern = {
     name: 'plural',
-    args: ['other', 'message', 'pluralFunc'],
+    args: ['other', 'message', 'locale'],
 }
 
 type LoadersAvailable = 'server' | 'vite'

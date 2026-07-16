@@ -252,7 +252,7 @@ test('Plural and patterns', t => {
             }
         `,
             [
-                { name: 'plural', args: ['other', 'message', 'pluralFunc'] },
+                { name: 'plural', args: ['other', 'message', 'locale'] },
                 { name: 'format0', args: ['other', 'locale'] },
                 { name: 'format1', args: ['other', 'other', 'locale', 'other'] },
                 { name: 'format2', args: ['locale'] },
@@ -262,7 +262,7 @@ test('Plural and patterns', t => {
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             const f = () => {
                 const _w_runtime_ = _w_load_();
-                return plural(items, _w_runtime_.p(0), _w_runtime_._.p)
+                return plural(items, _w_runtime_.p(0), _w_runtime_.l)
             }
             function foo() {
                 const _w_runtime_ = _w_load_();
