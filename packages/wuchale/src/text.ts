@@ -77,7 +77,7 @@ export type TextType = 'message' | 'url'
 
 export type Text = {
     type: TextType
-    body: string[] // array for plurals
+    body: string | string[] // array for plurals
     context?: string | undefined
     placeholders: [string, string][]
     path: Scope[]
@@ -107,6 +107,13 @@ export function* ascendPath(path: Scope[]) {
     }
 }
 
+export function singleTxt(body: string | string[]) {
+    if (typeof body === 'string') {
+        return body
+    }
+    return body.join('\n')
+}
+
 export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     return txt => {
         let attribute = ''
@@ -131,7 +138,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 nearestElement ||= s.name
             }
         }
-        let body = txt.body.join('\n')
+        let body = singleTxt(txt.body)
         const lastScope = txt.path.at(-1)!
         if (lastScope.type === 'element') {
             // only check the top level for letters
@@ -208,10 +215,12 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (txt, file) => {
     return false
 }
 
-export function newText(init: Partial<Text>): Text {
-    init.body = init.body?.filter(str => str != null) ?? []
-    if (init?.path?.at(-1)?.type === 'element') {
-        init.body = init.body.map(str => str.replace(/\s+/g, ' ').trim())
+export function newText(init: Partial<Text> & Pick<Text, 'body'>): Text {
+    if (typeof init.body === 'object') {
+        init.body = init.body?.filter(str => str != null) ?? []
+    }
+    if (init?.path?.at(-1)?.type === 'element' && typeof init.body === 'string') {
+        init.body = init.body.replace(/\s+/g, ' ').trim()
     }
     return {
         body: init.body,

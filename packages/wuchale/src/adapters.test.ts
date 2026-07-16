@@ -14,7 +14,7 @@ function markupTxt(body: string) {
 
 function scriptTxt(body: string) {
     return newText({
-        body: [body],
+        body,
         path: [{ type: 'function', name: 'myFn' }],
     })
 }

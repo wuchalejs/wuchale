@@ -74,9 +74,9 @@ type AdapterStatus = {
 
 type CheckErrorItem = {
     adapter: string
-    source: string[]
+    source: string | string[]
     locale: string
-    translation: string[]
+    translation: string | string[]
 }
 
 type CheckResult = {
@@ -537,20 +537,20 @@ export class Hub {
             for (const item of state.catalog.values()) {
                 checkedItems++
                 const source = item.translations.get(handler.sourceLocale)!
-                const sourceCompEntries = source.map(i => compileTranslation(i, ''))
+                const sourceComp = compileTranslation(source)
                 for (const locale of otherLocales) {
                     const translation = item.translations.get(locale)!
                     const err: CheckErrorItem = {
                         adapter: handler.key,
                         source,
-                        translation: translation ?? [],
+                        translation: translation,
                         locale,
                     }
                     if (translation.length === 0) {
                         continue
                     }
-                    const translComp = translation.map(t => compileTranslation(t, ''))
-                    if (!isEquivalent(sourceCompEntries, translComp, plurals.get(locale) ?? 0)) {
+                    const forms = typeof source === 'string' ? null : (plurals.get(locale) ?? 0)
+                    if (!isEquivalent(sourceComp, compileTranslation(translation), forms)) {
                         errors.push(err)
                         break
                     }

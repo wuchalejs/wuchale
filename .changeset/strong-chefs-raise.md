@@ -9,7 +9,7 @@
 
 The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
 
-- `.body: string[]` instead of `Message.msgStr`
+- `.body: string | string[]` instead of `Message.msgStr`
 - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
 - The rest of the properties are the same as `Message`
 
