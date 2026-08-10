@@ -50,7 +50,7 @@
     "dependencies": {
         "@astrojs/compiler": "^4",
         "@sveltejs/acorn-typescript": "^1.0.11",
-        "acorn": "^8.17.0",
+        "acorn": "^8.18.0",
         "wuchale": "^0.25.6"
     },
     "devDependencies": {
