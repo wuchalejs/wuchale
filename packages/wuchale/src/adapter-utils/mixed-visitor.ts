@@ -286,7 +286,7 @@ export class MixedVisitor<
         }
     }
 
-    #getMod(scope: Scope, building: boolean, addFunc?: ModFunc) {
+    #getMod(scope: Scope, nestable: boolean, building: boolean, addFunc?: ModFunc) {
         let mod = this.#mod.get(scope.type)
         if (!mod) {
             mod = newMod()
@@ -295,7 +295,7 @@ export class MixedVisitor<
         if (addFunc) {
             mod.funcs.push(addFunc)
         }
-        mod.building ||= building
+        mod.building = (nestable && mod.building) || building
         return mod
     }
 
@@ -316,7 +316,7 @@ export class MixedVisitor<
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
         const scope = this.#props.scopePath.at(-1)!
         const nums = this.#childNums(props.children)
-        const mod = this.#getMod(scope, alreadyInsideUnit || nums.text > 0, props.addMod)
+        const mod = this.#getMod(scope, props.nestable, alreadyInsideUnit || nums.text > 0, props.addMod)
         const exprFuncs: ModFunc[] = []
         for (const child of props.children) {
             if (this.#props.isComment(child)) {
@@ -356,10 +356,7 @@ export class MixedVisitor<
                     }
                 } else {
                     // elements, components and other things as well
-                    const childMod = newMod(
-                        props.nestable && mod.building,
-                        !alreadyInsideUnit && props.commentDirectives.unit,
-                    )
+                    const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
                     this.#mod.set(scope.type, childMod)
                     txts.push(...this.#props.visitFunc(child))
                     this.#mod.set(scope.type, mod)
