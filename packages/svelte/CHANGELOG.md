@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.20.6
+
+### Patch Changes
+
+- [056cfd7](https://github.com/wuchalejs/wuchale/commit/056cfd790554d7cf01b91b45a9f3fc025eea0650): Properly export `svelte` runtime component in `package.json` #428
+- Updated dependencies [d0ebc95, bbfb4a5]:
+  - wuchale@0.25.7
+
 ## 0.20.5
 
 ### Patch Changes
