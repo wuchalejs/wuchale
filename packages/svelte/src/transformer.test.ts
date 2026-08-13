@@ -442,19 +442,24 @@ test('Collapsing deep nested messages', async t => {
     transformTest(
         t,
         await getOutput(svelte`
-            Hello
             <div>
-                there
-                <b><i><s>someone</s></i></b>
-                <Bar />
-                {varName}
-            </div>
-            and
-            {#if foo}
+                Hello
                 <div>
-                    <b><i>user {user}</i></b> {name}
+                    there
+                    <b><i><s>someone</s></i></b>
+                    <Bar />
+                    {varName}
                 </div>
-            {/if}
+                and
+                {#if foo}
+                    <div>
+                        <b><i>user {user}</i></b> {name}
+                    </div>
+                {/if}
+                {#if info}
+                    <div>info</div>
+                {/if}
+            </div>
         `),
         svelte`
             <script>
@@ -462,35 +467,43 @@ test('Collapsing deep nested messages', async t => {
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_rx_());
             </script>
-            {#snippet _w_snippet_0(_w_ctx_)}
-                <div>
-                    {#snippet _w_snippet_2(_w_ctx_)}
-                        <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
-                    {/snippet}
-                    {#snippet _w_snippet_3()}
-                        <Bar />
-                    {/snippet}
-                    <W_tx_ t={[_w_snippet_2, _w_snippet_3]} x={_w_ctx_} n a={[varName]} />
-                </div>
-            {/snippet}
-            {#snippet _w_snippet_1()}
-                {#if foo}
+            <div>
+                {#snippet _w_snippet_0(_w_ctx_)}
                     <div>
-                        <b><i>
-                            <W_tx_ x={_w_runtime_.c(0)} a={[user]} />
-                        </i></b> {name}
+                        {#snippet _w_snippet_3(_w_ctx_)}
+                            <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
+                        {/snippet}
+                        {#snippet _w_snippet_4()}
+                            <Bar />
+                        {/snippet}
+                        <W_tx_ t={[_w_snippet_3, _w_snippet_4]} x={_w_ctx_} n a={[varName]} />
                     </div>
-                {/if}
-            {/snippet}
-            <W_tx_ t={[_w_snippet_0, _w_snippet_1]} x={_w_runtime_.c(1)} />
+                {/snippet}
+                {#snippet _w_snippet_1()}
+                    {#if foo}
+                        <div>
+                            <b><i>
+                                <W_tx_ x={_w_runtime_.c(0)} a={[user]} />
+                            </i></b> {name}
+                        </div>
+                    {/if}
+                {/snippet}
+                {#snippet _w_snippet_2()}
+                    {#if info}
+                        <div>{_w_runtime_(1)}</div>
+                    {/if}
+                {/snippet}
+                <W_tx_ t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} x={_w_runtime_.c(2)} />
+            </div>
         `,
         [
             {
                 msgStr: ['user {0}'],
                 placeholders: [['0', 'user']],
             },
+            'info',
             {
-                msgStr: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>'],
+                msgStr: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/> <2/>'],
                 placeholders: [['0.0', 'varName']],
             },
         ],

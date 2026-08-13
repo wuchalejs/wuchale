@@ -324,7 +324,7 @@ export class MixedVisitor<
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
         const mod = this.#mod[props.scope]
         const nums = this.#childNums(props.children)
-        mod.building ||= alreadyInsideUnit || nums.text > 0
+        mod.building = (props.nestable && mod.building) || alreadyInsideUnit || nums.text > 0
         if (props.addMod) {
             mod.funcs.push(props.addMod)
         }
@@ -367,10 +367,7 @@ export class MixedVisitor<
                     }
                 } else {
                     // elements, components and other things as well
-                    const childMod = newMod(
-                        props.nestable && mod.building,
-                        !alreadyInsideUnit && props.commentDirectives.unit,
-                    )
+                    const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
                     this.#mod[props.scope] = childMod
                     msgs.push(...this.#props.visitFunc(child))
                     this.#mod[props.scope] = mod
