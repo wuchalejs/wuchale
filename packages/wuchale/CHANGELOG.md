@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.25.7
+
+### Patch Changes
+
+- [d0ebc95](https://github.com/wuchalejs/wuchale/commit/d0ebc95a6220fe18570dac32f9d3c09db28dbaa1): Fix non-nestable markup text wrongly considered part of a nested message #424
+- [bbfb4a5](https://github.com/wuchalejs/wuchale/commit/bbfb4a5effa4bc4f27e7db12b9b47fd1aa73c2f7): Fix default heuristic rejecting when markup text is between other things like `<Foo/> Hello <Bar/>`
+
 ## 0.25.6
 
 ### Patch Changes
