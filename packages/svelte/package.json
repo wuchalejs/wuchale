@@ -40,7 +40,11 @@
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
-        "./runtime.svelte": "./src/runtime.svelte"
+        "./runtime.svelte": {
+            "types": "./src/runtime.svelte.d.ts",
+            "svelte": "./src/runtime.svelte",
+            "default": "./src/runtime.svelte"
+        }
     },
     "repository": {
         "type": "git",
