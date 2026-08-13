@@ -1,3 +1,5 @@
+import { compileTranslation } from './compile.js'
+
 type ElementScope = {
     type: 'element'
     name: string
@@ -133,7 +135,10 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         const lastScope = txt.path.at(-1)!
         if (lastScope.type === 'element') {
             // only check the top level for letters
-            body = body.replaceAll(/<\d+\/>/g, '#').replaceAll(/<\d+>.+<\/\d+>/g, '#')
+            const comp = compileTranslation(body, '')
+            if (typeof comp !== 'string') {
+                body = comp.map(p => (typeof p !== 'string' ? '#' : p)).join('')
+            }
         }
         const looksLikeUrlPath = body.startsWith('/') && !body.includes(' ')
         if (looksLikeUrlPath && lastScope.type !== 'element') {
