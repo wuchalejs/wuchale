@@ -1,3 +1,4 @@
+import { compileTranslation } from './compile.js'
 import type { StorageFactory } from './storage.js'
 
 type TxtScope = 'script' | 'markup' | 'attribute'
@@ -93,7 +94,10 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         let msgStr = msg.msgStr.join('\n')
         if (msg.details.scope === 'markup') {
             // only check the top level for letters
-            msgStr = msgStr.replaceAll(/<\d+\/>/g, '#').replaceAll(/<\d+>.+<\/\d+>/g, '#')
+            const comp = compileTranslation(msgStr, '')
+            if (typeof comp !== 'string') {
+                msgStr = comp.map(p => (typeof p !== 'string' ? '#' : p)).join('')
+            }
         }
         const looksLikeUrlPath = msgStr.startsWith('/') && !msgStr.includes(' ')
         if (looksLikeUrlPath && (msg.details.scope === 'script' || msg.details.scope === 'attribute')) {
