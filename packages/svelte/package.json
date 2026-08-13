@@ -41,7 +41,8 @@
             "default": "./dist/index.js"
         },
         "./runtime.svelte": {
-            "types": "./src/runtime.d.ts",
+            "types": "./src/runtime.svelte.d.ts",
+            "svelte": "./src/runtime.svelte",
             "default": "./src/runtime.svelte"
         }
     },
