@@ -4,8 +4,8 @@
     "private": true,
     "scripts": {
         "clean": "rm -rf dist *.tsbuildinfo packages/*/dist packages/*/*.tsbuildinfo",
-        "dev": "npm run clean; tsc --build tsconfig.build.json --watch",
-        "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false",
+        "dev": "npm run clean; tsc --build tsconfig.build.json --builders 1 --watch",
+        "build": "tsc --build tsconfig.build.json --sourceMap false --declarationMap false --builders 1",
         "typecheck": "tsc --build --emitDeclarationOnly --declarationMap false",
         "test": "npm run test --workspaces",
         "check": "npm run typecheck && npm run test",
