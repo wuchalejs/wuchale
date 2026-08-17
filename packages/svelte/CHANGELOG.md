@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.20.7
+
+### Patch Changes
+
+- [b12628f](https://github.com/wuchalejs/wuchale/commit/b12628ffcce2a373139910b7aa2c6ca3729e618f): Fix `runtime.svelte.d.ts` not included in package tarball #430
+- Updated dependencies [67fe107]:
+  - wuchale@0.25.8
+
 ## 0.20.6
 
 ### Patch Changes
