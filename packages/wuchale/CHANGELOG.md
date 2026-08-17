@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.25.8
+
+### Patch Changes
+
+- [67fe107](https://github.com/wuchalejs/wuchale/commit/67fe107de12d6ef83f021c4ae5e8622803fb046b): Fix `ai: null` not disabling ai translation #431
+
 ## 0.25.7
 
 ### Patch Changes
