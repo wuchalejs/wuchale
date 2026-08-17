@@ -70,7 +70,7 @@
         }
     },
     "dependencies": {
-        "@sveltejs/acorn-typescript": "^1.0.12",
+        "@sveltejs/acorn-typescript": "^1.0.13",
         "acorn": "^8.18.0",
         "wuchale": "^0.25.6"
     },
