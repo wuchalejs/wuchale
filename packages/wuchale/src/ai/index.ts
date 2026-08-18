@@ -4,8 +4,9 @@
 import { compileTranslation } from '../compile.js'
 import { getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
+import { orderedPluralForms } from '../plurals.js'
 import type { FileRef, Item } from '../storage.js'
-import { isEquivalent, pluralForms } from '../validate.js'
+import { isEquivalent } from '../validate.js'
 
 const MAX_RETRIES = 30
 
@@ -228,7 +229,7 @@ export default class AIQueue {
                 const batch: Batch = {
                     id: this.nextBatchId,
                     targetLocales,
-                    plurals: pluralForms(targetLocales[0]!),
+                    plurals: orderedPluralForms(targetLocales[0]!),
                     items: chunk,
                 }
                 groupBatches.push(batch)

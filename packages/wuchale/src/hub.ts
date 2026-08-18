@@ -6,7 +6,6 @@ import { unlinkSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
-import { loaderPathResolver } from './adapter-utils/index.js'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation } from './compile.js'
 import type { Config } from './config.js'
@@ -22,14 +21,12 @@ import {
 import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
+import { orderedPluralForms, writePluralsFile } from './plurals.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
-import { isEquivalent, pluralForms } from './validate.js'
+import { isEquivalent } from './validate.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
-const pluralFileName = 'plural.js'
-export const pluralTemplPath = loaderPathResolver(import.meta.url, '../src', 'js')('plural-tmpl')
-const pluralCategOrder: Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other']
 export const devPidFile = 'dev.pid'
 const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
@@ -99,15 +96,7 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
             `export const locales = ['${config.locales.join("','")}']`,
         ].join('\n'),
     )
-    const pluralTempl = await fs.read(pluralTemplPath)
-    if (!pluralTempl) {
-        throw new Error('Plural template not found')
-    }
-    const pluralFileContent = pluralTempl
-        .replaceAll('${DATA}', './data.js')
-        .replaceAll('${LOCALE}', config.locales[0])
-        .replace('ALL_C = []', `ALL_C = ['${pluralCategOrder.join("', '")}']`)
-    await fs.write(resolve(localesDirAbs, pluralFileName), pluralFileContent)
+    await writePluralsFile(fs, localesDirAbs, config.locales[0])
 }
 
 async function getSharedState(
@@ -525,7 +514,7 @@ export class Hub {
         const syncs: string[] = []
         let checkedItems = 0
         const existingFilesByOwner = new Map<string, Set<string>>()
-        const plurals = new Map(this.#opts.config.locales.map(l => [l, pluralForms(l).length]))
+        const plurals = new Map(this.#opts.config.locales.map(l => [l, orderedPluralForms(l).length]))
         for (const handler of this.#getSortedHandlersForDirectVisit()) {
             const state = handler.sharedState
             if (full && (await this.#directVisitHandler(handler, false, false, existingFilesByOwner))) {

@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
 import { fillDefaults } from './config.js'
+import { orderedPluralForms } from './plurals.js'
 import {
     type FileRef,
     type FileRefEntry,
@@ -32,8 +33,9 @@ function split(str: string, sep: string, count?: number) {
         .map(s => s.replaceAll(`\\${sep}`, sep).replaceAll('\\\\', '\\'))
 }
 
-function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
-    const poi = new PO.Item()
+function itemToPOItem(item: Item, locale: string, sourceLocale: string, nplurals: number): POItem {
+    // @ts-expect-error
+    const poi = new PO.Item({ nplurals })
     const id = item.translations.get(sourceLocale)!
     const body = item.translations.get(locale)!
     if (typeof id === 'string') {
@@ -170,7 +172,8 @@ type POHeaders = Record<string, string | undefined>
 export class POFile {
     key: string
     opts: StorageFactoryOpts & POFileOptions
-    filesByLoc: Map<string, string> = new Map() // main and url
+    filesByLoc: Map<string, string> = new Map()
+    pluralsByLoc: Map<string, Intl.LDMLPluralRule[]> = new Map()
     files: string[] = []
     fileExistsCache: Map<string, boolean> = new Map()
 
@@ -179,6 +182,7 @@ export class POFile {
         opts.location = resolve(opts.root, opts.location)
         this.key = opts.location
         for (const locale of opts.locales) {
+            this.pluralsByLoc.set(locale, orderedPluralForms(locale))
             const location = opts.location.replace('{locale}', locale)
             this.filesByLoc.set(locale, location)
             this.files.push(location)
@@ -234,7 +238,12 @@ export class POFile {
             this.opts.locales.map(locale => {
                 const poItems: POItem[] = []
                 for (const item of items) {
-                    const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
+                    const poItem = itemToPOItem(
+                        item,
+                        locale,
+                        this.opts.sourceLocale,
+                        this.pluralsByLoc.get(locale)?.length ?? 2,
+                    )
                     poItems.push(poItem)
                 }
                 return this.saveRaw(poItems, this.getHeaders(locale), locale)
@@ -250,6 +259,10 @@ export class POFile {
             ['Content-Type', 'text/plain; charset=utf-8'],
             ['Content-Transfer-Encoding', '8bit'],
         ]
+        const plurals = this.pluralsByLoc.get(locale)
+        if (plurals?.length) {
+            updateHeaders.push(['Plural-Forms', `nplurals=${plurals.length}`], ['X-Plurals-Order', plurals.join(', ')])
+        }
         const headers: POHeaders = {}
         for (const [key, val] of updateHeaders) {
             headers[key] = val

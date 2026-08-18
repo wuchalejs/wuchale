@@ -32,14 +32,6 @@ function isEquivalentSingle(source: CompiledSingle, translation: CompiledSingle)
     return (stringsS === 0) === (stringsT === 0) && source.length - stringsS === translation.length - stringsT
 }
 
-export function pluralForms(locale: string) {
-    const supported = Intl.PluralRules.supportedLocalesOf([locale])
-    if (supported.length === 0) {
-        return []
-    }
-    return new Intl.PluralRules(locale).resolvedOptions().pluralCategories
-}
-
 function isEquivalentPlural(source: CompiledPlural, translation: CompiledPlural) {
     // extract all unique placeholders across all candidates
     const placeholders = new Map<number, boolean>()

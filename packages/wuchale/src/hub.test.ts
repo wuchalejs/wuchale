@@ -7,7 +7,8 @@ import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/ut
 import { defaultArgs } from './adapter-vanilla/index.js'
 import { type Config, type DevMode, defaultConfig } from './config.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
-import { devPidFile, Hub, pluralTemplPath } from './hub.js'
+import { devPidFile, Hub } from './hub.js'
+import { pluralTemplPath } from './plurals.js'
 
 const file = resolve(import.meta.dirname, 'src/foo.js') // needs to match files, relative to root
 
