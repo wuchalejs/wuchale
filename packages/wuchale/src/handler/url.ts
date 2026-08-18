@@ -46,7 +46,7 @@ export class URLHandler {
         let needWriteCatalog = false
         const toCompile: Item[] = []
         for (const [i, pattern] of this.patterns.entries()) {
-            const key = getKey([pattern])
+            const key = getKey(pattern)
             urlPatternCatKeys[i] = key
             let item = catalog.get(key)
             if (!item) {
