@@ -80,7 +80,7 @@ export const dummyTransform: TransformFunc = ctx => {
     let out = ''
     for (const m of ctx.content.matchAll(/'\w+'/g)) {
         const msg = m[0].slice(1, -1)
-        if (!ctx.index.has(getKey([msg]))) {
+        if (!ctx.index.has(getKey(msg))) {
             continue
         }
         out += `${ctx.expr.plain}(${ctx.index.get(msg)})\n`

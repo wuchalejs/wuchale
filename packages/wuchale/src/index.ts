@@ -14,10 +14,7 @@ export type {
     URLConf,
     UrlMatcher,
 } from './adapters.js'
-export {
-    getKey,
-    IndexTracker,
-} from './adapters.js'
+export { getKey, IndexTracker } from './adapters.js'
 export { gemini } from './ai/gemini.js'
 export type {
     CompiledElement,

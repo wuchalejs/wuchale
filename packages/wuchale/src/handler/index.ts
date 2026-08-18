@@ -447,7 +447,7 @@ export class AdapterHandler {
                     ;(err as any).id = filename
                     throw err
                 }
-                key = getKey([this.url.patterns[matched[0]]!])
+                key = getKey(this.url.patterns[matched[0]]!)
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
