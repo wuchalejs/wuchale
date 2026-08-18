@@ -20,7 +20,7 @@ export const indices = /** @type {Map<import('${DATA}').Locale, (n: number) => n
  * @param {string[]} candidates
  * @param {import('${DATA}').Locale} locale
  */
-export default function plural(n, candidates, locale) {
+export default function plural(n, candidates, locale = '${LOCALE}') {
     const rule = /** @type {(n: number) => number} */ (indices.get(locale))
     return candidates[rule(n)]?.replace('#', n.toString())
 }
