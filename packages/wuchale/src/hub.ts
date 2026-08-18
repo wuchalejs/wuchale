@@ -105,6 +105,7 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
     }
     const pluralFileContent = pluralTempl
         .replaceAll('${DATA}', './data.js')
+        .replaceAll('${LOCALE}', config.locales[0])
         .replace('ALL_C = []', `ALL_C = ['${pluralCategOrder.join("', '")}']`)
     await fs.write(resolve(localesDirAbs, pluralFileName), pluralFileContent)
 }
