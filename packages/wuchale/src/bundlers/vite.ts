@@ -103,12 +103,9 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
             }
             return []
         },
-        transform: {
-            order: 'pre' as const,
-            async handler(code: string, id: string, options?: { ssr?: boolean | undefined }) {
-                const [output] = await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
-                return output
-            },
+        async transform(code: string, id: string, options?: { ssr?: boolean | undefined }) {
+            const [output] = await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
+            return output
         },
     }
 }
