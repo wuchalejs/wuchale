@@ -73,7 +73,7 @@ Preserve all placeholders exactly as they appear in the source. The placeholder 
 - <0>text</0>: text wrapped in a tag (like an HTML element)
 - <0/>: a self-closing tag
 
-${plurals === null ? '' : `For items with multiple id entries, these are plural forms. Provide the corresponding number of plural forms for each target locale.${plurals.length > 0 ? ` The plural forms should be ordered like: ${plurals.join(', ')}.` : ''}`}
+${plurals === null ? '' : `For items with multiple id entries, these are plural forms. Provide the corresponding number of plural forms for each target locale.${plurals.length > 0 ? ` The plural forms should be ${plurals.length}, in the CLDR order: ${plurals.join(', ')}.` : ''}`}
 
 Respond with a JSON array matching the order of the input items. Each element is an object keyed by locale code, where each value is an array of translated strings (one per plural form, or a single-element array for non-plural items).
 
