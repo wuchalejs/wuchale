@@ -69,12 +69,12 @@ export type PluginConf = {
 }
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
-    let inDev: boolean, conf: Config, hub: Hub
+    let inBuild: boolean, conf: Config, hub: Hub
     const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
     return {
         name: pluginName,
         async config(_: any, env: { mode: string }) {
-            inDev = env.mode === 'build'
+            inBuild = env.mode === 'build'
             conf = await getConfig(configPath)
             return {
                 optimizeDeps: { include: Object.values(conf.adapters).flatMap(a => a.addImports) },
@@ -82,7 +82,7 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
         },
         async buildStart() {
             hub = await Hub.create(
-                inDev ? 'dev' : 'build',
+                inBuild ? 'build' : 'dev',
                 conf,
                 dirname(configPath ?? '.'),
                 [],
