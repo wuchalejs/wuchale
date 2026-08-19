@@ -282,7 +282,7 @@ export class Hub {
         }
         const confUpdateFileAbs = resolve(root, config.localesDir, generatedDir, confUpdateName)
         if (mode === 'dev' && primary) {
-            await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+            await fs.write(confUpdateFileAbs, '{}') // only changes are detected so prepare first
         }
         return new Hub({
             ...commonOpts,
@@ -298,10 +298,12 @@ export class Hub {
         file = normalizeSep(file) // just to be sure
         if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
-            const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
-            this.#opts.log.info(logPrefix, 'config update received:', color.cyan(updateTxt))
-            if (update.dev !== undefined) {
-                this.#opts.config.dev = update.dev
+            if (updateTxt !== '{}') {
+                const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
+                this.#opts.log.info(logPrefix, 'config update received:', color.cyan(updateTxt))
+                if (update.dev !== undefined) {
+                    this.#opts.config.dev = update.dev
+                }
             }
             return ignoreChange
         }

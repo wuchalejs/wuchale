@@ -70,19 +70,22 @@ export type PluginConf = {
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
     let hub: Hub
+    const hubArgsRest: Parameters<(typeof Hub)['create']> extends [unknown, ...infer Rest] ? Rest : never = [
+        () => getConfig(configPath),
+        dirname(configPath ?? '.'),
+        [],
+        hmrDelayThreshold,
+        undefined,
+        toViteError,
+    ]
     const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
     return {
         name: pluginName,
         async configResolved(config: { env: { DEV?: boolean } }) {
-            hub = await Hub.create(
-                config.env.DEV ? 'dev' : 'build',
-                () => getConfig(configPath),
-                dirname(configPath ?? '.'),
-                [],
-                hmrDelayThreshold,
-                undefined,
-                toViteError,
-            )
+            if (!config.env.DEV) hub = await Hub.create('build', ...hubArgsRest)
+        },
+        async configureServer() {
+            hub = await Hub.create('dev', ...hubArgsRest) // during dev, init here to avoid init by lsp calling configResolved
         },
         async handleHotUpdate(ctx: HotUpdateCtx) {
             const changeInfo = await hub.onFileChange(ctx.file, ctx.read)
