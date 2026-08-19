@@ -69,26 +69,26 @@ export type PluginConf = {
 }
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
-    let hub: Hub
-    const hubArgsRest: Parameters<(typeof Hub)['create']> extends [unknown, ...infer Rest] ? Rest : never = [
-        () => getConfig(configPath),
-        dirname(configPath ?? '.'),
-        [],
-        hmrDelayThreshold,
-        undefined,
-        toViteError,
-    ]
+    let DEV: boolean | undefined, hub: Hub
     const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
     return {
         name: pluginName,
-        async configResolved(config: { env: { DEV?: boolean } }) {
-            if (!config.env.DEV) hub = await Hub.create('build', ...hubArgsRest)
+        configResolved(config: { env: { DEV?: boolean } }) {
+            DEV = config.env.DEV
         },
-        async configureServer() {
-            hub = await Hub.create('dev', ...hubArgsRest) // during dev, init here to avoid init by lsp calling configResolved
+        async buildStart() {
+            hub = await Hub.create(
+                DEV ? 'dev' : 'build',
+                await getConfig(configPath),
+                dirname(configPath ?? '.'),
+                [],
+                hmrDelayThreshold,
+                undefined,
+                toViteError,
+            )
         },
         async handleHotUpdate(ctx: HotUpdateCtx) {
-            const changeInfo = await hub.onFileChange(ctx.file, ctx.read)
+            const changeInfo = await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
             if (!changeInfo) {
                 return
             }

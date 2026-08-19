@@ -33,8 +33,6 @@ const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = Pick<Config, 'dev'>
 
-type ConfigLoader = () => Config | Promise<Config>
-
 type FileChangeInfo = {
     sourceTriggered: boolean
     invalidate: Set<string>
@@ -235,14 +233,13 @@ export class Hub {
 
     static create = async (
         mode: Mode,
-        loadConfig: ConfigLoader,
+        config: Config,
         root: string,
         modifyAdapters: string[] = [],
         hmrDelayThreshold = 1000,
         fs = defaultFS,
         formatTransformErr: TransformErrFormatter = e => e,
     ) => {
-        const config = await loadConfig()
         const adaptersData = Object.entries(config.adapters)
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
