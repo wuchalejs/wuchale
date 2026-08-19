@@ -199,7 +199,7 @@ export class JSXTransformer extends Transformer {
         return this.visit(node as Estree.AnyNode)
     }
 
-    transformJx(lib: JSXLib): TransformOutput {
+    transformJx(rtComponentFile: string, lib: JSXLib): TransformOutput {
         // jsx vs type casting is not ambiguous in all files except .ts files
         const [ast, comments] = (this.filename.endsWith('.ts') ? parseScript : parseScriptJSX)(this.content)
         this.comments = comments
@@ -207,10 +207,7 @@ export class JSXTransformer extends Transformer {
             this.currentJsxKey = 0
         }
         const txts = this.visitJx(ast)
-        const header = [
-            `import ${rtComponent} from "@wuchale/jsx/runtime${lib === 'solidjs' ? '.solid' : ''}.jsx"`,
-            this.initRuntime(),
-        ].join('\n')
+        const header = [`import ${rtComponent} from "${rtComponentFile}"`, this.initRuntime()].join('\n')
         const bodyStart = this.getRealBodyStart(ast.body) as number
         return this.finalize(txts, bodyStart, header)
     }

@@ -22,7 +22,7 @@ const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs'
         defaultArgs.heuristic,
         defaultArgs.patterns,
         variant === 'default' ? defaultArgs.runtime : defaultRuntimeSolid,
-    ).transformJx(variant)
+    ).transformJx(`@wuchale/jsx/runtime${variant === 'solidjs' ? '.solid' : ''}.jsx`, variant)
 
 test('React basic', async t => {
     transformTest(

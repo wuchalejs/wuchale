@@ -254,14 +254,14 @@ export class AstroTransformer extends Transformer {
         return this.visit(node as Estree.AnyNode)
     }
 
-    async transformAs(): Promise<TransformOutput> {
+    async transformAs(rtFuncFile: string): Promise<TransformOutput> {
         const { ast } = await parse(this.content)
         const txts = this.visitAs(ast)
         if (this.frontMatterStart == null) {
             this.mstr.appendLeft(0, '---\n')
             this.mstr.appendRight(0, '---\n')
         }
-        const header = [`import ${rtRenderFunc} from "@wuchale/astro/runtime.js"`, this.initRuntime()].join('\n')
+        const header = [`import ${rtRenderFunc} from "${rtFuncFile}"`, this.initRuntime()].join('\n')
         return this.finalize(txts, this.frontMatterStart ?? 0, header)
     }
 }

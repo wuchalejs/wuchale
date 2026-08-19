@@ -84,10 +84,12 @@ export const adapter = (args: DeepPartial<SvelteArgs> = defaultArgs): Adapter =>
         args.heuristic = svelteKitDefaultHeuristic
     }
     const { heuristic, patterns, runtime, loader, ...rest } = fillDefaults(args, defaultArgs)
+    const rtComponentFile = '@wuchale/svelte/runtime.svelte'
     return {
-        transform: ctx => new SvelteTransformer(ctx, heuristic, patterns, runtime).transformSv(),
+        transform: ctx => new SvelteTransformer(ctx, heuristic, patterns, runtime).transformSv(rtComponentFile),
         loaderExts: ['.svelte.js', '.svelte.ts', '.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
+        addImports: [rtComponentFile],
         runtime,
         ...rest,
     }

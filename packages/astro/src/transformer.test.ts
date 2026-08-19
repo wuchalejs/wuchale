@@ -22,7 +22,7 @@ const getOutput = (content: string, filename = 'test.astro') =>
         defaultArgs.heuristic,
         defaultArgs.patterns,
         defaultRuntime,
-    ).transformAs()
+    ).transformAs('@wuchale/astro/runtime.js')
 
 test('Basic markup with unicode', async t => {
     transformTest(

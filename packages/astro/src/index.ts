@@ -80,8 +80,9 @@ export function getDefaultLoaderPath(loader: LoaderChoice<LoadersAvailable>): st
 
 export const adapter = (args: DeepPartial<AstroArgs> = defaultArgs): Adapter => {
     const { heuristic, patterns, loader, ...rest } = fillDefaults(args, defaultArgs)
+    const rtFuncFile = '@wuchale/astro/runtime.js'
     return {
-        transform: ctx => new AstroTransformer(ctx, heuristic, patterns, defaultRuntime).transformAs(),
+        transform: ctx => new AstroTransformer(ctx, heuristic, patterns, defaultRuntime).transformAs(rtFuncFile),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader),
         loading: {
@@ -90,6 +91,7 @@ export const adapter = (args: DeepPartial<AstroArgs> = defaultArgs): Adapter => 
             group: [],
         },
         runtime: defaultRuntime,
+        addImports: [rtFuncFile],
         ...rest,
     }
 }

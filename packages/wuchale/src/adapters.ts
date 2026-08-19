@@ -120,6 +120,8 @@ export type Adapter = AdapterPassThruOpts & {
     defaultLoaderPath: LoaderPath | string | null
     /** names to import from loaders, should avoid collision with code variables */
     getRuntimeVars?: Partial<RuntimeExpr>
+    /** needed to ignore/include in pre-bundling in vite */
+    addImports: string[]
 }
 
 export type CodePattern = {

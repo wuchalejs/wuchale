@@ -23,6 +23,7 @@ const adapter: Adapter = {
     storage: inMemStorage,
     loaderExts: ['.js'],
     defaultLoaderPath: defaultLoaderPath,
+    addImports: [],
 }
 
 async function makeHandler() {

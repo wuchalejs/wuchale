@@ -16,7 +16,6 @@ import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
 
 const rtComponent = 'W_tx_'
-const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
 const snipPrefix = '_w_snippet_'
 const rtModuleVar = `${varNames.rt}mod_`
 
@@ -392,7 +391,7 @@ export class SvelteTransformer extends Transformer {
         }
     }
 
-    async transformSv(): Promise<TransformOutput> {
+    async transformSv(rtComponentFile: string): Promise<TransformOutput> {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -434,6 +433,6 @@ export class SvelteTransformer extends Transformer {
             this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
             // now hmr data can be prependRight(0, ...)
         }
-        return this.finalize(txts, headerIndex, headerAdd)
+        return this.finalize(txts, headerIndex, `\nimport ${rtComponent} from "${rtComponentFile}"`)
     }
 }

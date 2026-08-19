@@ -18,6 +18,7 @@ const adapter: Adapter = {
     storage: inMemStorage,
     loaderExts: ['.js'],
     defaultLoaderPath,
+    addImports: [],
 }
 
 const files = await Files.create({

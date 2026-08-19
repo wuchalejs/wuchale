@@ -27,7 +27,7 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         svelteKitDefaultHeuristic,
         defaultArgs.patterns,
         defaultArgs.runtime,
-    ).transformSv()
+    ).transformSv('@wuchale/svelte/runtime.svelte')
 
 test('Simple text and props destruct', async t => {
     transformTest(

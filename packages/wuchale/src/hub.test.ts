@@ -39,6 +39,7 @@ const config: Config = {
             files: 'src/*.js', // filename needs to match
             loaderExts: ['.js'],
             defaultLoaderPath,
+            addImports: [],
         },
     },
     dev: 'refs',

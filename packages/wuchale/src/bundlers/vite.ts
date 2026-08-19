@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { getConfig } from '../config.js'
+import { type Config, getConfig } from '../config.js'
 import { Hub, pluginName } from '../hub.js'
 
 export function toViteError(err: any, adapterKey: string, filename: string): Error {
@@ -69,17 +69,21 @@ export type PluginConf = {
 }
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
-    let DEV: boolean | undefined, hub: Hub
+    let inDev: boolean, conf: Config, hub: Hub
     const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
     return {
         name: pluginName,
-        configResolved(config: { env: { DEV?: boolean } }) {
-            DEV = config.env.DEV
+        async config(_: any, env: { mode: string }) {
+            inDev = env.mode === 'build'
+            conf = await getConfig(configPath)
+            return {
+                optimizeDeps: { include: Object.values(conf.adapters).flatMap(a => a.addImports) },
+            }
         },
         async buildStart() {
             hub = await Hub.create(
-                DEV ? 'dev' : 'build',
-                await getConfig(configPath),
+                inDev ? 'dev' : 'build',
+                conf,
                 dirname(configPath ?? '.'),
                 [],
                 hmrDelayThreshold,

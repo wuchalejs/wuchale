@@ -112,14 +112,16 @@ export const adapter = (args: DeepPartial<JSXArgs> = defaultArgs): Adapter => {
     if (variant === 'solidjs' && runtimeNotGiven) {
         runtime = defaultRuntimeSolid
     }
+    const rtComponentFile = `@wuchale/jsx/runtime${variant === 'solidjs' ? '.solid' : ''}.jsx`
     return {
-        transform: ctx => new JSXTransformer(ctx, heuristic, patterns, runtime).transformJx(variant),
+        transform: ctx => new JSXTransformer(ctx, heuristic, patterns, runtime).transformJx(rtComponentFile, variant),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
         runtime,
         getRuntimeVars: {
             reactive: 'useW_load_rx_',
         },
+        addImports: [rtComponentFile],
         ...rest,
     }
 }
