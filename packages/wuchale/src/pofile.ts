@@ -75,6 +75,9 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string, nplurals
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
     }
+    if (locale !== sourceLocale) {
+        poi.flags['ai'] = item.attribs.ai
+    }
     poi.obsolete = itemIsObsolete(item)
     return poi
 }
@@ -147,7 +150,11 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
                 flags: {},
             }
             for (const [k, v] of Object.entries(poi?.flags ?? {})) {
-                if (!k.startsWith(urlAdapterFlagPrefix)) {
+                if (k === 'ai') {
+                    if (loc !== sourceLocale) {
+                        item.attribs.ai = v
+                    }
+                } else if (!k.startsWith(urlAdapterFlagPrefix)) {
                     add.flags[k] = v
                 }
             }

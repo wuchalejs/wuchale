@@ -46,6 +46,7 @@ test('Translations accepted correctly', async (t: TestContext) => {
     queue.add([cItem])
     await queue.running
     t.assert.deepStrictEqual(cItem.translations.get('es'), ['Bienvenido'])
+    t.assert.equal(cItem.attribs.ai, true)
     t.assert.deepStrictEqual(cItem.translations.get('de'), [])
 })
 

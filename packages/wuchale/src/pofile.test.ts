@@ -26,6 +26,7 @@ const itemFull = newItem(
                 refs: [{ placeholders: [['0', 'foo: bar;']] }, null],
             },
         ],
+        attribs: { ai: true },
     },
     ['en', 'es'],
 )
@@ -35,10 +36,11 @@ const itemMin: Item = { ...itemFull, references: itemFull.references.map(r => ({
 export function testStorage(storage: CatalogStorage, name: string, minimal = false) {
     const item = minimal ? itemMin : itemFull
 
-    test(`${name} round-trips reference metadata`, async (t: TestContext) => {
+    test(`${name} round-trips metadata`, async (t: TestContext) => {
         await storage.save([item])
         const items = await storage.load()
         t.assert.deepStrictEqual(items[0]!.references, item.references)
+        t.assert.partialDeepStrictEqual(items[0]!.attribs, item.attribs)
     })
 
     test(`${name} loads items without the source locale file`, async (t: TestContext) => {

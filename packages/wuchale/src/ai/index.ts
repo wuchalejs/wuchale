@@ -165,6 +165,7 @@ export default class AIQueue {
                 }
                 item.translations.set(loc, translation)
             }
+            item.attribs.ai = true
         }
         if (unTranslated.length === 0) {
             this.log.info(logStart, color.green('translated'))

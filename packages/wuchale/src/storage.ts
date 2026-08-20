@@ -21,6 +21,7 @@ export interface Item {
     references: FileRef[]
     urlAdapters: string[] // for URLs
     attribs: {
+        ai?: boolean | undefined
         // for things that should survive the round trip with the storage
         [key: string]: unknown
     }
@@ -46,7 +47,7 @@ export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
         context: init.context,
         references: init.references ?? [],
         urlAdapters: init.urlAdapters ?? [],
-        attribs: {},
+        attribs: init.attribs ?? {},
     }
 }
 

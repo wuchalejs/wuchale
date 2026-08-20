@@ -14,7 +14,7 @@ type SaveRefFull = {
     }[]
 }
 
-type SaveItem = Partial<Pick<Item, 'urlAdapters' | 'context'>> & {
+type SaveItem = Partial<Pick<Item, 'urlAdapters' | 'context' | 'attribs'>> & {
     references?: (SaveRefMin | SaveRefFull)[]
     translations?: Record<string, string | string[]>
     [loc: string]: unknown // translations flattened
@@ -71,7 +71,7 @@ export class JSONFile {
                     }
                     return { file: ref.file, refs }
                 }) ?? [],
-            attribs: {},
+            attribs: sitem.attribs ?? {},
         }
         for (const loc of this.#opts.locales) {
             let str: string | string[] | undefined
@@ -127,6 +127,9 @@ export class JSONFile {
             context: item.context,
             urlAdapters: item.urlAdapters,
             references: [],
+        }
+        if (Object.keys(item.attribs).length) {
+            saveItem.attribs = item.attribs
         }
         let translationsForMerge: Record<string, unknown>
         if (this.#opts.flattenTranslations) {
