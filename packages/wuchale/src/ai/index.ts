@@ -37,11 +37,20 @@ const outputSchema = {
     type: 'array',
     items: {
         type: 'object',
-        description: 'Keyed by locale code',
+        description: 'Translations, keyed by locale code',
         additionalProperties: {
-            type: 'array',
-            items: { type: 'string' },
-            minItems: 1,
+            oneOf: [
+                {
+                    type: 'string',
+                    description: 'When the item is a singular',
+                },
+                {
+                    type: 'array',
+                    items: { type: 'string' },
+                    minItems: 1,
+                    description: 'When the item is a plural, should correspond to each plural form',
+                },
+            ],
         },
     },
 }
@@ -75,10 +84,11 @@ Preserve all placeholders exactly as they appear in the source. The placeholder 
 
 ${plurals === null ? '' : `For items with multiple id entries, these are plural forms. Provide the corresponding number of plural forms for each target locale.${plurals.length > 0 ? ` The plural forms should be ${plurals.length}, in the CLDR order: ${plurals.join(', ')}.` : ''}`}
 
-Respond with a JSON array matching the order of the input items. Each element is an object keyed by locale code, where each value is an array of translated strings (one per plural form, or a single-element array for non-plural items).
+Respond with a JSON array matching the order of the input items. The output schema is:
 
-Output schema:
+\`\`\`json
 ${JSON.stringify(outputSchema)}
+\`\`\`
 
 CRITICAL!:
 - ALWAYS Respond with a raw compact JSON array even if there is only one item.
