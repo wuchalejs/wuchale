@@ -50,7 +50,7 @@ export class URLHandler {
             urlPatternCatKeys[i] = key
             let item = catalog.get(key)
             if (!item) {
-                item = newItem({ id: [pattern] }, this.locales)
+                item = newItem({}, this.locales)
                 catalog.set(key, item)
                 needWriteCatalog = true
             }

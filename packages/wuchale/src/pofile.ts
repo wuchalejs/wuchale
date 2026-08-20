@@ -69,7 +69,7 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string, nplurals
     if (!poi.extractedComments.some(c => c !== '')) {
         poi.extractedComments = []
     }
-    const additionals: AdditionalsByLoc = (item['additionals'] as AdditionalsByLoc) ?? new Map()
+    const additionals: AdditionalsByLoc = (item.attribs['additionals'] as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
     for (const key of item.urlAdapters) {
@@ -117,6 +117,7 @@ function poitemToItemCommons(poi: POItem): Item {
         context: poi.msgctxt,
         references,
         urlAdapters,
+        attribs: {},
     }
 }
 
@@ -152,7 +153,7 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
             }
             additionals.set(loc, add)
         }
-        item['additionals'] = additionals
+        item.attribs['additionals'] = additionals
         items.push(item)
     }
     return items

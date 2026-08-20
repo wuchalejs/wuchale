@@ -451,7 +451,7 @@ export class AdapterHandler {
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ id: txt.body }, this.#opts.config.locales)
+                item = newItem({}, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
                 this.#newKeys.add(key)
                 storageUpdated = true

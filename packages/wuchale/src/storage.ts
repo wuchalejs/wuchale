@@ -20,8 +20,10 @@ export interface Item {
     translations: Map<string, string | string[]>
     references: FileRef[]
     urlAdapters: string[] // for URLs
-    // for things that should survive the round trip with the storage
-    [key: string]: unknown
+    attribs: {
+        // for things that should survive the round trip with the storage
+        [key: string]: unknown
+    }
 }
 
 export function fillTranslations(item: Item, locales: string[]) {
@@ -44,6 +46,7 @@ export const newItem = (init: Partial<Item> = {}, locales: string[]): Item => {
         context: init.context,
         references: init.references ?? [],
         urlAdapters: init.urlAdapters ?? [],
+        attribs: {},
     }
 }
 

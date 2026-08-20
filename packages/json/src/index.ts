@@ -71,6 +71,7 @@ export class JSONFile {
                     }
                     return { file: ref.file, refs }
                 }) ?? [],
+            attribs: {},
         }
         for (const loc of this.#opts.locales) {
             let str: string | string[] | undefined
