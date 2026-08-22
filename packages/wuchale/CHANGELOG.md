@@ -1,5 +1,70 @@
 # wuchale
 
+## 0.26.0
+
+### Minor Changes
+
+- [8aa70f2](https://github.com/wuchalejs/wuchale/commit/8aa70f2c205829fcb2c45b669ce2e6d5000fe814): ⚠️ BREAKING: Use CLDR plural rules from `Intl` instead of PO file headers
+  
+  The `plural` function is now provided in a `plural.js` file in `localesDir`,
+  and it uses the CLDR rules from the runtime environment (Browsers, Node.js,
+  etc) instead of expecting the rules to be manually defined inside the catalogs.
+  Its signature is also different. Instead of expecting a rule function as the
+  last argument, it expects a `locale`, which is automatically provided at
+  transform time, with the default being the first one in the `locales` config.
+  Therefore, if you need plurals, import and use this new one.
+  
+  ```js
+  import plural from "../locales/plural.js"
+  // ...
+  plural(42, ['a day', '# days'])
+  ```
+  
+  If you use locales that are not covered by CLDR, you can define another
+  `plural` function with the same signature, optionally using this one as a
+  fallback for the locales that are, with your custom selection logic, and use
+  that. The import location is not checked at transform time, only the name and
+  signature.
+  
+  All plurals are now fully validated when they are translated using AI or when
+  using the CLI's `check` command.
+- [ecb2626](https://github.com/wuchalejs/wuchale/commit/ecb2626154534da5395ffd33782d432fcb45f8fa): Add `ai` flag when the translations are from an AI, for easier reviews #316
+- [b43c360](https://github.com/wuchalejs/wuchale/commit/b43c3605d49c7c83307946e7445e96ed59b9702e): Vite: add injected components in `optimizeDeps.include` to prevent startup reload causing test errors #437
+- [865ebdf](https://github.com/wuchalejs/wuchale/commit/865ebdfc43a2acaddc695b89de32a710668f918d): ⚠️ BREAKING: Stop forcing `pre` on Vite `transform` hook to play nice with other plugins
+  
+  This makes it possible to use other plugins that extend the language syntax
+  like
+  [svelte-effect-runtime](https://github.com/artisanstreet/svelte-effect-runtime)
+  allowing their plugins to be placed before `wuchale()` so that wuchale can get
+  a normal syntax and prevent syntax errors. If you don't have `wuchale()` in the
+  beginning of the Vite `plugins` config, move it earlier.
+- [cd53445](https://github.com/wuchalejs/wuchale/commit/cd53445e64344206fdd8aff1c50e72eab5d8d9b2): More reliable HMR implementation that doesn't get confused with secondary instances (like the CLI)
+- [15d677e](https://github.com/wuchalejs/wuchale/commit/15d677e8286dba588a2123389375673e3ea83675): ⚠️ BREAKING: Replace single details object with an array of scope objects and separate filename for heuristic
+  
+  The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
+  
+  - `.body: string | string[]` instead of `Message.msgStr`
+  - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
+  - The rest of the properties are the same as `Message`
+  
+  Therefore if you implement a custom heuristic function you should for example:
+  
+  ```diff
+  -heuristic: (msg) => {
+  +heuristic: (text, file) => {
+  -    if (msg.details.element || msg.details.file.endsWith('.foo')) {
+  +    if (text.path.some(s => s.type === 'element') || file.endsWith('.foo')) {
+           return false
+       }
+   }
+  ```
+  
+  The scope array is now used to ignore whole sub-trees of ignored elements even if they contain non-ignored elements.
+
+### Patch Changes
+
+- [abb3f14](https://github.com/wuchalejs/wuchale/commit/abb3f14121a94232b48aa6088df87681dcc37f59): When nesting functions with messages, initialize runtime at the inner most function with messages #436
+
 ## 0.25.8
 
 ### Patch Changes
