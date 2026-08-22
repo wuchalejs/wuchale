@@ -62,8 +62,6 @@ export function parseScript(content: string): [Estree.Program, Estree.Comment[][
     return [ScriptParser.parse(content, opts), comments]
 }
 
-type InitRuntimeFunc = (funcName?: string, parentFunc?: string) => string | undefined
-
 export class Transformer extends InertVisitors {
     index: IndexTracker
     heuristic: HeuristicFunc
@@ -74,7 +72,7 @@ export class Transformer extends InertVisitors {
     patterns: CodePattern[]
     matchUrl: UrlMatcher
     initReactive: () => ReturnType<RuntimeConf['initReactive']>
-    initRuntime: InitRuntimeFunc
+    initRuntime: () => string | undefined
     currentRtVar: string
     vars: () => RuntimeVars
 
@@ -82,9 +80,11 @@ export class Transformer extends InertVisitors {
     commentDirectives: CommentDirectives = {}
     filename: string
     scopePath: Scope[] = []
-    /** .start of the first statements in their respective parents, to put the runtime init before */
-    realBodyStarts = new Set<number>()
-    patternMatchMods = 0 // for realBodyStarts
+    /** runtime init info for each scope */
+    initRuntimeInfo: [stmt: string, start: number, end: number | null][] = []
+    patternMatchMods = 0 // number of modified pattern matches, for realBodyStarts
+    inFuncTxts = 0 // number of txts inside descendant function bodies
+    programBodyStart = new Map<Estree.Program, number>() // different when e.g. 'use strict'
     /** will be passed to decide which runtime variable to use */
     runtimeCtx = {}
 
@@ -127,15 +127,15 @@ export class Transformer extends InertVisitors {
         }
         this.initReactive = () => rtConf.initReactive(this.scopePath, ctx.filename, this.runtimeCtx)
         this.initRuntime = () => {
-            let initReactive = this.initReactive()
-            if (initReactive == null) {
+            let reactive = this.initReactive()
+            if (reactive == null) {
                 return
             }
             if (typeof rtConf.useReactive === 'boolean') {
-                initReactive = rtConf.useReactive // should be consistent
+                reactive = rtConf.useReactive // should be consistent
             }
-            const wrapInit = initReactive ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
-            const expr = initReactive ? ctx.expr.reactive : ctx.expr.plain
+            const wrapInit = reactive ? rtConf.reactive.wrapInit : rtConf.plain.wrapInit
+            const expr = reactive ? ctx.expr.reactive : ctx.expr.plain
             return `\nconst ${this.currentRtVar} = ${wrapInit(expr)};\n`
         }
     }
@@ -535,7 +535,9 @@ export class Transformer extends InertVisitors {
         return bodyStart < newBodyStart ? bodyStart : newBodyStart
     }
 
-    visitStatementsNSaveRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): Text[] {
+    visitStatementsNGetRealBodyStart(
+        nodes: (Estree.Statement | Estree.ModuleDeclaration | Estree.Expression)[],
+    ): [Text[], boolean, number | null] {
         // the runtime should be initialized:
         // - before any extracted txts and function pattern match modifications: to make it available
         // - before any return statement: to respect react hooks requirement of always calling the same
@@ -544,10 +546,14 @@ export class Transformer extends InertVisitors {
         const txts: Text[] = []
         let bodyStart: number | null = null
         const firstCalls = new Map<string, number>()
+        let hasBareTxts = false
         for (const bod of nodes) {
             const prevPatternMods = this.patternMatchMods
+            const prevInFuncTxts = this.inFuncTxts
             const prevMsgsLen = txts.length
             txts.push(...this.visit(bod))
+            const newTxtsLen = txts.length - prevMsgsLen
+            hasBareTxts ||= newTxtsLen > this.inFuncTxts - prevInFuncTxts
             // get bodyStart
             if (bod.type === 'ExpressionStatement') {
                 if (bod.expression.type === 'CallExpression') {
@@ -565,57 +571,44 @@ export class Transformer extends InertVisitors {
                     }
                 }
             }
-            if (txts.length > prevMsgsLen || this.patternMatchMods > prevPatternMods || this.hasReturn(bod)) {
+            if (newTxtsLen > 0 || this.patternMatchMods > prevPatternMods || this.hasReturn(bod)) {
                 bodyStart = this.#updateBodyStart(bodyStart, bod.start)
             }
         }
-        if (bodyStart) {
-            this.realBodyStarts.add(bodyStart)
-        }
-        return txts
-    }
-
-    getRealBodyStart(nodes: (Estree.Statement | Estree.ModuleDeclaration)[]): number | undefined {
-        let nonLiteralStart: number | null = null
-        for (const node of nodes) {
-            if (this.realBodyStarts.has(node.start)) {
-                return node.start
-            }
-            if (
-                nonLiteralStart == null &&
-                node.type !== 'ImportDeclaration' &&
-                (node.type !== 'ExpressionStatement' || node.expression.type !== 'Literal')
-            ) {
-                nonLiteralStart = node.start
-            }
-        }
-        return nonLiteralStart ?? nodes[0]?.start
+        this.inFuncTxts += txts.length
+        return [txts, hasBareTxts, bodyStart]
     }
 
     visitFunctionBody(node: Estree.BlockStatement | Estree.Expression, end?: number): Text[] {
         const prevPatternMods = this.patternMatchMods
-        const txts = this.visit(node)
-        if (txts.length > 0 || this.patternMatchMods > prevPatternMods) {
+        const initRuntimeBefore = this.initRuntimeInfo.length
+        let txts: Text[],
+            bodyStart: number | null,
+            bodyEnd: number | null = null
+        let hasBare = false
+        if (node.type === 'BlockStatement') {
+            ;[txts, hasBare, bodyStart] = this.visitStatementsNGetRealBodyStart(node.body)
+            bodyStart ??= node.start
+        } else {
+            ;[txts, hasBare] = this.visitStatementsNGetRealBodyStart([node])
+            bodyStart = node.start - 1
+            for (; bodyStart > 0; bodyStart--) {
+                const char = this.content[bodyStart]!
+                if (char === '(') {
+                    break
+                }
+                if (!/\s/.test(char)) {
+                    bodyStart = node.start
+                    break
+                }
+            }
+            bodyEnd = end ?? node.end
+        }
+        if (hasBare || this.patternMatchMods > prevPatternMods) {
+            this.initRuntimeInfo = this.initRuntimeInfo.slice(0, initRuntimeBefore) // remove descendants
             const initRuntime = this.initRuntime()
             if (initRuntime) {
-                if (node.type === 'BlockStatement') {
-                    this.mstr.prependLeft(this.getRealBodyStart(node.body) ?? node.start, initRuntime)
-                } else {
-                    // get real start if surrounded by parens
-                    let start = node.start - 1
-                    for (; start > 0; start--) {
-                        const char = this.content[start]!
-                        if (char === '(') {
-                            break
-                        }
-                        if (!/\s/.test(char)) {
-                            start = node.start
-                            break
-                        }
-                    }
-                    this.mstr.prependLeft(start, `{${initRuntime}return `)
-                    this.mstr.appendRight(end ?? node.end, '\n}')
-                }
+                this.initRuntimeInfo.push([initRuntime, bodyStart, bodyEnd])
             }
         }
         return txts
@@ -640,7 +633,7 @@ export class Transformer extends InertVisitors {
     }
 
     visitBlockStatement(node: Estree.BlockStatement): Text[] {
-        return this.visitStatementsNSaveRealBodyStart(node.body)
+        return node.body.flatMap(n => this.visit(n))
     }
 
     visitReturnStatement(node: Estree.ReturnStatement): Text[] {
@@ -826,7 +819,13 @@ export class Transformer extends InertVisitors {
     }
 
     visitProgram(node: Estree.Program): Text[] {
-        const txts = this.visitStatementsNSaveRealBodyStart(node.body)
+        const [txts, hasBare, bodyStart] = this.visitStatementsNGetRealBodyStart(node.body)
+        const initRtTop = this.initRuntime()
+        const start = bodyStart ?? node.start
+        this.programBodyStart.set(node, start)
+        if (hasBare && initRtTop) {
+            this.initRuntimeInfo.push([initRtTop, start, null])
+        }
         return txts
     }
 
@@ -864,9 +863,22 @@ export class Transformer extends InertVisitors {
 
     finalize(txts: Text[], hmrHeaderIndex: number, additionalHeader = ''): TransformOutput {
         return {
-            txts: txts,
+            txts,
             output: header => {
-                this.mstr.prependRight(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
+                this.mstr.appendLeft(hmrHeaderIndex, `\n${header}\n${additionalHeader}\n`)
+                const doneInit = new Map<number, string>()
+                for (const [init, start, end] of this.initRuntimeInfo) {
+                    if (doneInit.get(start) === init) {
+                        continue
+                    }
+                    if (end === null) {
+                        this.mstr.appendLeft(start, init)
+                    } else {
+                        this.mstr.prependLeft(start, `{${init}return `)
+                        this.mstr.appendRight(end, '\n}')
+                    }
+                    doneInit.set(start, init)
+                }
                 return {
                     code: this.mstr.toString(),
                     map: this.mstr.generateMap(),
@@ -878,6 +890,6 @@ export class Transformer extends InertVisitors {
     transform(): TransformOutput {
         const [ast, comments] = parseScript(this.content)
         this.comments = comments
-        return this.finalize(this.visit(ast), this.getRealBodyStart(ast.body) ?? 0)
+        return this.finalize(this.visit(ast), this.programBodyStart.get(ast) ?? 0)
     }
 }

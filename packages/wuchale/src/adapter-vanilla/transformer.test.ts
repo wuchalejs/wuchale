@@ -78,6 +78,9 @@ test('Inside function bodies', t => {
             }
             return \`Hello \${a\}\`
         }
+        function makeNested() {
+            return () => 'Hello'
+        }
     `),
         ts`
         'use strict'
@@ -107,8 +110,14 @@ test('Inside function bodies', t => {
             }
             return _w_runtime_(3, [a])
         }
+        function makeNested() {
+            return () => {
+                const _w_runtime_ = _w_load_();
+                return _w_runtime_(0)
+            }
+        }
     `,
-        ['Hello', 'Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}'],
+        ['Hello', 'Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}', 'Hello'],
     )
 })
 

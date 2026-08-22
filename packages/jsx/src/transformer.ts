@@ -208,7 +208,7 @@ export class JSXTransformer extends Transformer {
         }
         const txts = this.visitJx(ast)
         const header = [`import ${rtComponent} from "${rtComponentFile}"`, this.initRuntime()].join('\n')
-        const bodyStart = this.getRealBodyStart(ast.body) as number
+        const bodyStart = this.programBodyStart.get(ast) ?? 0
         return this.finalize(txts, bodyStart, header)
     }
 }

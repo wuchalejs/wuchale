@@ -143,8 +143,15 @@ export class AstroTransformer extends Transformer {
         const [ast, comments] = (asScript ? parseScript : parseExpr)(expr)
         this.comments = comments
         this.mstr.offset = startOffset
+        const prevInitRTLen = this.initRuntimeInfo.length
         const txts = this.visit(ast)
         this.mstr.offset = 0 // restore
+        for (const init of this.initRuntimeInfo.slice(prevInitRTLen)) {
+            init[1] += this.frontMatterStart ?? 0
+            if (init[2] !== null) {
+                init[2] += this.frontMatterStart ?? 0
+            }
+        }
         return txts
     }
 
@@ -261,7 +268,10 @@ export class AstroTransformer extends Transformer {
             this.mstr.appendLeft(0, '---\n')
             this.mstr.appendRight(0, '---\n')
         }
-        const header = [`import ${rtRenderFunc} from "${rtFuncFile}"`, this.initRuntime()].join('\n')
-        return this.finalize(txts, this.frontMatterStart ?? 0, header)
+        const initRuntime = this.initRuntime()
+        if (initRuntime) {
+            this.initRuntimeInfo.push([initRuntime, this.frontMatterStart ?? 0, null])
+        }
+        return this.finalize(txts, this.frontMatterStart ?? 0, `import ${rtRenderFunc} from "${rtFuncFile}"`)
     }
 }

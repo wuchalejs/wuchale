@@ -341,11 +341,12 @@ export class SvelteTransformer extends Transformer {
             txts.push(...this.visitProgram(node.module.content))
             const runtimeInit = this.initRuntime()
             if (runtimeInit) {
-                this.mstr.appendRight(
-                    // @ts-expect-error
-                    this.getRealBodyStart(node.module.content.body) ?? node.module.content.start,
+                this.initRuntimeInfo.push([
                     runtimeInit,
-                )
+                    // @ts-expect-error
+                    this.programBodyStart.get(node.module.content.body) ?? node.module.content.start,
+                    null,
+                ])
             }
             this.runtimeCtx = { module: false } // reset
             this.currentRtVar = prevRtVar // reset
@@ -404,34 +405,34 @@ export class SvelteTransformer extends Transformer {
             this.collectModuleExportExprs(ast.module)
         }
         const txts = this.visitSv(ast)
-        const initRuntime = this.initRuntime()
         if (ast.type === 'Program') {
-            const bodyStart = this.getRealBodyStart(ast.body) ?? 0
-            if (initRuntime) {
-                this.mstr.appendRight(bodyStart, initRuntime)
-            }
-            return this.finalize(txts, bodyStart)
+            return this.finalize(txts, this.programBodyStart.get(ast) ?? 0)
         }
+        const initRuntime = this.initRuntime()
         let headerIndex = 0
         if (ast.module) {
             // @ts-expect-error
-            headerIndex = this.getRealBodyStart(ast.module.content.body) ?? ast.module.content.start
+            headerIndex = this.programBodyStart.get(ast.module.content.body) ?? ast.module.content.start
         }
         if (ast.instance) {
             // @ts-expect-error
-            const instanceBodyStart = this.getRealBodyStart(ast.instance.content.body) ?? ast.instance.content.start
+            const instanceBodyStart: number =
+                this.programBodyStart.get(ast.instance.content) ?? ast.instance.content.start
             if (!ast.module) {
                 headerIndex = instanceBodyStart
             }
             if (initRuntime) {
-                this.mstr.appendRight(instanceBodyStart, initRuntime)
+                this.initRuntimeInfo.push([initRuntime, instanceBodyStart, null])
             }
         } else {
             const instanceStart = ast.module?.end ?? 0
+            if (initRuntime) {
+                this.initRuntimeInfo.push([initRuntime, instanceStart, null])
+            }
             this.mstr.prependLeft(instanceStart, '\n<script>')
             // account index for hmr data here
-            this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
-            // now hmr data can be prependRight(0, ...)
+            this.mstr.appendRight(instanceStart, `\n</script>\n`)
+            // now runtime init can be prependRight(...)
         }
         return this.finalize(txts, headerIndex, `\nimport ${rtComponent} from "${rtComponentFile}"`)
     }
