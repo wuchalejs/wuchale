@@ -415,8 +415,8 @@ export class SvelteTransformer extends Transformer {
             headerIndex = this.programBodyStart.get(ast.module.content.body) ?? ast.module.content.start
         }
         if (ast.instance) {
-            // @ts-expect-error
             const instanceBodyStart: number =
+                // @ts-expect-error
                 this.programBodyStart.get(ast.instance.content) ?? ast.instance.content.start
             if (!ast.module) {
                 headerIndex = instanceBodyStart
