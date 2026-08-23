@@ -249,6 +249,7 @@ test('Plural and patterns', t => {
         getOutput(
             ts`
             const f = () => plural(items, ['One item', '# items'])
+            const g = () => plural(items, [\`Single \${itemName}\`, \`Multiple \${itemName} (\${items})\`])
             function foo() {
                 const format1 = format0(42)
                 return [
@@ -275,6 +276,10 @@ test('Plural and patterns', t => {
                 const _w_runtime_ = _w_load_();
                 return plural(items, _w_runtime_.p(0), _w_runtime_.l)
             }
+            const g = () => {
+                const _w_runtime_ = _w_load_();
+                return plural(items, _w_runtime_.p(1, [itemName, items]), _w_runtime_.l)
+            }
             function foo() {
                 const _w_runtime_ = _w_load_();
                 const format1 = format0(42, _w_runtime_.l)
@@ -286,10 +291,10 @@ test('Plural and patterns', t => {
                     format2(_w_runtime_.l),
                     format2(_w_runtime_.l),
                     format2(foo),
-                ] && bar(_w_runtime_(1))
+                ] && bar(_w_runtime_(2))
             }
     `,
-        [{ body: ['One item', '# items'] }, 'Hello'],
+        [{ body: ['One item', '# items'] }, { body: ['Single {0}', 'Multiple {0} ({1})'] }, 'Hello'],
     )
 })
 

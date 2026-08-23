@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { type CompiledElement, compileTranslation } from './compile.js'
 
 test('Compile items', t => {
-    const testCompile = (txt: string, expect: CompiledElement) =>
+    const testCompile = (txt: string | string[], expect: CompiledElement) =>
         t.assert.deepEqual(compileTranslation(txt, 'Fallback'), expect)
     testCompile('Foo', 'Foo')
     testCompile('Foo {0}', ['Foo ', 0])
@@ -19,4 +19,13 @@ test('Compile items', t => {
         ' bar',
     ])
     testCompile('Invalid <0>', 'Fallback')
+    // plural
+    testCompile(['Foo', 'Bar'], ['Foo', 'Bar'])
+    testCompile(
+        ['Foo {0}', 'Bar {0} {1}'],
+        [
+            ['Foo ', 0],
+            ['Bar ', 0, ' ', 1],
+        ],
+    )
 })

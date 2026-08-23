@@ -11,11 +11,14 @@ const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an 
 export const ts = (s: TemplateStringsArray) => s.join('') // syntax
 
 export const testCatalog = {
-    p: (n: number) => (n === 1 ? 0 : 1),
     c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // mixed message
-        ['One item', '# items'], // plurals
+        ['One item', '# items'], // simple plural
+        [
+            ['Single ', 0],
+            ['Multiple ', 0, ' (', 1, ')'],
+        ], // mixed plural
         ['Hello ', 0, 1], // mixed message ending with arg
         'Raw \\${3}', // for String.raw
     ],

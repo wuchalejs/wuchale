@@ -256,7 +256,7 @@ export class AdapterHandler {
             ) {
                 continue
             }
-            let keys = [itemKey]
+            let keys = [itemKey] // single for messages, multi for url links
             if (itemIsUrl(item)) {
                 keys = []
                 const id = item.translations.get(this.sourceLocale)!

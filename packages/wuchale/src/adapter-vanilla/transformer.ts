@@ -12,8 +12,8 @@ import {
     updateCommentDirectives,
     varNames,
 } from '../adapter-utils/index.js'
-import type { CodePattern, IndexTracker, RuntimeConf, TransformCtx, TransformOutput, UrlMatcher } from '../adapters.js'
-import { getKey } from '../adapters.js'
+import type { CodePattern, RuntimeConf, TransformCtx, TransformOutput, UrlMatcher } from '../adapters.js'
+import { getKey, IndexTracker } from '../adapters.js'
 import type { HeuristicFunc, HeuristicResultChecked, Scope, TextType } from '../text.js'
 import { defaultHeuristicFuncOnly, newText, singleTxt, type Text } from '../text.js'
 import InertVisitors from './inertvisitors.js'
@@ -348,21 +348,42 @@ export class Transformer extends InertVisitors {
                 return this.defaultVisitCallExpression(node)
             }
             const candidates: string[] = []
+            const placeholders: [string, string][] = []
+            const phIndex = new IndexTracker(false)
+            const args: string[] = []
             for (const elm of argVal.elements) {
-                if (!elm || elm.type !== 'Literal' || typeof elm.value !== 'string') {
-                    return this.defaultVisitCallExpression(node)
+                if (elm) {
+                    if (elm.type === 'Literal' && typeof elm.value === 'string') {
+                        candidates.push(elm.value)
+                        continue
+                    }
+                    if (elm.type === 'TemplateLiteral') {
+                        let body = elm.quasis[0]!.value?.cooked ?? ''
+                        for (const [i, expr] of elm.expressions.entries()) {
+                            const quasi = elm.quasis[i + 1]!
+                            const ph = this.content.slice(expr.start, expr.end).trim()
+                            const phInd = phIndex.get(ph)
+                            body += `{${phInd}}${quasi.value.cooked}`
+                            args[phInd] = ph
+                            placeholders.push([phInd.toString(), ph])
+                        }
+                        candidates.push(body)
+                        continue
+                    }
                 }
-                candidates.push(elm.value)
+                return this.defaultVisitCallExpression(node)
             }
             // plural(num, ['Form one', 'Form two'])
             const txt = newText({
                 body: candidates,
                 path: this.scopePath,
                 context: this.commentDirectives.context,
+                placeholders,
             })
             const index = this.index.get(getKey(txt.body, txt.context))
             txts.push(txt)
-            updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index})`])
+            const argsAdd = args.length > 0 ? `, [${args.join(', ')}]` : ''
+            updates.push([argVal.start, argVal.end, `${this.vars().rtTPlural}(${index}${argsAdd})`])
         }
         for (const [start, end, by] of updates) {
             this.mstr.update(start, end, by)
@@ -718,7 +739,7 @@ export class Transformer extends InertVisitors {
         for (const [i, expr] of node.expressions.entries()) {
             const quasi = node.quasis[i + 1]!
             body += `{${i}}${quasi.value.cooked}`
-            placeholders.push([i.toString(), this.content.slice(expr.start, expr.end)])
+            placeholders.push([i.toString(), this.content.slice(expr.start, expr.end).trim()])
             if (forHeuristic) {
                 // skip modifications and sub visits
                 continue
