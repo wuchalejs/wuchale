@@ -396,11 +396,11 @@ export class Transformer extends InertVisitors {
     }
 
     visitAssignmentExpression(node: Estree.AssignmentExpression) {
-        return [...this.visit(node.left), ...this.visit(node.right)]
+        return this.visitAssignmentLeftRight(node.left, node.right)
     }
 
     visitAssignmentPattern(node: Estree.AssignmentPattern): Text[] {
-        return [...this.visit(node.left), ...this.visit(node.right)]
+        return this.visitAssignmentLeftRight(node.left, node.right)
     }
 
     visitForOfStatement(node: Estree.ForOfStatement): Text[] {
@@ -471,23 +471,26 @@ export class Transformer extends InertVisitors {
             names = this.getAssignmentNames(id.argument)
         } else if (id.type === 'AssignmentPattern') {
             names = this.getAssignmentNames(id.left)
+        } else if (id.type === 'MemberExpression') {
+            names = [this.getMemberChainName(id)]
         }
         return names
     }
 
-    // for e.g. svelte to surrounded with $derived
-    visitVariableDeclarator(node: Estree.VariableDeclarator) {
-        if (!node.init) {
+    visitAssignmentLeftRight(left: Estree.Pattern, right?: Estree.Expression | null | undefined) {
+        if (!right) {
             return []
         }
-        const txts = this.inScopeVisit({ type: 'assignment', left: true }, node.id)
+        const txts = this.inScopeVisit({ type: 'assignment', left: true }, left)
         txts.push(
-            ...this.inScopeVisit(
-                { type: 'assignment', left: false, targets: this.getAssignmentNames(node.id) },
-                node.init,
-            ),
+            ...this.inScopeVisit({ type: 'assignment', left: false, targets: this.getAssignmentNames(left) }, right),
         )
         return txts
+    }
+
+    // for e.g. svelte to surrounded with $derived
+    visitVariableDeclarator(node: Estree.VariableDeclarator) {
+        return this.visitAssignmentLeftRight(node.id, node.init)
     }
 
     visitVariableDeclaration(node: Estree.VariableDeclaration): Text[] {

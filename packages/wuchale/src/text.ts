@@ -91,6 +91,7 @@ export type HeuristicFunc = (txt: Text, file: string) => HeuristicResult
 export const defaultHeuristicOpts = {
     ignoreElements: ['script', 'style', 'path', 'code', 'pre'],
     ignoreAttribs: [['form', 'method']],
+    ignoreAssign: ['document.cookie'],
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
     urlCalls: [] as string[],
@@ -122,6 +123,9 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         for (const s of ascendPath(txt.path)) {
             updateable ||= updatableScopes.has(s.type)
             if (s.type === 'call' && (s.name.startsWith('console.') || opts.ignoreCalls.includes(s.name))) {
+                return false
+            }
+            if (s.type === 'assignment' && !s.left && s.targets.some(t => opts.ignoreAssign.includes(t))) {
                 return false
             }
             if (s.type === 'attribute') {

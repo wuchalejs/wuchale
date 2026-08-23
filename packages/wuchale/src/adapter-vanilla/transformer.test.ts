@@ -65,6 +65,7 @@ test('Inside function bodies', t => {
             return varName
         }
         topLevelCallExpr(() => {
+            document.cookie = 'Hallo' // ignored
             alert("Hello")
         })
         const insideObj = {
@@ -92,6 +93,7 @@ test('Inside function bodies', t => {
             return varName
         }
         topLevelCallExpr(() => {
+            document.cookie = 'Hallo' // ignored
             const _w_runtime_ = _w_load_();
             alert(_w_runtime_(0))
         })
