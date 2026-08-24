@@ -18,7 +18,7 @@
     ],
     "devDependencies": {
         "@biomejs/biome": "2.4.12",
-        "@changesets/cli": "^3.0.0",
+        "@changesets/cli": "^3.0.1",
         "@changesets/types": "^7.0.0",
         "@types/node": "^24.13.3"
     }
