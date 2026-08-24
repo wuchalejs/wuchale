@@ -68,7 +68,7 @@ export type PluginConf = {
     trimQueryParams?: string[]
 }
 
-export const defaultTrimParams = ['v', 't', 'sentry-auto-wrap', 'tsr-split']
+const defaultTrimParams = ['v', 't', 'sentry-auto-wrap', 'tsr-split']
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
     let inBuild: boolean, conf: Config, hub: Hub
@@ -94,17 +94,11 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
             )
         },
         async handleHotUpdate(ctx: HotUpdateCtx) {
-            const changeInfo = await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
-            if (!changeInfo) {
+            const sourceTriggered = await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
+            if (sourceTriggered === undefined) {
                 return
             }
-            const invalidatedModules = new Set()
-            for (const fileID of changeInfo.invalidate ?? []) {
-                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
-                    ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
-                }
-            }
-            if (!changeInfo.sourceTriggered && changeInfo.invalidate.size > 0) {
+            if (!sourceTriggered) {
                 ctx.server.ws.send({ type: 'full-reload' })
             }
             return []

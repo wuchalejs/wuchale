@@ -220,7 +220,7 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (txt, file) => {
 }
 
 export function newText(init: Partial<Text> & Pick<Text, 'body'>): Text {
-    if (typeof init.body === 'object') {
+    if (Array.isArray(init.body)) {
         init.body = init.body?.filter(str => str != null) ?? []
     }
     if (init?.path?.at(-1)?.type === 'element' && typeof init.body === 'string') {

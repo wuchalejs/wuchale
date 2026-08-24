@@ -80,13 +80,7 @@ test('hub onFileChange', async (t: TestContext) => {
     t.assert.strictEqual(res1, undefined)
     const poFname = normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, 'en.po'))
     const res2 = await hub.onFileChange(poFname, () => '')
-    t.assert.deepEqual(res2?.sourceTriggered, false)
-    t.assert.partialDeepStrictEqual(
-        new Set([
-            normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'main.0.en.compiled.js')),
-        ]),
-        res2?.invalidate,
-    )
+    t.assert.deepEqual(res2, false)
 })
 
 test('hub transform with hmr', async (t: TestContext) => {
@@ -96,7 +90,7 @@ test('hub transform with hmr', async (t: TestContext) => {
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./locales/main.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
-        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 0)
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 1)
         _w_load_()(0)
     `),
     )

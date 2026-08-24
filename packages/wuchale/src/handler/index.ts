@@ -109,7 +109,6 @@ export class AdapterHandler {
     readonly url: URLHandler
     readonly aiQueue?: AIQueue
     onBeforeSave?: () => void
-    onWriteCompiled?: (file: string) => void
     #fallbackChains: Map<string, string[]>
     #newKeys = new Set<string>() // keys added during dev
 
@@ -152,7 +151,7 @@ export class AdapterHandler {
         if (await handler.url.initPatterns(key, sharedState.catalog, handler.#fallbackChains, handler.aiQueue)) {
             await handler.saveStorage()
         }
-        await handler.compile(-1)
+        await handler.compile(0)
         await writeProxies(granularState.groupPatterns)
         await files.writeUrlFiles(handler.url.buildManifest(), config.locales[0])
         return handler
@@ -172,8 +171,12 @@ export class AdapterHandler {
     compile = async (hmrVersion: number) => {
         // for proper fallback
         const localesOrdered = [this.sourceLocale, ...this.#opts.config.locales.filter(l => l !== this.sourceLocale)]
-        await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
-        await this.#writeManifests()
+        for (const loc of localesOrdered) {
+            await this.#compileForLocale(loc, hmrVersion)
+        }
+        if (this.#opts.mode !== 'dev' || hmrVersion === 0) {
+            await this.#writeManifests()
+        }
     }
 
     #buildManifest = (indices: Iterable<[string, number]>): ManifestEntry[] => {
@@ -212,7 +215,7 @@ export class AdapterHandler {
         await Promise.all(promises)
     }
 
-    saveStorageCompile = async (hmrVersion = -1) => {
+    saveStorageCompile = async (hmrVersion = 0) => {
         await this.saveStorage()
         await this.compile(hmrVersion)
     }
@@ -224,9 +227,6 @@ export class AdapterHandler {
             for (const state of this.granularState.byID.values()) {
                 promises.push(this.files.writeCatalogModule(state.compiled?.get(loc) || [], loc, state.id, hmrVersion))
             }
-        }
-        for (const file of await Promise.all(promises)) {
-            this.onWriteCompiled?.(file)
         }
     }
 
@@ -290,7 +290,9 @@ export class AdapterHandler {
                 }
             }
         }
-        await this.writeCompiled(loc, hmrVersion)
+        if (this.#opts.mode !== 'dev' || hmrVersion === 0) {
+            await this.writeCompiled(loc, hmrVersion)
+        }
     }
 
     #getRuntimeVars = (): RuntimeExpr => ({
@@ -457,7 +459,7 @@ export class AdapterHandler {
                 storageUpdated = true
                 compileUpdated = true
             }
-            if (hmrVersion >= 0 && this.#newKeys.has(key)) {
+            if (hmrVersion > 0 && this.#newKeys.has(key)) {
                 hmrKeys.push(key)
             }
             const modifyRefs = modifyExistingRefs || (this.#opts.devMode === 'add' && this.#newKeys.has(key))
@@ -512,7 +514,7 @@ export class AdapterHandler {
     transform = async (
         content: string,
         filename: string,
-        hmrVersion = -1,
+        hmrVersion = 0,
         forServer = false,
     ): Promise<[TransformOutputCode, boolean]> => {
         filename = normalizeSep(filename)
@@ -551,7 +553,7 @@ export class AdapterHandler {
             }
             const [hmrKeys, updatedItems] = await this.handleTexts(txts, filename, hmrVersion)
             updated = updatedItems
-            if (!forServer && hmrKeys.length > 0) {
+            if (hmrKeys.length > 0) {
                 hmrData = {}
                 for (const loc of this.#opts.config.locales) {
                     hmrData[loc] =

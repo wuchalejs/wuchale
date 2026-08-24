@@ -28,12 +28,12 @@ export interface Item {
 }
 
 export function fillTranslations(item: Item, locales: string[]) {
+    const defaultTransl = item.translations.get(locales[0]!) ?? Array.from(item.translations.values())[0] ?? ''
     for (const loc of locales) {
-        // fill empty translations
         if (item.translations.has(loc)) {
             continue
         }
-        item.translations.set(loc, [])
+        item.translations.set(loc, defaultTransl)
     }
 }
 

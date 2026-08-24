@@ -55,26 +55,19 @@ const handler = await makeHandler()
 
 test('HMR', async (t: TestContext) => {
     const content = ts`'Hello'`
-    t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 0))[0].code),
-        trimLines(ts`
+    const expected = trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./src/locales/test.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
-        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 0)
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 1)
         _w_load_()(0)
-    `),
-    )
-    // not on SSR
-    t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 0, true))[0].code),
-        trimLines(ts`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./src/locales/test.loader.js"
-        _w_load_()(0)
-    `),
-    )
+    `)
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1))[0].code), expected)
+    // also on SSR
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1, true))[0].code), expected)
 })
 
 test('Manifest', async (t: TestContext) => {
+    await handler.compile(0)
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
@@ -87,13 +80,13 @@ test('Manifest', async (t: TestContext) => {
 
 test('Handle texts', async (t: TestContext) => {
     const txts = [newText({ body: 'Hello' })]
-    const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 0)
+    const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 1)
     t.assert.strictEqual(updated, true)
     t.assert.deepStrictEqual(hmrKeys, ['Hello'])
     const msgs1 = [newText({ body: 'Hello', context: undefined })]
-    const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 0)
+    const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 1)
     t.assert.strictEqual(updated1, false)
-    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
+    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 1)
     t.assert.strictEqual(updated2, true)
 })
 

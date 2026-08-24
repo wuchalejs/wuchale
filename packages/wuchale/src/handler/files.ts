@@ -278,7 +278,7 @@ export class Files {
     ) => {
         const compiledItems = JSON.stringify(compiledData)
         let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
-        if (hmrVersion >= 0) {
+        if (hmrVersion > 0) {
             module = `${module}\nexport let v = ${hmrVersion}`
         }
         const filePath = this.getCompiledFilePath(locale, loadID)

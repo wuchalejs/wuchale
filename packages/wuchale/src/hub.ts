@@ -10,14 +10,7 @@ import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
 import { compileTranslation } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
-import {
-    dataFileName,
-    defaultLoadID,
-    generatedDir,
-    getLoaderPath,
-    globConfToArgs,
-    normalizeSep,
-} from './handler/files.js'
+import { dataFileName, generatedDir, getLoaderPath, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
@@ -32,16 +25,6 @@ const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = Pick<Config, 'dev'>
-
-type FileChangeInfo = {
-    sourceTriggered: boolean
-    invalidate: Set<string>
-}
-
-const ignoreChange: FileChangeInfo = {
-    sourceTriggered: false,
-    invalidate: new Set(),
-}
 
 type LocaleStatDetails = {
     locale: string
@@ -180,11 +163,10 @@ export class Hub {
     #handlers: Map<string, AdapterHandler>
 
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
-    #compiledCatalogs: Set<string> = new Set()
 
     #formatTransformErr: TransformErrFormatter = e => e
 
-    #hmrVersion = -1
+    #hmrVersion = 0
     #lastSourceTriggeredCatalogWrite: number = 0
 
     #lastAdapterForFile = new Map<string, string>()
@@ -196,9 +178,6 @@ export class Hub {
         for (const [key, handler] of opts.handlers) {
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
-            }
-            handler.onWriteCompiled = file => {
-                this.#compiledCatalogs.add(file)
             }
             for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
@@ -291,7 +270,7 @@ export class Hub {
         })
     }
 
-    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
+    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<boolean | undefined> => {
         file = normalizeSep(file) // just to be sure
         if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
@@ -302,7 +281,7 @@ export class Hub {
                     this.#opts.config.dev = update.dev
                 }
             }
-            return ignoreChange
+            return false
         }
         if (!this.#opts.config.dev) {
             return
@@ -310,38 +289,18 @@ export class Hub {
         // This is mainly to make sure that catalog file changes result in a page reload with new catalogs
         const handlers = this.#handlersByCatalogPath.get(file)
         if (handlers == null) {
-            // prevent reloading whole app because of a change in compiled catalog
-            // triggered by extraction from single file, hmr handled by embedding patch
-            if (this.#compiledCatalogs.has(file)) {
-                return ignoreChange
-            }
             this.#hmrVersion++
             return
         }
         // catalog changed
-        const changeInfo: FileChangeInfo = {
-            sourceTriggered: performance.now() - this.#lastSourceTriggeredCatalogWrite < this.#opts.hmrDelayThreshold,
-            invalidate: new Set(),
-        }
+        const sourceTriggered = performance.now() - this.#lastSourceTriggeredCatalogWrite < this.#opts.hmrDelayThreshold
         for (const handler of handlers) {
-            if (!changeInfo.sourceTriggered) {
+            if (!sourceTriggered) {
                 await handler.loadStorage()
                 await handler.compile(this.#hmrVersion)
             }
-            const loadIDs = [defaultLoadID]
-            for (const state of handler.granularState.byID.values()) {
-                // only the ones with ready items
-                if (state.compiled.get(handler.sourceLocale)!.length) {
-                    loadIDs.push(state.id)
-                }
-            }
-            for (const loc of this.#opts.config.locales) {
-                for (const loadID of loadIDs) {
-                    changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
-                }
-            }
         }
-        return changeInfo
+        return sourceTriggered
     }
 
     transform = async (code: string, filePath: string, forServer = false): ReturnType<AdapterHandler['transform']> => {
