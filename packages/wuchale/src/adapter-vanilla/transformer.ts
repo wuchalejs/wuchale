@@ -526,7 +526,7 @@ export class Transformer extends InertVisitors {
     }
 
     visitExportDefaultDeclaration(node: Estree.ExportDefaultDeclaration) {
-        return this.inScopeVisit({ type: 'export' }, node)
+        return this.inScopeVisit({ type: 'export' }, node.declaration)
     }
 
     hasReturn(node: Estree.AnyNode | Estree.AnyNode[]): boolean {
