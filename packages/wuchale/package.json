@@ -91,7 +91,7 @@
         "@sveltejs/acorn-typescript": "^1.0.13",
         "acorn": "^8.18.0",
         "chokidar": "^5.0.0",
-        "magic-string": "^1.2.0",
+        "magic-string": "^1.2.2",
         "picomatch": "^4.0.5",
         "pofile": "^1.1.4",
         "tinyglobby": "^0.2.17"
