@@ -68,9 +68,11 @@ export type PluginConf = {
     trimQueryParams?: string[]
 }
 
+export const defaultTrimParams = ['v', 't', 'sentry-auto-wrap', 'tsr-split']
+
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
     let inBuild: boolean, conf: Config, hub: Hub
-    const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
+    const trimParams = new Set([...(trimQueryParams ?? []), ...defaultTrimParams])
     return {
         name: pluginName,
         async config(_: any, env: { mode: string }) {

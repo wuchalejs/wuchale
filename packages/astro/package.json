@@ -34,6 +34,10 @@
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
+        "./integration": {
+            "types": "./dist/integration.d.ts",
+            "default": "./dist/integration.js"
+        },
         "./runtime.js": {
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.js"
