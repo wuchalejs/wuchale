@@ -39,7 +39,6 @@ export type ModFunc = (nested: boolean, lvlHasMsg: boolean) => void
 type LevelMod = {
     txt: Text | null
     txts: [Text, () => void][]
-    hasTxtDesc: boolean
     unit: boolean
     pending: boolean
     building: boolean
@@ -49,7 +48,6 @@ type LevelMod = {
 
 const newMod = (building = false, unit = false): LevelMod => ({
     txt: null,
-    hasTxtDesc: false,
     txts: [],
     building,
     unit,
@@ -112,9 +110,7 @@ export class MixedVisitor<
                     mod.txt.type = 'message'
                     modify = true
                 } else if (mod.building) {
-                    const heurMsgType = this.#props.checkHeuristic(mod.txt)
-                    if (heurMsgType && this.#checkAllowNewMsg(mod.txt)) {
-                        mod.txt.type = heurMsgType
+                    if (this.#checkAllowNewMsg(mod.txt)) {
                         modify = true
                     }
                 }
@@ -159,13 +155,18 @@ export class MixedVisitor<
         return lastChildEnd
     }
 
-    #makeTxt(props: VisitProps<MixNodeT>, body: string, placeholders: [string, string][] = []) {
-        return newText({
+    #makeTxt(props: VisitProps<MixNodeT>, body: string, placeholders: [string, string][] = []): [Text, boolean] {
+        const txt = newText({
             body: body.trim(),
             path: this.#props.scopePath,
             context: props.commentDirectives.context,
             placeholders,
         })
+        const heurMsgType = this.#props.checkHeuristic(txt)
+        if (heurMsgType) {
+            txt.type = heurMsgType
+        }
+        return [txt, heurMsgType !== false]
     }
 
     #childNums(children: MixNodeT[]): Nums {
@@ -189,11 +190,8 @@ export class MixedVisitor<
     #text(mod: LevelMod, props: VisitProps<MixNodeT>, trimOut: TrimOut, range: Range, nums: Nums): string {
         let [startWh, trimmed, endWh] = trimOut
         let { start, end } = range
-        const txt = this.#makeTxt(props, trimmed)
-        const heurMsgType = this.#props.checkHeuristic(txt)
-        if (heurMsgType) {
-            txt.type = heurMsgType
-            mod.hasTxtDesc = true
+        const [txt, passedHeur] = this.#makeTxt(props, trimmed)
+        if (passedHeur) {
             mod.txts.push([
                 txt,
                 () => {
@@ -363,12 +361,11 @@ export class MixedVisitor<
                     mod.children.push(childMod)
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
-                    mod.hasTxtDesc ||= childMod.hasTxtDesc
                     if (childMod.pending && childMod.txt) {
                         if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
                             chTxt = childMod.txt.body as string
                             placeholders.push(...childMod.txt.placeholders)
-                        } else if (childMod.hasTxtDesc) {
+                        } else {
                             chTxt = `<${iTag}>${childMod.txt.body as string}</${iTag}>`
                             for (const [num, cont] of childMod.txt.placeholders) {
                                 placeholders.push([`${iTag}.${num}`, cont])
@@ -387,11 +384,9 @@ export class MixedVisitor<
             restoreCommentDirectives(props.commentDirectives, commentDirectivesOrig)
             lastVisitIsComment = false
         }
-        const txt = this.#makeTxt(props, body, placeholders)
-        if (mod.hasTxtDesc) {
-            if (!hasCommentDirectives) {
-                mod.txt = txt // can be taken together, and lvlHasMsg
-            }
+        const [txt, passedHeur] = this.#makeTxt(props, body, placeholders)
+        if ((passedHeur || mod.unit) && !hasCommentDirectives) {
+            mod.txt = txt // can be taken together, and lvlHasMsg
             mod.funcs.push(...exprFuncs, this.#finalMod(props, txt, lastChildEnd, childrenNestedRanges, iArg > 0, nums))
         }
         if (mod.unit || !mod.building || hasCommentDirectives || !props.nestable) {

@@ -524,3 +524,21 @@ test('svelte:element uses static tag context', async t => {
         [],
     )
 })
+
+test('Mixed attribute', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+            <img alt="{name} at {width} pixels" />
+        `),
+        svelte`
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_());
+        </script>
+        <img alt={_w_runtime_(0, [name, width])} />
+        `,
+        ['{0} at {1} pixels'],
+    )
+})
