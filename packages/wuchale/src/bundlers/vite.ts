@@ -51,13 +51,7 @@ export function trimViteQueries(id: string, trimParams: Set<string>) {
 
 type HotUpdateCtx = {
     file: string
-    server: {
-        ws: { send: (...a: any[]) => any }
-        moduleGraph: {
-            getModulesByFile: (...a: any[]) => any
-            invalidateModule: (...a: any[]) => any
-        }
-    }
+    server: { ws: { send: (...a: any[]) => any } }
     read: () => string | Promise<string>
     timestamp: number
 }
