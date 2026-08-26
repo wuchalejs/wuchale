@@ -189,15 +189,14 @@ export class AdapterHandler {
             }
 
             const isUrl = itemIsUrl(item)
-            const id = item.translations.get(this.sourceLocale)!
-            const text = id.length === 1 ? id[0]! : id
+            const id = item.translations.get(this.sourceLocale) as string
             if (!isUrl && item.context == null) {
-                manifest[index] = text
+                manifest[index] = id
                 continue
             }
 
             manifest[index] = {
-                text,
+                text: id,
                 context: item.context,
                 isUrl: isUrl || undefined,
             }
@@ -249,20 +248,21 @@ export class AdapterHandler {
         for (const [itemKey, item] of this.sharedState.catalog) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
-            // in dev mode, include obsolete items, they may be added back
+            // in dev mode, include obsolete message items, they may be added back
+            const isUrl = itemIsUrl(item)
             if (
-                (this.#opts.mode !== 'dev' || item.references.length > 0) &&
+                (this.#opts.mode !== 'dev' || isUrl || item.references.length > 0) &&
                 !item.references.some(r => this.fileMatches(r.file))
             ) {
                 continue
             }
             let keys = [itemKey] // single for messages, multi for url links
-            if (itemIsUrl(item)) {
+            if (isUrl) {
                 keys = []
-                const id = item.translations.get(this.sourceLocale)!
+                const id = item.translations.get(this.sourceLocale) as string
                 for (const reference of item.references) {
                     for (const ref of reference.refs) {
-                        keys.push(ref?.link ?? id[0]!)
+                        keys.push(ref?.link ?? id)
                     }
                 }
             }
@@ -272,7 +272,7 @@ export class AdapterHandler {
                 const transl = item.translations.get(loc)!
                 let toCompile = transl
                 if (itemIsUrl(item) && typeof transl === 'string') {
-                    toCompile = this.url.matchToCompile(transl, loc)
+                    toCompile = this.url.matchToCompile(key, itemKey, loc)
                 }
                 const compiled = compileTranslation(toCompile, fallback)
                 sharedCompiledLoc[index] = compiled
@@ -384,8 +384,11 @@ export class AdapterHandler {
         const newRef: FileRefEntry = {
             placeholders: txt.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
-        if (txt.type === 'url' && getKey(txt.body, txt.context) !== key) {
-            newRef.link = txt.body[0]!
+        if (txt.type === 'url') {
+            const body = txt.body as string
+            if (body !== key) {
+                newRef.link = body
+            }
         }
         const newRefEntry = newRef.link || txt.placeholders.length ? newRef : null
         const prevRef = trackedRefrences.get(key)
@@ -443,13 +446,13 @@ export class AdapterHandler {
         for (const txt of txts) {
             let key = getKey(txt.body, txt.context)
             if (txt.type === 'url') {
-                const matched = this.url.match(key)
-                if (!matched) {
-                    const err = new Error(`URL ${txt.body[0]} has no matching pattern defined`)
+                const pattern = this.url.match(key)
+                if (!pattern) {
+                    const err = new Error(`URL ${txt.body} has no matching pattern defined`)
                     ;(err as any).id = filename
                     throw err
                 }
-                key = getKey(this.url.patterns[matched[0]]!)
+                key = pattern
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {

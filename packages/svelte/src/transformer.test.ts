@@ -218,6 +218,7 @@ test('URLs', async t => {
         <a href={\`/translated/\${44}\`}>Hello</a>
         <a href="/notinpattern">Hello</a>
         <a href="/">Hello</a>
+        <a href="/#foo/bar">Hello</a>
     `),
         svelte`
         <script>
@@ -233,12 +234,13 @@ test('URLs', async t => {
                 }
             })
         </script>
-        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href="/notinpattern">{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href="/notinpattern">{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(7), _w_runtime_.l)}>{_w_runtime_(8)}</a>
     `,
         [
             { body: '/translated/{0}', type: 'url' },
@@ -249,6 +251,8 @@ test('URLs', async t => {
             { body: '/translated/very/deep/link/{0}', type: 'url' },
             { body: '/translated/{0}', type: 'url' },
             { body: '/', type: 'url' },
+            { body: '/#foo/bar', type: 'url' },
+            'Hello',
             'Hello',
             'Hello',
             'Hello',

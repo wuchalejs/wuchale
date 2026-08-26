@@ -3,7 +3,7 @@
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
-import { dummyTransform, inMemFS, trimLines, ts } from '../../wuchale/testing/utils.ts'
+import { inMemFS, regexTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './adapter-vanilla/index.js'
 import { type Config, defaultConfig } from './config.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
@@ -35,7 +35,7 @@ const config: Config = {
     adapters: {
         main: {
             ...defaultArgs,
-            transform: dummyTransform,
+            transform: regexTransform,
             files: 'src/*.js', // filename needs to match
             loaderExts: ['.js'],
             defaultLoaderPath,

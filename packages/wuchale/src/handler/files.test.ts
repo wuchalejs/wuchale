@@ -2,7 +2,7 @@
 
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
-import { dummyTransform, inMemFS, inMemStorage } from '../../testing/utils.ts'
+import { inMemFS, inMemStorage, regexTransform } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
 import type { Adapter } from '../adapters.js'
 import { Files } from './files.js'
@@ -13,7 +13,7 @@ inMemFS.write(defaultLoaderPath, 'foo')
 
 const adapter: Adapter = {
     ...defaultArgs,
-    transform: dummyTransform,
+    transform: regexTransform,
     files: '*.js', // filename needs to match
     storage: inMemStorage,
     loaderExts: ['.js'],

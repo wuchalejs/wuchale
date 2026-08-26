@@ -3,7 +3,7 @@
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
-import { dummyTransform, inMemFS, inMemStorage, trimLines, ts } from '../../testing/utils.ts'
+import { inMemFS, inMemStorage, regexTransform, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
 import type { Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
@@ -18,10 +18,11 @@ inMemFS.write(defaultLoaderPath, '')
 
 const adapter: Adapter = {
     ...defaultArgs,
-    transform: dummyTransform,
+    transform: regexTransform,
     files: '*.js', // filename needs to match
     storage: inMemStorage,
     loaderExts: ['.js'],
+    url: { patterns: ['/**'] },
     defaultLoaderPath: defaultLoaderPath,
     addImports: [],
 }
@@ -54,27 +55,38 @@ async function makeHandler() {
 const handler = await makeHandler()
 
 test('HMR', async (t: TestContext) => {
-    const content = ts`'Hello'`
+    const content = ts`'Hello'\n'/foo/bar#445/34'`
     const expected = trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./src/locales/test.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
         const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 1)
         _w_load_()(0)
+        _w_load_()(1)
     `)
     t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1))[0].code), expected)
     // also on SSR
     t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1, true))[0].code), expected)
 })
 
-test('Manifest', async (t: TestContext) => {
+test('Compiled and manifest', async (t: TestContext) => {
     await handler.compile(0)
+    const compiledPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.en.compiled.js')
+    const compiled = await inMemFS.read(compiledPath)
+    t.assert.strictEqual(
+        trimLines(compiled!),
+        trimLines(`
+            /** @type import('wuchale').CompiledElement[] */
+            export let c = ["Hello","/foo/bar#445/34"]
+        `),
+    )
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
         trimLines(content!),
-        trimLines(
-            `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\nexport const keys = ["Hello"]`,
-        ),
+        trimLines(`
+            /** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */
+            export const keys = ["Hello",{"text":"/foo/bar#445/34","isUrl":true}]
+        `),
     )
 })
 
