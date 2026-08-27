@@ -84,14 +84,22 @@ test('hub onFileChange', async (t: TestContext) => {
 })
 
 test('hub transform with hmr', async (t: TestContext) => {
-    const [output] = await hub.transform(code, file)
+    // Hello no longer new after onFileChange with po file
+    const [output] = await hub.transform(
+        ts`
+        function foo() {
+            return 'Hallo'
+        }
+    `,
+        file,
+    )
     t.assert.strictEqual(
         trimLines(output.code),
         trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./locales/main.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
-        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 1)
-        _w_load_()(0)
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[1,"Hallo"]]}, 1)
+        _w_load_()(1)
     `),
     )
 })

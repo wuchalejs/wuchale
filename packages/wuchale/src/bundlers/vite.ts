@@ -49,13 +49,6 @@ export function trimViteQueries(id: string, trimParams: Set<string>) {
     return id
 }
 
-type HotUpdateCtx = {
-    file: string
-    server: { ws: { send: (...a: any[]) => any } }
-    read: () => string | Promise<string>
-    timestamp: number
-}
-
 export type PluginConf = {
     configPath?: string
     hmrDelayThreshold?: number
@@ -87,15 +80,8 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
                 toViteError,
             )
         },
-        async handleHotUpdate(ctx: HotUpdateCtx) {
-            const sourceTriggered = await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
-            if (sourceTriggered === undefined) {
-                return
-            }
-            if (!sourceTriggered) {
-                ctx.server.ws.send({ type: 'full-reload' })
-            }
-            return []
+        async handleHotUpdate(ctx: { file: string; read: () => string | Promise<string> }) {
+            await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
         },
         async transform(code: string, id: string, options?: { ssr?: boolean | undefined }) {
             const [output] = await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)

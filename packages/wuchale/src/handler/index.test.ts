@@ -69,7 +69,7 @@ test('HMR', async (t: TestContext) => {
 })
 
 test('Compiled and manifest', async (t: TestContext) => {
-    await handler.compile(0)
+    await handler.compile(1, true)
     const compiledPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.en.compiled.js')
     const compiled = await inMemFS.read(compiledPath)
     t.assert.strictEqual(
@@ -77,6 +77,7 @@ test('Compiled and manifest', async (t: TestContext) => {
         trimLines(`
             /** @type import('wuchale').CompiledElement[] */
             export let c = ["Hello","/foo/bar#445/34"]
+            export let v = 1
         `),
     )
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.manifest.js')
@@ -91,11 +92,11 @@ test('Compiled and manifest', async (t: TestContext) => {
 })
 
 test('Handle texts', async (t: TestContext) => {
-    const txts = [newText({ body: 'Hello' })]
+    const txts = [newText({ body: 'Hallo' })] // Hello not new after compile(1, true)
     const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 1)
     t.assert.strictEqual(updated, true)
-    t.assert.deepStrictEqual(hmrKeys, ['Hello'])
-    const msgs1 = [newText({ body: 'Hello', context: undefined })]
+    t.assert.deepStrictEqual(hmrKeys, ['Hallo'])
+    const msgs1 = [newText({ body: 'Hallo', context: undefined })]
     const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 1)
     t.assert.strictEqual(updated1, false)
     const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 1)

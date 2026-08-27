@@ -297,7 +297,7 @@ export class Hub {
         for (const handler of handlers) {
             if (!sourceTriggered) {
                 await handler.loadStorage()
-                await handler.compile(this.#hmrVersion)
+                await handler.compile(this.#hmrVersion, true)
             }
         }
         return sourceTriggered

@@ -276,8 +276,13 @@ export class Files {
         loadID: number | null,
         hmrVersion: number,
     ) => {
-        const compiledItems = JSON.stringify(compiledData)
-        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
+        const data = compiledData.slice()
+        for (let i = 0; i < data.length; i++) {
+            if (data[i] == null) {
+                data[i] = '' // when indices jump obsoletes during dev
+            }
+        }
+        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${JSON.stringify(data)}`
         if (hmrVersion > 0) {
             module = `${module}\nexport let v = ${hmrVersion}`
         }

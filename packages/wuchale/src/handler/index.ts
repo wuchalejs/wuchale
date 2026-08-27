@@ -168,14 +168,15 @@ export class AdapterHandler {
         await this.sharedState.save(this.#opts.mode === 'dev' && this.#opts.devMode === 'clean')
     }
 
-    compile = async (hmrVersion: number) => {
+    compile = async (hmrVersion: number, forceWrite = false) => {
         // for proper fallback
         const localesOrdered = [this.sourceLocale, ...this.#opts.config.locales.filter(l => l !== this.sourceLocale)]
         for (const loc of localesOrdered) {
-            await this.#compileForLocale(loc, hmrVersion)
+            await this.#compileForLocale(loc)
         }
-        if (this.#opts.mode !== 'dev' || hmrVersion === 0) {
-            await this.#writeManifests()
+        if (this.#opts.mode !== 'dev' || hmrVersion === 0 || forceWrite) {
+            // forceWrite from hub to reload page (bundler should pick up compile files)
+            await Promise.all([this.#writeCompiled(hmrVersion), this.#writeManifests()])
         }
     }
 
@@ -219,14 +220,20 @@ export class AdapterHandler {
         await this.compile(hmrVersion)
     }
 
-    writeCompiled = async (loc: string, hmrVersion: number) => {
-        const compiledData = this.sharedState.compiled.get(loc)!
-        const promises = [this.files.writeCatalogModule(compiledData, loc, null, hmrVersion)]
-        if (this.adapter.loading.granular) {
-            for (const state of this.granularState.byID.values()) {
-                promises.push(this.files.writeCatalogModule(state.compiled?.get(loc) || [], loc, state.id, hmrVersion))
+    #writeCompiled = async (hmrVersion: number) => {
+        const promises: Promise<string>[] = []
+        for (const [loc, compiled] of this.sharedState.compiled) {
+            promises.push(this.files.writeCatalogModule(compiled, loc, null, hmrVersion))
+            if (this.adapter.loading.granular) {
+                for (const state of this.granularState.byID.values()) {
+                    promises.push(
+                        this.files.writeCatalogModule(state.compiled?.get(loc) || [], loc, state.id, hmrVersion),
+                    )
+                }
             }
         }
+        await Promise.all(promises)
+        this.#newKeys.clear() // not needed once these are in the compiled files
     }
 
     getCompiledFallback(index: number, locale: string) {
@@ -239,7 +246,7 @@ export class AdapterHandler {
         return ''
     }
 
-    #compileForLocale = async (loc: string, hmrVersion: number) => {
+    #compileForLocale = async (loc: string) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
             sharedCompiledLoc = []
@@ -289,9 +296,6 @@ export class AdapterHandler {
                     compiledLoc[state.indexTracker.get(key)] = compiled
                 }
             }
-        }
-        if (this.#opts.mode !== 'dev' || hmrVersion === 0) {
-            await this.writeCompiled(loc, hmrVersion)
         }
     }
 
