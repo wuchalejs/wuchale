@@ -9,11 +9,12 @@ import type {
     VariableDeclarator,
 } from 'acorn'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
-import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
+import type { CodePattern, HeuristicFunc, RuntimeConf, Scope, Text, TransformCtx, TransformOutput } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
+const dynamicScopes: Scope['type'][] = ['function', 'funcexpr', 'method']
 
 const rtComponent = 'W_tx_'
 const snipPrefix = '_w_snippet_'
@@ -53,19 +54,11 @@ export class SvelteTransformer extends Transformer {
 
     override visitVariableDeclarator(node: VariableDeclarator): Text[] {
         const txts = super.visitVariableDeclarator(node)
-        const init = node.init
-        if (
-            !txts.length ||
-            this.scopePath.some(s => s.type === 'assignment') ||
-            init == null ||
-            init.type === 'ArrowFunctionExpression' ||
-            init.type === 'FunctionExpression'
-        ) {
-            return txts
-        }
         const needsWrapping = txts.some(txt => {
             for (const s of txt.path) {
-                if (s.type === 'assignment') {
+                if (dynamicScopes.includes(s.type)) {
+                    return false
+                } else if (s.type === 'assignment') {
                     if (s.left) {
                         return false
                     }
@@ -78,7 +71,8 @@ export class SvelteTransformer extends Transformer {
             }
             return true
         })
-        if (!needsWrapping) {
+        const init = node.init
+        if (!needsWrapping || init == null) {
             return txts
         }
         const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
