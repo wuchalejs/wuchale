@@ -21,8 +21,15 @@ const makeCtx = (content: string, index = new IndexTracker(true)) => ({
     matchUrl: urlHandler.match,
 })
 
-const getOutput = (content: string, patterns = defaultArgs.patterns) =>
-    new Transformer(makeCtx(content), defaultArgs.heuristic, patterns, defaultArgs.runtime).transform()
+const getOutput = (content: string, patterns = defaultArgs.patterns) => {
+    return new Transformer(
+        makeCtx(content),
+        ({ path }) =>
+            path.some(s => s.type === 'assignment' && !s.left && s.targets.includes('ignored')) ? false : undefined,
+        patterns,
+        defaultArgs.runtime,
+    ).transform()
+}
 
 test('Simple expression and assignment', t => {
     transformTest(
@@ -326,5 +333,26 @@ test('Partial on read dev mode', t => {
             }
         `,
         ['Hello'], // no There! as it is new
+    )
+})
+
+test('Destructuring patterns in declarations', t => {
+    transformTest(
+        t,
+        getOutput(ts`
+            function foo() {
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
+                const { kept } = { msg: 'There!' }
+            }
+        `),
+        ts`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            function foo() {
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
+                const _w_runtime_ = _w_load_();
+                const { kept } = { msg: _w_runtime_(0) }
+            }
+        `,
+        ['There!'],
     )
 })
