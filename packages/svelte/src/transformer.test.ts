@@ -397,6 +397,7 @@ test('Tags and directives', async t => {
         await getOutput(svelte`
             {@render foo('Hello')}
             {@html 'Hello'}
+            {@const a = 'Hello'}
             {let x = 'Hello'}
             <form on:submit|preventDefault>
                 {const y = $derived('Hello')}
@@ -411,13 +412,14 @@ test('Tags and directives', async t => {
         </script>
             {@render foo(_w_runtime_(0))}
             {@html _w_runtime_(0)}
+            {@const a = _w_runtime_(0)}
             {let x = $derived(_w_runtime_(0))}
             <form on:submit|preventDefault>
                 {const y = $derived(_w_runtime_(0))}
                 <button on:click={() => alert(_w_runtime_(0))}>42</button>
             </form>
     `,
-        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
+        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
     )
 })
 
@@ -578,29 +580,5 @@ test('Mixed attribute', async t => {
         <img alt={_w_runtime_(0, [name, width])} />
         `,
         ['{0} at {1} pixels'],
-    )
-})
-
-test('Const tag is not wrapped in $derived', async t => {
-    transformTest(
-        t,
-        await getOutput(svelte`
-        {#if show}
-            {@const label = 'Hello'}
-            <span>{label}</span>
-        {/if}
-        `),
-        svelte`
-        <script>
-            import { _w_load_, _w_load_rx_ } from "./loader.js"
-            import W_tx_ from "@wuchale/svelte/runtime.svelte"
-            const _w_runtime_ = $derived(_w_load_rx_());
-        </script>
-        {#if show}
-            {@const label = _w_runtime_(0)}
-            <span>{label}</span>
-        {/if}
-    `,
-        ['Hello'],
     )
 })
