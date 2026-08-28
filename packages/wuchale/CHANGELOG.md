@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.1
+
+### Patch Changes
+
+- [`116cc74`](https://github.com/wuchalejs/wuchale/commit/116cc740e1903927b5187b1b1e2f9a98ab4e344b): Fix plural template not included in published package
+
 ## 0.26.0
 
 ### Minor Changes
