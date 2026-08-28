@@ -35,4 +35,4 @@ jobs:
         id: changesets
         uses: changesets/action@v2
         with:
-          publish: npx @changesets/cli publish
+          publish-script: npx @changesets/cli publish
