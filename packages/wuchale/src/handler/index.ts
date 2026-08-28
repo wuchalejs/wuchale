@@ -111,6 +111,7 @@ export class AdapterHandler {
     onBeforeSave?: () => void
     #fallbackChains: Map<string, string[]>
     #newKeys = new Set<string>() // keys added during dev
+    storageUpdated = false // for cli, to write only at the end
 
     private constructor(opts: HandlerOpts) {
         this.#opts = opts
@@ -439,7 +440,7 @@ export class AdapterHandler {
         return { cleaned, cleanedUrls }
     }
 
-    handleTexts = async (txts: Text[], filename: string, hmrVersion: number): Promise<[string[], boolean]> => {
+    handleTexts = async (txts: Text[], filename: string, hmrVersion: number): Promise<string[]> => {
         const previousReferences = this.popTrackedRefs(filename)
         let storageUpdated = false
         let compileUpdated = false
@@ -515,7 +516,8 @@ export class AdapterHandler {
                 await this.compile(hmrVersion)
             }
         }
-        return [hmrKeys, storageUpdated]
+        this.storageUpdated = storageUpdated // to be read in hub for cli
+        return hmrKeys
     }
 
     transform = async (
@@ -523,7 +525,7 @@ export class AdapterHandler {
         filename: string,
         hmrVersion = 0,
         forServer = false,
-    ): Promise<[TransformOutputCode, boolean]> => {
+    ): Promise<TransformOutputCode> => {
         filename = normalizeSep(filename)
         let indexTracker = this.sharedState.indexTracker
         let loadID = defaultLoadID
@@ -546,7 +548,6 @@ export class AdapterHandler {
             matchUrl: this.url.match,
         })
         let hmrData: HMRData | null = null
-        let updated = false
         if (this.#opts.mode !== 'build') {
             if (this.#opts.log.checkLevel('verbose')) {
                 if (txts.length) {
@@ -558,8 +559,7 @@ export class AdapterHandler {
                     this.#opts.log.verbose(`${this.key}: No items from ${filename}.`)
                 }
             }
-            const [hmrKeys, updatedItems] = await this.handleTexts(txts, filename, hmrVersion)
-            updated = updatedItems
+            const hmrKeys = await this.handleTexts(txts, filename, hmrVersion)
             if (hmrKeys.length > 0) {
                 hmrData = {}
                 for (const loc of this.#opts.config.locales) {
@@ -587,6 +587,6 @@ export class AdapterHandler {
         if (this.#opts.modifyInplace && output.code) {
             await writeFile(filename, output.code)
         }
-        return [output, updated]
+        return output
     }
 }

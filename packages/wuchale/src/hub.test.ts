@@ -58,14 +58,14 @@ test('hub init files', async (t: TestContext) => {
 })
 
 test('hub transform basic', async (t: TestContext) => {
-    const [output] = await hub.transform(code, file)
+    const output = await hub.transform(code, file)
     t.assert.strictEqual(trimLines(output.code), trimLines(transformedCodeDefault))
 })
 
 test('hub transform ssr', async (t: TestContext) => {
     await inMemFS.unlink(devPidPath)
     const hub = await Hub.create('build', config, import.meta.dirname, [], 0, inMemFS)
-    const [output] = await hub.transform(code, file, true)
+    const output = await hub.transform(code, file, true)
     t.assert.strictEqual(
         trimLines(output.code),
         trimLines(ts`
@@ -85,7 +85,7 @@ test('hub onFileChange', async (t: TestContext) => {
 
 test('hub transform with hmr', async (t: TestContext) => {
     // Hello no longer new after onFileChange with po file
-    const [output] = await hub.transform(
+    const output = await hub.transform(
         ts`
         function foo() {
             return 'Hallo'
@@ -110,7 +110,7 @@ test('different dev modes', async (t: TestContext) => {
     await inMemFS.unlink(devPidPath)
     await inMemFS.unlink(po)
     let hub = await Hub.create('dev', { ...config, dev: false }, import.meta.dirname, [], 0, inMemFS)
-    const [output] = await hub.transform(code, file)
+    const output = await hub.transform(code, file)
     t.assert.strictEqual(await inMemFS.read(po), null)
     t.assert.deepStrictEqual(output, {})
 

@@ -270,7 +270,7 @@ export class Hub {
         })
     }
 
-    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<boolean | undefined> => {
+    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<false | undefined> => {
         file = normalizeSep(file) // just to be sure
         if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
@@ -292,35 +292,34 @@ export class Hub {
             this.#hmrVersion++
             return
         }
-        // catalog changed
-        const sourceTriggered = performance.now() - this.#lastSourceTriggeredCatalogWrite < this.#opts.hmrDelayThreshold
-        for (const handler of handlers) {
-            if (!sourceTriggered) {
+        // catalog changed. read and update if not self triggered
+        if (performance.now() - this.#lastSourceTriggeredCatalogWrite > this.#opts.hmrDelayThreshold) {
+            for (const handler of handlers) {
                 await handler.loadStorage()
                 await handler.compile(this.#hmrVersion, true)
             }
         }
-        return sourceTriggered
+        return false
     }
 
-    transform = async (code: string, filePath: string, forServer = false): ReturnType<AdapterHandler['transform']> => {
+    transform = async (code: string, filePath: string, forServer = false): Promise<TransformOutputCode> => {
         if (this.#opts.mode === 'dev' && !this.#opts.config.dev) {
-            return [{}, false]
+            return {}
         }
         const filename = normalizeSep(relative(this.#opts.root, filePath))
-        let output: [TransformOutputCode, boolean] | null = null
-        for (const adapter of this.#handlers.values()) {
-            if (!adapter.fileMatches(filename)) {
+        let output: TransformOutputCode = {}
+        for (const handler of this.#handlers.values()) {
+            if (!handler.fileMatches(filename)) {
                 continue
             }
             try {
-                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                output = await handler.transform(code, filename, this.#hmrVersion, forServer)
             } catch (e) {
-                throw this.#formatTransformErr(e as Error, adapter.key, filename)
+                throw this.#formatTransformErr(e as Error, handler.key, filename)
             }
             break
         }
-        return output ?? [{}, false]
+        return output
     }
 
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
@@ -337,8 +336,8 @@ export class Hub {
         this.#lastAdapterForFile.set(filename, handler.key)
         this.#opts.log.info(logPrefixHandler(handler.key), 'Extract from', color.cyan(filename))
         const contents = await this.#opts.fs.read(resolve(this.#opts.root, filename))
-        const [, updated] = await handler.transform(contents!, filename)
-        return updated
+        await handler.transform(contents!, filename)
+        return handler.storageUpdated
     }
 
     async #directVisitHandler(

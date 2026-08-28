@@ -63,9 +63,9 @@ test('HMR', async (t: TestContext) => {
         _w_load_()(0)
         _w_load_()(1)
     `)
-    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1))[0].code), expected)
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1)).code), expected)
     // also on SSR
-    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1, true))[0].code), expected)
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1, true)).code), expected)
 })
 
 test('Compiled and manifest', async (t: TestContext) => {
@@ -93,14 +93,14 @@ test('Compiled and manifest', async (t: TestContext) => {
 
 test('Handle texts', async (t: TestContext) => {
     const txts = [newText({ body: 'Hallo' })] // Hello not new after compile(1, true)
-    const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 1)
-    t.assert.strictEqual(updated, true)
+    const hmrKeys = await handler.handleTexts(txts, 'foo.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, true)
     t.assert.deepStrictEqual(hmrKeys, ['Hallo'])
     const msgs1 = [newText({ body: 'Hallo', context: undefined })]
-    const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 1)
-    t.assert.strictEqual(updated1, false)
-    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 1)
-    t.assert.strictEqual(updated2, true)
+    await handler.handleTexts(msgs1, 'foo.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, false)
+    await handler.handleTexts(txts, 'bar.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, true)
 })
 
 test('Handler compiles only when necessary', async (t: TestContext) => {
@@ -118,12 +118,12 @@ test('Handler compiles only when necessary', async (t: TestContext) => {
         compileCalls++
         return handlerCompile(...args)
     }
-    const [, updated1] = await handler.handleTexts(txts, 'foo.ts', 0)
-    t.assert.strictEqual(updated1, true)
+    await handler.handleTexts(txts, 'foo.ts', 0)
+    t.assert.strictEqual(handler.storageUpdated, true)
     t.assert.strictEqual(saveCalls, 1)
     t.assert.strictEqual(compileCalls, 1)
-    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
-    t.assert.strictEqual(updated2, true)
+    await handler.handleTexts(txts, 'bar.ts', 0)
+    t.assert.strictEqual(handler.storageUpdated, true)
     t.assert.strictEqual(saveCalls, 2)
     t.assert.strictEqual(compileCalls, 1)
 })
