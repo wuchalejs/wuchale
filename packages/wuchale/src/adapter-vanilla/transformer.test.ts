@@ -6,6 +6,7 @@ import { transformTest, ts } from '../../testing/utils.ts'
 import { getFuncNameNested } from '../adapter-utils/index.js'
 import { IndexTracker, type RuntimeConf } from '../adapters.js'
 import { URLHandler } from '../handler/url.js'
+import { createHeuristic, defaultHeuristicOpts } from '../text.js'
 import { defaultArgs } from './index.js'
 import { Transformer } from './transformer.js'
 
@@ -326,5 +327,46 @@ test('Partial on read dev mode', t => {
             }
         `,
         ['Hello'], // no There! as it is new
+    )
+})
+
+test('Destructuring patterns in declarations', t => {
+    // rest elements and nested patterns must not throw while collecting assignment names
+    transformTest(
+        t,
+        getOutput(ts`
+            const { alpha, ...rest } = source
+            const [{ beta }] = source
+            const [...items] = source
+            const { gamma: { delta } } = source
+        `),
+        undefined,
+        [],
+    )
+})
+
+test('Object pattern names are collected as assignment targets', t => {
+    transformTest(
+        t,
+        new Transformer(
+            makeCtx(ts`
+                function foo() {
+                    const { ignored } = { msg: 'Hello' }
+                    const { kept } = { msg: 'There!' }
+                }
+            `),
+            createHeuristic({ ...defaultHeuristicOpts, ignoreAssign: ['ignored'] }),
+            defaultArgs.patterns,
+            defaultArgs.runtime,
+        ).transform(),
+        ts`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            function foo() {
+                const { ignored } = { msg: 'Hello' }
+                const _w_runtime_ = _w_load_();
+                const { kept } = { msg: _w_runtime_(0) }
+            }
+        `,
+        ['There!'], // no Hello as its target is ignored
     )
 })

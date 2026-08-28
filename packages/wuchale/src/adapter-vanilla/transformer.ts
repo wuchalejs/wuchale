@@ -485,9 +485,11 @@ export class Transformer extends InertVisitors {
         if (id.type === 'Identifier') {
             names.push(id.name)
         } else if (id.type === 'ArrayPattern') {
-            names = id.elements.filter(n => n !== null).flatMap(this.getAssignmentNames)
+            names = id.elements.filter(n => n !== null).flatMap(n => this.getAssignmentNames(n))
         } else if (id.type === 'ObjectPattern') {
-            names = id.properties.flatMap(this.getAssignmentNames)
+            names = id.properties.flatMap(n => this.getAssignmentNames(n))
+        } else if (id.type === 'Property') {
+            names = this.getAssignmentNames(id.value)
         } else if (id.type === 'RestElement') {
             names = this.getAssignmentNames(id.argument)
         } else if (id.type === 'AssignmentPattern') {
