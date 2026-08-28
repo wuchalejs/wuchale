@@ -28,7 +28,8 @@
     ],
     "files": [
         "dist",
-        "src/adapter-vanilla/loaders"
+        "src/adapter-vanilla/loaders",
+        "src/plural-tmpl.js"
     ],
     "exports": {
         ".": {
