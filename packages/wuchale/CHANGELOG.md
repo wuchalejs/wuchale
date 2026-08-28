@@ -1,5 +1,79 @@
 # wuchale
 
+## 0.26.0
+
+### Minor Changes
+
+- [`8aa70f2`](https://github.com/wuchalejs/wuchale/commit/8aa70f2c205829fcb2c45b669ce2e6d5000fe814): ⚠️ BREAKING: Use CLDR plural rules from `Intl` instead of PO file headers
+  
+  The `plural` function is now provided in a `plural.js` file in `localesDir`,
+  and it uses the CLDR rules from the runtime environment (Browsers, Node.js,
+  etc) instead of expecting the rules to be manually defined inside the catalogs.
+  Its signature is also different. Instead of expecting a rule function as the
+  last argument, it expects a `locale`, which is automatically provided at
+  transform time, with the default being the first one in the `locales` config.
+  Therefore, if you need plurals, import and use this new one.
+  
+  ```js
+  import plural from "../locales/plural.js"
+  // ...
+  plural(42, ['a day', '# days'])
+  ```
+  
+  If you use locales that are not covered by CLDR, you can define another
+  `plural` function with the same signature, optionally using this one as a
+  fallback for the locales that are, with your custom selection logic, and use
+  that. The import location is not checked at transform time, only the name and
+  signature.
+  
+  All plurals are now fully validated when they are translated using AI or when
+  using the CLI's `check` command.
+- [`ecb2626`](https://github.com/wuchalejs/wuchale/commit/ecb2626154534da5395ffd33782d432fcb45f8fa): Add `ai` flag when the translations are from an AI, for easier reviews [#316](https://github.com/wuchalejs/wuchale/issues/316)
+- [`b43c360`](https://github.com/wuchalejs/wuchale/commit/b43c3605d49c7c83307946e7445e96ed59b9702e): Vite: add injected components in `optimizeDeps.exclude` to prevent startup reload causing test errors [#437](https://github.com/wuchalejs/wuchale/issues/437)
+- [`f28e7b4`](https://github.com/wuchalejs/wuchale/commit/f28e7b4e5084dee60263a823ed256374086c6759): Add support for interpolations (template strings) in plural messages [#406](https://github.com/wuchalejs/wuchale/issues/406)
+  
+  Template strings in plurals are now extracted properly, even when they have
+  non-uniform interpolations like:
+  
+  ```js
+  plural(items, ['An item', `${items} items in ${container}`])
+  ```
+  
+  It still works, because it collects all unique values in a single place and
+  shares them among all, and therefore the values can even be used in different
+  places in the translations as necessary.
+- [`cd53445`](https://github.com/wuchalejs/wuchale/commit/cd53445e64344206fdd8aff1c50e72eab5d8d9b2): More reliable HMR implementation that doesn't get confused with secondary instances (like the CLI)
+- [`15d677e`](https://github.com/wuchalejs/wuchale/commit/15d677e8286dba588a2123389375673e3ea83675): ⚠️ BREAKING: Replace single details object with an array of scope objects and separate filename for heuristic
+  
+  The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
+  
+  - `.body: string | string[]` instead of `Message.msgStr`
+  - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
+  - The rest of the properties are the same as `Message`
+  
+  Therefore if you implement a custom heuristic function you should for example:
+  
+  ```diff
+  -heuristic: (msg) => {
+  +heuristic: (text, file) => {
+  -    if (msg.details.element || msg.details.file.endsWith('.foo')) {
+  +    if (text.path.some(s => s.type === 'element') || file.endsWith('.foo')) {
+           return false
+       }
+   }
+  ```
+  
+  The scope array is now used to ignore whole sub-trees of ignored elements even if they contain non-ignored elements.
+
+### Patch Changes
+
+- [`5be7308`](https://github.com/wuchalejs/wuchale/commit/5be7308dd014494538815bc47b5d215587b9d9e7): Heuristic tune: ignore strings assigned to `document.cookie`
+- [`abb3f14`](https://github.com/wuchalejs/wuchale/commit/abb3f14121a94232b48aa6088df87681dcc37f59): When nesting functions with messages, initialize runtime at the inner most function with messages [#436](https://github.com/wuchalejs/wuchale/issues/436)
+- [`91ac506`](https://github.com/wuchalejs/wuchale/commit/91ac5067adf41ad0632eb962b1f2b05cfb5e135d): Mixed visitor: fix inconsistent heuristic check for messages from attributes [#442](https://github.com/wuchalejs/wuchale/issues/442)
+- [`07cff73`](https://github.com/wuchalejs/wuchale/commit/07cff73f7eccda001bc23d6d5dcccab138e46084): Fix links with query params and hashes not translated
+  
+  E.g. `<a href="/home?foo=bar#view">`, now the path is translated and the rest will be preserved
+
 ## 0.25.8
 
 ### Patch Changes
