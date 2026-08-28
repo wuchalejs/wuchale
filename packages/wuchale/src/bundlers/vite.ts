@@ -66,7 +66,7 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
             inBuild = env.mode === 'build'
             conf = await getConfig(configPath)
             return {
-                optimizeDeps: { include: [...new Set(Object.values(conf.adapters).flatMap(a => a.addImports))] },
+                optimizeDeps: { exclude: [...new Set(Object.values(conf.adapters).flatMap(a => a.addImports))] },
             }
         },
         async buildStart() {

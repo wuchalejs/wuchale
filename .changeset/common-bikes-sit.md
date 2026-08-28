@@ -5,5 +5,4 @@
 "@wuchale/svelte": patch
 ---
 
-Vite: add injected components in `optimizeDeps.include` to prevent startup reload causing test errors #437
-  
+Vite: add injected components in `optimizeDeps.exclude` to prevent startup reload causing test errors #437
