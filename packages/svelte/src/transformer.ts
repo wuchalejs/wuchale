@@ -38,6 +38,7 @@ export type RuntimeCtxSv = {
 export class SvelteTransformer extends Transformer {
     // state
     currentSnippet = 0
+    inConstTag = false
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
     override runtimeCtx: RuntimeCtxSv = { module: false }
 
@@ -72,7 +73,9 @@ export class SvelteTransformer extends Transformer {
             return true
         })
         const init = node.init
-        if (!needsWrapping || init == null) {
+        // `{@const}` is re-evaluated by Svelte along with its block, and Svelte rejects
+        // `$derived` there, so it must never be wrapped
+        if (!needsWrapping || init == null || this.inConstTag) {
             return txts
         }
         const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
@@ -206,8 +209,12 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitConstTag(node: AST.ConstTag): Text[] {
+        const prevInConstTag = this.inConstTag
+        this.inConstTag = true
         // @ts-expect-error
-        return this.visitVariableDeclaration(node.declaration)
+        const txts = this.visitVariableDeclaration(node.declaration)
+        this.inConstTag = prevInConstTag
+        return txts
     }
 
     visitDeclarationTag(node: AST.DeclarationTag): Text[] {

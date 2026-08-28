@@ -580,3 +580,27 @@ test('Mixed attribute', async t => {
         ['{0} at {1} pixels'],
     )
 })
+
+test('Const tag is not wrapped in $derived', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+        {#if show}
+            {@const label = 'Hello'}
+            <span>{label}</span>
+        {/if}
+        `),
+        svelte`
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_());
+        </script>
+        {#if show}
+            {@const label = _w_runtime_(0)}
+            <span>{label}</span>
+        {/if}
+    `,
+        ['Hello'],
+    )
+})
