@@ -6,7 +6,6 @@ import { transformTest, ts } from '../../testing/utils.ts'
 import { getFuncNameNested } from '../adapter-utils/index.js'
 import { IndexTracker, type RuntimeConf } from '../adapters.js'
 import { URLHandler } from '../handler/url.js'
-import { createHeuristic, defaultHeuristicOpts } from '../text.js'
 import { defaultArgs } from './index.js'
 import { Transformer } from './transformer.js'
 
@@ -22,8 +21,15 @@ const makeCtx = (content: string, index = new IndexTracker(true)) => ({
     matchUrl: urlHandler.match,
 })
 
-const getOutput = (content: string, patterns = defaultArgs.patterns) =>
-    new Transformer(makeCtx(content), defaultArgs.heuristic, patterns, defaultArgs.runtime).transform()
+const getOutput = (content: string, patterns = defaultArgs.patterns) => {
+    return new Transformer(
+        makeCtx(content),
+        ({ path }) =>
+            path.some(s => s.type === 'assignment' && !s.left && s.targets.includes('ignored')) ? false : undefined,
+        patterns,
+        defaultArgs.runtime,
+    ).transform()
+}
 
 test('Simple expression and assignment', t => {
     transformTest(
@@ -331,42 +337,22 @@ test('Partial on read dev mode', t => {
 })
 
 test('Destructuring patterns in declarations', t => {
-    // rest elements and nested patterns must not throw while collecting assignment names
     transformTest(
         t,
         getOutput(ts`
-            const { alpha, ...rest } = source
-            const [{ beta }] = source
-            const [...items] = source
-            const { gamma: { delta } } = source
+            function foo() {
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
+                const { kept } = { msg: 'There!' }
+            }
         `),
-        undefined,
-        [],
-    )
-})
-
-test('Object pattern names are collected as assignment targets', t => {
-    transformTest(
-        t,
-        new Transformer(
-            makeCtx(ts`
-                function foo() {
-                    const { ignored } = { msg: 'Hello' }
-                    const { kept } = { msg: 'There!' }
-                }
-            `),
-            createHeuristic({ ...defaultHeuristicOpts, ignoreAssign: ['ignored'] }),
-            defaultArgs.patterns,
-            defaultArgs.runtime,
-        ).transform(),
         ts`
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             function foo() {
-                const { ignored } = { msg: 'Hello' }
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
                 const _w_runtime_ = _w_load_();
                 const { kept } = { msg: _w_runtime_(0) }
             }
         `,
-        ['There!'], // no Hello as its target is ignored
+        ['There!'],
     )
 })
