@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.2
+
+### Patch Changes
+
+- [`231b683`](https://github.com/wuchalejs/wuchale/commit/231b683009eefd4a19c166696584e716fcc47ce3): Fix crash when collecting assignment names from destructuring patterns
+
 ## 0.26.1
 
 ### Patch Changes
