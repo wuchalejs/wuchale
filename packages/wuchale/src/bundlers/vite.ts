@@ -83,8 +83,11 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
         async handleHotUpdate(ctx: { file: string; read: () => string | Promise<string> }) {
             return await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
         },
-        async transform(code: string, id: string, options?: { ssr?: boolean | undefined }) {
-            return await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
+        transform: {
+            order: 'pre' as 'pre',
+            async handler(code: string, id: string, options?: { ssr?: boolean | undefined }) {
+                return await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
+            },
         },
     }
 }

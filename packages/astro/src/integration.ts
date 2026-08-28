@@ -17,13 +17,7 @@ export function wuchale(options: PluginConf = {}) {
                 await plugin.buildStart()
                 updateConfig({
                     vite: {
-                        plugins: [
-                            {
-                                name: plugin.name,
-                                handleHotUpdate: plugin.handleHotUpdate,
-                                transform: { order: 'pre' as 'pre', handler: plugin.transform },
-                            },
-                        ],
+                        plugins: [plugin],
                     },
                     i18n: {
                         locales: conf.locales,
