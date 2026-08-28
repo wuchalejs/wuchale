@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.21.1
+
+### Patch Changes
+
+- [`14d5f68`](https://github.com/wuchalejs/wuchale/commit/14d5f68d10a1259b3892359b0fb57b5d470efee7): Fix `{@const}` being wrapped in `$derived` after new text scope logic
+
 ## 0.21.0
 
 ### Minor Changes
