@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.3
+
+### Patch Changes
+
+- [`2e035dc`](https://github.com/wuchalejs/wuchale/commit/2e035dc2bcfee1c8091ce8cdf5fd1defb8b895fe): Fix first build failing when the generated dir doesn't exist yet
+
 ## 0.26.2
 
 ### Patch Changes
