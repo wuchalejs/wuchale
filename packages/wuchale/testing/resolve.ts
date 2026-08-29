@@ -5,27 +5,13 @@
  */
 
 import { registerHooks } from 'node:module'
-import { basename, dirname, resolve as pathResolve, relative, sep } from 'node:path'
+import { dirname, resolve as pathResolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const thisDir = dirname(fileURLToPath(import.meta.url))
-
-function findPackageRoot(parentDir: string): string | null {
-    if (parentDir === thisDir) return dirname(parentDir)
-    for (let dir = parentDir; ; ) {
-        if (basename(dir) === 'src') return dirname(dir)
-        const parent = dirname(dir)
-        if (parent === dir) return null
-        dir = parent
-    }
-}
-
-function srcToDist(path: string, packageRoot: string): string {
-    const rel = relative(packageRoot, path)
-    const marker = `src${sep}`
-    if (!rel.startsWith(marker)) return path
-    return pathResolve(packageRoot, `dist${sep}${rel.slice(marker.length)}`)
-}
+const findAfter = `${sep}wuchale${sep}packages${sep}`
+const distPatt = `${sep}dist${sep}`
+const srcPatt = `${sep}src${sep}`
 
 registerHooks({
     resolve: (specifier, context, nextResolve) => {
@@ -33,19 +19,19 @@ registerHooks({
         if (parentURL) {
             const parentPath = fileURLToPath(parentURL ?? '')
             const parentDir = dirname(parentPath)
+            const findAfterIs = specifier.indexOf(findAfter) + findAfter.length
+            const findAfterIu = parentURL.indexOf(findAfter) + findAfter.length
             if (
-                !(specifier.includes('/dist/') || specifier.includes('\\dist\\')) &&
-                (parentURL.includes('.test.') || parentDir === thisDir) &&
+                !specifier.includes(distPatt, findAfterIs) &&
+                (parentURL.includes('.test.', findAfterIu) || parentDir === thisDir) &&
                 specifier.startsWith('.')
             ) {
                 const absoluteTarget = pathResolve(parentDir, specifier)
-                const packageRoot = findPackageRoot(parentDir)
-                if (
-                    packageRoot &&
-                    (absoluteTarget.includes('/src/') || absoluteTarget.includes('\\src\\')) &&
-                    absoluteTarget.endsWith('.js')
-                ) {
-                    const redirectedPath = srcToDist(absoluteTarget, packageRoot)
+                const findAfterIt = absoluteTarget.indexOf(findAfter) + findAfter.length
+                if (absoluteTarget.includes(srcPatt, findAfterIt) && absoluteTarget.endsWith('.js')) {
+                    const redirectedPath =
+                        absoluteTarget.slice(0, findAfterIt) +
+                        absoluteTarget.slice(findAfterIt).replace(srcPatt, distPatt)
                     const newUrl = pathToFileURL(redirectedPath).href
                     return nextResolve(newUrl)
                 }
