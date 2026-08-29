@@ -225,11 +225,12 @@ export class Hub {
         }
         const log = new Logger(config.logLevel)
         const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
+        // has to come first: it creates the generated dir that the pid file lives in
+        await initGenDirWithData(config, fs, root)
         const primary = await processIsPrimary(mode, fs, pidFileAbs)
         if (!primary) {
             log.warn(logPrefix, 'running in secondary process')
         }
-        await initGenDirWithData(config, fs, root)
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
