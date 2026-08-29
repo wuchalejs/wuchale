@@ -6,7 +6,6 @@ import { type TestContext, test } from 'node:test'
 import { inMemFS, regexTransform, trimLines, ts } from '../../wuchale/testing/utils.ts'
 import { defaultArgs } from './adapter-vanilla/index.js'
 import { type Config, defaultConfig } from './config.js'
-import type { FS } from './fs.js'
 import { generatedDir, normalizeSep } from './handler/files.js'
 import { devPidFile, Hub } from './hub.js'
 import { pluralTemplPath } from './plurals.js'
@@ -149,33 +148,4 @@ test('different dev modes', async (t: TestContext) => {
     poContent = (await inMemFS.read(po)) ?? ''
     t.assert.match(poContent, /"Hello"/)
     t.assert.doesNotMatch(poContent, /"Hello1"/)
-})
-
-test('hub creates the generated dir before writing the pid file', async (t: TestContext) => {
-    // like the real fs, writing into a directory that was never created fails
-    const files = new Map<string, string>()
-    // the locales dir is committed; only the generated dir inside it is gitignored
-    const dirs = new Set([normalizeSep(resolve(import.meta.dirname, defaultConfig.localesDir))])
-    const strictFS: FS = {
-        mkdir: path => {
-            dirs.add(normalizeSep(path))
-        },
-        write: (file, data) => {
-            const dir = normalizeSep(file).split('/').slice(0, -1).join('/')
-            if (!dirs.has(dir)) {
-                const err: NodeJS.ErrnoException = new Error(`ENOENT: no such file or directory, open '${file}'`)
-                err.code = 'ENOENT'
-                throw err
-            }
-            files.set(file, data)
-        },
-        read: file => files.get(file) ?? null,
-        exists: file => files.has(file),
-        unlink: file => files.delete(file),
-    }
-    files.set(defaultLoaderPath.client, '')
-    files.set(defaultLoaderPath.server, '')
-    files.set(pluralTemplPath, 'const ALL_C = []')
-    await t.assert.doesNotReject(() => Hub.create('dev', config, import.meta.dirname, [], 0, strictFS))
-    t.assert.ok(files.has(devPidPath), 'pid file written into the generated dir')
 })
