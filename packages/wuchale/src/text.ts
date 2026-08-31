@@ -143,8 +143,8 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             }
         }
         let body = singleTxt(txt.body)
-        const lastScope = txt.path.at(-1)!
-        if (lastScope.type === 'element') {
+        const lastScope = txt.path.at(-1)
+        if (lastScope?.type === 'element') {
             // only check the top level for letters
             const comp = compileTranslation(body, '')
             if (typeof comp !== 'string') {
@@ -152,22 +152,22 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             }
         }
         const looksLikeUrlPath = body.startsWith('/') && !body.includes(' ')
-        if (looksLikeUrlPath && lastScope.type !== 'element') {
-            if (lastScope.type === 'call') {
+        if (looksLikeUrlPath && lastScope?.type !== 'element') {
+            if (lastScope?.type === 'call') {
                 for (const call of opts.urlCalls) {
                     if (lastScope.name === call) {
                         return 'url'
                     }
                 }
             }
-            if (lastScope.type === 'property') {
+            if (lastScope?.type === 'property') {
                 for (const prop of opts.urlProps) {
                     if (lastScope.name === prop) {
                         return 'url'
                     }
                 }
             }
-            if (lastScope.type === 'attribute') {
+            if (lastScope?.type === 'attribute') {
                 for (const [tag, attrib] of opts.urlAttribs) {
                     if (nearestElement === tag && lastScope.name === attrib) {
                         return 'url'
@@ -178,7 +178,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (!/\p{L}/u.test(body)) {
             return false
         }
-        if (lastScope.type === 'element') {
+        if (lastScope?.type === 'element') {
             return 'message'
         }
         // script and attribute
@@ -196,7 +196,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             // ignore non-letter and lower-case English beginnings
             return false
         }
-        if (lastScope.type === 'attribute') {
+        if (lastScope?.type === 'attribute') {
             return 'message'
         }
         if (txt.path[0]?.type === 'expression' && !updateable) {

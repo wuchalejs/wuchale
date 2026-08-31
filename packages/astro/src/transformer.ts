@@ -247,7 +247,11 @@ export class AstroTransformer extends Transformer {
     visitfrontmatter(node: FrontmatterNode): Text[] {
         const { start } = this.getRange(node)
         this.frontMatterStart = this.content.indexOf('---', start) + 3
-        return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
+        const prevPath = this.scopePath
+        this.scopePath = []
+        const txts = this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
+        this.scopePath = prevPath
+        return txts
     }
 
     visitroot(node: RootNode): Text[] {

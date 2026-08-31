@@ -67,6 +67,7 @@ test('Script block', async t => {
             })
             const msg = {body: 'Hello'}
             const foo = () => 'Hello'
+            if (hello == 'world') 'ignore'
         </script>
         {foo()} {msg.body}
         `),
@@ -82,6 +83,7 @@ test('Script block', async t => {
             })
             const msg = $derived({body: _w_runtime_(0)})
             const foo = () => _w_runtime_(0)
+            if (hello == 'world') 'ignore'
         </script>
         {foo()} {msg.body}
         `,
