@@ -1,5 +1,13 @@
 # @wuchale/astro
 
+## 0.5.1
+
+### Patch Changes
+
+- [`d3dde62`](https://github.com/wuchalejs/wuchale/commit/d3dde623d5d12c528504020c5db46188a97833ca): Fix unexpected top level strings being extracted
+- Updated dependencies [d3dde62]:
+  - wuchale@0.26.4
+
 ## 0.5.0
 
 ### Minor Changes

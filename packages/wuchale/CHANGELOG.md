@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.4
+
+### Patch Changes
+
+- [`d3dde62`](https://github.com/wuchalejs/wuchale/commit/d3dde623d5d12c528504020c5db46188a97833ca): Fix crash on dead code with string at the top level [#454](https://github.com/wuchalejs/wuchale/issues/454)
+
 ## 0.26.3
 
 ### Patch Changes
