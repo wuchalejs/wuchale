@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.6
+
+### Patch Changes
+
+- [`73e6ea3`](https://github.com/wuchalejs/wuchale/commit/73e6ea3decf78e427bade2bee38a97d7a447f2aa): Fix build error caused by new atomic write `randomBytes` use
+
 ## 0.26.5
 
 ### Patch Changes
