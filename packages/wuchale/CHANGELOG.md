@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.5
+
+### Patch Changes
+
+- [`d2d1a06`](https://github.com/wuchalejs/wuchale/commit/d2d1a061d7c75a43f987f8244dd321e912e2e837): Make file writes atomic (write+rename) to avoid interleaving
+
 ## 0.26.4
 
 ### Patch Changes

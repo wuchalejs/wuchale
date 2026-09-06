@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.21.2
+
+### Patch Changes
+
+- [`7e931d2`](https://github.com/wuchalejs/wuchale/commit/7e931d21fe5547516276af74370af4ee63eeb253): Fix strings in places like `{#if check === 'str'}` being extracted
+- Updated dependencies [d2d1a06]:
+  - wuchale@0.26.5
+
 ## 0.21.1
 
 ### Patch Changes
