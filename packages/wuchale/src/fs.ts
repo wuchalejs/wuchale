@@ -1,4 +1,5 @@
-import { mkdir, readFile, statfs, unlink, writeFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import { mkdir, readFile, rename, statfs, unlink, writeFile } from 'node:fs/promises'
 
 export type FS = {
     read(file: string): string | null | Promise<string | null>
@@ -25,7 +26,10 @@ export const defaultFS: FS = {
     },
 
     async write(file: string, content: string) {
-        await writeFile(file, content)
+        // atomic write
+        const tmpFname = `${file}.${randomBytes(6)}`
+        await writeFile(tmpFname, content)
+        await rename(tmpFname, file)
     },
 
     async mkdir(path: string) {
