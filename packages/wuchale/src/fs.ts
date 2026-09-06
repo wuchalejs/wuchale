@@ -27,7 +27,7 @@ export const defaultFS: FS = {
 
     async write(file: string, content: string) {
         // atomic write
-        const tmpFname = `${file}.${randomBytes(6)}`
+        const tmpFname = `${file}.${randomBytes(6).toString('hex')}`
         await writeFile(tmpFname, content)
         await rename(tmpFname, file)
     },
