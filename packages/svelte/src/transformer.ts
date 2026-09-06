@@ -212,22 +212,22 @@ export class SvelteTransformer extends Transformer {
         const prevInConstTag = this.inConstTag
         this.inConstTag = true
         // @ts-expect-error
-        const txts = this.visitVariableDeclaration(node.declaration)
+        const txts = this.inScope({ type: 'expression' }, () => this.visitVariableDeclaration(node.declaration))
         this.inConstTag = prevInConstTag
         return txts
     }
 
     visitDeclarationTag(node: AST.DeclarationTag): Text[] {
         // @ts-expect-error
-        return this.visitVariableDeclaration(node.declaration)
+        return this.inScope({ type: 'expression' }, () => this.visitVariableDeclaration(node.declaration))
     }
 
     visitRenderTag(node: AST.RenderTag): Text[] {
-        return this.visit(node.expression as Expression)
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Expression)
     }
 
     visitHtmlTag(node: AST.HtmlTag): Text[] {
-        return this.visit(node.expression as Expression)
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Expression)
     }
 
     visitOnDirective(node: AST.OnDirective): Text[] {
@@ -259,7 +259,7 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitIfBlock(node: AST.IfBlock): Text[] {
-        const txts = this.visit(node.test as AnyNode)
+        const txts = this.inScopeVisit({ type: 'expression' }, node.test as AnyNode)
         txts.push(...this.visitFragment(node.consequent, false))
         if (node.alternate) {
             txts.push(...this.visitFragment(node.alternate, false))
@@ -268,9 +268,12 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitEachBlock(node: AST.EachBlock): Text[] {
-        const txts = [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.body, false)]
+        const txts = [
+            ...this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode),
+            ...this.visitFragment(node.body, false),
+        ]
         if (node.key) {
-            txts.push(...this.visit(node.key as AnyNode))
+            txts.push(...this.inScopeVisit({ type: 'expression' }, node.key as AnyNode))
         }
         if (node.fallback) {
             txts.push(...this.visitFragment(node.fallback, false))
@@ -279,11 +282,14 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitKeyBlock(node: AST.KeyBlock): Text[] {
-        return [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.fragment, false)]
+        return [
+            ...this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode),
+            ...this.visitFragment(node.fragment, false),
+        ]
     }
 
     visitAwaitBlock(node: AST.AwaitBlock): Text[] {
-        const txts = this.visit(node.expression as AnyNode)
+        const txts = this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode)
         if (node.then) {
             txts.push(...this.visitFragment(node.then, false))
         }

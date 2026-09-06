@@ -430,7 +430,7 @@ test('Nested and mixed with svelte:element', async t => {
         t,
         await getOutput(svelte`
             <p>Hello and <svelte:element this="b">welcome to <i>the app {appName}</i></svelte:element>!</p>
-            {#if name}
+            {#if tag === 'foo'}
                 <Icon /> Name
             {:else if number}
                 <pre>Foo bar</pre> Code
@@ -457,7 +457,7 @@ test('Nested and mixed with svelte:element', async t => {
                 {/snippet}
                 <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(3)} />
             </p>
-            {#if name}
+            {#if tag === 'foo'}
                 {#snippet _w_snippet_0()}
                     <Icon />
                 {/snippet}
