@@ -10,6 +10,7 @@ import type {
 } from 'acorn'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
 import type { CodePattern, HeuristicFunc, RuntimeConf, Scope, Text, TransformCtx, TransformOutput } from 'wuchale'
+import type { WrapStrs } from 'wuchale/adapter-utils'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -92,6 +93,7 @@ export class SvelteTransformer extends Transformer {
             index: this.index,
             content: this.content,
             scopePath: this.scopePath,
+            exprBorder: ['{', '}'],
             vars: this.vars.bind(this),
             getRange: node => ({ start: node.start, end: node.end }),
             isText: node => node.type === 'Text',
@@ -102,36 +104,37 @@ export class SvelteTransformer extends Transformer {
             getCommentData: node => node.data.trim(),
             visitFunc: this.visitSv.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
-                const snippets: string[] = []
+            wrapNested: (index, hasExprs, needsCtx) => {
                 const vars = this.vars()
-                // create and reference snippets
-                for (const [childStart, childEnd, haveCtx] of nestedRanges) {
-                    const snippetName = `${snipPrefix}${this.currentSnippet}`
-                    snippets.push(snippetName)
-                    this.currentSnippet++
-                    const snippetBegin = `\n{#snippet ${snippetName}(${haveCtx ? vars.nestCtx : ''})}\n`
-                    this.mstr.appendRight(childStart, snippetBegin)
-                    this.mstr.prependLeft(childEnd, '\n{/snippet}\n')
-                }
-                let begin = `\n<${rtComponent}`
-                if (snippets.length) {
-                    begin += ` t={[${snippets.join(', ')}]}`
-                }
-                begin += ' x='
+                const strs: WrapStrs = { begin: `\n<${rtComponent} x=`, end: ' />\n', children: [] }
                 if (index === null) {
                     // nested
-                    begin += `{${vars.nestCtx}} n`
+                    strs.begin += `{${vars.nestCtx}} n`
                 } else {
-                    begin += `{${vars.rtCtx}(${index})}`
+                    strs.begin += `{${vars.rtCtx}(${index})}`
                 }
-                let end = ' />\n'
+                let beforeChild = strs.end
                 if (hasExprs) {
-                    begin += ' a={['
-                    end = `]}${end}`
+                    beforeChild = `]}${beforeChild}`
                 }
-                this.mstr.appendLeft(lastChildEnd, begin)
-                this.mstr.appendRight(lastChildEnd, end)
+                if (needsCtx.length) {
+                    const snippets: string[] = []
+                    for (const haveCtx of needsCtx) {
+                        const snippetName = `${snipPrefix}${this.currentSnippet}`
+                        snippets.push(snippetName)
+                        this.currentSnippet++
+                        strs.children.push(`${beforeChild}{#snippet ${snippetName}(${haveCtx ? vars.nestCtx : ''})}\n`)
+                        beforeChild = '\n{/snippet}\n'
+                    }
+                    strs.begin += ` t={[${snippets.join(', ')}]}`
+                }
+                if (hasExprs) {
+                    strs.begin += ' a={['
+                }
+                if (needsCtx.length || hasExprs) {
+                    strs.end = beforeChild
+                }
+                return strs
             },
         })
     }

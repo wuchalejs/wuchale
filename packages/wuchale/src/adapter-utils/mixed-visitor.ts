@@ -12,15 +12,21 @@ import {
     varNames,
 } from './index.js'
 
-type NestedRanges = [number, number, boolean][]
 type Range = { start: number; end: number }
-type Nums = { text: number; expr: number; element: number; comment: number }
+type Scouted = { text: number; expr: number; element: number; comment: number; start: number; end: number }
+
+export type WrapStrs = {
+    begin: string // <W_tx x={ctx} a={[
+    children: string[] // ]}><snip>, </snip><snip>
+    end: string // </snip></W_tx>
+}
 
 type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT extends MixNodeT> = {
     mstr: MagicString
     index: IndexTracker
     content: string
     scopePath: Scope[]
+    exprBorder: [string, string]
     vars: () => RuntimeVars
     getRange: (node: MixNodeT) => Range
     isText: (node: MixNodeT) => node is TxtT
@@ -31,7 +37,7 @@ type InitProps<MixNodeT, TxtT extends MixNodeT, ComT extends MixNodeT, ExprT ext
     getCommentData: (node: ComT) => string
     visitFunc: (node: MixNodeT) => Text[]
     checkHeuristic: (txt: Text) => HeuristicResult
-    wrapNested: (index: number | null, hasExpr: boolean, nestedRanges: NestedRanges, lastChildEnd: number) => void
+    wrapNested: (index: number | null, hasExpr: boolean, needsCtx: boolean[]) => WrapStrs
 }
 
 export type ModFunc = (nested: boolean, lvlHasMsg: boolean) => void
@@ -145,14 +151,46 @@ export class MixedVisitor<
         return txts
     }
 
-    #getLastChildEnd(children: MixNodeT[]): number {
-        const lastChild = children.slice(-1)[0]!
-        const lastChildEnd = this.#props.getRange(lastChild).end
-        if (this.#props.isText(lastChild)) {
-            const [, , endWh] = trimText(this.#props.getTextContent(lastChild))
-            return lastChildEnd - endWh
+    #scout(children: MixNodeT[]): Scouted {
+        const scouted: Scouted = { text: 0, expr: 0, element: 0, comment: 0, start: -1, end: -1 }
+        let inContent = false
+        for (const child of children) {
+            const { start, end } = this.#props.getRange(child)
+            if (this.#props.leaveInPlace(child)) {
+                if (!inContent) {
+                    scouted.start = end
+                    scouted.end = end
+                }
+                continue
+            }
+            if (this.#props.isText(child)) {
+                const [startWh, trimmed, endWh] = trimText(this.#props.getTextContent(child))
+                if (trimmed) {
+                    if (!inContent) {
+                        scouted.start = start + startWh
+                        inContent = true
+                    }
+                    scouted.end = end - endWh
+                    scouted.text++
+                } else {
+                    scouted.end = start
+                }
+                continue
+            }
+            if (!inContent) {
+                scouted.start = start
+                inContent = true
+            }
+            scouted.end = end
+            if (this.#props.isExpression(child)) {
+                scouted.expr++
+            } else if (this.#props.isComment(child)) {
+                scouted.comment++
+            } else {
+                scouted.element++
+            }
         }
-        return lastChildEnd
+        return scouted
     }
 
     #makeTxt(props: VisitProps<MixNodeT>, body: string, placeholders: [string, string][] = []): [Text, boolean] {
@@ -169,43 +207,39 @@ export class MixedVisitor<
         return [txt, heurMsgType !== false]
     }
 
-    #childNums(children: MixNodeT[]): Nums {
-        const nums: Nums = { text: 0, expr: 0, element: 0, comment: 0 }
-        for (const child of children) {
-            if (this.#props.isText(child)) {
-                if (this.#props.getTextContent(child).trim()) {
-                    nums.text++
-                }
-            } else if (this.#props.isExpression(child)) {
-                nums.expr++
-            } else if (this.#props.isComment(child)) {
-                nums.comment++
-            } else {
-                nums.element++
-            }
-        }
-        return nums
-    }
-
-    #text(mod: LevelMod, props: VisitProps<MixNodeT>, trimOut: TrimOut, range: Range, nums: Nums): string {
+    #text(
+        mod: LevelMod,
+        props: VisitProps<MixNodeT>,
+        trimOut: TrimOut,
+        range: Range,
+        scouted: Scouted,
+        ignore: boolean,
+    ): string {
         let [startWh, trimmed, endWh] = trimOut
         let { start, end } = range
-        const [txt, passedHeur] = this.#makeTxt(props, trimmed)
-        if (passedHeur) {
-            mod.txts.push([
-                txt,
-                () => {
-                    const index = this.#props.index.get(getKey(txt.body, txt.context))
-                    this.#props.mstr.update(start + startWh, end - endWh, `{${this.#props.vars().rtTrans}(${index})}`)
-                },
-            ])
+        if (!ignore) {
+            const [txt, passedHeur] = this.#makeTxt(props, trimmed)
+            if (passedHeur) {
+                mod.txts.push([
+                    txt,
+                    () => {
+                        const index = this.#props.index.get(getKey(txt.body, txt.context))
+                        const [left, right] = this.#props.exprBorder
+                        this.#props.mstr.update(
+                            start + startWh,
+                            end - endWh,
+                            `${left}${this.#props.vars().rtTrans}(${index})${right}`,
+                        )
+                    },
+                ])
+            }
         }
         mod.funcs.push((nested, lvlHasMsg) => {
             if (!lvlHasMsg) {
                 // no sibling at this level passes heuristic
                 return
             }
-            if (!nested && nums.text === 1 && nums.element === 0 && nums.expr === 0) {
+            if (!nested && scouted.text === 1 && scouted.element === 0 && scouted.expr === 0) {
                 start += startWh
                 end -= endWh
             }
@@ -214,12 +248,16 @@ export class MixedVisitor<
         if (endWh) {
             trimmed += ' '
         }
+        if (startWh || trimmed === '') {
+            trimmed = ' ' + trimmed
+        }
         return trimmed
     }
 
-    #expression(funcs: ModFunc[], range: Range, iArg: number, placeholders: [string, string][], lastChildEnd: number) {
-        const start = range.start + 1
-        const end = range.end - 1
+    #expression(funcs: ModFunc[], range: Range, iArg: number, placeholders: [string, string][], argsIndex: number) {
+        const [left, right] = this.#props.exprBorder
+        const start = range.start + left.length
+        const end = range.end - right.length
         placeholders.push([iArg.toString(), this.#props.content.slice(start, end)])
         const firstOne = iArg === 0
         funcs.push(() => {
@@ -230,7 +268,9 @@ export class MixedVisitor<
             } else {
                 this.#props.mstr.update(range.start, start, ', ')
             }
-            this.#props.mstr.move(moveStart, end, lastChildEnd)
+            if (argsIndex !== moveStart) {
+                this.#props.mstr.move(moveStart, end, argsIndex)
+            }
             this.#props.mstr.remove(end, range.end)
         })
         return `{${iArg}}`
@@ -239,27 +279,30 @@ export class MixedVisitor<
     #finalMod(
         props: VisitProps<MixNodeT>,
         txt: Text,
-        lastChildEnd: number,
-        childrenNestedRanges: [number, number, boolean][],
+        childrenStarts: number[],
+        childrenCtx: boolean[],
         hasExpr: boolean,
-        nums: Nums,
+        scouted: Scouted,
     ): ModFunc {
         const vars = this.#props.vars()
         const scope = this.#props.scopePath.at(-1)!
         return nested => {
             const index = this.#props.index.get(getKey(txt.body, txt.context))
-            if (
-                ((props.useComponent ?? true) && scope.type === 'element' && hasExpr) ||
-                childrenNestedRanges.length > 0
-            ) {
-                if (nums.element + nums.text + nums.expr > 1) {
-                    this.#props.wrapNested(nested ? null : index, hasExpr, childrenNestedRanges, lastChildEnd)
+            if (((props.useComponent ?? true) && scope.type === 'element' && hasExpr) || childrenStarts.length > 0) {
+                if (scouted.element + scouted.text + scouted.expr > 1) {
+                    const strs = this.#props.wrapNested(nested ? null : index, hasExpr, childrenCtx)
+                    this.#props.mstr.appendLeft(scouted.start, strs.begin)
+                    for (const [i, childStart] of childrenStarts.entries()) {
+                        this.#props.mstr.appendRight(childStart, strs.children[i]!)
+                    }
+                    this.#props.mstr.appendRight(scouted.end, strs.end)
                 }
                 return
             }
             // no need for component use
-            let begin = '{'
-            let end = ')}'
+            const [left, right] = this.#props.exprBorder
+            let begin = left
+            let end = `)${right}`
             if (nested) {
                 begin += `${vars.rtTransCtx}(${vars.nestCtx}`
             } else {
@@ -273,14 +316,12 @@ export class MixedVisitor<
                 begin += ', ['
                 end = `]${end}`
             }
-            if (scope.type === 'attribute' && `'"`.includes(this.#props.content[lastChildEnd]!)) {
-                const firstChild = props.children[0]!
-                const { start } = this.#props.getRange(firstChild)
-                this.#props.mstr.remove(start - 1, start)
-                this.#props.mstr.remove(lastChildEnd, lastChildEnd + 1)
+            if (scope.type === 'attribute' && `'"`.includes(this.#props.content[scouted.end]!)) {
+                this.#props.mstr.remove(scouted.start - 1, scouted.start)
+                this.#props.mstr.remove(scouted.end, scouted.end + 1)
             }
-            this.#props.mstr.appendLeft(lastChildEnd, begin)
-            this.#props.mstr.appendRight(lastChildEnd, end)
+            this.#props.mstr.appendLeft(scouted.start, begin)
+            this.#props.mstr.appendRight(scouted.end, end)
         }
     }
 
@@ -307,16 +348,17 @@ export class MixedVisitor<
         let iTag = 0
         const commentDirectivesOrig: CommentDirectives = { ...props.commentDirectives }
         let lastVisitIsComment = false
-        const lastChildEnd = this.#getLastChildEnd(props.children)
-        const childrenNestedRanges: NestedRanges = []
+        const scouted = this.#scout(props.children)
+        const childrenStarts: number[] = []
+        const childrenCtx: boolean[] = []
         const txts: Text[] = []
         const placeholders: [string, string][] = []
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
         const scope = this.#props.scopePath.at(-1)!
-        const nums = this.#childNums(props.children)
-        const mod = this.#getMod(scope, props.nestable, alreadyInsideUnit || nums.text > 0, props.addMod)
+        const mod = this.#getMod(scope, props.nestable, alreadyInsideUnit || scouted.text > 0, props.addMod)
         const exprFuncs: ModFunc[] = []
         for (const child of props.children) {
+            const chRange = this.#props.getRange(child)
             if (this.#props.isComment(child)) {
                 const data = this.#props.getCommentData(child)
                 if (data.trim().startsWith(commentPrefix)) {
@@ -329,27 +371,36 @@ export class MixedVisitor<
             if (props.commentDirectives.ignoreFile) {
                 return []
             }
-            const chRange = this.#props.getRange(child)
             if (this.#props.isText(child)) {
-                const trimOut = trimText(this.#props.getTextContent(child))
-                const [startWh, trimmed] = trimOut
-                if ((startWh || trimmed === '') && !body.endsWith(' ')) {
-                    body += ' '
-                }
-                if (!trimmed) {
-                    // whitespace
+                if (chRange.end <= scouted.start) {
                     continue
                 }
-                if (props.commentDirectives.forceType !== false) {
-                    body += this.#text(mod, props, trimOut, chRange, nums)
+                const trimOut = trimText(this.#props.getTextContent(child))
+                const add = this.#text(
+                    mod,
+                    props,
+                    trimOut,
+                    chRange,
+                    scouted,
+                    props.commentDirectives.forceType === false,
+                )
+                if (add === ' ') {
+                    if (!body.endsWith(add)) {
+                        body += add
+                    }
+                    continue
                 }
+                body += add
             } else if (props.commentDirectives.forceType !== false) {
                 if (this.#props.leaveInPlace(child)) {
                     txts.push(...this.#props.visitFunc(child))
+                    if (chRange.end > scouted.start) {
+                        mod.funcs.push(() => this.#props.mstr.move(chRange.start, chRange.end, scouted.start))
+                    }
                 } else if (this.#props.isExpression(child)) {
                     txts.push(...this.#props.visitFunc(child))
-                    if (nums.text > 0 || nums.element > 0) {
-                        body += this.#expression(exprFuncs, chRange, iArg, placeholders, lastChildEnd)
+                    if (scouted.text > 0 || scouted.element > 0) {
+                        body += this.#expression(exprFuncs, chRange, iArg, placeholders, scouted.start)
                         iArg++
                     }
                 } else {
@@ -362,7 +413,7 @@ export class MixedVisitor<
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
                     if (childMod.pending && childMod.txt) {
-                        if (nums.element === 1 && nums.expr === 0 && nums.text === 0) {
+                        if (scouted.element === 1 && scouted.expr === 0 && scouted.text === 0) {
                             chTxt = childMod.txt.body as string
                             placeholders.push(...childMod.txt.placeholders)
                         } else {
@@ -373,7 +424,8 @@ export class MixedVisitor<
                             nestedNeedsCtx = true
                         }
                     }
-                    childrenNestedRanges.push([chRange.start, chRange.end, nestedNeedsCtx])
+                    childrenStarts.push(chRange.start)
+                    childrenCtx.push(nestedNeedsCtx)
                     body += chTxt
                     iTag++
                 }
@@ -387,7 +439,7 @@ export class MixedVisitor<
         const [txt, passedHeur] = this.#makeTxt(props, body, placeholders)
         if ((passedHeur || mod.unit) && !hasCommentDirectives) {
             mod.txt = txt // can be taken together, and lvlHasMsg
-            mod.funcs.push(...exprFuncs, this.#finalMod(props, txt, lastChildEnd, childrenNestedRanges, iArg > 0, nums))
+            mod.funcs.push(...exprFuncs, this.#finalMod(props, txt, childrenStarts, childrenCtx, iArg > 0, scouted))
         }
         if (mod.unit || !mod.building || hasCommentDirectives || !props.nestable) {
             txts.push(...this.#applyModClear(scope.type))

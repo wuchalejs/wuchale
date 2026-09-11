@@ -16,6 +16,7 @@ import { tsPlugin } from '@sveltejs/acorn-typescript'
 import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
+import type { WrapStrs } from 'wuchale/adapter-utils'
 import { MixedVisitor } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -97,6 +98,7 @@ export class AstroTransformer extends Transformer {
             index: this.index,
             content: this.content,
             scopePath: this.scopePath,
+            exprBorder: ['{', '}'],
             vars: this.vars.bind(this),
             getRange: this.getRange.bind(this),
             isText: node => node.type === 'text',
@@ -107,34 +109,28 @@ export class AstroTransformer extends Transformer {
             getCommentData: node => node.value.trim(),
             visitFunc: this.visitAs.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (index, hasExprs, needsCtx) => {
                 const vars = this.vars()
-                let begin = `{${rtRenderFunc}({\nx: `
+                const strs: WrapStrs = { begin: `{${rtRenderFunc}({\nx: `, end: ']\n})}', children: [] }
                 if (index === null) {
                     // nested
-                    begin += `${vars.nestCtx},\nn: true`
+                    strs.begin += `${vars.nestCtx},\nn: true`
                 } else {
-                    begin += `${vars.rtCtx}(${index})`
+                    strs.begin += `${vars.rtCtx}(${index})`
                 }
-                if (nestedRanges.length > 0) {
-                    for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
-                        let toAppend: string
-                        if (i === 0) {
-                            toAppend = `${begin},\nt: [`
-                        } else {
-                            toAppend = ', '
-                        }
-                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? vars.nestCtx : '()'} => `)
-                    }
-                    begin = `]`
-                }
-                let end = '\n})}'
+                let beforeChild = ''
                 if (hasExprs) {
-                    begin += ',\na: ['
-                    end = `]${end}`
+                    strs.begin += ',\na: ['
+                    beforeChild = `]`
                 }
-                this.mstr.appendLeft(lastChildEnd, begin)
-                this.mstr.appendRight(lastChildEnd, end)
+                if (needsCtx.length > 0) {
+                    beforeChild = ',\nt: ['
+                    for (const haveCtx of needsCtx) {
+                        strs.children.push(`${beforeChild}${haveCtx ? vars.nestCtx : '()'} => `)
+                        beforeChild = ', '
+                    }
+                }
+                return strs
             },
         })
     }

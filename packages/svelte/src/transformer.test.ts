@@ -1,4 +1,4 @@
-// $ node --import ../../wuchale/testing/resolve.ts %f
+// $$ node --import ../../wuchale/testing/resolve.ts %f
 
 import { test } from 'node:test'
 import { IndexTracker, URLHandler } from 'wuchale'
@@ -218,6 +218,7 @@ test('Keep as single unit', async t => {
         </script>
         <!-- @wc-unit -->
         <div>
+            <W_tx_ x={_w_runtime_.c(0)} t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} />
             {#snippet _w_snippet_0(_w_ctx_)}
                 <p>{_w_runtime_.x(_w_ctx_)}</p>
             {/snippet}
@@ -227,7 +228,6 @@ test('Keep as single unit', async t => {
             {#snippet _w_snippet_2(_w_ctx_)}
                 <p>{_w_runtime_.x(_w_ctx_)}</p>
             {/snippet}
-            <W_tx_ t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} x={_w_runtime_.c(0)} />
         </div>
     `,
         ['<0>Parag 1</0> <1>Parag 2</1> <2>Parag 3</2>'],
@@ -447,34 +447,34 @@ test('Nested and mixed with svelte:element', async t => {
                 const _w_runtime_ = $derived(_w_load_rx_());
             </script>
             <p>
+                <W_tx_ x={_w_runtime_.c(3)} t={[_w_snippet_3]} />
                 {#snippet _w_snippet_3(_w_ctx_)}
                     <svelte:element this="b">
+                        <W_tx_ x={_w_ctx_} n t={[_w_snippet_4]} />
                         {#snippet _w_snippet_4(_w_ctx_)}
                             <i>
                                 <W_tx_ x={_w_ctx_} n a={[appName]} />
                             </i>
                         {/snippet}
-                        <W_tx_ t={[_w_snippet_4]} x={_w_ctx_} n />
                     </svelte:element>
                 {/snippet}
-                <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(3)} />
             </p>
             {#if tag === 'foo'}
+                <W_tx_ x={_w_runtime_.c(0)} t={[_w_snippet_0]} />
                 {#snippet _w_snippet_0()}
                     <Icon />
                 {/snippet}
-                <W_tx_ t={[_w_snippet_0]} x={_w_runtime_.c(0)} />
             {:else if number}
+                <W_tx_ x={_w_runtime_.c(1)} t={[_w_snippet_1]} />
                 {#snippet _w_snippet_1()}
                     <pre>Foo bar</pre>
                 {/snippet}
-                <W_tx_ t={[_w_snippet_1]} x={_w_runtime_.c(1)} />
             {:else}
                 <a>
+                    <W_tx_ x={_w_runtime_.c(2)} t={[_w_snippet_2]} />
                     {#snippet _w_snippet_2()}
                         <Test></Test>
                     {/snippet}
-                    <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.c(2)} />
                 </a>
             {/if}
     `,
@@ -513,16 +513,17 @@ test('Collapsing deep nested messages with declaration tags', async t => {
                 const _w_runtime_ = $derived(_w_load_rx_());
             </script>
             <div>
+                <W_tx_ x={_w_runtime_.c(2)} t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} />
                 {#snippet _w_snippet_0(_w_ctx_)}
                     <div>
                         {const foo = 'in place'}
+                        <W_tx_ x={_w_ctx_} n t={[_w_snippet_3, _w_snippet_4]} a={[varName]} />
                         {#snippet _w_snippet_3(_w_ctx_)}
                             <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
                         {/snippet}
                         {#snippet _w_snippet_4()}
                             <Bar />
                         {/snippet}
-                        <W_tx_ t={[_w_snippet_3, _w_snippet_4]} x={_w_ctx_} n a={[varName]} />
                     </div>
                 {/snippet}
                 {#snippet _w_snippet_1()}
@@ -539,7 +540,6 @@ test('Collapsing deep nested messages with declaration tags', async t => {
                         <div>{_w_runtime_(1)}</div>
                     {/if}
                 {/snippet}
-                <W_tx_ t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} x={_w_runtime_.c(2)} />
             </div>
         `,
         [

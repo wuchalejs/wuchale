@@ -3,6 +3,7 @@ import type * as Estree from 'acorn'
 import { Parser } from 'acorn'
 import type * as JX from 'estree-jsx'
 import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
+import type { WrapStrs } from 'wuchale/adapter-utils'
 import { MixedVisitor, type ModFunc } from 'wuchale/adapter-utils'
 import { parseScript, scriptParseOptionsWithComments, Transformer } from 'wuchale/adapter-vanilla'
 
@@ -39,6 +40,7 @@ export class JSXTransformer extends Transformer {
             index: this.index,
             content: this.content,
             scopePath: this.scopePath,
+            exprBorder: ['{', '}'],
             vars: this.vars.bind(this),
             getRange: node => ({
                 start: node.start,
@@ -55,35 +57,28 @@ export class JSXTransformer extends Transformer {
             getCommentData: node => this.getMarkupCommentBody(node.expression as JX.JSXEmptyExpression),
             visitFunc: this.visitJx.bind(this),
             checkHeuristic: this.getHeuristicMessageType.bind(this),
-            wrapNested: (index, hasExprs, nestedRanges, lastChildEnd) => {
+            wrapNested: (index, hasExprs, needsCtx) => {
                 const vars = this.vars()
-                let begin = `<${rtComponent}`
-                if (nestedRanges.length > 0) {
-                    for (const [i, [childStart, _, haveCtx]] of nestedRanges.entries()) {
-                        let toAppend: string
-                        if (i === 0) {
-                            toAppend = `${begin} t={[`
-                        } else {
-                            toAppend = ', '
-                        }
-                        this.mstr.appendRight(childStart, `${toAppend}${haveCtx ? vars.nestCtx : '()'} => `)
-                    }
-                    begin = `]}`
-                }
-                begin += ' x='
+                const strs: WrapStrs = { begin: `\n<${rtComponent} x=`, end: ']} />\n', children: [] }
                 if (index === null) {
                     // nested
-                    begin += `{${vars.nestCtx}} n`
+                    strs.begin += `{${vars.nestCtx}} n`
                 } else {
-                    begin += `{${vars.rtCtx}(${index})}`
+                    strs.begin += `{${vars.rtCtx}(${index})}`
                 }
-                let end = ' />'
+                let beforeChild = ''
                 if (hasExprs) {
-                    begin += ' a={['
-                    end = `]}${end}`
+                    strs.begin += ' a={['
+                    beforeChild = `]}${beforeChild}`
                 }
-                this.mstr.appendLeft(lastChildEnd, begin)
-                this.mstr.appendRight(lastChildEnd, end)
+                if (needsCtx.length > 0) {
+                    beforeChild += ` t={[`
+                    for (const haveCtx of needsCtx.entries()) {
+                        strs.children.push(`${beforeChild}${haveCtx ? vars.nestCtx : '()'} => `)
+                        beforeChild = ', '
+                    }
+                }
+                return strs
             },
         })
     }
