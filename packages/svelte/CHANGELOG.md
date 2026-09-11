@@ -1,5 +1,11 @@
 # @wuchale/svelte
 
+## 0.21.3
+
+### Patch Changes
+
+- [`680ed81`](https://github.com/wuchalejs/wuchale/commit/680ed8117705cbfa7c3d88d27f5bdd3e8bec6d74): Fix runtime var defined twice when script module contains messages and exports a snippet containing messages [#463](https://github.com/wuchalejs/wuchale/issues/463)
+
 ## 0.21.2
 
 ### Patch Changes
