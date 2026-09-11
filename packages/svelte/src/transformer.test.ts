@@ -322,6 +322,7 @@ test('Exported snippet', async t => {
         t,
         await getOutput(svelte`
         <script module>
+            const tlMsg = 'Hello'
             export const bar = {
                 feel: () => {
 					const txt = 'Hello'
@@ -339,6 +340,7 @@ test('Exported snippet', async t => {
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             import W_tx_ from "@wuchale/svelte/runtime.svelte"
             const _w_runtime_mod_ = $derived(_w_load_rx_());
+            const tlMsg = $derived(_w_runtime_mod_(0))
             export const bar = {
                 feel: () => {
 					const _w_runtime_mod_ = _w_load_();
@@ -356,7 +358,7 @@ test('Exported snippet', async t => {
             <div>{_w_runtime_mod_(0)}</div>
         {/snippet}
     `,
-        ['Hello', 'Hello'],
+        ['Hello', 'Hello', 'Hello'],
     )
 })
 

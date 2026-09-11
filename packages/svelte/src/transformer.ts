@@ -351,7 +351,7 @@ export class SvelteTransformer extends Transformer {
                 this.initRuntimeInfo.push([
                     runtimeInit,
                     // @ts-expect-error
-                    this.programBodyStart.get(node.module.content.body) ?? node.module.content.start,
+                    this.programBodyStart.get(node.module.content) ?? node.module.content.start,
                     null,
                 ])
             }
