@@ -344,16 +344,11 @@ export class SvelteTransformer extends Transformer {
             this.currentRtVar = rtModuleVar
             this.runtimeCtx = { module: true }
             this.commentDirectives = {} // reset
-            // @ts-expect-error
-            txts.push(...this.visitProgram(node.module.content))
+            const mod = node.module.content as Program
+            txts.push(...this.visitProgram(mod))
             const runtimeInit = this.initRuntime()
             if (runtimeInit) {
-                this.initRuntimeInfo.push([
-                    runtimeInit,
-                    // @ts-expect-error
-                    this.programBodyStart.get(node.module.content) ?? node.module.content.start,
-                    null,
-                ])
+                this.initRuntimeInfo.push([runtimeInit, this.programBodyStart.get(mod) ?? mod.start, null])
             }
             this.runtimeCtx = { module: false } // reset
             this.currentRtVar = prevRtVar // reset
@@ -417,15 +412,14 @@ export class SvelteTransformer extends Transformer {
         }
         const initRuntime = this.initRuntime()
         let headerIndex = 0
-        if (ast.module) {
-            // @ts-expect-error
-            headerIndex = this.programBodyStart.get(ast.module.content.body) ?? ast.module.content.start
+        const mod = ast.module?.content as Program | undefined
+        const inst = ast.instance?.content as Program | undefined
+        if (mod) {
+            headerIndex = this.programBodyStart.get(mod) ?? mod.start
         }
-        if (ast.instance) {
-            const instanceBodyStart: number =
-                // @ts-expect-error
-                this.programBodyStart.get(ast.instance.content) ?? ast.instance.content.start
-            if (!ast.module) {
+        if (inst) {
+            const instanceBodyStart = this.programBodyStart.get(inst) ?? inst.start
+            if (!mod) {
                 headerIndex = instanceBodyStart
             }
             if (initRuntime) {
