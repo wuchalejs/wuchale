@@ -1,0 +1,68 @@
+{
+    "name": "@wuchale/vue",
+    "version": "0.1.0",
+    "description": "Protobuf-like i18n from plain code: Vue adapter",
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "node --import ../wuchale/testing/resolve.ts --test"
+    },
+    "keywords": [
+        "i18n",
+        "internationalization",
+        "translation",
+        "gettext",
+        "vue",
+        "vite",
+        "po",
+        "vue-i18n",
+        "vite-plugin",
+        "compile-time",
+        "ast",
+        "gemini",
+        "translation-tooling",
+        "multilingual",
+        "localization",
+        "l10n",
+        "lingui",
+        "automatic-i18n",
+        "lightweight",
+        "vue-plugin"
+    ],
+    "files": [
+        "dist",
+        "src/loaders",
+        "src/runtime.vue"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./runtime.vue": {
+            "default": "./src/runtime.vue"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/wuchalejs/wuchale.git"
+    },
+    "homepage": "https://wuchale.dev",
+    "bugs": "https://github.com/wuchalejs/wuchale/issues",
+    "author": "K1DV5",
+    "license": "MIT",
+    "peerDependencies": {
+        "vue": "^3.5.0"
+    },
+    "dependencies": {
+        "wuchale": "^0.26.5"
+    },
+    "devDependencies": {
+        "@types/node": "~24.13.3",
+        "@vue/compiler-core": "^3.5.42",
+        "acorn": "^8.18.0",
+        "typescript": "^7.0.2",
+        "vue": "^3.5.38"
+    },
+    "type": "module"
+}

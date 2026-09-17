@@ -1,4 +1,4 @@
-export { MixedVisitor, type ModFunc } from './mixed-visitor.js'
+export { MixedVisitor, type ModFunc, type WrapStrs } from './mixed-visitor.js'
 
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
