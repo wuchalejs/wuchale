@@ -132,5 +132,13 @@ export function compileTranslation(txt: string | string[], fallback?: CompiledEl
     if (typeof txt === 'string') {
         return (compileTransl(txt) as CompiledSingle) ?? fallback ?? ''
     }
-    return (txt.map(compileTransl) as CompiledPlural) ?? fallback ?? []
+    const compiledPlural: CompiledPlural = []
+    for (const txtSing of txt) {
+        const compiled = compileTransl(txtSing) as string | Mixed | undefined
+        if (compiled === undefined) {
+            return fallback ?? []
+        }
+        compiledPlural.push(compiled)
+    }
+    return compiledPlural
 }
