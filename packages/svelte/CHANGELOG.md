@@ -1,5 +1,13 @@
 # @wuchale/svelte
 
+## 0.21.4
+
+### Patch Changes
+
+- [`535cc4e`](https://github.com/wuchalejs/wuchale/commit/535cc4e3cee5018ab2a440f10ac410888a2eeec9): Fix snippet default arguments not visited
+- Updated dependencies [173fd6d, 7dc39ea]:
+  - wuchale@0.26.7
+
 ## 0.21.3
 
 ### Patch Changes
