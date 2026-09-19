@@ -1,5 +1,12 @@
 # wuchale
 
+## 0.26.7
+
+### Patch Changes
+
+- [`173fd6d`](https://github.com/wuchalejs/wuchale/commit/173fd6d0a3c2cd170b8ee6c8ed23a21bea205af9): Fix fallbacks not applied to plural messages [#469](https://github.com/wuchalejs/wuchale/issues/469)
+- [`7dc39ea`](https://github.com/wuchalejs/wuchale/commit/7dc39eac22d7c647718a92e71d7efca78b49dfe6): Fix snippet content message not isolated from surrounding nested message [#470](https://github.com/wuchalejs/wuchale/issues/470)
+
 ## 0.26.6
 
 ### Patch Changes
