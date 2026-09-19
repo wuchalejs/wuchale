@@ -437,8 +437,11 @@ test('Nested and mixed with svelte:element', async t => {
             {:else if number}
                 <pre>Foo bar</pre> Code
             {:else}
-                <a><Test></Test> More</a>
+                <a><Test>{@render snip()}</Test> More</a>
             {/if}
+            {#snippet snip()}
+                Hello
+            {/snippet}
         `),
         svelte`
             <script>
@@ -457,7 +460,7 @@ test('Nested and mixed with svelte:element', async t => {
                         <W_tx_ t={[_w_snippet_4]} x={_w_ctx_} n />
                     </svelte:element>
                 {/snippet}
-                <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(3)} />
+                <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(4)} />
             </p>
             {#if tag === 'foo'}
                 {#snippet _w_snippet_0()}
@@ -472,13 +475,16 @@ test('Nested and mixed with svelte:element', async t => {
             {:else}
                 <a>
                     {#snippet _w_snippet_2()}
-                        <Test></Test>
+                        <Test>{@render snip()}</Test>
                     {/snippet}
                     <W_tx_ t={[_w_snippet_2]} x={_w_runtime_.c(2)} />
                 </a>
             {/if}
+            {#snippet snip()}
+                {_w_runtime_(3)}
+            {/snippet}
     `,
-        ['<0/> Name', '<0/> Code', '<0/> More', 'Hello and <0>welcome to <0>the app {0}</0></0>!'],
+        ['<0/> Name', '<0/> Code', '<0/> More', 'Hello', 'Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
 

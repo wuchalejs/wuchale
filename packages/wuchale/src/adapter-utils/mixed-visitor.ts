@@ -345,7 +345,10 @@ export class MixedVisitor<
                 }
             } else if (props.commentDirectives.forceType !== false) {
                 if (this.#props.leaveInPlace(child)) {
+                    const prevMod = this.#mod
+                    this.#mod = new Map() // isolate
                     txts.push(...this.#props.visitFunc(child))
+                    this.#mod = prevMod // restore
                 } else if (this.#props.isExpression(child)) {
                     txts.push(...this.#props.visitFunc(child))
                     if (nums.text > 0 || nums.element > 0) {
@@ -357,7 +360,7 @@ export class MixedVisitor<
                     const childMod = newMod(mod.building, !alreadyInsideUnit && props.commentDirectives.unit)
                     this.#mod.set(scope.type, childMod)
                     txts.push(...this.#props.visitFunc(child))
-                    this.#mod.set(scope.type, mod)
+                    this.#mod.set(scope.type, mod) // restore
                     mod.children.push(childMod)
                     let nestedNeedsCtx = false
                     let chTxt = `<${iTag}/>`
