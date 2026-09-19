@@ -253,7 +253,8 @@ export class SvelteTransformer extends Transformer {
         if (this.hasIdentifier(this.moduleExportExprs, node.expression.name)) {
             this.currentRtVar = rtModuleVar
         }
-        const txts = this.visitFragment(node.body, false)
+        const txts = this.inScope({ type: 'expression' }, () => node.parameters.flatMap(n => this.visit(n as AnyNode)))
+        txts.push(...this.visitFragment(node.body, false))
         this.currentRtVar = prevRtVar
         return txts
     }

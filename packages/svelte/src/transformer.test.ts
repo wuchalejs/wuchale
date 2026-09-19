@@ -331,8 +331,8 @@ test('Exported snippet', async t => {
             }
         </script>
 
-        {#snippet foo()}
-            <div>Hello</div>
+        {#snippet foo(bar = 'Hello')}
+            <div>Hello {bar}</div>
         {/snippet}
     `),
         svelte`
@@ -354,11 +354,13 @@ test('Exported snippet', async t => {
             const _w_runtime_ = $derived(_w_load_rx_());
         </script>
 
-        {#snippet foo()}
-            <div>{_w_runtime_mod_(0)}</div>
+        {#snippet foo(bar = _w_runtime_mod_(0))}
+            <div>
+                <W_tx_ x={_w_runtime_mod_.c(1)} a={[bar]} />
+            </div>
         {/snippet}
     `,
-        ['Hello', 'Hello', 'Hello'],
+        ['Hello', 'Hello', 'Hello', 'Hello {0}'],
     )
 })
 
