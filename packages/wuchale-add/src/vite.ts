@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { tsPlugin } from '@sveltejs/acorn-typescript'
-import type { ImportDeclaration, Node, Property } from 'acorn'
+import type { Identifier, ImportDeclaration, Node, Property, VariableDeclaration } from 'acorn'
 import { Parser } from 'acorn'
 import MagicString from 'magic-string'
 import type { DetectProjectResult } from './types.js'
@@ -68,6 +68,30 @@ function getViteConfigExtension(): string | undefined {
 
 function walkNodes(node: Node) {
     if (analysis.hasImport && analysis.hasPlugin) return
+
+    if (node.type === 'VariableDeclaration') {
+        const variable = node as VariableDeclaration
+        for (const declaration of variable.declarations) {
+            const identifier = declaration.id as Identifier
+            if (identifier.name === 'plugins' && declaration.init?.type === 'ArrayExpression') {
+                const elements = declaration.init.elements ?? []
+                for (const element of elements) {
+                    if (element?.type === 'CallExpression') {
+                        const callee = element.callee as Identifier
+                        if (callee.name === 'wuchale') {
+                            analysis.hasPlugin = true
+                            break
+                        }
+                    }
+                }
+                if (analysis.hasPlugin) break
+                if (!analysis.hasPlugin) {
+                    analysis.pluginPosition = declaration.init.start + 1
+                }
+            }
+        }
+    }
+
     if (node.type === 'Property') {
         const property = node as Property
 
