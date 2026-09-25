@@ -150,20 +150,20 @@ or logo listed on the README and the website!
 
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on-GitHub-%23ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/K1DV5)
 
-Sponsors:
-
 <!-- s:sponsors -->
-[![mightygroup](https://avatars.githubusercontent.com/u/24351170?v=4&s=96)](https://github.com/mightygroup)
 
-Special thanks to our supporters:
+<!-- s:backers -->Special thanks to our supporters:
 
-<!-- s:backers -->
-[![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&s=48)](https://github.com/hayzamjs)
 [![p-mercury](https://avatars.githubusercontent.com/u/9084532?v=4&s=48)](https://github.com/p-mercury)
+
+<!-- s:past -->Past supporters:
+
+[![mightygroup](https://avatars.githubusercontent.com/u/24351170?v=4&s=48)](https://github.com/mightygroup)
+[![hayzamjs](https://avatars.githubusercontent.com/u/3922884?v=4&s=48)](https://github.com/hayzamjs)
 [![perdix](https://avatars.githubusercontent.com/u/1526654?v=4&s=48)](https://github.com/perdix)
 [![ZerGo0](https://avatars.githubusercontent.com/u/18653821?v=4&s=48)](https://github.com/ZerGo0)
 
-And <!-- s:private -->one private donor 🙏.
+And one private donor 🙏.
 
 ## License
 
