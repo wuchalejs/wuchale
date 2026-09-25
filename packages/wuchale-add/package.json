@@ -48,8 +48,8 @@
     "author": "K1DV5",
     "license": "MIT",
     "devDependencies": {
-        "@types/node": "~24.13.2",
-        "typescript": "^6.0.3"
+        "@types/node": "~24.13.3",
+        "typescript": "^7.0.2"
     },
     "type": "module"
 }
