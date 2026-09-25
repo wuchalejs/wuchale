@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/svelte",
-    "version": "0.20.5",
+    "version": "0.21.2",
     "description": "Protobuf-like i18n from plain code: Svelte adapter",
     "scripts": {
         "dev": "tsc --watch",
@@ -41,7 +41,8 @@
             "default": "./dist/index.js"
         },
         "./runtime.svelte": {
-            "types": "./src/runtime.d.ts",
+            "types": "./src/runtime.svelte.d.ts",
+            "svelte": "./src/runtime.svelte",
             "default": "./src/runtime.svelte"
         },
         "./scaffold": {
@@ -60,13 +61,13 @@
         "svelte": "^5"
     },
     "dependencies": {
-        "wuchale": "^0.25.6"
+        "wuchale": "^0.26.5"
     },
     "devDependencies": {
-        "@types/node": "~24.13.2",
+        "@types/node": "~24.13.3",
         "svelte": "^5.56.3",
-        "acorn": "^8.17.0",
-        "typescript": "^6.0.3"
+        "acorn": "^8.18.0",
+        "typescript": "^7.0.2"
     },
     "type": "module"
 }

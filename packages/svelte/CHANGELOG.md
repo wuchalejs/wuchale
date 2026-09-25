@@ -1,5 +1,69 @@
 # @wuchale/svelte
 
+## 0.21.2
+
+### Patch Changes
+
+- [`7e931d2`](https://github.com/wuchalejs/wuchale/commit/7e931d21fe5547516276af74370af4ee63eeb253): Fix strings in places like `{#if check === 'str'}` being extracted
+- Updated dependencies [d2d1a06]:
+  - wuchale@0.26.5
+
+## 0.21.1
+
+### Patch Changes
+
+- [`14d5f68`](https://github.com/wuchalejs/wuchale/commit/14d5f68d10a1259b3892359b0fb57b5d470efee7): Fix `{@const}` being wrapped in `$derived` after new text scope logic
+
+## 0.21.0
+
+### Minor Changes
+
+- [`15d677e`](https://github.com/wuchalejs/wuchale/commit/15d677e8286dba588a2123389375673e3ea83675): ⚠️ BREAKING: Replace single details object with an array of scope objects and separate filename for heuristic
+  
+  The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
+  
+  - `.body: string | string[]` instead of `Message.msgStr`
+  - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
+  - The rest of the properties are the same as `Message`
+  
+  Therefore if you implement a custom heuristic function you should for example:
+  
+  ```diff
+  -heuristic: (msg) => {
+  +heuristic: (text, file) => {
+  -    if (msg.details.element || msg.details.file.endsWith('.foo')) {
+  +    if (text.path.some(s => s.type === 'element') || file.endsWith('.foo')) {
+           return false
+       }
+   }
+  ```
+  
+  The scope array is now used to ignore whole sub-trees of ignored elements even if they contain non-ignored elements.
+
+### Patch Changes
+
+- [`b43c360`](https://github.com/wuchalejs/wuchale/commit/b43c3605d49c7c83307946e7445e96ed59b9702e): Vite: add injected components in `optimizeDeps.exclude` to prevent startup reload causing test errors [#437](https://github.com/wuchalejs/wuchale/issues/437)
+- [`d58b0e0`](https://github.com/wuchalejs/wuchale/commit/d58b0e0dcfd14672ee3916bb45d142aac2a8c910): Fix top level values being wrapped in `$derived` because of messages inside nested functions [#443](https://github.com/wuchalejs/wuchale/issues/443)
+- [`abb3f14`](https://github.com/wuchalejs/wuchale/commit/abb3f14121a94232b48aa6088df87681dcc37f59): When nesting functions with messages, initialize runtime at the inner most function with messages [#436](https://github.com/wuchalejs/wuchale/issues/436)
+- Updated dependencies [8aa70f2, ecb2626, b43c360, f28e7b4, 5be7308, abb3f14, cd53445, 91ac506, 15d677e, 07cff73]:
+  - wuchale@0.26.0
+
+## 0.20.7
+
+### Patch Changes
+
+- [b12628f](https://github.com/wuchalejs/wuchale/commit/b12628ffcce2a373139910b7aa2c6ca3729e618f): Fix `runtime.svelte.d.ts` not included in package tarball #430
+- Updated dependencies [67fe107]:
+  - wuchale@0.25.8
+
+## 0.20.6
+
+### Patch Changes
+
+- [056cfd7](https://github.com/wuchalejs/wuchale/commit/056cfd790554d7cf01b91b45a9f3fc025eea0650): Properly export `svelte` runtime component in `package.json` #428
+- Updated dependencies [d0ebc95, bbfb4a5]:
+  - wuchale@0.25.7
+
 ## 0.20.5
 
 ### Patch Changes

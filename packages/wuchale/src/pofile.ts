@@ -2,14 +2,12 @@ import { dirname, resolve } from 'node:path'
 import PO from 'pofile'
 import { getKey } from './adapters.js'
 import { fillDefaults } from './config.js'
+import { orderedPluralForms } from './plurals.js'
 import {
     type FileRef,
     type FileRefEntry,
     type Item,
     itemIsObsolete,
-    type PluralRule,
-    type PluralRules,
-    type SaveData,
     type StorageFactory,
     type StorageFactoryOpts,
 } from './storage.js'
@@ -35,12 +33,19 @@ function split(str: string, sep: string, count?: number) {
         .map(s => s.replaceAll(`\\${sep}`, sep).replaceAll('\\\\', '\\'))
 }
 
-function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem {
-    const poi = new PO.Item()
+function itemToPOItem(item: Item, locale: string, sourceLocale: string, nplurals: number): POItem {
+    // @ts-expect-error
+    const poi = new PO.Item({ nplurals })
     const id = item.translations.get(sourceLocale)!
-    poi.msgid = id[0]!
-    poi.msgid_plural = id[1]!
-    poi.msgstr = item.translations.get(locale)!
+    const body = item.translations.get(locale)!
+    if (typeof id === 'string') {
+        poi.msgid = id
+        poi.msgstr = [body as string]
+    } else {
+        poi.msgid = id[0]!
+        poi.msgid_plural = id[1] ?? ''
+        poi.msgstr = body as string[]
+    }
     if (item.context) {
         poi.msgctxt = item.context
     }
@@ -64,11 +69,14 @@ function itemToPOItem(item: Item, locale: string, sourceLocale: string): POItem 
     if (!poi.extractedComments.some(c => c !== '')) {
         poi.extractedComments = []
     }
-    const additionals: AdditionalsByLoc = (item['additionals'] as AdditionalsByLoc) ?? new Map()
+    const additionals: AdditionalsByLoc = (item.attribs['additionals'] as AdditionalsByLoc) ?? new Map()
     poi.comments = additionals.get(locale)?.comments ?? []
     poi.flags = additionals.get(locale)?.flags ?? {}
     for (const key of item.urlAdapters) {
         poi.flags[`${urlAdapterFlagPrefix}${key}`] = true
+    }
+    if (locale !== sourceLocale) {
+        poi.flags['ai'] = item.attribs.ai
     }
     poi.obsolete = itemIsObsolete(item)
     return poi
@@ -112,15 +120,15 @@ function poitemToItemCommons(poi: POItem): Item {
         context: poi.msgctxt,
         references,
         urlAdapters,
+        attribs: {},
     }
 }
 
 function getItemId(poItem: POItem) {
-    const id = [poItem.msgid]
-    if (poItem.msgid_plural) {
-        id.push(poItem.msgid_plural)
+    if (poItem.msgid_plural == null) {
+        return poItem.msgid
     }
-    return id
+    return [poItem.msgid, poItem.msgid_plural]
 }
 
 function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[], sourceLocale: string) {
@@ -130,21 +138,29 @@ function poitemsToItems(poItems: Iterable<Map<string, POItem>>, locales: string[
         const basePoOtem = poIs.values().next().value! // ! as poIs exists because at least one exists
         const item = poitemToItemCommons(basePoOtem)
         const additionals: AdditionalsByLoc = new Map()
+        const id = getItemId(basePoOtem)
         for (const loc of locales) {
             const poi = poIs.get(loc)
-            item.translations.set(loc, poi?.msgstr ?? (loc === sourceLocale ? getItemId(basePoOtem) : []))
+            item.translations.set(
+                loc,
+                loc === sourceLocale ? id : typeof id === 'string' ? (poi?.msgstr?.[0] ?? '') : (poi?.msgstr ?? []),
+            )
             const add: Additionals = {
                 comments: poi?.comments ?? [],
                 flags: {},
             }
             for (const [k, v] of Object.entries(poi?.flags ?? {})) {
-                if (!k.startsWith(urlAdapterFlagPrefix)) {
+                if (k === 'ai') {
+                    if (loc !== sourceLocale) {
+                        item.attribs.ai = v
+                    }
+                } else if (!k.startsWith(urlAdapterFlagPrefix)) {
                     add.flags[k] = v
                 }
             }
             additionals.set(loc, add)
         }
-        item['additionals'] = additionals
+        item.attribs['additionals'] = additionals
         items.push(item)
     }
     return items
@@ -164,7 +180,8 @@ type POHeaders = Record<string, string | undefined>
 export class POFile {
     key: string
     opts: StorageFactoryOpts & POFileOptions
-    filesByLoc: Map<string, string> = new Map() // main and url
+    filesByLoc: Map<string, string> = new Map()
+    pluralsByLoc: Map<string, Intl.LDMLPluralRule[]> = new Map()
     files: string[] = []
     fileExistsCache: Map<string, boolean> = new Map()
 
@@ -173,6 +190,7 @@ export class POFile {
         opts.location = resolve(opts.root, opts.location)
         this.key = opts.location
         for (const locale of opts.locales) {
+            this.pluralsByLoc.set(locale, orderedPluralForms(locale))
             const location = opts.location.replace('{locale}', locale)
             this.filesByLoc.set(locale, location)
             this.files.push(location)
@@ -186,8 +204,7 @@ export class POFile {
         return content == null ? null : PO.parse(content)
     }
 
-    async load(): Promise<SaveData> {
-        const pluralRules: PluralRules = new Map()
+    async load(): Promise<Item[]> {
         // by key, then by locale
         const poItems: Map<string, Map<string, POItem>> = new Map()
         // first, group by key
@@ -195,12 +212,6 @@ export class POFile {
             const po = await this.loadRaw(locale)
             if (po == null) {
                 continue
-            }
-            const pluralHeader = po.headers['Plural-Forms']
-            if (pluralHeader) {
-                const pluralRule = PO.parsePluralForms(pluralHeader) as unknown as PluralRule
-                pluralRule.nplurals = Number(pluralRule.nplurals)
-                pluralRules.set(locale, pluralRule)
             }
             for (const poItem of po.items) {
                 const key = getKey(getItemId(poItem), poItem.msgctxt)
@@ -210,10 +221,7 @@ export class POFile {
                 poItems.get(key)?.set(locale, poItem)
             }
         }
-        return {
-            items: poitemsToItems(poItems.values(), this.opts.locales, this.opts.sourceLocale),
-            pluralRules,
-        }
+        return poitemsToItems(poItems.values(), this.opts.locales, this.opts.sourceLocale)
     }
 
     async saveRaw(items: POItem[], headers: POHeaders, locale: string) {
@@ -233,29 +241,36 @@ export class POFile {
         this.fileExistsCache.set(filename, true)
     }
 
-    async save(data: SaveData) {
+    async save(items: Item[]) {
         await Promise.all(
             this.opts.locales.map(locale => {
                 const poItems: POItem[] = []
-                for (const item of data.items) {
-                    const poItem = itemToPOItem(item, locale, this.opts.sourceLocale)
+                for (const item of items) {
+                    const poItem = itemToPOItem(
+                        item,
+                        locale,
+                        this.opts.sourceLocale,
+                        this.pluralsByLoc.get(locale)?.length ?? 2,
+                    )
                     poItems.push(poItem)
                 }
-                const headers = this.getHeaders(locale, data.pluralRules.get(locale)!)
-                return this.saveRaw(poItems, headers, locale)
+                return this.saveRaw(poItems, this.getHeaders(locale), locale)
             }),
         )
     }
 
-    getHeaders(locale: string, pluralRule: PluralRule) {
+    getHeaders(locale: string) {
         const updateHeaders: [string, string][] = [
-            ['Plural-Forms', `nplurals=${pluralRule.nplurals}; plural=${pluralRule.plural};`],
             ['Source-Language', this.opts.sourceLocale],
             ['Language', locale],
             ['MIME-Version', '1.0'],
             ['Content-Type', 'text/plain; charset=utf-8'],
             ['Content-Transfer-Encoding', '8bit'],
         ]
+        const plurals = this.pluralsByLoc.get(locale)
+        if (plurals?.length) {
+            updateHeaders.push(['Plural-Forms', `nplurals=${plurals.length}`], ['X-Plurals-Order', plurals.join(', ')])
+        }
         const headers: POHeaders = {}
         for (const [key, val] of updateHeaders) {
             headers[key] = val

@@ -25,7 +25,6 @@ const ai: AI = {
 const queue = new AIQueue('en', ai, async () => {}, new Logger('error'))
 
 const item: Item = {
-    id: ['Welcome'],
     translations: new Map([
         ['en', ['Welcome']],
         ['es', []],
@@ -39,6 +38,7 @@ const item: Item = {
         },
     ],
     urlAdapters: [],
+    attribs: {},
 }
 
 test('Translations accepted correctly', async (t: TestContext) => {
@@ -46,6 +46,7 @@ test('Translations accepted correctly', async (t: TestContext) => {
     queue.add([cItem])
     await queue.running
     t.assert.deepStrictEqual(cItem.translations.get('es'), ['Bienvenido'])
+    t.assert.equal(cItem.attribs.ai, true)
     t.assert.deepStrictEqual(cItem.translations.get('de'), [])
 })
 

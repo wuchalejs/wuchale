@@ -22,7 +22,7 @@ const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs'
         defaultArgs.heuristic,
         defaultArgs.patterns,
         variant === 'default' ? defaultArgs.runtime : defaultRuntimeSolid,
-    ).transformJx(variant)
+    ).transformJx(`@wuchale/jsx/runtime${variant === 'solidjs' ? '.solid' : ''}.jsx`, variant)
 
 test('React basic', async t => {
     transformTest(
@@ -208,7 +208,7 @@ test('Plural', async t => {
 
             function m() {
                 const _w_runtime_ = _w_load_();
-                return <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
+                return <p>{plural(items, _w_runtime_.p(0), _w_runtime_.l)}</p>
             }
     `,
         [{ body: ['One item', '# items'] }],

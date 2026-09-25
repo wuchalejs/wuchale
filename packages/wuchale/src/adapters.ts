@@ -1,7 +1,7 @@
 import type { StorageFactory } from './storage.js'
-import type { HeuristicFunc, Scope, Text } from './text.js'
+import { type HeuristicFunc, type Scope, singleTxt, type Text } from './text.js'
 
-export const getKey = (text: string[], context?: string) => `${text.join('\n')}\n${context ?? ''}`.trim()
+export const getKey = (text: string | string[], context?: string) => `${singleTxt(text)}\n${context ?? ''}`.trim()
 
 export class IndexTracker {
     #indices: Map<string, number> = new Map()
@@ -41,7 +41,7 @@ export type RuntimeExpr = {
     reactive: string
 }
 
-export type UrlMatcher = (url: string) => readonly [number, string[]] | null
+export type UrlMatcher = (url: string) => string | null
 
 export type TransformCtx = {
     content: string
@@ -120,11 +120,13 @@ export type Adapter = AdapterPassThruOpts & {
     defaultLoaderPath: LoaderPath | string | null
     /** names to import from loaders, should avoid collision with code variables */
     getRuntimeVars?: Partial<RuntimeExpr>
+    /** needed to ignore/include in pre-bundling in vite */
+    addImports: string[]
 }
 
 export type CodePattern = {
     name: string
-    args: ('message' | 'pluralFunc' | 'locale' | 'other')[]
+    args: ('message' | 'locale' | 'other')[]
 }
 
 export type LoaderChoice<LoadersAvailable> = LoadersAvailable | (string & {}) | 'custom'

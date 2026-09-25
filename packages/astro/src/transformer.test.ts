@@ -22,7 +22,7 @@ const getOutput = (content: string, filename = 'test.astro') =>
         defaultArgs.heuristic,
         defaultArgs.patterns,
         defaultRuntime,
-    ).transformAs()
+    ).transformAs('@wuchale/astro/runtime.js')
 
 test('Basic markup with unicode', async t => {
     transformTest(
@@ -114,7 +114,7 @@ test('Object attributes', async t => {
     )
 })
 
-test('Frontmatter return & export const', async t => {
+test('Frontmatter block', async t => {
     transformTest(
         t,
         await getOutput(astro`
@@ -123,6 +123,7 @@ test('Frontmatter return & export const', async t => {
                 bar: 'Not extracted',
                 extract: () => 'Extracted',
             }
+            if (hello == 'world') 'ignore'
             return Astro.rewrite("/404");
             ---
     `),
@@ -138,6 +139,7 @@ test('Frontmatter return & export const', async t => {
                     return _w_runtime_(0)
                 },
             }
+            if (hello == 'world') 'ignore'
             return Astro.rewrite("/404");
             ---
     `,
@@ -198,7 +200,7 @@ test('Plural', async t => {
             import _w_Tx_ from "@wuchale/astro/runtime.js"
             const _w_runtime_ = _w_load_();
             ---
-            <p>{plural(items, _w_runtime_.p(0), _w_runtime_._.p)}</p>
+            <p>{plural(items, _w_runtime_.p(0), _w_runtime_.l)}</p>
     `,
         [{ body: ['One item', '# items'] }],
     )

@@ -103,7 +103,7 @@ if (cmd === 'status') {
     const [config, root] = await configRootLocales()
     const hub = await Hub.create(
         'cli',
-        () => config,
+        config,
         root,
         values.modify
             ?.split(',')

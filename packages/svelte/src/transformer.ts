@@ -9,14 +9,14 @@ import type {
     VariableDeclarator,
 } from 'acorn'
 import { type AST, type Preprocessor, parse, preprocess } from 'svelte/compiler'
-import type { CodePattern, HeuristicFunc, RuntimeConf, Text, TransformCtx, TransformOutput } from 'wuchale'
+import type { CodePattern, HeuristicFunc, RuntimeConf, Scope, Text, TransformCtx, TransformOutput } from 'wuchale'
 import { MixedVisitor, varNames } from 'wuchale/adapter-utils'
 import { parseScript, Transformer } from 'wuchale/adapter-vanilla'
 
 const noWrapTopCalls = ['$props', '$state', '$derived', '$effect']
+const dynamicScopes: Scope['type'][] = ['function', 'funcexpr', 'method']
 
 const rtComponent = 'W_tx_'
-const headerAdd = `\nimport ${rtComponent} from "@wuchale/svelte/runtime.svelte"`
 const snipPrefix = '_w_snippet_'
 const rtModuleVar = `${varNames.rt}mod_`
 
@@ -38,6 +38,7 @@ export type RuntimeCtxSv = {
 export class SvelteTransformer extends Transformer {
     // state
     currentSnippet = 0
+    inConstTag = false
     moduleExportExprs: AnyNode[] = [] // to choose which runtime var to use for snippets
     override runtimeCtx: RuntimeCtxSv = { module: false }
 
@@ -54,19 +55,11 @@ export class SvelteTransformer extends Transformer {
 
     override visitVariableDeclarator(node: VariableDeclarator): Text[] {
         const txts = super.visitVariableDeclarator(node)
-        const init = node.init
-        if (
-            !txts.length ||
-            this.scopePath.some(s => s.type === 'assignment') ||
-            init == null ||
-            init.type === 'ArrowFunctionExpression' ||
-            init.type === 'FunctionExpression'
-        ) {
-            return txts
-        }
         const needsWrapping = txts.some(txt => {
             for (const s of txt.path) {
-                if (s.type === 'assignment') {
+                if (dynamicScopes.includes(s.type)) {
+                    return false
+                } else if (s.type === 'assignment') {
                     if (s.left) {
                         return false
                     }
@@ -79,7 +72,10 @@ export class SvelteTransformer extends Transformer {
             }
             return true
         })
-        if (!needsWrapping) {
+        const init = node.init
+        // `{@const}` is re-evaluated by Svelte along with its block, and Svelte rejects
+        // `$derived` there, so it must never be wrapped
+        if (!needsWrapping || init == null || this.inConstTag) {
             return txts
         }
         const isExported = this.moduleExportExprs.some(node => init.start >= node.start && init.end <= node.end)
@@ -213,21 +209,25 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitConstTag(node: AST.ConstTag): Text[] {
+        const prevInConstTag = this.inConstTag
+        this.inConstTag = true
         // @ts-expect-error
-        return this.visitVariableDeclaration(node.declaration)
+        const txts = this.inScope({ type: 'expression' }, () => this.visitVariableDeclaration(node.declaration))
+        this.inConstTag = prevInConstTag
+        return txts
     }
 
     visitDeclarationTag(node: AST.DeclarationTag): Text[] {
         // @ts-expect-error
-        return this.visitVariableDeclaration(node.declaration)
+        return this.inScope({ type: 'expression' }, () => this.visitVariableDeclaration(node.declaration))
     }
 
     visitRenderTag(node: AST.RenderTag): Text[] {
-        return this.visit(node.expression as Expression)
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Expression)
     }
 
     visitHtmlTag(node: AST.HtmlTag): Text[] {
-        return this.visit(node.expression as Expression)
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Expression)
     }
 
     visitOnDirective(node: AST.OnDirective): Text[] {
@@ -259,7 +259,7 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitIfBlock(node: AST.IfBlock): Text[] {
-        const txts = this.visit(node.test as AnyNode)
+        const txts = this.inScopeVisit({ type: 'expression' }, node.test as AnyNode)
         txts.push(...this.visitFragment(node.consequent, false))
         if (node.alternate) {
             txts.push(...this.visitFragment(node.alternate, false))
@@ -268,9 +268,12 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitEachBlock(node: AST.EachBlock): Text[] {
-        const txts = [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.body, false)]
+        const txts = [
+            ...this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode),
+            ...this.visitFragment(node.body, false),
+        ]
         if (node.key) {
-            txts.push(...this.visit(node.key as AnyNode))
+            txts.push(...this.inScopeVisit({ type: 'expression' }, node.key as AnyNode))
         }
         if (node.fallback) {
             txts.push(...this.visitFragment(node.fallback, false))
@@ -279,11 +282,14 @@ export class SvelteTransformer extends Transformer {
     }
 
     visitKeyBlock(node: AST.KeyBlock): Text[] {
-        return [...this.visit(node.expression as AnyNode), ...this.visitFragment(node.fragment, false)]
+        return [
+            ...this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode),
+            ...this.visitFragment(node.fragment, false),
+        ]
     }
 
     visitAwaitBlock(node: AST.AwaitBlock): Text[] {
-        const txts = this.visit(node.expression as AnyNode)
+        const txts = this.inScopeVisit({ type: 'expression' }, node.expression as AnyNode)
         if (node.then) {
             txts.push(...this.visitFragment(node.then, false))
         }
@@ -342,11 +348,12 @@ export class SvelteTransformer extends Transformer {
             txts.push(...this.visitProgram(node.module.content))
             const runtimeInit = this.initRuntime()
             if (runtimeInit) {
-                this.mstr.appendRight(
-                    // @ts-expect-error
-                    this.getRealBodyStart(node.module.content.body) ?? node.module.content.start,
+                this.initRuntimeInfo.push([
                     runtimeInit,
-                )
+                    // @ts-expect-error
+                    this.programBodyStart.get(node.module.content.body) ?? node.module.content.start,
+                    null,
+                ])
             }
             this.runtimeCtx = { module: false } // reset
             this.currentRtVar = prevRtVar // reset
@@ -392,7 +399,7 @@ export class SvelteTransformer extends Transformer {
         }
     }
 
-    async transformSv(): Promise<TransformOutput> {
+    async transformSv(rtComponentFile: string): Promise<TransformOutput> {
         const isComponent = this.filename.endsWith('.svelte')
         let ast: AST.Root | Program
         if (isComponent) {
@@ -405,35 +412,35 @@ export class SvelteTransformer extends Transformer {
             this.collectModuleExportExprs(ast.module)
         }
         const txts = this.visitSv(ast)
-        const initRuntime = this.initRuntime()
         if (ast.type === 'Program') {
-            const bodyStart = this.getRealBodyStart(ast.body) ?? 0
-            if (initRuntime) {
-                this.mstr.appendRight(bodyStart, initRuntime)
-            }
-            return this.finalize(txts, bodyStart)
+            return this.finalize(txts, this.programBodyStart.get(ast) ?? 0)
         }
+        const initRuntime = this.initRuntime()
         let headerIndex = 0
         if (ast.module) {
             // @ts-expect-error
-            headerIndex = this.getRealBodyStart(ast.module.content.body) ?? ast.module.content.start
+            headerIndex = this.programBodyStart.get(ast.module.content.body) ?? ast.module.content.start
         }
         if (ast.instance) {
-            // @ts-expect-error
-            const instanceBodyStart = this.getRealBodyStart(ast.instance.content.body) ?? ast.instance.content.start
+            const instanceBodyStart: number =
+                // @ts-expect-error
+                this.programBodyStart.get(ast.instance.content) ?? ast.instance.content.start
             if (!ast.module) {
                 headerIndex = instanceBodyStart
             }
             if (initRuntime) {
-                this.mstr.appendRight(instanceBodyStart, initRuntime)
+                this.initRuntimeInfo.push([initRuntime, instanceBodyStart, null])
             }
         } else {
             const instanceStart = ast.module?.end ?? 0
+            if (initRuntime) {
+                this.initRuntimeInfo.push([initRuntime, instanceStart, null])
+            }
             this.mstr.prependLeft(instanceStart, '\n<script>')
             // account index for hmr data here
-            this.mstr.prependRight(instanceStart, `${initRuntime}\n</script>\n`)
-            // now hmr data can be prependRight(0, ...)
+            this.mstr.appendRight(instanceStart, `\n</script>\n`)
+            // now runtime init can be prependRight(...)
         }
-        return this.finalize(txts, headerIndex, headerAdd)
+        return this.finalize(txts, headerIndex, `\nimport ${rtComponent} from "${rtComponentFile}"`)
     }
 }

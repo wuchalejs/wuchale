@@ -143,8 +143,15 @@ export class AstroTransformer extends Transformer {
         const [ast, comments] = (asScript ? parseScript : parseExpr)(expr)
         this.comments = comments
         this.mstr.offset = startOffset
+        const prevInitRTLen = this.initRuntimeInfo.length
         const txts = this.visit(ast)
         this.mstr.offset = 0 // restore
+        for (const init of this.initRuntimeInfo.slice(prevInitRTLen)) {
+            init[1] += this.frontMatterStart ?? 0
+            if (init[2] !== null) {
+                init[2] += this.frontMatterStart ?? 0
+            }
+        }
         return txts
     }
 
@@ -240,7 +247,11 @@ export class AstroTransformer extends Transformer {
     visitfrontmatter(node: FrontmatterNode): Text[] {
         const { start } = this.getRange(node)
         this.frontMatterStart = this.content.indexOf('---', start) + 3
-        return this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
+        const prevPath = this.scopePath
+        this.scopePath = []
+        const txts = this._parseAndVisitExpr(node.value, this.frontMatterStart, true)
+        this.scopePath = prevPath
+        return txts
     }
 
     visitroot(node: RootNode): Text[] {
@@ -254,14 +265,17 @@ export class AstroTransformer extends Transformer {
         return this.visit(node as Estree.AnyNode)
     }
 
-    async transformAs(): Promise<TransformOutput> {
+    async transformAs(rtFuncFile: string): Promise<TransformOutput> {
         const { ast } = await parse(this.content)
         const txts = this.visitAs(ast)
         if (this.frontMatterStart == null) {
             this.mstr.appendLeft(0, '---\n')
             this.mstr.appendRight(0, '---\n')
         }
-        const header = [`import ${rtRenderFunc} from "@wuchale/astro/runtime.js"`, this.initRuntime()].join('\n')
-        return this.finalize(txts, this.frontMatterStart ?? 0, header)
+        const initRuntime = this.initRuntime()
+        if (initRuntime) {
+            this.initRuntimeInfo.push([initRuntime, this.frontMatterStart ?? 0, null])
+        }
+        return this.finalize(txts, this.frontMatterStart ?? 0, `import ${rtRenderFunc} from "${rtFuncFile}"`)
     }
 }

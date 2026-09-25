@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { getConfig } from '../config.js'
+import { type Config, getConfig } from '../config.js'
 import { Hub, pluginName } from '../hub.js'
 
 export function toViteError(err: any, adapterKey: string, filename: string): Error {
@@ -49,34 +49,30 @@ export function trimViteQueries(id: string, trimParams: Set<string>) {
     return id
 }
 
-type HotUpdateCtx = {
-    file: string
-    server: {
-        ws: { send: (...a: any[]) => any }
-        moduleGraph: {
-            getModulesByFile: (...a: any[]) => any
-            invalidateModule: (...a: any[]) => any
-        }
-    }
-    read: () => string | Promise<string>
-    timestamp: number
-}
-
 export type PluginConf = {
     configPath?: string
     hmrDelayThreshold?: number
     trimQueryParams?: string[]
 }
 
+const defaultTrimParams = ['v', 't', 'sentry-auto-wrap', 'tsr-split']
+
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
-    let hub: Hub
-    const trimParams = new Set([...(trimQueryParams ?? []), 'v', 't', 'sentry-auto-wrap', 'tsr-split'])
+    let inBuild: boolean, conf: Config, hub: Hub
+    const trimParams = new Set([...(trimQueryParams ?? []), ...defaultTrimParams])
     return {
         name: pluginName,
-        async configResolved(config: { env: { DEV?: boolean } }) {
+        async config(_: any, env: { mode: string }) {
+            inBuild = env.mode === 'build'
+            conf = await getConfig(configPath)
+            return {
+                optimizeDeps: { exclude: [...new Set(Object.values(conf.adapters).flatMap(a => a.addImports))] },
+            }
+        },
+        async buildStart() {
             hub = await Hub.create(
-                config.env.DEV ? 'dev' : 'build',
-                () => getConfig(configPath),
+                inBuild ? 'build' : 'dev',
+                conf,
                 dirname(configPath ?? '.'),
                 [],
                 hmrDelayThreshold,
@@ -84,27 +80,13 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
                 toViteError,
             )
         },
-        async handleHotUpdate(ctx: HotUpdateCtx) {
-            const changeInfo = await hub.onFileChange(ctx.file, ctx.read)
-            if (!changeInfo) {
-                return
-            }
-            const invalidatedModules = new Set()
-            for (const fileID of changeInfo.invalidate ?? []) {
-                for (const module of ctx.server.moduleGraph.getModulesByFile(fileID) ?? []) {
-                    ctx.server.moduleGraph.invalidateModule(module, invalidatedModules, ctx.timestamp, false)
-                }
-            }
-            if (!changeInfo.sourceTriggered && changeInfo.invalidate.size > 0) {
-                ctx.server.ws.send({ type: 'full-reload' })
-            }
-            return []
+        async handleHotUpdate(ctx: { file: string; read: () => string | Promise<string> }) {
+            return await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
         },
         transform: {
-            order: 'pre' as const,
+            order: 'pre' as 'pre',
             async handler(code: string, id: string, options?: { ssr?: boolean | undefined }) {
-                const [output] = await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
-                return output
+                return await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
             },
         },
     }

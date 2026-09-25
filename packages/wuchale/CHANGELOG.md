@@ -1,5 +1,128 @@
 # wuchale
 
+## 0.26.6
+
+### Patch Changes
+
+- [`73e6ea3`](https://github.com/wuchalejs/wuchale/commit/73e6ea3decf78e427bade2bee38a97d7a447f2aa): Fix build error caused by new atomic write `randomBytes` use
+
+## 0.26.5
+
+### Patch Changes
+
+- [`d2d1a06`](https://github.com/wuchalejs/wuchale/commit/d2d1a061d7c75a43f987f8244dd321e912e2e837): Make file writes atomic (write+rename) to avoid interleaving
+
+## 0.26.4
+
+### Patch Changes
+
+- [`d3dde62`](https://github.com/wuchalejs/wuchale/commit/d3dde623d5d12c528504020c5db46188a97833ca): Fix crash on dead code with string at the top level [#454](https://github.com/wuchalejs/wuchale/issues/454)
+
+## 0.26.3
+
+### Patch Changes
+
+- [`2e035dc`](https://github.com/wuchalejs/wuchale/commit/2e035dc2bcfee1c8091ce8cdf5fd1defb8b895fe): Fix first build failing when the generated dir doesn't exist yet
+
+## 0.26.2
+
+### Patch Changes
+
+- [`231b683`](https://github.com/wuchalejs/wuchale/commit/231b683009eefd4a19c166696584e716fcc47ce3): Fix crash when collecting assignment names from destructuring patterns
+
+## 0.26.1
+
+### Patch Changes
+
+- [`116cc74`](https://github.com/wuchalejs/wuchale/commit/116cc740e1903927b5187b1b1e2f9a98ab4e344b): Fix plural template not included in published package
+
+## 0.26.0
+
+### Minor Changes
+
+- [`8aa70f2`](https://github.com/wuchalejs/wuchale/commit/8aa70f2c205829fcb2c45b669ce2e6d5000fe814): ⚠️ BREAKING: Use CLDR plural rules from `Intl` instead of PO file headers
+  
+  The `plural` function is now provided in a `plural.js` file in `localesDir`,
+  and it uses the CLDR rules from the runtime environment (Browsers, Node.js,
+  etc) instead of expecting the rules to be manually defined inside the catalogs.
+  Its signature is also different. Instead of expecting a rule function as the
+  last argument, it expects a `locale`, which is automatically provided at
+  transform time, with the default being the first one in the `locales` config.
+  Therefore, if you need plurals, import and use this new one.
+  
+  ```js
+  import plural from "../locales/plural.js"
+  // ...
+  plural(42, ['a day', '# days'])
+  ```
+  
+  If you use locales that are not covered by CLDR, you can define another
+  `plural` function with the same signature, optionally using this one as a
+  fallback for the locales that are, with your custom selection logic, and use
+  that. The import location is not checked at transform time, only the name and
+  signature.
+  
+  All plurals are now fully validated when they are translated using AI or when
+  using the CLI's `check` command.
+- [`ecb2626`](https://github.com/wuchalejs/wuchale/commit/ecb2626154534da5395ffd33782d432fcb45f8fa): Add `ai` flag when the translations are from an AI, for easier reviews [#316](https://github.com/wuchalejs/wuchale/issues/316)
+- [`b43c360`](https://github.com/wuchalejs/wuchale/commit/b43c3605d49c7c83307946e7445e96ed59b9702e): Vite: add injected components in `optimizeDeps.exclude` to prevent startup reload causing test errors [#437](https://github.com/wuchalejs/wuchale/issues/437)
+- [`f28e7b4`](https://github.com/wuchalejs/wuchale/commit/f28e7b4e5084dee60263a823ed256374086c6759): Add support for interpolations (template strings) in plural messages [#406](https://github.com/wuchalejs/wuchale/issues/406)
+  
+  Template strings in plurals are now extracted properly, even when they have
+  non-uniform interpolations like:
+  
+  ```js
+  plural(items, ['An item', `${items} items in ${container}`])
+  ```
+  
+  It still works, because it collects all unique values in a single place and
+  shares them among all, and therefore the values can even be used in different
+  places in the translations as necessary.
+- [`cd53445`](https://github.com/wuchalejs/wuchale/commit/cd53445e64344206fdd8aff1c50e72eab5d8d9b2): More reliable HMR implementation that doesn't get confused with secondary instances (like the CLI)
+- [`15d677e`](https://github.com/wuchalejs/wuchale/commit/15d677e8286dba588a2123389375673e3ea83675): ⚠️ BREAKING: Replace single details object with an array of scope objects and separate filename for heuristic
+  
+  The heuristic function now gets called with two arguments: the extracted `Text` object, and the filename as a `string` argument. The `Text` object now has:
+  
+  - `.body: string | string[]` instead of `Message.msgStr`
+  - `.path: Scope[]` instead of `Message.details` - this is an array of different small `Scope` objects that better conveys nesting information.
+  - The rest of the properties are the same as `Message`
+  
+  Therefore if you implement a custom heuristic function you should for example:
+  
+  ```diff
+  -heuristic: (msg) => {
+  +heuristic: (text, file) => {
+  -    if (msg.details.element || msg.details.file.endsWith('.foo')) {
+  +    if (text.path.some(s => s.type === 'element') || file.endsWith('.foo')) {
+           return false
+       }
+   }
+  ```
+  
+  The scope array is now used to ignore whole sub-trees of ignored elements even if they contain non-ignored elements.
+
+### Patch Changes
+
+- [`5be7308`](https://github.com/wuchalejs/wuchale/commit/5be7308dd014494538815bc47b5d215587b9d9e7): Heuristic tune: ignore strings assigned to `document.cookie`
+- [`abb3f14`](https://github.com/wuchalejs/wuchale/commit/abb3f14121a94232b48aa6088df87681dcc37f59): When nesting functions with messages, initialize runtime at the inner most function with messages [#436](https://github.com/wuchalejs/wuchale/issues/436)
+- [`91ac506`](https://github.com/wuchalejs/wuchale/commit/91ac5067adf41ad0632eb962b1f2b05cfb5e135d): Mixed visitor: fix inconsistent heuristic check for messages from attributes [#442](https://github.com/wuchalejs/wuchale/issues/442)
+- [`07cff73`](https://github.com/wuchalejs/wuchale/commit/07cff73f7eccda001bc23d6d5dcccab138e46084): Fix links with query params and hashes not translated
+  
+  E.g. `<a href="/home?foo=bar#view">`, now the path is translated and the rest will be preserved
+
+## 0.25.8
+
+### Patch Changes
+
+- [67fe107](https://github.com/wuchalejs/wuchale/commit/67fe107de12d6ef83f021c4ae5e8622803fb046b): Fix `ai: null` not disabling ai translation #431
+
+## 0.25.7
+
+### Patch Changes
+
+- [d0ebc95](https://github.com/wuchalejs/wuchale/commit/d0ebc95a6220fe18570dac32f9d3c09db28dbaa1): Fix non-nestable markup text wrongly considered part of a nested message #424
+- [bbfb4a5](https://github.com/wuchalejs/wuchale/commit/bbfb4a5effa4bc4f27e7db12b9b47fd1aa73c2f7): Fix default heuristic rejecting when markup text is between other things like `<Foo/> Hello <Bar/>`
+
 ## 0.25.6
 
 ### Patch Changes

@@ -7,21 +7,16 @@ import { relative, resolve } from 'node:path'
 import { watch as watchFS } from 'chokidar'
 import { glob } from 'tinyglobby'
 import type { Adapter, LoaderPath, TransformOutputCode } from './adapters.js'
-import { compileTranslation, isEquivalent } from './compile.js'
+import { compileTranslation } from './compile.js'
 import type { Config } from './config.js'
 import { defaultFS, type FS } from './fs.js'
-import {
-    dataFileName,
-    defaultLoadID,
-    generatedDir,
-    getLoaderPath,
-    globConfToArgs,
-    normalizeSep,
-} from './handler/files.js'
+import { dataFileName, generatedDir, getLoaderPath, globConfToArgs, normalizeSep } from './handler/files.js'
 import { AdapterHandler, type Mode, newItemsAllowed } from './handler/index.js'
 import { SharedState } from './handler/state.js'
 import { color, Logger } from './log.js'
+import { orderedPluralForms, writePluralsFile } from './plurals.js'
 import { itemIsObsolete, itemIsUrl } from './storage.js'
+import { isEquivalent } from './validate.js'
 
 export const pluginName = 'wuchale'
 const confUpdateName = 'confUpdate.json'
@@ -30,18 +25,6 @@ const logPrefix = `${color.magenta(`[${pluginName}]`)}:`
 const logPrefixHandler = (key: string) => `${color.magenta(key)}:`
 
 type ConfUpdate = Pick<Config, 'dev'>
-
-type ConfigLoader = () => Config | Promise<Config>
-
-type FileChangeInfo = {
-    sourceTriggered: boolean
-    invalidate: Set<string>
-}
-
-const ignoreChange: FileChangeInfo = {
-    sourceTriggered: false,
-    invalidate: new Set(),
-}
 
 type LocaleStatDetails = {
     locale: string
@@ -67,14 +50,11 @@ type AdapterStatus = {
         | TranslStats
 }
 
-export type CheckErrorType = 'notEquivalent' | 'unequalLength'
-
 type CheckErrorItem = {
     adapter: string
-    source: string[]
+    source: string | string[]
     locale: string
-    translation: string[]
-    type: CheckErrorType
+    translation: string | string[]
 }
 
 type CheckResult = {
@@ -97,6 +77,7 @@ async function initGenDirWithData(config: Config, fs: FS, root: string) {
             `export const locales = ['${config.locales.join("','")}']`,
         ].join('\n'),
     )
+    await writePluralsFile(fs, localesDirAbs, config.locales[0])
 }
 
 async function getSharedState(
@@ -182,11 +163,10 @@ export class Hub {
     #handlers: Map<string, AdapterHandler>
 
     #handlersByCatalogPath: Map<string, AdapterHandler[]> = new Map()
-    #compiledCatalogs: Set<string> = new Set()
 
     #formatTransformErr: TransformErrFormatter = e => e
 
-    #hmrVersion = -1
+    #hmrVersion = 0
     #lastSourceTriggeredCatalogWrite: number = 0
 
     #lastAdapterForFile = new Map<string, string>()
@@ -198,9 +178,6 @@ export class Hub {
         for (const [key, handler] of opts.handlers) {
             handler.onBeforeSave = () => {
                 this.#lastSourceTriggeredCatalogWrite = performance.now()
-            }
-            handler.onWriteCompiled = file => {
-                this.#compiledCatalogs.add(file)
             }
             for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
@@ -235,25 +212,25 @@ export class Hub {
 
     static create = async (
         mode: Mode,
-        loadConfig: ConfigLoader,
+        config: Config,
         root: string,
         modifyAdapters: string[] = [],
         hmrDelayThreshold = 1000,
         fs = defaultFS,
         formatTransformErr: TransformErrFormatter = e => e,
     ) => {
-        const config = await loadConfig()
         const adaptersData = Object.entries(config.adapters)
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
         }
         const log = new Logger(config.logLevel)
         const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
+        // has to come first: it creates the generated dir that the pid file lives in
+        await initGenDirWithData(config, fs, root)
         const primary = await processIsPrimary(mode, fs, pidFileAbs)
         if (!primary) {
             log.warn(logPrefix, 'running in secondary process')
         }
-        await initGenDirWithData(config, fs, root)
         const sharedStates = new Map<string, SharedState>()
         const handlers = new Map<string, AdapterHandler>()
         const commonOpts = { config, mode, fs, root, log }
@@ -282,7 +259,7 @@ export class Hub {
         }
         const confUpdateFileAbs = resolve(root, config.localesDir, generatedDir, confUpdateName)
         if (mode === 'dev' && primary) {
-            await fs.write(confUpdateFileAbs, '{}') // only watch changes so prepare first
+            await fs.write(confUpdateFileAbs, '{}') // only changes are detected so prepare first
         }
         return new Hub({
             ...commonOpts,
@@ -294,16 +271,18 @@ export class Hub {
         })
     }
 
-    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<FileChangeInfo | undefined> => {
+    onFileChange = async (file: string, read: () => string | Promise<string>): Promise<false | undefined> => {
         file = normalizeSep(file) // just to be sure
         if (this.#opts.confUpdateFileAbs === file && this.#opts.primary) {
             const updateTxt = await read()
-            const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
-            this.#opts.log.info(logPrefix, 'config update received:', color.cyan(updateTxt))
-            if (update.dev !== undefined) {
-                this.#opts.config.dev = update.dev
+            if (updateTxt !== '{}') {
+                const update: Partial<ConfUpdate> = JSON.parse(updateTxt)
+                this.#opts.log.info(logPrefix, 'config update received:', color.cyan(updateTxt))
+                if (update.dev !== undefined) {
+                    this.#opts.config.dev = update.dev
+                }
             }
-            return ignoreChange
+            return false
         }
         if (!this.#opts.config.dev) {
             return
@@ -311,58 +290,37 @@ export class Hub {
         // This is mainly to make sure that catalog file changes result in a page reload with new catalogs
         const handlers = this.#handlersByCatalogPath.get(file)
         if (handlers == null) {
-            // prevent reloading whole app because of a change in compiled catalog
-            // triggered by extraction from single file, hmr handled by embedding patch
-            if (this.#compiledCatalogs.has(file)) {
-                return ignoreChange
-            }
             this.#hmrVersion++
             return
         }
-        // catalog changed
-        const changeInfo: FileChangeInfo = {
-            sourceTriggered: performance.now() - this.#lastSourceTriggeredCatalogWrite < this.#opts.hmrDelayThreshold,
-            invalidate: new Set(),
-        }
-        for (const handler of handlers) {
-            if (!changeInfo.sourceTriggered) {
+        // catalog changed. read and update if not self triggered
+        if (performance.now() - this.#lastSourceTriggeredCatalogWrite > this.#opts.hmrDelayThreshold) {
+            for (const handler of handlers) {
                 await handler.loadStorage()
-                await handler.compile(this.#hmrVersion)
-            }
-            const loadIDs = [defaultLoadID]
-            for (const state of handler.granularState.byID.values()) {
-                // only the ones with ready items
-                if (state.compiled.get(handler.sourceLocale)!.items.length) {
-                    loadIDs.push(state.id)
-                }
-            }
-            for (const loc of this.#opts.config.locales) {
-                for (const loadID of loadIDs) {
-                    changeInfo.invalidate.add(normalizeSep(handler.files.getCompiledFilePath(loc, loadID)))
-                }
+                await handler.compile(this.#hmrVersion, true)
             }
         }
-        return changeInfo
+        return false
     }
 
-    transform = async (code: string, filePath: string, forServer = false): ReturnType<AdapterHandler['transform']> => {
+    transform = async (code: string, filePath: string, forServer = false): Promise<TransformOutputCode> => {
         if (this.#opts.mode === 'dev' && !this.#opts.config.dev) {
-            return [{}, false]
+            return {}
         }
         const filename = normalizeSep(relative(this.#opts.root, filePath))
-        let output: [TransformOutputCode, boolean] | null = null
-        for (const adapter of this.#handlers.values()) {
-            if (!adapter.fileMatches(filename)) {
+        let output: TransformOutputCode = {}
+        for (const handler of this.#handlers.values()) {
+            if (!handler.fileMatches(filename)) {
                 continue
             }
             try {
-                output = await adapter.transform(code, filename, this.#hmrVersion, forServer)
+                output = await handler.transform(code, filename, this.#hmrVersion, forServer)
             } catch (e) {
-                throw this.#formatTransformErr(e as Error, adapter.key, filename)
+                throw this.#formatTransformErr(e as Error, handler.key, filename)
             }
             break
         }
-        return output ?? [{}, false]
+        return output
     }
 
     #visitFileHandl = async (filename: string, handler: AdapterHandler) => {
@@ -379,8 +337,8 @@ export class Hub {
         this.#lastAdapterForFile.set(filename, handler.key)
         this.#opts.log.info(logPrefixHandler(handler.key), 'Extract from', color.cyan(filename))
         const contents = await this.#opts.fs.read(resolve(this.#opts.root, filename))
-        const [, updated] = await handler.transform(contents!, filename)
-        return updated
+        await handler.transform(contents!, filename)
+        return handler.storageUpdated
     }
 
     async #directVisitHandler(
@@ -514,6 +472,7 @@ export class Hub {
         const syncs: string[] = []
         let checkedItems = 0
         const existingFilesByOwner = new Map<string, Set<string>>()
+        const plurals = new Map(this.#opts.config.locales.map(l => [l, orderedPluralForms(l).length]))
         for (const handler of this.#getSortedHandlersForDirectVisit()) {
             const state = handler.sharedState
             if (full && (await this.#directVisitHandler(handler, false, false, existingFilesByOwner))) {
@@ -526,29 +485,22 @@ export class Hub {
             for (const item of state.catalog.values()) {
                 checkedItems++
                 const source = item.translations.get(handler.sourceLocale)!
-                const sourceCompEntries = source.map(i => compileTranslation(i, ''))
+                const sourceComp = compileTranslation(source)
                 for (const locale of otherLocales) {
                     const translation = item.translations.get(locale)!
                     const err: CheckErrorItem = {
                         adapter: handler.key,
                         source,
-                        translation: translation ?? [],
+                        translation: translation,
                         locale,
-                        type: 'unequalLength',
                     }
                     if (translation.length === 0) {
                         continue
                     }
-                    if (translation.length > 0 && translation.length !== source.length) {
+                    const forms = typeof source === 'string' ? null : (plurals.get(locale) ?? 0)
+                    if (!isEquivalent(sourceComp, compileTranslation(translation), forms)) {
                         errors.push(err)
-                        continue
-                    }
-                    for (const [i, sou] of sourceCompEntries.entries()) {
-                        if (!isEquivalent(sou, compileTranslation(translation[i]!, ''))) {
-                            err.type = 'notEquivalent'
-                            errors.push(err)
-                            break
-                        }
+                        break
                     }
                 }
             }

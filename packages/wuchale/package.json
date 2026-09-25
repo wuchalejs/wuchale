@@ -1,6 +1,6 @@
 {
     "name": "wuchale",
-    "version": "0.25.6",
+    "version": "0.26.6",
     "description": "Protobuf-like i18n from plain code",
     "scripts": {
         "dev": "tsc --watch",
@@ -28,7 +28,8 @@
     ],
     "files": [
         "dist",
-        "src/adapter-vanilla/loaders"
+        "src/adapter-vanilla/loaders",
+        "src/plural-tmpl.js"
     ],
     "exports": {
         ".": {
@@ -88,18 +89,18 @@
     "author": "K1DV5",
     "license": "MIT",
     "dependencies": {
-        "@sveltejs/acorn-typescript": "^1.0.10",
-        "acorn": "^8.17.0",
+        "@sveltejs/acorn-typescript": "^1.0.13",
+        "acorn": "^8.18.0",
         "chokidar": "^5.0.0",
-        "magic-string": "^0.30.21",
-        "picomatch": "^4.0.5",
+        "magic-string": "^1.2.3",
+        "picomatch": "^4.0.7",
         "pofile": "^1.1.4",
         "tinyglobby": "^0.2.17"
     },
     "devDependencies": {
-        "@types/node": "~24.13.2",
+        "@types/node": "~24.13.3",
         "@types/picomatch": "^4.0.3",
-        "typescript": "^6.0.3"
+        "typescript": "^7.0.2"
     },
     "funding": "https://github.com/sponsors/K1DV5",
     "type": "module"

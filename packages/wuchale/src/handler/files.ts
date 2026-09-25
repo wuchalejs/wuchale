@@ -272,17 +272,18 @@ export class Files {
 
     writeCatalogModule = async (
         compiledData: CompiledElement[],
-        pluralRule: string | null,
         locale: string,
         loadID: number | null,
         hmrVersion: number,
     ) => {
-        const compiledItems = JSON.stringify(compiledData)
-        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${compiledItems}`
-        if (pluralRule) {
-            module = `${module}\nexport let p = (/** @type number */ n) => ${pluralRule}`
+        const data = compiledData.slice()
+        for (let i = 0; i < data.length; i++) {
+            if (data[i] == null) {
+                data[i] = '' // when indices jump obsoletes during dev
+            }
         }
-        if (hmrVersion >= 0) {
+        let module = `/** @type import('wuchale').CompiledElement[] */\nexport let c = ${JSON.stringify(data)}`
+        if (hmrVersion > 0) {
             module = `${module}\nexport let v = ${hmrVersion}`
         }
         const filePath = this.getCompiledFilePath(locale, loadID)

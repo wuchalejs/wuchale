@@ -14,10 +14,7 @@ export type {
     URLConf,
     UrlMatcher,
 } from './adapters.js'
-export {
-    getKey,
-    IndexTracker,
-} from './adapters.js'
+export { getKey, IndexTracker } from './adapters.js'
 export { gemini } from './ai/gemini.js'
 export type {
     CompiledElement,
@@ -47,14 +44,10 @@ export type {
     FileRef,
     FileRefEntry,
     Item,
-    LoadData,
-    PluralRule,
-    PluralRules,
-    SaveData,
     StorageFactory,
     StorageFactoryOpts,
 } from './storage.js'
-export { defaultPluralRule, mergeItemsByKey, migrateStorage, storageByLocale, storageByType } from './storage.js'
+export { mergeItemsByKey, migrateStorage, storageByLocale, storageByType } from './storage.js'
 export type {
     CreateHeuristicOpts,
     HeuristicFunc,

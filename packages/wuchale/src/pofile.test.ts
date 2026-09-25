@@ -6,22 +6,16 @@ import { fileURLToPath } from 'node:url'
 // @ts-expect-error
 import { inMemFS } from '../testing/utils.ts'
 import { POFile, pofile } from './pofile.js'
-import { type CatalogStorage, defaultPluralRule, type Item, newItem, type SaveData } from './storage.js'
-
-function makeSaveData(items: Item[]): SaveData {
-    return {
-        items,
-        pluralRules: new Map([
-            ['en', defaultPluralRule],
-            ['es', defaultPluralRule],
-        ]),
-    }
-}
+import { type CatalogStorage, type Item, newItem } from './storage.js'
 
 const root = '/projects'
 
 const itemFull = newItem(
     {
+        translations: new Map([
+            ['en', 'Hello'],
+            ['es', 'Hola'],
+        ]),
         references: [
             {
                 file: 'src/file1.ts',
@@ -32,33 +26,33 @@ const itemFull = newItem(
                 refs: [{ placeholders: [['0', 'foo: bar;']] }, null],
             },
         ],
+        attribs: { ai: true },
     },
     ['en', 'es'],
 )
-itemFull.translations.set('en', ['Hello'])
-itemFull.translations.set('es', ['Hola'])
 
 const itemMin: Item = { ...itemFull, references: itemFull.references.map(r => ({ ...r, refs: [null] })) }
 
 export function testStorage(storage: CatalogStorage, name: string, minimal = false) {
     const item = minimal ? itemMin : itemFull
 
-    test(`${name} round-trips reference metadata`, async (t: TestContext) => {
-        await storage.save(makeSaveData([item]))
-        const loaded = await storage.load()
-        t.assert.deepStrictEqual(loaded.items[0]!.references, item.references)
+    test(`${name} round-trips metadata`, async (t: TestContext) => {
+        await storage.save([item])
+        const items = await storage.load()
+        t.assert.deepStrictEqual(items[0]!.references, item.references)
+        t.assert.partialDeepStrictEqual(items[0]!.attribs, item.attribs)
     })
 
     test(`${name} loads items without the source locale file`, async (t: TestContext) => {
-        await storage.save(makeSaveData([item]))
+        await storage.save([item])
         await inMemFS.unlink(resolve(root, 'src/locales/en.po'))
-        const loaded = await storage.load()
-        t.assert.deepStrictEqual(loaded.items[0]!.translations.get('en'), ['Hello'])
-        t.assert.deepStrictEqual(loaded.items[0]!.translations.get('es'), ['Hola'])
+        const items = await storage.load()
+        t.assert.deepStrictEqual(items[0]!.translations.get('en'), 'Hello')
+        t.assert.deepStrictEqual(items[0]!.translations.get('es'), 'Hola')
     })
 
     test(`${name} removes stale catalogs`, async (t: TestContext) => {
-        await storage.save(makeSaveData([]))
+        await storage.save([])
         const catPath = resolve(root, 'src/locales/en.po')
         t.assert.strictEqual(await inMemFS.exists(catPath), false)
     })
@@ -89,11 +83,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             },
         }
         const po = new POFile({ ...pofileOpts, fs })
-        await po.save(makeSaveData([itemFull]))
+        await po.save([itemFull])
         const reloaded = new POFile({ ...pofileOpts, fs })
         await reloaded.load()
         unlinkCalls = 0
-        await reloaded.save(makeSaveData([itemFull]))
+        await reloaded.save([itemFull])
         t.assert.strictEqual(unlinkCalls, 0)
     })
 

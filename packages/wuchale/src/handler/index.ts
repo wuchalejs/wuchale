@@ -6,13 +6,13 @@ import { varNames } from '../adapter-utils/index.js'
 import type { Adapter, RuntimeExpr, TransformOutputCode } from '../adapters.js'
 import { getKey } from '../adapters.js'
 import AIQueue from '../ai/index.js'
-import { type CompiledElement, compileTranslation } from '../compile.js'
+import { compileTranslation } from '../compile.js'
 import type { ConfigPartial, DevMode } from '../config.js'
 import type { HMRData } from '../dev.js'
 import { readOnlyFS } from '../fs.js'
 import type { Logger } from '../log.js'
 import { type FileRef, type FileRefEntry, type Item, itemIsUrl, newItem } from '../storage.js'
-import type { Text } from '../text.js'
+import { singleTxt, type Text } from '../text.js'
 import {
     defaultLoadID,
     Files,
@@ -109,9 +109,9 @@ export class AdapterHandler {
     readonly url: URLHandler
     readonly aiQueue?: AIQueue
     onBeforeSave?: () => void
-    onWriteCompiled?: (file: string) => void
     #fallbackChains: Map<string, string[]>
     #newKeys = new Set<string>() // keys added during dev
+    storageUpdated = false // for cli, to write only at the end
 
     private constructor(opts: HandlerOpts) {
         this.#opts = opts
@@ -152,7 +152,7 @@ export class AdapterHandler {
         if (await handler.url.initPatterns(key, sharedState.catalog, handler.#fallbackChains, handler.aiQueue)) {
             await handler.saveStorage()
         }
-        await handler.compile(-1)
+        await handler.compile(0)
         await writeProxies(granularState.groupPatterns)
         await files.writeUrlFiles(handler.url.buildManifest(), config.locales[0])
         return handler
@@ -169,11 +169,16 @@ export class AdapterHandler {
         await this.sharedState.save(this.#opts.mode === 'dev' && this.#opts.devMode === 'clean')
     }
 
-    compile = async (hmrVersion: number) => {
+    compile = async (hmrVersion: number, forceWrite = false) => {
         // for proper fallback
         const localesOrdered = [this.sourceLocale, ...this.#opts.config.locales.filter(l => l !== this.sourceLocale)]
-        await Promise.all(localesOrdered.map(loc => this.#compileForLocale(loc, hmrVersion)))
-        await this.#writeManifests()
+        for (const loc of localesOrdered) {
+            await this.#compileForLocale(loc)
+        }
+        if (this.#opts.mode !== 'dev' || hmrVersion === 0 || forceWrite) {
+            // forceWrite from hub to reload page (bundler should pick up compile files)
+            await Promise.all([this.#writeCompiled(hmrVersion), this.#writeManifests()])
+        }
     }
 
     #buildManifest = (indices: Iterable<[string, number]>): ManifestEntry[] => {
@@ -186,15 +191,14 @@ export class AdapterHandler {
             }
 
             const isUrl = itemIsUrl(item)
-            const id = item.translations.get(this.sourceLocale)!
-            const text = id.length === 1 ? id[0]! : id
+            const id = item.translations.get(this.sourceLocale) as string
             if (!isUrl && item.context == null) {
-                manifest[index] = text
+                manifest[index] = id
                 continue
             }
 
             manifest[index] = {
-                text,
+                text: id,
                 context: item.context,
                 isUrl: isUrl || undefined,
             }
@@ -212,48 +216,30 @@ export class AdapterHandler {
         await Promise.all(promises)
     }
 
-    saveStorageCompile = async (hmrVersion = -1) => {
+    saveStorageCompile = async (hmrVersion = 0) => {
         await this.saveStorage()
         await this.compile(hmrVersion)
     }
 
-    writeCompiled = async (loc: string, hmrVersion: number) => {
-        let compiledData = this.sharedState.compiled.get(loc)!
-        const pluralRule = this.sharedState.pluralRules.get(loc)!.plural
-        const promises = [
-            this.files.writeCatalogModule(
-                compiledData.items,
-                compiledData.hasPlurals ? pluralRule : null,
-                loc,
-                null,
-                hmrVersion,
-            ),
-        ]
-        if (this.adapter.loading.granular) {
-            for (const state of this.granularState.byID.values()) {
-                compiledData = state.compiled?.get(loc) || {
-                    hasPlurals: false,
-                    items: [],
+    #writeCompiled = async (hmrVersion: number) => {
+        const promises: Promise<string>[] = []
+        for (const [loc, compiled] of this.sharedState.compiled) {
+            promises.push(this.files.writeCatalogModule(compiled, loc, null, hmrVersion))
+            if (this.adapter.loading.granular) {
+                for (const state of this.granularState.byID.values()) {
+                    promises.push(
+                        this.files.writeCatalogModule(state.compiled?.get(loc) || [], loc, state.id, hmrVersion),
+                    )
                 }
-                promises.push(
-                    this.files.writeCatalogModule(
-                        compiledData.items,
-                        compiledData.hasPlurals ? pluralRule : null,
-                        loc,
-                        state.id,
-                        hmrVersion,
-                    ),
-                )
             }
         }
-        for (const file of await Promise.all(promises)) {
-            this.onWriteCompiled?.(file)
-        }
+        await Promise.all(promises)
+        this.#newKeys.clear() // not needed once these are in the compiled files
     }
 
     getCompiledFallback(index: number, locale: string) {
         for (const loc of this.#fallbackChains.get(locale) ?? [locale, this.sourceLocale]) {
-            const compiled = this.sharedState.compiled.get(loc)!.items![index]
+            const compiled = this.sharedState.compiled.get(loc)![index]
             if (compiled || loc === this.sourceLocale) {
                 return compiled || ''
             }
@@ -261,52 +247,43 @@ export class AdapterHandler {
         return ''
     }
 
-    #compileForLocale = async (loc: string, hmrVersion: number) => {
+    #compileForLocale = async (loc: string) => {
         let sharedCompiledLoc = this.sharedState.compiled.get(loc)
         if (sharedCompiledLoc == null) {
-            sharedCompiledLoc = { hasPlurals: false, items: [] }
+            sharedCompiledLoc = []
             this.sharedState.compiled.set(loc, sharedCompiledLoc)
         }
         for (const [itemKey, item] of this.sharedState.catalog) {
             // compile only if it came from a file under this adapter
             // for urls, skip if not referenced in links
-            // in dev mode, include obsolete items, they may be added back
+            // in dev mode, include obsolete message items, they may be added back
+            const isUrl = itemIsUrl(item)
             if (
-                (this.#opts.mode !== 'dev' || item.references.length > 0) &&
+                (this.#opts.mode !== 'dev' || isUrl || item.references.length > 0) &&
                 !item.references.some(r => this.fileMatches(r.file))
             ) {
                 continue
             }
-            let keys = [itemKey]
-            if (itemIsUrl(item)) {
+            let keys = [itemKey] // single for messages, multi for url links
+            if (isUrl) {
                 keys = []
-                const id = item.translations.get(this.sourceLocale)!
+                const id = item.translations.get(this.sourceLocale) as string
                 for (const reference of item.references) {
                     for (const ref of reference.refs) {
-                        keys.push(ref?.link ?? id[0]!)
+                        keys.push(ref?.link ?? id)
                     }
                 }
             }
             for (const key of keys) {
                 const index = this.sharedState.indexTracker.get(key)
-                let compiled: CompiledElement
                 const fallback = this.getCompiledFallback(index, loc)
                 const transl = item.translations.get(loc)!
-                if (transl.length > 1) {
-                    sharedCompiledLoc.hasPlurals = true
-                    if (transl.join('').trim()) {
-                        compiled = transl
-                    } else {
-                        compiled = fallback
-                    }
-                } else {
-                    let toCompile = transl[0]!
-                    if (itemIsUrl(item)) {
-                        toCompile = this.url.matchToCompile(key, loc)
-                    }
-                    compiled = compileTranslation(toCompile, fallback)
+                let toCompile = transl
+                if (itemIsUrl(item) && typeof transl === 'string') {
+                    toCompile = this.url.matchToCompile(key, itemKey, loc)
                 }
-                sharedCompiledLoc.items[index] = compiled
+                const compiled = compileTranslation(toCompile, fallback)
+                sharedCompiledLoc[index] = compiled
                 if (!this.adapter.loading.granular) {
                     continue
                 }
@@ -317,12 +294,10 @@ export class AdapterHandler {
                         newItemsAllowed(this.#opts.mode, this.#opts.devMode),
                     )
                     const compiledLoc = state.compiled.get(loc)!
-                    compiledLoc.hasPlurals = sharedCompiledLoc.hasPlurals
-                    compiledLoc.items[state.indexTracker.get(key)] = compiled
+                    compiledLoc[state.indexTracker.get(key)] = compiled
                 }
             }
         }
-        await this.writeCompiled(loc, hmrVersion)
     }
 
     #getRuntimeVars = (): RuntimeExpr => ({
@@ -414,8 +389,11 @@ export class AdapterHandler {
         const newRef: FileRefEntry = {
             placeholders: txt.placeholders.map(([i, p]) => [i, p.replace(/\s+/g, ' ').trim()]),
         }
-        if (txt.type === 'url' && getKey(txt.body, txt.context) !== key) {
-            newRef.link = txt.body[0]!
+        if (txt.type === 'url') {
+            const body = txt.body as string
+            if (body !== key) {
+                newRef.link = body
+            }
         }
         const newRefEntry = newRef.link || txt.placeholders.length ? newRef : null
         const prevRef = trackedRefrences.get(key)
@@ -462,7 +440,7 @@ export class AdapterHandler {
         return { cleaned, cleanedUrls }
     }
 
-    handleTexts = async (txts: Text[], filename: string, hmrVersion: number): Promise<[string[], boolean]> => {
+    handleTexts = async (txts: Text[], filename: string, hmrVersion: number): Promise<string[]> => {
         const previousReferences = this.popTrackedRefs(filename)
         let storageUpdated = false
         let compileUpdated = false
@@ -473,23 +451,23 @@ export class AdapterHandler {
         for (const txt of txts) {
             let key = getKey(txt.body, txt.context)
             if (txt.type === 'url') {
-                const matched = this.url.match(key)
-                if (!matched) {
-                    const err = new Error(`URL ${txt.body[0]} has no matching pattern defined`)
+                const pattern = this.url.match(key)
+                if (!pattern) {
+                    const err = new Error(`URL ${txt.body} has no matching pattern defined`)
                     ;(err as any).id = filename
                     throw err
                 }
-                key = getKey([this.url.patterns[matched[0]]!])
+                key = pattern
             }
             let item = this.sharedState.catalog.get(key)
             if (!item) {
-                item = newItem({ id: txt.body }, this.#opts.config.locales)
+                item = newItem({}, this.#opts.config.locales)
                 this.sharedState.catalog.set(key, item)
                 this.#newKeys.add(key)
                 storageUpdated = true
                 compileUpdated = true
             }
-            if (hmrVersion >= 0 && this.#newKeys.has(key)) {
+            if (hmrVersion > 0 && this.#newKeys.has(key)) {
                 hmrKeys.push(key)
             }
             const modifyRefs = modifyExistingRefs || (this.#opts.devMode === 'add' && this.#newKeys.has(key))
@@ -511,8 +489,7 @@ export class AdapterHandler {
             }
             item.context = txt.context
             const sourceTransl = item.translations.get(this.sourceLocale)!
-            const body = txt.body.join('\n')
-            if (sourceTransl.join('\n') !== body) {
+            if (singleTxt(sourceTransl) !== singleTxt(txt.body)) {
                 item.translations.set(this.sourceLocale, txt.body)
                 storageUpdated = true
                 compileUpdated = true
@@ -539,15 +516,16 @@ export class AdapterHandler {
                 await this.compile(hmrVersion)
             }
         }
-        return [hmrKeys, storageUpdated]
+        this.storageUpdated = storageUpdated // to be read in hub for cli
+        return hmrKeys
     }
 
     transform = async (
         content: string,
         filename: string,
-        hmrVersion = -1,
+        hmrVersion = 0,
         forServer = false,
-    ): Promise<[TransformOutputCode, boolean]> => {
+    ): Promise<TransformOutputCode> => {
         filename = normalizeSep(filename)
         let indexTracker = this.sharedState.indexTracker
         let loadID = defaultLoadID
@@ -570,27 +548,25 @@ export class AdapterHandler {
             matchUrl: this.url.match,
         })
         let hmrData: HMRData | null = null
-        let updated = false
         if (this.#opts.mode !== 'build') {
             if (this.#opts.log.checkLevel('verbose')) {
                 if (txts.length) {
                     this.#opts.log.verbose(`${this.key}: ${txts.length} items from ${filename}:`)
                     for (const txt of txts) {
-                        this.#opts.log.verbose(`  ${txt.body.join(', ')} [${txt.path.at(-1)!.type}]`)
+                        this.#opts.log.verbose(`  ${txt.body} [${txt.path.at(-1)!.type}]`)
                     }
                 } else {
                     this.#opts.log.verbose(`${this.key}: No items from ${filename}.`)
                 }
             }
-            const [hmrKeys, updatedItems] = await this.handleTexts(txts, filename, hmrVersion)
-            updated = updatedItems
-            if (!forServer && hmrKeys.length > 0) {
+            const hmrKeys = await this.handleTexts(txts, filename, hmrVersion)
+            if (hmrKeys.length > 0) {
                 hmrData = {}
                 for (const loc of this.#opts.config.locales) {
                     hmrData[loc] =
                         hmrKeys.map(key => {
                             const index = indexTracker.get(key)
-                            return [index, compiled.get(loc)!.items[index]!]
+                            return [index, compiled.get(loc)![index]!]
                         }) ?? []
                 }
             }
@@ -611,6 +587,6 @@ export class AdapterHandler {
         if (this.#opts.modifyInplace && output.code) {
             await writeFile(filename, output.code)
         }
-        return [output, updated]
+        return output
     }
 }

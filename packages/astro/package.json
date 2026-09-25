@@ -1,6 +1,6 @@
 {
     "name": "@wuchale/astro",
-    "version": "0.4.4",
+    "version": "0.5.1",
     "description": "Wuchale i18n adapter for Astro files",
     "scripts": {
         "dev": "tsc --watch",
@@ -34,6 +34,10 @@
             "types": "./dist/index.d.ts",
             "default": "./dist/index.js"
         },
+        "./integration": {
+            "types": "./dist/integration.d.ts",
+            "default": "./dist/integration.js"
+        },
         "./runtime.js": {
             "types": "./dist/runtime.d.ts",
             "default": "./dist/runtime.js"
@@ -49,13 +53,13 @@
     "license": "MIT",
     "dependencies": {
         "@astrojs/compiler": "^4",
-        "@sveltejs/acorn-typescript": "^1.0.10",
-        "acorn": "^8.17.0",
-        "wuchale": "^0.25.6"
+        "@sveltejs/acorn-typescript": "^1.0.13",
+        "acorn": "^8.18.0",
+        "wuchale": "^0.26.4"
     },
     "devDependencies": {
-        "@types/node": "~24.13.2",
-        "typescript": "^6.0.3"
+        "@types/node": "~24.13.3",
+        "typescript": "^7.0.2"
     },
     "type": "module"
 }

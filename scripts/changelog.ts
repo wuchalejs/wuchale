@@ -1,17 +1,20 @@
 import type { ChangelogFunctions } from '@changesets/types'
 
-const commitBaseUrl = 'https://github.com/wuchalejs/wuchale/commit/'
+const homeRepo = 'https://github.com/wuchalejs/wuchale'
 
 export default {
     async getReleaseLine(changeset) {
-        let [firstLine, ...futureLines] = changeset.summary.split('\n').map(l => l.trimEnd())
+        const summary = changeset.summary.replaceAll(/(?<!\w)p?#(\d+)/g, (match, num) => {
+            return `[#${num}](${homeRepo}/${match[0] === 'p' ? 'pull' : 'issues'}/${num})`
+        })
+        let [firstLine, ...futureLines] = summary.split('\n').map(l => l.trimEnd())
         if (firstLine?.startsWith('!')) {
             firstLine = `⚠️ BREAKING: ${firstLine.slice(1).trimStart()}`
         }
         let commitLinkPref = ''
         if (changeset.commit) {
             // for website changelog link
-            commitLinkPref = `[${changeset.commit.slice(0, 7)}](${commitBaseUrl}${changeset.commit}): `
+            commitLinkPref = `[\`${changeset.commit.slice(0, 7)}\`](${homeRepo}/commit/${changeset.commit}): `
         }
         let returnVal = `- ${commitLinkPref}${firstLine}`
         if (futureLines.length > 0) {

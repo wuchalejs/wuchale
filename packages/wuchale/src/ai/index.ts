@@ -1,16 +1,19 @@
 // $$ cd .. && npm run test
 // $$ node %f
 
-import { compileTranslation, isEquivalent } from '../compile.js'
+import { compileTranslation } from '../compile.js'
 import { getLanguageName } from '../config.js'
 import { color, type Logger } from '../log.js'
+import { orderedPluralForms } from '../plurals.js'
 import type { FileRef, Item } from '../storage.js'
+import { isEquivalent } from '../validate.js'
 
 const MAX_RETRIES = 30
 
 type Batch = {
     id: number
     targetLocales: string[]
+    plurals: Intl.LDMLPluralRule[]
     items: Item[]
 }
 
@@ -34,28 +37,37 @@ const outputSchema = {
     type: 'array',
     items: {
         type: 'object',
-        description: 'Keyed by locale code',
+        description: 'Translations, keyed by locale code',
         additionalProperties: {
-            type: 'array',
-            items: { type: 'string' },
-            minItems: 1,
+            oneOf: [
+                {
+                    type: 'string',
+                    description: 'When the item is a singular',
+                },
+                {
+                    type: 'array',
+                    items: { type: 'string' },
+                    minItems: 1,
+                    description: 'When the item is a plural, should correspond to each plural form',
+                },
+            ],
         },
     },
 }
 
 type InputItem = {
-    id: string[]
+    id: string | string[]
     context?: string | undefined
     references: FileRef[]
 }
 
-const instruct = (sourceLocale: string, targetLocales: string[]) =>
+const instruct = (sourceLocale: string, targetLocales: string[], plurals: Intl.LDMLPluralRule[] | null) =>
     `
 You are a professional translator for a web application.
 You will be given a list of items to translate from ${sourceLocale} (${getLanguageName(sourceLocale)}) to ${targetLocales.map(l => `${l} (${getLanguageName(l)})`).join(', ')}.
 
 Each item has:
-- id: the source text (array for singular/plural forms)
+- id: the source text (array for plural forms)
 - context: optional disambiguation context
 - references[]: source file locations
     - file: the file path where it was used
@@ -70,12 +82,13 @@ Preserve all placeholders exactly as they appear in the source. The placeholder 
 - <0>text</0>: text wrapped in a tag (like an HTML element)
 - <0/>: a self-closing tag
 
-For items with multiple id entries, these are plural forms. Provide the corresponding number of plural forms for each target locale.
+${plurals === null ? '' : `For items with multiple id entries, these are plural forms. Provide the corresponding number of plural forms for each target locale.${plurals.length > 0 ? ` The plural forms should be ${plurals.length}, in the CLDR order: ${plurals.join(', ')}.` : ''}`}
 
-Respond with a JSON array matching the order of the input items. Each element is an object keyed by locale code, where each value is an array of translated strings (one per plural form, or a single-element array for non-plural items).
+Respond with a JSON array matching the order of the input items. The output schema is:
 
-Output schema:
+\`\`\`json
 ${JSON.stringify(outputSchema)}
+\`\`\`
 
 CRITICAL!:
 - ALWAYS Respond with a raw compact JSON array even if there is only one item.
@@ -106,15 +119,23 @@ export default class AIQueue {
     translate = async (batch: Batch, attempt = 0) => {
         const logStart = this.#logStart(batch.id, batch.targetLocales)
         let translated: OutputItem[] = []
-        try {
-            const inputItems: InputItem[] = batch.items.map(item => ({
-                id: item.translations.get(this.sourceLocale)!,
+        const inputItems: InputItem[] = []
+        let plurals: Intl.LDMLPluralRule[] | null = null
+        for (const item of batch.items) {
+            const id = item.translations.get(this.sourceLocale)!
+            inputItems.push({
+                id,
                 context: item.context,
                 references: item.references,
-            }))
+            })
+            if (id.length > 1) {
+                plurals = batch.plurals
+            }
+        }
+        try {
             const translatedstr = await this.ai.translate(
                 JSON.stringify(inputItems),
-                instruct(this.sourceLocale, batch.targetLocales),
+                instruct(this.sourceLocale, batch.targetLocales, plurals),
             )
             translated = JSON.parse(translatedstr)
             if (Array.isArray(translated)) {
@@ -130,40 +151,21 @@ export default class AIQueue {
         for (const [i, outItem] of translated.entries()) {
             const item = batch.items[i]!
             const id = item.translations.get(this.sourceLocale)!
-            const sourceComp = id.map(i => compileTranslation(i, ''))
+            const sourceComp = compileTranslation(id)
             for (const loc of batch.targetLocales) {
                 const translation = outItem[loc]
                 if (translation === undefined) {
                     unTranslated.push(item)
                     break
                 }
-                if (id.length > 1) {
-                    // plural
-                    if (translation.length === 0) {
-                        // TODO: pass pluralRule and check nplurals
-                        unTranslated.push(item)
-                        break
-                    }
-                    item.translations.set(loc, translation)
-                    continue
-                }
-                if (translation.length !== id.length) {
-                    unTranslated.push(item)
-                    break
-                }
-                let equivalent = true
-                for (const [i, sou] of sourceComp.entries()) {
-                    if (!isEquivalent(sou, compileTranslation(translation[i]!, ''))) {
-                        equivalent = false
-                        break
-                    }
-                }
-                if (!equivalent) {
+                const forms = typeof id === 'string' ? null : (plurals?.length ?? 0)
+                if (!isEquivalent(sourceComp, compileTranslation(translation), forms)) {
                     unTranslated.push(item)
                     break
                 }
                 item.translations.set(loc, translation)
             }
+            item.attribs.ai = true
         }
         if (unTranslated.length === 0) {
             this.log.info(logStart, color.green('translated'))
@@ -234,9 +236,11 @@ export default class AIQueue {
             }
             for (let i = 0; i < items.length; i += this.ai.batchSize) {
                 const chunk = items.slice(i, i + this.ai.batchSize)
+                const targetLocales = Array.isArray(groupKey) ? groupKey : [groupKey]
                 const batch: Batch = {
                     id: this.nextBatchId,
-                    targetLocales: Array.isArray(groupKey) ? groupKey : [groupKey],
+                    targetLocales,
+                    plurals: orderedPluralForms(targetLocales[0]!),
                     items: chunk,
                 }
                 groupBatches.push(batch)

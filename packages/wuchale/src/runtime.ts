@@ -1,6 +1,6 @@
-import type { CompiledElement, CompositePayload, Mixed } from './compile.js'
+import type { CompiledElement, CompiledPlural, CompiledSingle, CompositePayload, Mixed } from './compile.js'
 
-export type CatalogModule = { c: CompiledElement[]; p?: ((n: number) => number) | undefined; v?: number }
+export type CatalogModule = { c: CompiledElement[]; v?: number }
 
 let onInvalidFunc: (i: number, c: CompiledElement[]) => string = () => ''
 
@@ -28,7 +28,7 @@ export type Runtime = {
     /** for tagged template strings */
     t: (tag: (strs: TemplateStringsArray, ...args: any[]) => any, id: number, args?: any[]) => any // tagged template
     /** get translation for plural */
-    p: (id: number) => any
+    p: (id: number, args?: any[]) => any
     (id: number, args?: any[]): any // most frequent use as direct call
 }
 
@@ -49,7 +49,7 @@ function mixedToString(ctx: Mixed, args: any[] = [], start = 1) {
 
 export default function toRuntime(mod: CatalogModule = { c: [] }, locale = ''): Runtime {
     const getCompositeContext = (id: number) => {
-        const ctx: CompiledElement = mod.c[id]!
+        const ctx = mod.c[id]! as CompiledSingle
         if (typeof ctx === 'string') {
             return [ctx]
         }
@@ -78,7 +78,8 @@ export default function toRuntime(mod: CatalogModule = { c: [] }, locale = ''): 
         }
         return tag(Object.assign(strings, { raw: strings }), ...exprs)
     }
-    rt.p = (id: number) => mod.c[id] ?? []
+    rt.p = (id, args) =>
+        (mod.c[id] as CompiledPlural)?.map(p => (typeof p === 'string' ? p : mixedToString(p, args, 0))) ?? []
 
     return rt
 }

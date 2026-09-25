@@ -27,7 +27,7 @@ const getOutput = (content: string, filename = 'test.svelte') =>
         svelteKitDefaultHeuristic,
         defaultArgs.patterns,
         defaultArgs.runtime,
-    ).transformSv()
+    ).transformSv('@wuchale/svelte/runtime.svelte')
 
 test('Simple text and props destruct', async t => {
     transformTest(
@@ -52,6 +52,42 @@ test('Simple text and props destruct', async t => {
         </div>
     `,
         ['Hello', 'Hello'],
+    )
+})
+
+test('Script block', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+        <script lang="ts">
+            const store = setContext('my-key', {
+                save: (value: string) => {
+                    const foo = 'Hello'
+                }
+            })
+            const msg = {body: 'Hello'}
+            const foo = () => 'Hello'
+            if (hello == 'world') 'ignore'
+        </script>
+        {foo()} {msg.body}
+        `),
+        svelte`
+        <script lang="ts">
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_());
+            const store = setContext('my-key', {
+                save: (value: string) => {
+                    const foo = _w_runtime_(0)
+                }
+            })
+            const msg = $derived({body: _w_runtime_(0)})
+            const foo = () => _w_runtime_(0)
+            if (hello == 'world') 'ignore'
+        </script>
+        {foo()} {msg.body}
+        `,
+        ['Hello', 'Hello', 'Hello'],
     )
 })
 
@@ -218,6 +254,7 @@ test('URLs', async t => {
         <a href={\`/translated/\${44}\`}>Hello</a>
         <a href="/notinpattern">Hello</a>
         <a href="/">Hello</a>
+        <a href="/#foo/bar">Hello</a>
     `),
         svelte`
         <script>
@@ -233,22 +270,25 @@ test('URLs', async t => {
                 }
             })
         </script>
-        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(7)}</a>
-        <a href="/notinpattern">{_w_runtime_(7)}</a>
-        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(7)}</a>
+        <a href={_w_localize_(_w_runtime_(3), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(4), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(5, [44]), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(0, [44]), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href="/notinpattern">{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(6), _w_runtime_.l)}>{_w_runtime_(8)}</a>
+        <a href={_w_localize_(_w_runtime_(7), _w_runtime_.l)}>{_w_runtime_(8)}</a>
     `,
         [
-            { body: ['/translated/{0}'], type: 'url' },
-            { body: ['/translated/somewhere/{0}'], type: 'url' },
-            { body: ['/translated/propertyhref'], type: 'url' },
-            { body: ['/translated/hello'], type: 'url' },
-            { body: ['/translated/hello/there'], type: 'url' },
-            { body: ['/translated/very/deep/link/{0}'], type: 'url' },
-            { body: ['/translated/{0}'], type: 'url' },
-            { body: ['/'], type: 'url' },
+            { body: '/translated/{0}', type: 'url' },
+            { body: '/translated/somewhere/{0}', type: 'url' },
+            { body: '/translated/propertyhref', type: 'url' },
+            { body: '/translated/hello', type: 'url' },
+            { body: '/translated/hello/there', type: 'url' },
+            { body: '/translated/very/deep/link/{0}', type: 'url' },
+            { body: '/translated/{0}', type: 'url' },
+            { body: '/', type: 'url' },
+            { body: '/#foo/bar', type: 'url' },
+            'Hello',
             'Hello',
             'Hello',
             'Hello',
@@ -345,10 +385,10 @@ test('Context', async t => {
             {_w_runtime_(2)}
     `,
         [
-            { body: ['String'], context: 'music' },
-            { body: ['String'], context: 'programming' },
-            { body: ['Close'], context: 'door' },
-            { body: ['Close'], context: 'distance' },
+            { body: 'String', context: 'music' },
+            { body: 'String', context: 'programming' },
+            { body: 'Close', context: 'door' },
+            { body: 'Close', context: 'distance' },
         ],
     )
 })
@@ -359,6 +399,7 @@ test('Tags and directives', async t => {
         await getOutput(svelte`
             {@render foo('Hello')}
             {@html 'Hello'}
+            {@const a = 'Hello'}
             {let x = 'Hello'}
             <form on:submit|preventDefault>
                 {const y = $derived('Hello')}
@@ -373,13 +414,14 @@ test('Tags and directives', async t => {
         </script>
             {@render foo(_w_runtime_(0))}
             {@html _w_runtime_(0)}
+            {@const a = _w_runtime_(0)}
             {let x = $derived(_w_runtime_(0))}
             <form on:submit|preventDefault>
                 {const y = $derived(_w_runtime_(0))}
                 <button on:click={() => alert(_w_runtime_(0))}>42</button>
             </form>
     `,
-        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
+        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
     )
 })
 
@@ -388,7 +430,7 @@ test('Nested and mixed with svelte:element', async t => {
         t,
         await getOutput(svelte`
             <p>Hello and <svelte:element this="b">welcome to <i>the app {appName}</i></svelte:element>!</p>
-            {#if name}
+            {#if tag === 'foo'}
                 <Icon /> Name
             {:else if number}
                 <pre>Foo bar</pre> Code
@@ -415,7 +457,7 @@ test('Nested and mixed with svelte:element', async t => {
                 {/snippet}
                 <W_tx_ t={[_w_snippet_3]} x={_w_runtime_.c(3)} />
             </p>
-            {#if name}
+            {#if tag === 'foo'}
                 {#snippet _w_snippet_0()}
                     <Icon />
                 {/snippet}
@@ -442,20 +484,25 @@ test('Collapsing deep nested messages with declaration tags', async t => {
     transformTest(
         t,
         await getOutput(svelte`
-            Hello
             <div>
-                {const foo = 'in place'}
-                there
-                <b><i><s>someone</s></i></b>
-                <Bar />
-                {varName}
-            </div>
-            and
-            {#if foo}
+                Hello
                 <div>
-                    <b><i>user {user}</i></b> {name}
+                    {const foo = 'in place'}
+                    there
+                    <b><i><s>someone</s></i></b>
+                    <Bar />
+                    {varName}
                 </div>
-            {/if}
+                and
+                {#if foo}
+                    <div>
+                        <b><i>user {user}</i></b> {name}
+                    </div>
+                {/if}
+                {#if info}
+                    <div>info</div>
+                {/if}
+            </div>
         `),
         svelte`
             <script>
@@ -463,36 +510,44 @@ test('Collapsing deep nested messages with declaration tags', async t => {
                 import W_tx_ from "@wuchale/svelte/runtime.svelte"
                 const _w_runtime_ = $derived(_w_load_rx_());
             </script>
-            {#snippet _w_snippet_0(_w_ctx_)}
-                <div>
-                    {const foo = 'in place'}
-                    {#snippet _w_snippet_2(_w_ctx_)}
-                        <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
-                    {/snippet}
-                    {#snippet _w_snippet_3()}
-                        <Bar />
-                    {/snippet}
-                    <W_tx_ t={[_w_snippet_2, _w_snippet_3]} x={_w_ctx_} n a={[varName]} />
-                </div>
-            {/snippet}
-            {#snippet _w_snippet_1()}
-                {#if foo}
+            <div>
+                {#snippet _w_snippet_0(_w_ctx_)}
                     <div>
-                        <b><i>
-                            <W_tx_ x={_w_runtime_.c(0)} a={[user]} />
-                        </i></b> {name}
+                        {const foo = 'in place'}
+                        {#snippet _w_snippet_3(_w_ctx_)}
+                            <b><i><s>{_w_runtime_.x(_w_ctx_)}</s></i></b>
+                        {/snippet}
+                        {#snippet _w_snippet_4()}
+                            <Bar />
+                        {/snippet}
+                        <W_tx_ t={[_w_snippet_3, _w_snippet_4]} x={_w_ctx_} n a={[varName]} />
                     </div>
-                {/if}
-            {/snippet}
-            <W_tx_ t={[_w_snippet_0, _w_snippet_1]} x={_w_runtime_.c(1)} />
+                {/snippet}
+                {#snippet _w_snippet_1()}
+                    {#if foo}
+                        <div>
+                            <b><i>
+                                <W_tx_ x={_w_runtime_.c(0)} a={[user]} />
+                            </i></b> {name}
+                        </div>
+                    {/if}
+                {/snippet}
+                {#snippet _w_snippet_2()}
+                    {#if info}
+                        <div>{_w_runtime_(1)}</div>
+                    {/if}
+                {/snippet}
+                <W_tx_ t={[_w_snippet_0, _w_snippet_1, _w_snippet_2]} x={_w_runtime_.c(2)} />
+            </div>
         `,
         [
             {
-                body: ['user {0}'],
+                body: 'user {0}',
                 placeholders: [['0', 'user']],
             },
+            'info',
             {
-                body: ['Hello <0>there <0>someone</0> <1/> {0}</0> and <1/>'],
+                body: 'Hello <0>there <0>someone</0> <1/> {0}</0> and <1/> <2/>',
                 placeholders: [['0.0', 'varName']],
             },
         ],
@@ -509,5 +564,23 @@ test('svelte:element uses static tag context', async t => {
     `),
         undefined,
         [],
+    )
+})
+
+test('Mixed attribute', async t => {
+    transformTest(
+        t,
+        await getOutput(svelte`
+            <img alt="{name} at {width} pixels" />
+        `),
+        svelte`
+        <script>
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/svelte/runtime.svelte"
+            const _w_runtime_ = $derived(_w_load_rx_());
+        </script>
+        <img alt={_w_runtime_(0, [name, width])} />
+        `,
+        ['{0} at {1} pixels'],
     )
 })

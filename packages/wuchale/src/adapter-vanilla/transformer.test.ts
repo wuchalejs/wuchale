@@ -21,8 +21,15 @@ const makeCtx = (content: string, index = new IndexTracker(true)) => ({
     matchUrl: urlHandler.match,
 })
 
-const getOutput = (content: string, patterns = defaultArgs.patterns) =>
-    new Transformer(makeCtx(content), defaultArgs.heuristic, patterns, defaultArgs.runtime).transform()
+const getOutput = (content: string, patterns = defaultArgs.patterns) => {
+    return new Transformer(
+        makeCtx(content),
+        ({ path }) =>
+            path.some(s => s.type === 'assignment' && !s.left && s.targets.includes('ignored')) ? false : undefined,
+        patterns,
+        defaultArgs.runtime,
+    ).transform()
+}
 
 test('Simple expression and assignment', t => {
     transformTest(
@@ -65,6 +72,7 @@ test('Inside function bodies', t => {
             return varName
         }
         topLevelCallExpr(() => {
+            document.cookie = 'Hallo' // ignored
             alert("Hello")
         })
         const insideObj = {
@@ -78,6 +86,9 @@ test('Inside function bodies', t => {
             }
             return \`Hello \${a\}\`
         }
+        function makeNested() {
+            return () => 'Hello'
+        }
     `),
         ts`
         'use strict'
@@ -89,6 +100,7 @@ test('Inside function bodies', t => {
             return varName
         }
         topLevelCallExpr(() => {
+            document.cookie = 'Hallo' // ignored
             const _w_runtime_ = _w_load_();
             alert(_w_runtime_(0))
         })
@@ -107,8 +119,14 @@ test('Inside function bodies', t => {
             }
             return _w_runtime_(3, [a])
         }
+        function makeNested() {
+            return () => {
+                const _w_runtime_ = _w_load_();
+                return _w_runtime_(0)
+            }
+        }
     `,
-        ['Hello', 'Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}'],
+        ['Hello', 'Hello', 'Inside func property', 'Extracted', 'Hello', 'Hello {0}', 'Hello {0}', 'Hello'],
     )
 })
 
@@ -238,6 +256,7 @@ test('Plural and patterns', t => {
         getOutput(
             ts`
             const f = () => plural(items, ['One item', '# items'])
+            const g = () => plural(items, [\`Single \${itemName}\`, \`Multiple \${itemName} (\${items})\`])
             function foo() {
                 const format1 = format0(42)
                 return [
@@ -252,7 +271,7 @@ test('Plural and patterns', t => {
             }
         `,
             [
-                { name: 'plural', args: ['other', 'message', 'pluralFunc'] },
+                { name: 'plural', args: ['other', 'message', 'locale'] },
                 { name: 'format0', args: ['other', 'locale'] },
                 { name: 'format1', args: ['other', 'other', 'locale', 'other'] },
                 { name: 'format2', args: ['locale'] },
@@ -262,7 +281,11 @@ test('Plural and patterns', t => {
             import { _w_load_, _w_load_rx_ } from "./loader.js"
             const f = () => {
                 const _w_runtime_ = _w_load_();
-                return plural(items, _w_runtime_.p(0), _w_runtime_._.p)
+                return plural(items, _w_runtime_.p(0), _w_runtime_.l)
+            }
+            const g = () => {
+                const _w_runtime_ = _w_load_();
+                return plural(items, _w_runtime_.p(1, [itemName, items]), _w_runtime_.l)
             }
             function foo() {
                 const _w_runtime_ = _w_load_();
@@ -275,10 +298,10 @@ test('Plural and patterns', t => {
                     format2(_w_runtime_.l),
                     format2(_w_runtime_.l),
                     format2(foo),
-                ] && bar(_w_runtime_(1))
+                ] && bar(_w_runtime_(2))
             }
     `,
-        [{ body: ['One item', '# items'] }, 'Hello'],
+        [{ body: ['One item', '# items'] }, { body: ['Single {0}', 'Multiple {0} ({1})'] }, 'Hello'],
     )
 })
 
@@ -310,5 +333,26 @@ test('Partial on read dev mode', t => {
             }
         `,
         ['Hello'], // no There! as it is new
+    )
+})
+
+test('Destructuring patterns in declarations', t => {
+    transformTest(
+        t,
+        getOutput(ts`
+            function foo() {
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
+                const { kept } = { msg: 'There!' }
+            }
+        `),
+        ts`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            function foo() {
+                const { a: [ ignored ], ...rest } = { a: ['Hello'] }
+                const _w_runtime_ = _w_load_();
+                const { kept } = { msg: _w_runtime_(0) }
+            }
+        `,
+        ['There!'],
     )
 })

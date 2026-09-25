@@ -1,3 +1,5 @@
+import { compileTranslation } from './compile.js'
+
 type ElementScope = {
     type: 'element'
     name: string
@@ -75,7 +77,7 @@ export type TextType = 'message' | 'url'
 
 export type Text = {
     type: TextType
-    body: string[] // array for plurals
+    body: string | string[] // array for plurals
     context?: string | undefined
     placeholders: [string, string][]
     path: Scope[]
@@ -89,6 +91,7 @@ export type HeuristicFunc = (txt: Text, file: string) => HeuristicResult
 export const defaultHeuristicOpts = {
     ignoreElements: ['script', 'style', 'path', 'code', 'pre'],
     ignoreAttribs: [['form', 'method']],
+    ignoreAssign: ['document.cookie'],
     ignoreCalls: ['fetch'],
     urlAttribs: [['a', 'href']],
     urlCalls: [] as string[],
@@ -105,6 +108,13 @@ export function* ascendPath(path: Scope[]) {
     }
 }
 
+export function singleTxt(body: string | string[]) {
+    if (typeof body === 'string') {
+        return body
+    }
+    return body.join('\n')
+}
+
 export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
     return txt => {
         let attribute = ''
@@ -113,6 +123,9 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         for (const s of ascendPath(txt.path)) {
             updateable ||= updatableScopes.has(s.type)
             if (s.type === 'call' && (s.name.startsWith('console.') || opts.ignoreCalls.includes(s.name))) {
+                return false
+            }
+            if (s.type === 'assignment' && !s.left && s.targets.some(t => opts.ignoreAssign.includes(t))) {
                 return false
             }
             if (s.type === 'attribute') {
@@ -129,29 +142,32 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
                 nearestElement ||= s.name
             }
         }
-        let body = txt.body.join('\n')
-        const lastScope = txt.path.at(-1)!
-        if (lastScope.type === 'element') {
+        let body = singleTxt(txt.body)
+        const lastScope = txt.path.at(-1)
+        if (lastScope?.type === 'element') {
             // only check the top level for letters
-            body = body.replaceAll(/<\d+\/>/g, '#').replaceAll(/<\d+>.+<\/\d+>/g, '#')
+            const comp = compileTranslation(body, '')
+            if (typeof comp !== 'string') {
+                body = comp.map(p => (typeof p !== 'string' ? '#' : p)).join('')
+            }
         }
         const looksLikeUrlPath = body.startsWith('/') && !body.includes(' ')
-        if (looksLikeUrlPath && lastScope.type !== 'element') {
-            if (lastScope.type === 'call') {
+        if (looksLikeUrlPath && lastScope?.type !== 'element') {
+            if (lastScope?.type === 'call') {
                 for (const call of opts.urlCalls) {
                     if (lastScope.name === call) {
                         return 'url'
                     }
                 }
             }
-            if (lastScope.type === 'property') {
+            if (lastScope?.type === 'property') {
                 for (const prop of opts.urlProps) {
                     if (lastScope.name === prop) {
                         return 'url'
                     }
                 }
             }
-            if (lastScope.type === 'attribute') {
+            if (lastScope?.type === 'attribute') {
                 for (const [tag, attrib] of opts.urlAttribs) {
                     if (nearestElement === tag && lastScope.name === attrib) {
                         return 'url'
@@ -162,7 +178,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
         if (!/\p{L}/u.test(body)) {
             return false
         }
-        if (lastScope.type === 'element') {
+        if (lastScope?.type === 'element') {
             return 'message'
         }
         // script and attribute
@@ -180,7 +196,7 @@ export function createHeuristic(opts: CreateHeuristicOpts): HeuristicFunc {
             // ignore non-letter and lower-case English beginnings
             return false
         }
-        if (lastScope.type === 'attribute') {
+        if (lastScope?.type === 'attribute') {
             return 'message'
         }
         if (txt.path[0]?.type === 'expression' && !updateable) {
@@ -203,10 +219,12 @@ export const defaultHeuristicFuncOnly: HeuristicFunc = (txt, file) => {
     return false
 }
 
-export function newText(init: Partial<Text>): Text {
-    init.body = init.body?.filter(str => str != null) ?? []
-    if (init?.path?.at(-1)?.type === 'element') {
-        init.body = init.body.map(str => str.replace(/\s+/g, ' ').trim())
+export function newText(init: Partial<Text> & Pick<Text, 'body'>): Text {
+    if (Array.isArray(init.body)) {
+        init.body = init.body?.filter(str => str != null) ?? []
+    }
+    if (init?.path?.at(-1)?.type === 'element' && typeof init.body === 'string') {
+        init.body = init.body.replace(/\s+/g, ' ').trim()
     }
     return {
         body: init.body,

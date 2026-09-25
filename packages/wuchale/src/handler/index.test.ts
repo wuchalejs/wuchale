@@ -3,7 +3,7 @@
 import { resolve } from 'node:path'
 import { type TestContext, test } from 'node:test'
 // @ts-expect-error
-import { dummyTransform, inMemFS, inMemStorage, trimLines, ts } from '../../testing/utils.ts'
+import { inMemFS, inMemStorage, regexTransform, trimLines, ts } from '../../testing/utils.ts'
 import { defaultArgs } from '../adapter-vanilla/index.js'
 import type { Adapter } from '../adapters.js'
 import { defaultConfig } from '../config.js'
@@ -18,11 +18,13 @@ inMemFS.write(defaultLoaderPath, '')
 
 const adapter: Adapter = {
     ...defaultArgs,
-    transform: dummyTransform,
+    transform: regexTransform,
     files: '*.js', // filename needs to match
     storage: inMemStorage,
     loaderExts: ['.js'],
+    url: { patterns: ['/**'] },
     defaultLoaderPath: defaultLoaderPath,
+    addImports: [],
 }
 
 async function makeHandler() {
@@ -53,52 +55,57 @@ async function makeHandler() {
 const handler = await makeHandler()
 
 test('HMR', async (t: TestContext) => {
-    const content = ts`'Hello'`
-    t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 0))[0].code),
-        trimLines(ts`
+    const content = ts`'Hello'\n'/foo/bar#445/34'`
+    const expected = trimLines(ts`
         import {getRuntime as _w_load_hmr_, getRuntimeRx as _w_load_rx_hmr_} from "./src/locales/test.loader.js"
         import {updated as _w_updated_} from "wuchale/dev"
-        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 0)
+        const [_w_load_, _w_load_rx_] = _w_updated_(_w_load_hmr_, _w_load_rx_hmr_, {"en":[[0,"Hello"]]}, 1)
         _w_load_()(0)
-    `),
-    )
-    // not on SSR
-    t.assert.strictEqual(
-        trimLines((await handler.transform(content, 'test.js', 0, true))[0].code),
-        trimLines(ts`
-        import {getRuntime as _w_load_, getRuntimeRx as _w_load_rx_} from "./src/locales/test.loader.js"
-        _w_load_()(0)
-    `),
-    )
+        _w_load_()(1)
+    `)
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1)).code), expected)
+    // also on SSR
+    t.assert.strictEqual(trimLines((await handler.transform(content, 'test.js', 1, true)).code), expected)
 })
 
-test('Manifest', async (t: TestContext) => {
+test('Compiled and manifest', async (t: TestContext) => {
+    await handler.compile(1, true)
+    const compiledPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.en.compiled.js')
+    const compiled = await inMemFS.read(compiledPath)
+    t.assert.strictEqual(
+        trimLines(compiled!),
+        trimLines(`
+            /** @type import('wuchale').CompiledElement[] */
+            export let c = ["Hello","/foo/bar#445/34"]
+            export let v = 1
+        `),
+    )
     const manifestPath = resolve(import.meta.dirname, defaultConfig.localesDir, generatedDir, 'test.0.manifest.js')
     const content = await inMemFS.read(manifestPath)
     t.assert.strictEqual(
         trimLines(content!),
-        trimLines(
-            `/** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */\nexport const keys = ["Hello"]`,
-        ),
+        trimLines(`
+            /** @type {(string | string[] | {text: string | string[], context?: string, isUrl?: boolean})[]} */
+            export const keys = ["Hello",{"text":"/foo/bar#445/34","isUrl":true}]
+        `),
     )
 })
 
 test('Handle texts', async (t: TestContext) => {
-    const txts = [newText({ body: ['Hello'] })]
-    const [hmrKeys, updated] = await handler.handleTexts(txts, 'foo.ts', 0)
-    t.assert.strictEqual(updated, true)
-    t.assert.deepStrictEqual(hmrKeys, ['Hello'])
-    const msgs1 = [newText({ body: ['Hello'], context: undefined })]
-    const [, updated1] = await handler.handleTexts(msgs1, 'foo.ts', 0)
-    t.assert.strictEqual(updated1, false)
-    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
-    t.assert.strictEqual(updated2, true)
+    const txts = [newText({ body: 'Hallo' })] // Hello not new after compile(1, true)
+    const hmrKeys = await handler.handleTexts(txts, 'foo.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, true)
+    t.assert.deepStrictEqual(hmrKeys, ['Hallo'])
+    const msgs1 = [newText({ body: 'Hallo', context: undefined })]
+    await handler.handleTexts(msgs1, 'foo.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, false)
+    await handler.handleTexts(txts, 'bar.ts', 1)
+    t.assert.strictEqual(handler.storageUpdated, true)
 })
 
 test('Handler compiles only when necessary', async (t: TestContext) => {
     const handler = await makeHandler()
-    const txts = [newText({ body: ['Hello'] })]
+    const txts = [newText({ body: 'Hello' })]
     let saveCalls = 0
     let compileCalls = 0
     const handlerSaveStorage = handler.saveStorage.bind(handler)
@@ -111,12 +118,12 @@ test('Handler compiles only when necessary', async (t: TestContext) => {
         compileCalls++
         return handlerCompile(...args)
     }
-    const [, updated1] = await handler.handleTexts(txts, 'foo.ts', 0)
-    t.assert.strictEqual(updated1, true)
+    await handler.handleTexts(txts, 'foo.ts', 0)
+    t.assert.strictEqual(handler.storageUpdated, true)
     t.assert.strictEqual(saveCalls, 1)
     t.assert.strictEqual(compileCalls, 1)
-    const [, updated2] = await handler.handleTexts(txts, 'bar.ts', 0)
-    t.assert.strictEqual(updated2, true)
+    await handler.handleTexts(txts, 'bar.ts', 0)
+    t.assert.strictEqual(handler.storageUpdated, true)
     t.assert.strictEqual(saveCalls, 2)
     t.assert.strictEqual(compileCalls, 1)
 })

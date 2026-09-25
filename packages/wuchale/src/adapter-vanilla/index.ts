@@ -12,7 +12,7 @@ export { Transformer }
 
 export const pluralPattern: CodePattern = {
     name: 'plural',
-    args: ['other', 'message', 'pluralFunc'],
+    args: ['other', 'message', 'locale'],
 }
 
 type LoadersAvailable = 'server' | 'vite'
@@ -68,6 +68,7 @@ export const adapter = (args: DeepPartial<VanillaArgs> = defaultArgs): Adapter =
         transform: ctx => new Transformer(ctx, heuristic, patterns, runtime).transform(),
         loaderExts: ['.js', '.ts'],
         defaultLoaderPath: getDefaultLoaderPath(loader, rest.loading.direct),
+        addImports: [],
         runtime,
         ...rest,
     }

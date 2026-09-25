@@ -3,19 +3,22 @@ import type { TestContext } from 'node:test'
 import { getDefaultLoaderPath } from '../src/adapter-vanilla/index.js'
 import { getKey, type TransformFunc, type TransformOutput } from '../src/adapters.js'
 import type { FS } from '../src/fs.js'
-import type { SaveData, StorageFactory } from '../src/storage.js'
-import { newText, type Text } from '../src/text.js'
+import type { Item, StorageFactory } from '../src/storage.js'
+import { newText, singleTxt, type Text } from '../src/text.js'
 
 const header = 'import { _w_load_, _w_load_rx_ } from "./loader.js"' // just an example header
 
 export const ts = (s: TemplateStringsArray) => s.join('') // syntax
 
 export const testCatalog = {
-    p: (n: number) => (n === 1 ? 0 : 1),
     c: [
         'Hello', // simple message
         ['Hello ', 0, '!'], // mixed message
-        ['One item', '# items'], // plurals
+        ['One item', '# items'], // simple plural
+        [
+            ['Single ', 0],
+            ['Multiple ', 0, ' (', 1, ')'],
+        ], // mixed plural
         ['Hello ', 0, 1], // mixed message ending with arg
         'Raw \\${3}', // for String.raw
     ],
@@ -47,11 +50,11 @@ export function transformTest(
     t.assert.strictEqual(
         txts.length,
         expectedMsgs.length,
-        `Unexpected number of messages: ${txts.length} !== ${expectedMsgs.length}\n${txts.map(m => `  ${m.body[0]}`).join('\n')}`,
+        `Unexpected number of messages: ${txts.length} !== ${expectedMsgs.length}\n${txts.map(m => `  ${singleTxt(m.body)}`).join('\n')}`,
     )
     for (let [i, exp] of expectedMsgs.entries()) {
         if (typeof exp === 'string') {
-            exp = { body: [exp] }
+            exp = { body: exp }
         }
         const txt = txts[i]!
         t.assert.deepStrictEqual(txt.body, exp.body, `Different msgStr`)
@@ -75,19 +78,19 @@ export const testLoadersExist = async (loaders: string[], getLoaderPath = getDef
     }
 }
 
-export const dummyTransform: TransformFunc = ctx => {
-    const msgs: Text[] = []
+export const regexTransform: TransformFunc = ctx => {
+    const txts: Text[] = []
     let out = ''
-    for (const m of ctx.content.matchAll(/'\w+'/g)) {
+    for (const m of ctx.content.matchAll(/'[a-zA-Z0-9#?/]+'/g)) {
         const msg = m[0].slice(1, -1)
-        if (!ctx.index.has(getKey([msg]))) {
+        if (!ctx.index.has(getKey(msg))) {
             continue
         }
         out += `${ctx.expr.plain}(${ctx.index.get(msg)})\n`
-        msgs.push(newText({ body: [msg] }))
+        txts.push(newText({ body: msg, type: msg.includes('/') ? 'url' : 'message' }))
     }
     return {
-        txts: msgs,
+        txts: txts,
         output: header => ({
             code: `${header}\n${out}`,
             map: [],
@@ -112,12 +115,12 @@ export const inMemFS: FS = {
 }
 
 export const inMemStorage: StorageFactory = () => {
-    let stored: SaveData = { items: [], pluralRules: new Map() }
+    let stored: Item[] = []
     return {
         key: 'inMem',
         load: async () => stored,
-        save: async data => {
-            stored = data
+        save: async items => {
+            stored = items
         },
         files: [],
     }

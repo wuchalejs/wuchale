@@ -1,5 +1,17 @@
 # @wuchale/json
 
+## 0.3.0
+
+### Minor Changes
+
+- [`ecb2626`](https://github.com/wuchalejs/wuchale/commit/ecb2626154534da5395ffd33782d432fcb45f8fa): Add `ai` flag when the translations are from an AI, for easier reviews [#316](https://github.com/wuchalejs/wuchale/issues/316)
+- [`16bd541`](https://github.com/wuchalejs/wuchale/commit/16bd541b33b68d7eb95c81d14ac309fff5afb7aa): Remove obsolete `stringForSingle` option, `true` by default
+
+### Patch Changes
+
+- Updated dependencies [8aa70f2, ecb2626, b43c360, f28e7b4, 5be7308, abb3f14, cd53445, 91ac506, 15d677e, 07cff73]:
+  - wuchale@0.26.0
+
 ## 0.2.1
 
 ### Patch Changes
