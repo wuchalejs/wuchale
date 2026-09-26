@@ -15,6 +15,8 @@ export class SharedState {
     // storage
     storage: CatalogStorage
     catalog: Catalog = new Map()
+    /** keys removed from storage since they were loaded, kept in the catalog to keep indices stable */
+    removedFromStorage = new Set<string>()
 
     constructor(storage: CatalogStorage, ownerKey: string, sourceLocale: string, allowNewItems: boolean) {
         this.ownerKey = ownerKey
@@ -24,16 +26,22 @@ export class SharedState {
     }
 
     async load(locales: string[]) {
+        const removed = new Set(this.catalog.keys())
         for (const item of await this.storage.load()) {
             fillTranslations(item, locales)
             const id = item.translations.get(this.sourceLocale)!
-            this.catalog.set(getKey(id, item.context), item)
+            const key = getKey(id, item.context)
+            this.catalog.set(key, item)
+            removed.delete(key)
         }
+        this.removedFromStorage = removed
     }
 
     async save(onlyReferenced: boolean) {
-        const items = Array.from(this.catalog.values())
-        await this.storage.save(onlyReferenced ? items.filter(i => !itemIsObsolete(i)) : items)
+        const items = Array.from(this.catalog)
+            .filter(([key, item]) => !(itemIsObsolete(item) && (onlyReferenced || this.removedFromStorage.has(key))))
+            .map(([, item]) => item)
+        await this.storage.save(items)
     }
 }
 
