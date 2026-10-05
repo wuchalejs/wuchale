@@ -153,6 +153,15 @@ export class Transformer extends InertVisitors {
         if (this.commentDirectives.forceType == null && heuRes === 'url' && this.matchUrl(body) == null) {
             return false
         }
+        // outside of any function, only a runtime initialized at the top level can serve the message.
+        // when the runtime config doesn't allow that (e.g. React), it would reference an undefined variable
+        if (
+            heuRes &&
+            !txt.path.some(s => ['function', 'funcexpr', 'method', 'class'].includes(s.type)) &&
+            this.initReactive() == null
+        ) {
+            return false
+        }
         return this.commentDirectives.forceType || heuRes
     }
 
