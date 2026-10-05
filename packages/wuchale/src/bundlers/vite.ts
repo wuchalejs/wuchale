@@ -58,7 +58,22 @@ export type PluginConf = {
 const defaultTrimParams = ['v', 't', 'sentry-auto-wrap', 'tsr-split']
 
 export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams }: PluginConf = {}) => {
-    let inBuild: boolean, conf: Config, hub: Hub
+    let inBuild: boolean, conf: Config, hub: Hub | undefined, hubReady: Promise<Hub> | undefined
+    // buildStart is async and not always finished (or even called) before the first transform,
+    // e.g. for the ssr environment of the dev server. so anything that needs the hub waits for it
+    const getHub = async () => {
+        hubReady ??= Hub.create(
+            inBuild ? 'build' : 'dev',
+            conf,
+            dirname(configPath ?? '.'),
+            [],
+            hmrDelayThreshold,
+            undefined,
+            toViteError,
+        )
+        hub = await hubReady
+        return hub
+    }
     const trimParams = new Set([...(trimQueryParams ?? []), ...defaultTrimParams])
     return {
         name: pluginName,
@@ -70,15 +85,7 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
             }
         },
         async buildStart() {
-            hub = await Hub.create(
-                inBuild ? 'build' : 'dev',
-                conf,
-                dirname(configPath ?? '.'),
-                [],
-                hmrDelayThreshold,
-                undefined,
-                toViteError,
-            )
+            await getHub()
         },
         async handleHotUpdate(ctx: { file: string; read: () => string | Promise<string> }) {
             return await hub?.onFileChange(ctx.file, ctx.read) // ignore when not ready
@@ -86,7 +93,7 @@ export const wuchale = ({ configPath, hmrDelayThreshold = 1000, trimQueryParams 
         transform: {
             order: 'pre' as 'pre',
             async handler(code: string, id: string, options?: { ssr?: boolean | undefined }) {
-                return await hub.transform(code, trimViteQueries(id, trimParams), options?.ssr)
+                return await (await getHub()).transform(code, trimViteQueries(id, trimParams), options?.ssr)
             },
         },
     }
