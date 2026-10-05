@@ -240,3 +240,25 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Anonymous function inside a component is not reactive', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        function Foo() {
+            return <button onClick={() => alert('Saved successfully')} />
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        function Foo() {
+            return <button onClick={() => {
+                const _w_runtime_ = _w_load_();
+                return alert(_w_runtime_(0))
+            }} />
+        }
+    `,
+        ['Saved successfully'],
+    )
+})
