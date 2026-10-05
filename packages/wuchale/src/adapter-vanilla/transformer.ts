@@ -44,12 +44,12 @@ export function scriptParseOptionsWithComments(): [Estree.Options, Estree.Commen
                 }
                 accumulateComments = []
             },
-            onComment: (block, comment) => {
+            onComment: (block, comment, start, end) => {
                 accumulateComments.push({
                     type: block ? 'Block' : 'Line',
                     value: comment,
-                    start: -1,
-                    end: -1,
+                    start,
+                    end,
                 })
             },
         },
@@ -617,7 +617,15 @@ export class Transformer extends InertVisitors {
             bodyStart ??= node.start
         } else {
             ;[txts, hasBare] = this.visitStatementsNGetRealBodyStart([node])
-            bodyStart = node.start - 1
+            // comments between the opening paren and the expression should not hide the paren
+            let exprStart = node.start
+            // @ts-expect-error
+            for (const comment of node.leadingComments ?? this.comments[node.start] ?? []) {
+                if (comment.start >= 0 && comment.start < exprStart) {
+                    exprStart = comment.start
+                }
+            }
+            bodyStart = exprStart - 1
             for (; bodyStart > 0; bodyStart--) {
                 const char = this.content[bodyStart]!
                 if (char === '(') {
