@@ -240,3 +240,29 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Text next to functions nested two levels deep', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        function Foo() {
+            return <p onClick={() => {
+                const notify = () => alert('Hello there')
+                notify()
+            }}>Bare text</p>
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        function Foo() {
+            const _w_runtime_ = _w_load_rx_();
+            return <p onClick={() => {
+                const notify = () => alert(_w_runtime_(1))
+                notify()
+            }}>{_w_runtime_(0)}</p>
+        }
+    `,
+        ['Bare text', 'Hello there'],
+    )
+})

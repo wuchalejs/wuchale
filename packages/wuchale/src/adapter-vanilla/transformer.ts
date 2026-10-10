@@ -572,6 +572,7 @@ export class Transformer extends InertVisitors {
         const txts: Text[] = []
         let bodyStart: number | null = null
         const firstCalls = new Map<string, number>()
+        const inFuncTxtsBefore = this.inFuncTxts
         let hasBareTxts = false
         for (const bod of nodes) {
             const prevPatternMods = this.patternMatchMods
@@ -601,7 +602,8 @@ export class Transformer extends InertVisitors {
                 bodyStart = this.#updateBodyStart(bodyStart, bod.start)
             }
         }
-        this.inFuncTxts += txts.length
+        // txts includes those from nested functions, which have already been counted by their own visit
+        this.inFuncTxts = inFuncTxtsBefore + txts.length
         return [txts, hasBareTxts, bodyStart]
     }
 
