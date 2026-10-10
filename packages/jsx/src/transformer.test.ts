@@ -240,3 +240,34 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Nested element without its own message', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        function m({ brand }) {
+            return <section>
+                Some text {brand}
+                <footer>
+                    <button>Cancel</button>
+                    <img src={brand} />
+                </footer>
+            </section>
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        function m({ brand }) {
+            const _w_runtime_ = _w_load_();
+            return <section>
+                <W_tx_ t={[() => <footer key="_0">
+                    <button>{_w_runtime_(1)}</button>
+                    <img src={brand} />
+                </footer>]} x={_w_runtime_.c(0)} a={[brand]} />
+            </section>
+        }
+    `,
+        ['Some text {0} <0/>', 'Cancel'],
+    )
+})

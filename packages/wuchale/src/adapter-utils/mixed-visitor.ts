@@ -131,8 +131,11 @@ export class MixedVisitor<
                 func(nested, mod.txt != null)
             }
         }
+        // a nested element with no message of its own is only an opaque tag in its parent's message,
+        // nothing passes a nesting context down to its children, they are independent messages
+        const opaque = nested && mod.txt == null
         for (const childMod of mod.children) {
-            txts.push(...this.#applyMod(childMod, depth + (modify ? 1 : 0)))
+            txts.push(...this.#applyMod(childMod, opaque ? 0 : depth + (modify ? 1 : 0)))
         }
         mod.pending = false
         return txts
