@@ -13,4 +13,13 @@ test('RT details', (t: TestContext) => {
         ['bar', true],
     )
     t.assert.deepStrictEqual(getFuncNameNested([{ type: 'function', name: 'foo' }]), ['foo', false])
+    // anonymous function passed to a call inside a named one, e.g. an inline event handler in a component
+    t.assert.deepStrictEqual(
+        getFuncNameNested([
+            { type: 'function', name: 'Foo' },
+            { type: 'call', kind: 'function', name: 'alert' },
+            { type: 'funcexpr', kind: 'arrow' },
+        ]),
+        ['', true],
+    )
 })

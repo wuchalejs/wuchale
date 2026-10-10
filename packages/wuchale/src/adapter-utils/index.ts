@@ -106,7 +106,8 @@ export function getFuncNameNested(path: Scope[]): [string | null, boolean] {
         } else {
             continue
         }
-        if (funcName) {
+        // not a truthiness check, anonymous functions have an empty name
+        if (funcName != null) {
             return [funcName, true]
         }
         funcName = func
