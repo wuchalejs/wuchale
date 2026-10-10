@@ -240,3 +240,27 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Comment inside a parenthesized arrow function body', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        const Foo = () => (
+            // a comment
+            <b>Rejected</b>
+        )
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        const Foo = () => {
+            const _w_runtime_ = _w_load_rx_();
+            return (
+                // a comment
+                <b>{_w_runtime_(0)}</b>
+            )
+        }
+    `,
+        ['Rejected'],
+    )
+})
