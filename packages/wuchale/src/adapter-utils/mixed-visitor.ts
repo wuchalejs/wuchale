@@ -350,7 +350,10 @@ export class MixedVisitor<
                     txts.push(...this.#props.visitFunc(child))
                     this.#mod = prevMod // restore
                 } else if (this.#props.isExpression(child)) {
+                    const prevMod = this.#mod
+                    this.#mod = new Map() // isolate, markup inside an expression is not part of this level
                     txts.push(...this.#props.visitFunc(child))
+                    this.#mod = prevMod // restore
                     if (nums.text > 0 || nums.element > 0) {
                         body += this.#expression(exprFuncs, chRange, iArg, placeholders, lastChildEnd)
                         iArg++

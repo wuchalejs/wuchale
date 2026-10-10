@@ -240,3 +240,29 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Element next to an expression containing markup', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        function m({ brand }) {
+            return <footer>
+                <button>Cancel</button>
+                {brand && <button>Save</button>}
+            </footer>
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        function m({ brand }) {
+            const _w_runtime_ = _w_load_();
+            return <footer>
+                <button>{_w_runtime_(1)}</button>
+                {brand && <button>{_w_runtime_(0)}</button>}
+            </footer>
+        }
+    `,
+        ['Save', 'Cancel'],
+    )
+})
