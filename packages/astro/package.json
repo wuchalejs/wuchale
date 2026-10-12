@@ -54,7 +54,7 @@
     "dependencies": {
         "@astrojs/compiler": "^4",
         "@sveltejs/acorn-typescript": "^1.0.13",
-        "acorn": "^8.18.0",
+        "acorn": "^8.19.0",
         "wuchale": "^0.26.4"
     },
     "devDependencies": {
