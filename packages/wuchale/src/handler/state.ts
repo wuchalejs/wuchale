@@ -24,6 +24,7 @@ export class SharedState {
     }
 
     async load(locales: string[]) {
+        this.catalog.clear()
         for (const item of await this.storage.load()) {
             fillTranslations(item, locales)
             const id = item.translations.get(this.sourceLocale)!
