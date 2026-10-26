@@ -91,7 +91,7 @@
     "dependencies": {
         "@sveltejs/acorn-typescript": "^1.0.13",
         "acorn": "^8.18.0",
-        "chokidar": "^5.0.0",
+        "chokidar": "^6.0.0",
         "magic-string": "^1.4.3",
         "picomatch": "^4.0.7",
         "pofile": "^1.1.4",
