@@ -234,6 +234,10 @@ export class SvelteTransformer extends Transformer {
         return node.expression ? this.visit(node.expression as Expression) : []
     }
 
+    visitAttachTag(node: AST.AttachTag): Text[] {
+        return this.inScopeVisit({ type: 'expression' }, node.expression as Expression)
+    }
+
     hasIdentifier(node: AnyNode | AnyNode[], name: string): boolean {
         if (!node || typeof node !== 'object') {
             return false
