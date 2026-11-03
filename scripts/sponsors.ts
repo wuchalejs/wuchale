@@ -9,7 +9,13 @@ type Sponsor = {
 type Data = {
     sponsors: Sponsor[]
     backers: Sponsor[]
-    private: number
+    past: Sponsor[]
+}
+
+const props: { [K in keyof Data]: { title: string; size: number } } = {
+    sponsors: { title: 'Sponsors:', size: 96 },
+    backers: { title: 'Special thanks to our supporters:', size: 48 },
+    past: { title: 'Past supporters:', size: 48 },
 }
 
 const sponsFile = './sponsors.json'
@@ -17,13 +23,17 @@ const data: Data = JSON.parse(readFileSync(sponsFile, 'utf-8'))
 const readmeFile = '../README.md'
 let readme = readFileSync(readmeFile, 'utf-8')
 
-function replaceAnchor(anchor: string, repl: string, endMark: string) {
+function replaceAnchor(anchor: string, title: string, repl: string) {
     const start = readme.indexOf(anchor) + anchor.length
-    const end = readme.indexOf(endMark, start)
-    readme = readme.slice(0, start) + repl + readme.slice(end)
+    let end = start
+    if (readme[start] !== '\n') {
+        const endStart = readme.indexOf('\n\n', start) + 2
+        end = readme.indexOf('\n\n', endStart)
+    }
+    readme = readme.slice(0, start) + (repl ? `${title}\n\n${repl}` : '') + readme.slice(end)
 }
 
-for (const key of ['sponsors', 'backers'] as const) {
+for (const key of Object.keys(props) as (keyof Data)[]) {
     const spons = data[key]
     const newSpons = spons.filter(s => s.id === undefined)
     if (newSpons.length) {
@@ -34,16 +44,14 @@ for (const key of ['sponsors', 'backers'] as const) {
         })
     }
     const secBody: string[] = []
-    const size = key === 'sponsors' ? 96 : 48
+    const prop = props[key]
     for (const s of spons) {
         secBody.push(
-            `[![${s.username}](https://avatars.githubusercontent.com/u/${s.id}?v=4&s=${size})](https://github.com/${s.username})`,
+            `[![${s.username}](https://avatars.githubusercontent.com/u/${s.id}?v=4&s=${prop.size})](https://github.com/${s.username})`,
         )
     }
-    replaceAnchor(`<!-- s:${key} -->\n`, secBody.join('\n'), '\n\n')
+    replaceAnchor(`<!-- s:${key} -->`, prop.title, secBody.join('\n'))
 }
-
-// replaceAnchor('<!-- s:private -->', data.private.toString(), ' ')
 
 writeFileSync(readmeFile, readme)
 writeFileSync(sponsFile, JSON.stringify(data, null, '  '))
