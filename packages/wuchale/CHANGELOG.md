@@ -1,5 +1,11 @@
 # wuchale
 
+## 0.26.8
+
+### Patch Changes
+
+- [`ba95896`](https://github.com/wuchalejs/wuchale/commit/ba958966a795c95a356752ed10fa02a0d8eaf5a9): Fix entries removed from the catalog file (e.g. by `wuchale --clean`) being written back by the dev server
+
 ## 0.26.7
 
 ### Patch Changes
