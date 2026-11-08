@@ -127,6 +127,49 @@ test('JS module files', async t => {
     )
 })
 
+test('Functions and class methods in JS/TS module files', async t => {
+    // methods are function scopes too: a `$derived` inside them triggers svelte's state_referenced_locally warning
+    for (const filename of ['test.svelte.js', 'test.svelte.ts']) {
+        transformTest(
+            t,
+            await getOutput(
+                ts`
+                export function foo() {
+                    return 'Function text'
+                }
+                export class Foo {
+                    get label() {
+                        return 'Getter text'
+                    }
+                    method() {
+                        return 'Method text'
+                    }
+                }
+            `,
+                filename,
+            ),
+            ts`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            export function foo() {
+                const _w_runtime_ = _w_load_();
+                return _w_runtime_(0)
+            }
+            export class Foo {
+                get label() {
+                    const _w_runtime_ = _w_load_();
+                    return _w_runtime_(1)
+                }
+                method() {
+                    const _w_runtime_ = _w_load_();
+                    return _w_runtime_(2)
+                }
+            }
+        `,
+            ['Function text', 'Getter text', 'Method text'],
+        )
+    }
+})
+
 test('Simple element with new lines', async t => {
     transformTest(
         t,

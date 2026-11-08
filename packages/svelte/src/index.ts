@@ -1,4 +1,12 @@
-import type { Adapter, AdapterArgs, CreateHeuristicOpts, DeepPartial, HeuristicFunc, LoaderChoice } from 'wuchale'
+import type {
+    Adapter,
+    AdapterArgs,
+    CreateHeuristicOpts,
+    DeepPartial,
+    HeuristicFunc,
+    LoaderChoice,
+    Scope,
+} from 'wuchale'
 import { createHeuristic, defaultHeuristicOpts, fillDefaults, pofile } from 'wuchale'
 import { getFuncNameNested, loaderPathResolver } from 'wuchale/adapter-utils'
 import { pluralPattern } from 'wuchale/adapter-vanilla'
@@ -16,6 +24,12 @@ export function createSvelteHeuristic(opts: CreateHeuristicOpts): HeuristicFunc 
         }
         return defaultHeuristic(txt, file)
     }
+}
+
+/** Whether the path is outside any function, including class methods which `getFuncNameNested` doesn't track */
+function inTopLevel(path: Scope[]) {
+    const [funcName] = getFuncNameNested(path)
+    return funcName == null && !path.some(s => s.type === 'method')
 }
 
 /** Default Svelte heuristic which extracts top level variable assignments as well, leading to `$derived` being auto added when needed */
@@ -42,13 +56,11 @@ export const defaultArgs: SvelteArgs = {
     loader: 'svelte',
     runtime: {
         initReactive: (path, file, { module }: RuntimeCtxSv) => {
-            const [funcName] = getFuncNameNested(path)
-            const inTopLevel = funcName == null
-            return file.endsWith('.svelte.js') || module ? inTopLevel : inTopLevel ? true : null
+            const topLevel = inTopLevel(path)
+            return !file.endsWith('.svelte') || module ? topLevel : topLevel ? true : null
         },
         useReactive: (path, file, { module }: RuntimeCtxSv) => {
-            const [funcName] = getFuncNameNested(path)
-            return file.endsWith('.svelte.js') || module ? funcName == null : true
+            return !file.endsWith('.svelte') || module ? inTopLevel(path) : true
         },
         reactive: {
             wrapInit: expr => `$derived(${expr})`,
