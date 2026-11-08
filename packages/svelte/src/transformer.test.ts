@@ -408,6 +408,7 @@ test('Tags and directives', async t => {
             <form on:submit|preventDefault>
                 {const y = $derived('Hello')}
                 <button on:click={() => alert('Hello')}>42</button>
+                <div {@attach tooltip('Hello')}></div>
             </form>
         `),
         svelte`
@@ -423,9 +424,10 @@ test('Tags and directives', async t => {
             <form on:submit|preventDefault>
                 {const y = $derived(_w_runtime_(0))}
                 <button on:click={() => alert(_w_runtime_(0))}>42</button>
+                <div {@attach tooltip(_w_runtime_(0))}></div>
             </form>
     `,
-        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
+        ['Hello', 'Hello', 'Hello', 'Hello', 'Hello', 'Hello', 'Hello'],
     )
 })
 
