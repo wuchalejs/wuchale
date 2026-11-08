@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { Adapter } from './adapters.js'
 import { defaultGemini } from './ai/gemini.js'
 import type { AI } from './ai/index.js'
@@ -91,7 +92,7 @@ export async function getConfig(configPath?: string): Promise<Config> {
         if (!confName) {
             continue
         }
-        const fileUrl = `file://${resolve(confName)}`
+        const fileUrl = pathToFileURL(resolve(confName)).href
         try {
             module = await import(fileUrl)
             break

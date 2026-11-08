@@ -1,7 +1,10 @@
 // $ node --import ../testing/resolve.ts %f
 
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { type TestContext, test } from 'node:test'
-import { fillDefaults } from './config.js'
+import { fillDefaults, getConfig } from './config.js'
 
 test('Fill defaults', (t: TestContext) => {
     const def = {
@@ -35,4 +38,18 @@ test('Fill defaults', (t: TestContext) => {
         null: null,
         ff: { boo: 11 },
     })
+})
+
+test('Falls back to the next default config name', async (t: TestContext) => {
+    // A space makes the file URL differ from a plain `file://` + path
+    const dir = await mkdtemp(join(tmpdir(), 'wuchale config '))
+    const cwd = process.cwd()
+    t.after(async () => {
+        process.chdir(cwd)
+        await rm(dir, { recursive: true, force: true })
+    })
+    await writeFile(join(dir, 'wuchale.config.mjs'), "export default { locales: ['en', 'es'] }\n")
+    process.chdir(dir)
+    const config = await getConfig()
+    t.assert.deepStrictEqual(config.locales, ['en', 'es'])
 })
