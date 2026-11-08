@@ -83,7 +83,7 @@ export class Transformer extends InertVisitors {
     /** runtime init info for each scope */
     initRuntimeInfo: [stmt: string, start: number, end: number | null][] = []
     patternMatchMods = 0 // number of modified pattern matches, for realBodyStarts
-    inFuncTxts = 0 // number of txts inside descendant function bodies
+    inFuncTxts = 0 // number of txts inside descendant function bodies, except those left to an enclosing function
     programBodyStart = new Map<Estree.Program, number>() // different when e.g. 'use strict'
     /** will be passed to decide which runtime variable to use */
     runtimeCtx = {}
@@ -601,12 +601,12 @@ export class Transformer extends InertVisitors {
                 bodyStart = this.#updateBodyStart(bodyStart, bod.start)
             }
         }
-        this.inFuncTxts += txts.length
         return [txts, hasBareTxts, bodyStart]
     }
 
     visitFunctionBody(node: Estree.BlockStatement | Estree.Expression, end?: number): Text[] {
         const prevPatternMods = this.patternMatchMods
+        const prevInFuncTxts = this.inFuncTxts
         const initRuntimeBefore = this.initRuntimeInfo.length
         let txts: Text[],
             bodyStart: number | null,
@@ -636,6 +636,10 @@ export class Transformer extends InertVisitors {
             if (initRuntime) {
                 this.initRuntimeInfo.push([initRuntime, bodyStart, bodyEnd])
             }
+            // a nested function with no runtime of its own leaves it to the enclosing function,
+            // which has to see these as its own txts to declare it
+            const funcDepth = this.scopePath.filter(s => ['function', 'funcexpr', 'method'].includes(s.type)).length
+            this.inFuncTxts = prevInFuncTxts + (!initRuntime && funcDepth > 1 ? 0 : txts.length)
         }
         return txts
     }

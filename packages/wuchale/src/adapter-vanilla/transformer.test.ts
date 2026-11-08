@@ -212,6 +212,45 @@ test('Runtime init place', t => {
     )
 })
 
+test('Runtime init left to the enclosing function by a nested one', t => {
+    transformTest(
+        t,
+        getOutput(ts`
+        export function g() {
+            const visit = () => {
+                return 'Hello'
+            }
+            return visit()
+        }
+        export function load(report) {
+            return run(() => {
+                const fail = () => report('Hello')
+                return fail()
+            }) ?? 'Hello'
+        }
+    `),
+        ts`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+
+        export function g() {
+            const _w_runtime_ = _w_load_();
+            const visit = () => {
+                return _w_runtime_(0)
+            }
+            return visit()
+        }
+        export function load(report) {
+            const _w_runtime_ = _w_load_();
+            return run(() => {
+                const fail = () => report(_w_runtime_(0))
+                return fail()
+            }) ?? _w_runtime_(0)
+        }
+    `,
+        ['Hello', 'Hello', 'Hello'],
+    )
+})
+
 test('useReactive nullish fallback stays boolean', t => {
     transformTest(
         t,
