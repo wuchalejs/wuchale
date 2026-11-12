@@ -149,8 +149,9 @@ type HubOpts = {
     root: string
     primary: boolean
     log: Logger
-    // threshold to consider po file change is manual edit instead of a sideeffect of editing code
-    hmrDelayThreshold: number
+    // what this process last wrote to each catalog file, to tell its own writes
+    // coming back through the watcher apart from changes made by anything else
+    catalogWrites: Map<string, string>
     fs: FS
     handlers: Map<string, AdapterHandler>
     confUpdateFileAbs: string
@@ -167,7 +168,6 @@ export class Hub {
     #formatTransformErr: TransformErrFormatter = e => e
 
     #hmrVersion = 0
-    #lastSourceTriggeredCatalogWrite: number = 0
 
     #lastAdapterForFile = new Map<string, string>()
 
@@ -176,9 +176,6 @@ export class Hub {
         this.#handlers = opts.handlers
         const handlersByLoaderPath: Map<string, AdapterHandler> = new Map()
         for (const [key, handler] of opts.handlers) {
-            handler.onBeforeSave = () => {
-                this.#lastSourceTriggeredCatalogWrite = performance.now()
-            }
             for (const path of Object.values(handler.files.loaderPath)) {
                 const loaderPath = normalizeSep(resolve(path))
                 if (handlersByLoaderPath.has(loaderPath)) {
@@ -215,13 +212,32 @@ export class Hub {
         config: Config,
         root: string,
         modifyAdapters: string[] = [],
-        hmrDelayThreshold = 1000,
-        fs = defaultFS,
+        /** @deprecated unused: catalog changes are told apart from our own writes by content */
+        _hmrDelayThreshold = 1000,
+        baseFS = defaultFS,
         formatTransformErr: TransformErrFormatter = e => e,
     ) => {
         const adaptersData = Object.entries(config.adapters)
         if (adaptersData.length === 0) {
             throw Error(`${logPrefix} at least one adapter is needed.`)
+        }
+        const catalogPaths = new Set<string>()
+        const catalogWrites = new Map<string, string>()
+        const fs: FS = {
+            read: file => baseFS.read(file),
+            write: (file, content) => {
+                const normalized = normalizeSep(file)
+                if (catalogPaths.has(normalized)) {
+                    catalogWrites.set(normalized, content)
+                }
+                return baseFS.write(file, content)
+            },
+            mkdir: path => baseFS.mkdir(path),
+            exists: path => baseFS.exists(path),
+            unlink: path => {
+                catalogWrites.delete(normalizeSep(path))
+                return baseFS.unlink(path)
+            },
         }
         const log = new Logger(config.logLevel)
         const pidFileAbs = resolve(root, config.localesDir, generatedDir, devPidFile)
@@ -236,22 +252,26 @@ export class Hub {
         const commonOpts = { config, mode, fs, root, log }
         for (const [key, adapter] of adaptersData) {
             const sourceLocale = adapter.sourceLocale ?? config.locales[0]
+            const sharedState = await getSharedState(
+                sharedStates,
+                config,
+                fs,
+                root,
+                adapter,
+                key,
+                sourceLocale,
+                newItemsAllowed(mode, config.dev),
+            )
+            for (const fname of sharedState.storage.files) {
+                catalogPaths.add(normalizeSep(fname))
+            }
             const handler = await AdapterHandler.create({
                 ...commonOpts,
                 primary,
                 adapter,
                 key,
                 sourceLocale,
-                sharedState: await getSharedState(
-                    sharedStates,
-                    config,
-                    fs,
-                    root,
-                    adapter,
-                    key,
-                    sourceLocale,
-                    newItemsAllowed(mode, config.dev),
-                ),
+                sharedState,
                 devMode: config.dev,
                 modifyInplace: modifyAdapters.includes(key),
             })
@@ -266,7 +286,7 @@ export class Hub {
             primary,
             handlers,
             confUpdateFileAbs: normalizeSep(confUpdateFileAbs),
-            hmrDelayThreshold,
+            catalogWrites,
             formatTransformErr,
         })
     }
@@ -293,8 +313,11 @@ export class Hub {
             this.#hmrVersion++
             return
         }
-        // catalog changed. read and update if not self triggered
-        if (performance.now() - this.#lastSourceTriggeredCatalogWrite > this.#opts.hmrDelayThreshold) {
+        // Catalog changed. Reload it unless it is our own write coming back. A
+        // time window can't tell them apart: `git checkout`, `git pull` or
+        // `wuchale --clean` change sources and catalogs together, so the source
+        // change makes us write and the catalog change lands right after it.
+        if ((await read()) !== this.#opts.catalogWrites.get(file)) {
             for (const handler of handlers) {
                 await handler.loadStorage()
                 await handler.compile(this.#hmrVersion, true)

@@ -108,7 +108,6 @@ export class AdapterHandler {
     readonly files: Files
     readonly url: URLHandler
     readonly aiQueue?: AIQueue
-    onBeforeSave?: () => void
     #fallbackChains: Map<string, string[]>
     #newKeys = new Set<string>() // keys added during dev
     storageUpdated = false // for cli, to write only at the end
@@ -165,7 +164,6 @@ export class AdapterHandler {
     }
 
     saveStorage = async () => {
-        this.onBeforeSave?.()
         await this.sharedState.save(this.#opts.mode === 'dev' && this.#opts.devMode === 'clean')
     }
 
