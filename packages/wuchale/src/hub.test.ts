@@ -149,3 +149,25 @@ test('different dev modes', async (t: TestContext) => {
     t.assert.match(poContent, /"Hello"/)
     t.assert.doesNotMatch(poContent, /"Hello1"/)
 })
+
+test('hub reloads a catalog changed by another process right after its own write', async (t: TestContext) => {
+    const po = resolve(import.meta.dirname, 'src/locales/en.po')
+    const poFname = normalizeSep(po)
+    await inMemFS.unlink(devPidPath)
+    await inMemFS.unlink(po)
+    // a real threshold: the catalog change below lands inside it
+    const hub = await Hub.create('dev', config, import.meta.dirname, [], 60_000, inMemFS)
+    await hub.transform(code, file) // writes the catalog
+
+    // our own write coming back through the watcher is not a change
+    t.assert.strictEqual(await hub.onFileChange(poFname, async () => (await inMemFS.read(po)) ?? ''), false)
+
+    // e.g. `git checkout` or `wuchale --clean` rewrites the catalog straight after
+    const external = `${(await inMemFS.read(po)) ?? ''}\n#: src/bar.js\nmsgid "Extern"\nmsgstr "Extern"\n`
+    await inMemFS.write(po, external)
+    await hub.onFileChange(poFname, () => external)
+
+    // the next write from the dev server must not clobber it
+    await hub.transform(ts`const x = () => 'Hello'`, resolve(import.meta.dirname, 'src/bar2.js'))
+    t.assert.match((await inMemFS.read(po)) ?? '', /msgid "Extern"/)
+})

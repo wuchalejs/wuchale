@@ -51,6 +51,7 @@ export function trimViteQueries(id: string, trimParams: Set<string>) {
 
 export type PluginConf = {
     configPath?: string
+    /** @deprecated no longer used: catalog changes are told apart from wuchale's own writes by content */
     hmrDelayThreshold?: number
     trimQueryParams?: string[]
 }
