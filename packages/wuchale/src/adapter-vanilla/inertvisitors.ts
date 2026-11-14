@@ -13,12 +13,6 @@ export default class {
     visitCatchClause(): Text[] {
         return []
     }
-    visitClassBody(): Text[] {
-        return []
-    }
-    visitClassExpression(): Text[] {
-        return []
-    }
     visitContinueStatement(): Text[] {
         return []
     }
@@ -55,18 +49,9 @@ export default class {
     visitMetaProperty(): Text[] {
         return []
     }
-    visitMethodDefinition(): Text[] {
-        return []
-    } // handled inside visitClassDeclaration
     visitPrivateIdentifier(): Text[] {
         return []
     }
-    visitPropertyDefinition(): Text[] {
-        return []
-    }
-    visitStaticBlock(): Text[] {
-        return []
-    } // handled inside visitClassDeclaration
     visitSuper(): Text[] {
         return []
     }

@@ -55,6 +55,33 @@ test('Simple text and props destruct', async t => {
     )
 })
 
+test('Svelte module class fields and expressions use the plain loader', async t => {
+    transformTest(
+        t,
+        await getOutput(
+            ts`
+            const Greeter = class {
+                label = () => 'Field greeting'
+                greet() {
+                    return 'Method greeting'
+                }
+            }
+        `,
+            'test.svelte.ts',
+        ),
+        ts`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        const Greeter = class {
+            label = () => _w_load_()(0)
+            greet() {
+                return _w_load_()(1)
+            }
+        }
+    `,
+        ['Field greeting', 'Method greeting'],
+    )
+})
+
 test('Script block', async t => {
     transformTest(
         t,

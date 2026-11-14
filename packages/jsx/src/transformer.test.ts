@@ -57,6 +57,31 @@ test('React basic', async t => {
     )
 })
 
+test('React class field and class expression use the plain loader', t => {
+    transformTest(
+        t,
+        getOutput(tsx`
+        const Greeter = class {
+            label = 'Field label'
+            render() {
+                return <p>Method greeting</p>
+            }
+        }
+    `),
+        tsx`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import W_tx_ from "@wuchale/jsx/runtime.jsx"
+        const Greeter = class {
+            label = _w_load_()(0)
+            render() {
+                return <p>{_w_load_()(1)}</p>
+            }
+        }
+    `,
+        ['Field label', 'Method greeting'],
+    )
+})
+
 test('React arrow function component', async t => {
     transformTest(
         t,
