@@ -240,3 +240,152 @@ test('Nested and mixed', async (t: TestContext) => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Nested elements inside expressions', async (t: TestContext) => {
+    transformTest(
+        t,
+        getOutput(tsx`
+            export function Probe({ a }: { a: boolean }) {
+                return (
+                    <div>
+                        {a ? <div><hr /></div> : null}
+                        <p>Hello world, this text is lost.</p>
+                    </div>
+                )
+            }
+        `),
+        tsx`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
+
+            export function Probe({ a }: { a: boolean }) {
+                const _w_runtime_ = _w_load_rx_();
+                return (
+                    <div>
+                        {a ? <div><hr /></div> : null}
+                        <p>{_w_runtime_(0)}</p>
+                    </div>
+                )
+            }
+        `,
+        ['Hello world, this text is lost.'],
+    )
+
+    transformTest(
+        t,
+        getOutput(tsx`
+            function m(a: boolean, b: boolean) {
+                return (
+                    <div>
+                        {a ? <div><hr /></div> : null}
+                        {b ? (
+                            <section>
+                                {a ? <div><hr /></div> : null}
+                                <span>First inner</span>
+                            </section>
+                        ) : (
+                            <div><br /></div>
+                        )}
+                        <p>After expressions</p>
+                        <span>Another sibling</span>
+                    </div>
+                )
+            }
+        `),
+        tsx`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
+
+            function m(a: boolean, b: boolean) {
+                const _w_runtime_ = _w_load_();
+                return (
+                    <div>
+                        {a ? <div><hr /></div> : null}
+                        {b ? (
+                            <section>
+                                {a ? <div><hr /></div> : null}
+                                <span>{_w_runtime_(0)}</span>
+                            </section>
+                        ) : (
+                            <div><br /></div>
+                        )}
+                        <p>{_w_runtime_(1)}</p>
+                        <span>{_w_runtime_(2)}</span>
+                    </div>
+                )
+            }
+        `,
+        ['First inner', 'After expressions', 'Another sibling'],
+    )
+
+    transformTest(
+        t,
+        getOutput(tsx`
+            function mixed(a: boolean) {
+                return (
+                    <>
+                        <p>Prefix {a ? <span><b>bold</b></span> : <em>alt</em>} suffix</p>
+                        <p>{a ? <div><span>inner text</span></div> : null} trailing text</p>
+                        <p>Leading text {a ? <div><hr /></div> : null}</p>
+                        <p>Outer {a ? <span>Inner <b>bold</b>!</span> : null} end</p>
+                        <p>Click <Tooltip content={<div><span>Tip</span></div>}>here</Tooltip> to continue</p>
+                        <p>Before <Layout header={<div><span>Header</span></div>} /> after</p>
+                        <div>
+                            <Layout header={<div><hr /></div>} />
+                            <p>Main content</p>
+                        </div>
+                    </>
+                )
+            }
+        `),
+        tsx`
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
+
+            function mixed(a: boolean) {
+                const _w_runtime_ = _w_load_();
+                return (
+                    <>
+                        <p><W_tx_ x={_w_runtime_.c(7)} a={[a ? <span><b>{_w_runtime_(0)}</b></span> : <em>{_w_runtime_(1)}</em>]} /></p>
+                        <p><W_tx_ x={_w_runtime_.c(8)} a={[a ? <div><span>{_w_runtime_(2)}</span></div> : null]} /></p>
+                        <p><W_tx_ x={_w_runtime_.c(9)} a={[a ? <div><hr /></div> : null]} /></p>
+                        <p><W_tx_ x={_w_runtime_.c(10)} a={[a ? <span><W_tx_ t={[_w_ctx_ => <b key="_0">{_w_runtime_.x(_w_ctx_)}</b>]} x={_w_runtime_.c(3)} /></span> : null]} /></p>
+                        <p><W_tx_ t={[_w_ctx_ => <Tooltip key="_1" content={<div><span>{_w_runtime_(4)}</span></div>}>{_w_runtime_.x(_w_ctx_)}</Tooltip>]} x={_w_runtime_.c(11)} /></p>
+                        <p><W_tx_ t={[() => <Layout header={<div><span>{_w_runtime_(5)}</span></div>} />]} x={_w_runtime_.c(13)} /></p>
+                        <div>
+                            <Layout header={<div><hr /></div>} />
+                            <p>{_w_runtime_(6)}</p>
+                        </div>
+                    </>
+                )
+            }
+        `,
+        [
+            'bold',
+            'alt',
+            'inner text',
+            'Inner <0>bold</0>!',
+            'Tip',
+            'Header',
+            'Main content',
+            {
+                body: 'Prefix {0} suffix',
+                placeholders: [['0', 'a ? <span><b>bold</b></span> : <em>alt</em>']],
+            },
+            {
+                body: '{0} trailing text',
+                placeholders: [['0', 'a ? <div><span>inner text</span></div> : null']],
+            },
+            {
+                body: 'Leading text {0}',
+                placeholders: [['0', 'a ? <div><hr /></div> : null']],
+            },
+            {
+                body: 'Outer {0} end',
+                placeholders: [['0', 'a ? <span>Inner <b>bold</b>!</span> : null']],
+            },
+            'Click <0>here</0> to continue',
+            'Before <0/> after',
+        ],
+    )
+})

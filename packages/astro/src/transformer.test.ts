@@ -234,3 +234,32 @@ test('Nested and mixed', async t => {
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
     )
 })
+
+test('Nested elements inside expressions', async t => {
+    transformTest(
+        t,
+        await getOutput(astro`
+            <div>
+                {a ? <div><hr /></div> : null}
+                <p>Hello world</p>
+            </div>
+            <p>Prefix {a ? <span><b>bold</b></span> : <em>alt</em>} suffix</p>
+        `),
+        astro`
+        ---
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        import _w_Tx_ from "@wuchale/astro/runtime.js"
+        const _w_runtime_ = _w_load_();
+        ---
+        <div>
+            {a ? <div><hr /></div> : null}
+            <p>{_w_runtime_(0)}</p>
+        </div>
+        <p>{_w_Tx_({
+            x: _w_runtime_.c(3),
+            a: [a ? <span><b>{_w_runtime_(1)}</b></span> : <em>{_w_runtime_(2)}</em>]
+        })}</p>
+    `,
+        ['Hello world', 'bold', 'alt', 'Prefix {0} suffix'],
+    )
+})
