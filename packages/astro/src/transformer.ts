@@ -194,6 +194,7 @@ export class AstroTransformer extends Transformer {
     }
 
     visitelement(node: ElementNode): Text[] {
+        const alreadyInElement = this.scopePath.at(-1)!.type === 'element'
         return this.inScope({ type: 'element', name: node.name }, () => {
             const txts: Text[] = []
             for (const attrib of node.attributes) {
@@ -201,7 +202,7 @@ export class AstroTransformer extends Transformer {
             }
             const { end } = this.getRange(node)
             this._saveCorrectedRanges(node.children, end)
-            txts.push(...this._visitChildren(node.children, true))
+            txts.push(...this._visitChildren(node.children, alreadyInElement))
             return txts
         })
     }

@@ -138,13 +138,6 @@ export class MixedVisitor<
         return txts
     }
 
-    #applyModClear(scope: Scope['type'] = 'element') {
-        const mod = this.#mod.get(scope)!
-        const txts = this.#applyMod(mod)
-        this.#mod.set(scope, newMod())
-        return txts
-    }
-
     #getLastChildEnd(children: MixNodeT[]): number {
         const lastChild = children.slice(-1)[0]!
         const lastChildEnd = this.#props.getRange(lastChild).end
@@ -298,7 +291,9 @@ export class MixedVisitor<
     }
 
     visit(props: VisitProps<MixNodeT>) {
+        const scope = this.#props.scopePath.at(-1)!
         if (props.children.length === 0) {
+            this.#mod.delete(scope.type)
             return []
         }
         let hasCommentDirectives = false
@@ -312,7 +307,6 @@ export class MixedVisitor<
         const txts: Text[] = []
         const placeholders: [string, string][] = []
         const alreadyInsideUnit = props.commentDirectives.unit ?? false
-        const scope = this.#props.scopePath.at(-1)!
         const nums = this.#childNums(props.children)
         const mod = this.#getMod(scope, props.nestable, alreadyInsideUnit || nums.text > 0, props.addMod)
         const exprFuncs: ModFunc[] = []
@@ -327,6 +321,7 @@ export class MixedVisitor<
                 continue
             }
             if (props.commentDirectives.ignoreFile) {
+                this.#mod.delete(scope.type)
                 return []
             }
             const chRange = this.#props.getRange(child)
@@ -344,14 +339,13 @@ export class MixedVisitor<
                     body += this.#text(mod, props, trimOut, chRange, nums)
                 }
             } else if (props.commentDirectives.forceType !== false) {
-                if (this.#props.leaveInPlace(child)) {
+                const leaveInPlace = this.#props.leaveInPlace(child)
+                if (leaveInPlace || this.#props.isExpression(child)) {
                     const prevMod = this.#mod
                     this.#mod = new Map() // isolate
                     txts.push(...this.#props.visitFunc(child))
                     this.#mod = prevMod // restore
-                } else if (this.#props.isExpression(child)) {
-                    txts.push(...this.#props.visitFunc(child))
-                    if (nums.text > 0 || nums.element > 0) {
+                    if (!leaveInPlace && (nums.text > 0 || nums.element > 0)) {
                         body += this.#expression(exprFuncs, chRange, iArg, placeholders, lastChildEnd)
                         iArg++
                     }
@@ -393,8 +387,9 @@ export class MixedVisitor<
             mod.funcs.push(...exprFuncs, this.#finalMod(props, txt, lastChildEnd, childrenNestedRanges, iArg > 0, nums))
         }
         if (mod.unit || !mod.building || hasCommentDirectives || !props.nestable) {
-            txts.push(...this.#applyModClear(scope.type))
+            txts.push(...this.#applyMod(mod))
         }
+        this.#mod.delete(scope.type)
         return txts
     }
 }
