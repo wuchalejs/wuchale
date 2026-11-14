@@ -82,6 +82,7 @@ export class Transformer extends InertVisitors {
     scopePath: Scope[] = []
     /** runtime init info for each scope */
     initRuntimeInfo: [stmt: string, start: number, end: number | null][] = []
+    #inlineClassRuntime = false
     patternMatchMods = 0 // number of modified pattern matches, for realBodyStarts
     inFuncTxts = 0 // number of txts inside descendant function bodies
     programBodyStart = new Map<Estree.Program, number>() // different when e.g. 'use strict'
@@ -117,7 +118,11 @@ export class Transformer extends InertVisitors {
             }
         }
         this.currentRtVar = rtBaseVars[0]!
+        const inlineClassVars = runtimeVars(rtConf.plain.wrapUse, ctx.expr.plain)
         this.vars = () => {
+            if (this.#inlineClassRuntime) {
+                return inlineClassVars
+            }
             const useReactive =
                 typeof rtConf.useReactive === 'boolean'
                     ? rtConf.useReactive
@@ -630,7 +635,7 @@ export class Transformer extends InertVisitors {
             }
             bodyEnd = end ?? node.end
         }
-        if (hasBare || this.patternMatchMods > prevPatternMods) {
+        if (!this.#inlineClassRuntime && (hasBare || this.patternMatchMods > prevPatternMods)) {
             this.initRuntimeInfo = this.initRuntimeInfo.slice(0, initRuntimeBefore) // remove descendants
             const initRuntime = this.initRuntime()
             if (initRuntime) {
@@ -707,31 +712,60 @@ export class Transformer extends InertVisitors {
         return node.argument ? this.visit(node.argument) : []
     }
 
-    visitClassDeclaration(node: Estree.ClassDeclaration): Text[] {
-        const txts: Text[] = []
-        this.inScope({ type: 'class', name: node.id.name }, () => {
-            for (const body of node.body.body) {
-                if (body.type === 'MethodDefinition') {
-                    const methodName = this.content.slice(body.key.start, body.key.end)
-                    txts.push(...this.visit(body.key))
-                    if (body.value.type === 'FunctionExpression') {
-                        // and not e.g. TSDeclareMethod
-                        txts.push(
-                            ...this.inScope({ type: 'method', name: methodName }, () =>
-                                this.visitFunctionBody(body.value.body),
-                            ),
-                        )
-                    }
-                } else if (body.type === 'StaticBlock') {
-                    txts.push(
-                        ...this.inScope({ type: 'method', name: '[static]' }, () =>
-                            body.body.flatMap(n => this.visit(n)),
-                        ),
-                    )
-                }
-            }
-        })
+    visitClassDeclaration(node: Estree.ClassDeclaration | Estree.ClassExpression): Text[] {
+        return this.inScope({ type: 'class', name: node.id?.name ?? '' }, () => this.visit(node.body))
+    }
+
+    visitClassExpression(node: Estree.ClassExpression): Text[] {
+        return this.#withInlineClassRuntime(() => this.visitClassDeclaration(node))
+    }
+
+    visitClassBody(node: Estree.ClassBody): Text[] {
+        return node.body.flatMap(member => this.visit(member))
+    }
+
+    visitMethodDefinition(node: Estree.MethodDefinition): Text[] {
+        const name = this.content.slice(node.key.start, node.key.end)
+        const txts = !this.#inlineClassRuntime || node.computed ? this.visit(node.key) : []
+        if (node.value.type === 'FunctionExpression') {
+            // and not e.g. TSDeclareMethod
+            txts.push(...this.inScope({ type: 'method', name }, () => this.visitFunctionBody(node.value.body)))
+        }
         return txts
+    }
+
+    visitPropertyDefinition(node: Estree.PropertyDefinition): Text[] {
+        const txts: Text[] = []
+        if (node.computed) {
+            txts.push(...this.#withInlineClassRuntime(() => this.visit(node.key)))
+        }
+        const value = node.value
+        if (value) {
+            const name = this.content.slice(node.key.start, node.key.end)
+            txts.push(...this.#withInlineClassRuntime(() => this.inScopeVisit({ type: 'method', name }, value)))
+        }
+        return txts
+    }
+
+    #withInlineClassRuntime(visit: () => Text[]): Text[] {
+        const wasInline = this.#inlineClassRuntime
+        const previousTexts = this.inFuncTxts
+        const previousPatterns = this.patternMatchMods
+        this.#inlineClassRuntime = true
+        try {
+            // Class expressions and fields have no common statement position for
+            // a runtime declaration. Read the plain runtime where it is used.
+            const txts = visit()
+            this.inFuncTxts = previousTexts + txts.length
+            this.patternMatchMods = previousPatterns
+            return txts
+        } finally {
+            this.#inlineClassRuntime = wasInline
+        }
+    }
+
+    visitStaticBlock(node: Estree.StaticBlock): Text[] {
+        return this.inScope({ type: 'method', name: '[static]' }, () => node.body.flatMap(n => this.visit(n)))
     }
 
     visitTemplateLiteralQuasis(node: Estree.TemplateLiteral, forHeuristic = false): [Text, number, Text[]] {

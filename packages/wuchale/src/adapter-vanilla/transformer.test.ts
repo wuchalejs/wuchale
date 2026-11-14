@@ -163,6 +163,40 @@ test('Inside class declarations', t => {
     )
 })
 
+test('Inside class field initializers and class expressions', t => {
+    transformTest(
+        t,
+        getOutput(ts`
+        class Greeter {
+            'Field name' = 'Field label'
+            static label = 'Static label'
+            greet = () => 'Arrow greeting'
+            unset: string
+        }
+        const Other = class {
+            greet() {
+                return 'Method greeting'
+            }
+        }
+    `),
+        ts`
+        import { _w_load_, _w_load_rx_ } from "./loader.js"
+        class Greeter {
+            'Field name' = _w_load_()(0)
+            static label = _w_load_()(1)
+            greet = () => _w_load_()(2)
+            unset: string
+        }
+        const Other = class {
+            greet() {
+                return _w_load_()(3)
+            }
+        }
+    `,
+        ['Field label', 'Static label', 'Arrow greeting', 'Method greeting'],
+    )
+})
+
 test('Runtime init place', t => {
     transformTest(
         t,
