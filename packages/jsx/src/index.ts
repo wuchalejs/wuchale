@@ -42,11 +42,18 @@ const defaultRuntime: RuntimeConf = {
     initReactive: path => {
         const [funcName, nested] = getFuncNameNested(path)
         const inTopLevel = funcName == null
+        // A class body is not a component: without a function scope above
+        // it, getFuncNameNested finds no name and the method would be
+        // treated as top level (no init), emitting an unbound lookup.
+        // Initialize the plain runtime in the method instead.
+        const inMethod = path.some(s => s.type === 'method')
+        if (inTopLevel) {
+            return inMethod ? false : null
+        }
         const insideReactive =
-            !inTopLevel &&
             !nested &&
             ((funcName.startsWith('use') && funcName.length > 3) || /[A-Z]/.test(funcName[0]!))
-        return inTopLevel ? null : insideReactive
+        return insideReactive
     },
     useReactive: path => {
         const [funcName, nested] = getFuncNameNested(path)

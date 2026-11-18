@@ -24,6 +24,20 @@ const getOutput = (content: string, variant = 'default' as 'default' | 'solidjs'
         variant === 'default' ? defaultArgs.runtime : defaultRuntimeSolid,
     ).transformJx(`@wuchale/jsx/runtime${variant === 'solidjs' ? '.solid' : ''}.jsx`, variant)
 
+const getOutputWithHeuristic = (content: string, heuristic: typeof defaultArgs.heuristic) =>
+    new JSXTransformer(
+        {
+            content,
+            filename: 'test.tsx',
+            index: new IndexTracker(true),
+            expr: catalogExpr,
+            matchUrl: urlHandler.match,
+        },
+        heuristic,
+        defaultArgs.patterns,
+        defaultArgs.runtime,
+    ).transformJx('@wuchale/jsx/runtime.jsx', 'default')
+
 test('React basic', async t => {
     transformTest(
         t,
@@ -238,5 +252,41 @@ test('Nested and mixed', async (t: TestContext) => {
             }
     `,
         ['Hello and <0>welcome to <0>the app {0}</0></0>!'],
+    )
+})
+
+test('Class method initializes runtime', async t => {
+    // A literal extracted from a class method body must come with a
+    // runtime initialization in that method. Emitting the lookup without
+    // the init throws ReferenceError when the method runs.
+    transformTest(
+        t,
+        getOutputWithHeuristic(
+            tsx`
+        function trSource(s: string): string {
+            return s
+        }
+        class Foo {
+            method() {
+                return trSource('method label here')
+            }
+        }
+    `,
+            () => 'message',
+        ),
+        tsx`
+            function trSource(s: string): string {
+                return s
+            }
+            import { _w_load_, _w_load_rx_ } from "./loader.js"
+            import W_tx_ from "@wuchale/jsx/runtime.jsx"
+            class Foo {
+                method() {
+                    const _w_runtime_ = _w_load_();
+                    return trSource(_w_runtime_(0))
+                }
+            }
+    `,
+        ['method label here'],
     )
 })
